@@ -41,9 +41,9 @@ result = data["key"]
 
     #[test]
     fn test_w12dt_type_helpers_002_int_literal_index() {
-        let py = r#"
+        let py = r"
 result = data[1]
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("1")); // Index or access with integer
     }
@@ -60,10 +60,10 @@ result = data[key]
 
     #[test]
     fn test_w12dt_type_helpers_004_numeric_var_index() {
-        let py = r#"
+        let py = r"
 i = 5
 result = data[i]
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("i"));
     }
@@ -120,10 +120,10 @@ for key in ["a", "b"]:
 
     #[test]
     fn test_w12dt_type_helpers_010_k_var_is_string_key() {
-        let py = r#"
+        let py = r"
 for k in dict_keys:
     val = mapping[k]
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("k"));
     }
@@ -170,27 +170,27 @@ stripped = text.strip()
 
     #[test]
     fn test_w12dt_type_helpers_015_chr_returns_string() {
-        let py = r#"
+        let py = r"
 c = chr(65)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("char") || rs.contains("from_u32"));
     }
 
     #[test]
     fn test_w12dt_type_helpers_016_str_returns_string() {
-        let py = r#"
+        let py = r"
 s = str(42)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("to_string"));
     }
 
     #[test]
     fn test_w12dt_type_helpers_017_hex_returns_string() {
-        let py = r#"
+        let py = r"
 h = hex(255)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("0x") || rs.contains("format"));
     }
@@ -224,49 +224,49 @@ result = "  text  ".strip()
 
     #[test]
     fn test_w12dt_type_helpers_021_i_is_numeric_index() {
-        let py = r#"
+        let py = r"
 for i in range(10):
     val = items[i]
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("i") && rs.contains("items")); // Numeric index variable i
     }
 
     #[test]
     fn test_w12dt_type_helpers_022_j_is_numeric_index() {
-        let py = r#"
+        let py = r"
 for j in range(5):
     matrix[j][0] = 1
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("j"));
     }
 
     #[test]
     fn test_w12dt_type_helpers_023_idx_is_numeric_index() {
-        let py = r#"
+        let py = r"
 idx = 0
 value = array[idx]
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("idx"));
     }
 
     #[test]
     fn test_w12dt_type_helpers_024_index_var_is_numeric() {
-        let py = r#"
+        let py = r"
 index = 3
 item = collection[index]
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("index"));
     }
 
     #[test]
     fn test_w12dt_type_helpers_025_binary_expr_is_numeric() {
-        let py = r#"
+        let py = r"
 result = data[i + 1]
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("+"));
     }
@@ -322,68 +322,68 @@ trimmed = content.strip()
 
     #[test]
     fn test_w12dt_type_helpers_031_tuple_literal_base() {
-        let py = r#"
+        let py = r"
 pair = (1, 2)
 first = pair[0]
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("0") || rs.contains("first"));
     }
 
     #[test]
     fn test_w12dt_type_helpers_032_tuple_var_base() {
-        let py = r#"
+        let py = r"
 entry = (5, 10)
 x = entry[0]
 y = entry[1]
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("entry"));
     }
 
     #[test]
     fn test_w12dt_type_helpers_033_enumerate_returns_tuple() {
-        let py = r#"
+        let py = r"
 for idx, val in enumerate(items):
     print(idx, val)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("enumerate") || rs.contains("iter"));
     }
 
     #[test]
     fn test_w12dt_type_helpers_034_dict_items_returns_tuples() {
-        let py = r#"
+        let py = r"
 for key, value in data.items():
     print(key, value)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("items") || rs.contains("iter"));
     }
 
     #[test]
     fn test_w12dt_type_helpers_035_set_literal() {
-        let py = r#"
+        let py = r"
 s = {1, 2, 3}
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("HashSet") || rs.contains("set"));
     }
 
     #[test]
     fn test_w12dt_type_helpers_036_set_constructor() {
-        let py = r#"
+        let py = r"
 s = set([1, 2, 3])
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("HashSet") || rs.contains("collect"));
     }
 
     #[test]
     fn test_w12dt_type_helpers_037_frozenset_literal() {
-        let py = r#"
+        let py = r"
 fs = frozenset([1, 2, 3])
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("HashSet") || rs.contains("collect"));
     }
@@ -480,18 +480,18 @@ joined = separator.join(items)
 
     #[test]
     fn test_w12dt_type_helpers_047_attribute_text_is_string() {
-        let py = r#"
+        let py = r"
 upper_text = args.text.upper()
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("text"));
     }
 
     #[test]
     fn test_w12dt_type_helpers_048_attribute_prefix_is_string() {
-        let py = r#"
+        let py = r"
 has_prefix = line.startswith(args.prefix)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("prefix"));
     }
@@ -507,9 +507,9 @@ result = "hello world".title()
 
     #[test]
     fn test_w12dt_type_helpers_050_str_call_returns_string() {
-        let py = r#"
+        let py = r"
 s = str(3.14)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("to_string"));
     }
@@ -522,11 +522,11 @@ s = str(3.14)
 
     #[test]
     fn test_w12dt_instance_dispatch_051_parse_args() {
-        let py = r#"
+        let py = r"
 import argparse
 parser = argparse.ArgumentParser()
 args = parser.parse_args()
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("parse") || rs.contains("Args"));
     }
@@ -544,11 +544,11 @@ parser.add_argument("--name")
 
     #[test]
     fn test_w12dt_instance_dispatch_053_print_help() {
-        let py = r#"
+        let py = r"
 import argparse
 parser = argparse.ArgumentParser()
 parser.print_help()
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("print_help") || rs.contains("CommandFactory"));
     }
@@ -649,10 +649,10 @@ resolved = path.resolve()
 
     #[test]
     fn test_w12dt_instance_dispatch_063_sys_stdin_method() {
-        let py = r#"
+        let py = r"
 import sys
 line = sys.stdin.readline()
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("stdin") || rs.contains("read"));
     }
@@ -679,10 +679,10 @@ sys.stderr.write("error\n")
 
     #[test]
     fn test_w12dt_instance_dispatch_066_file_write_option_content() {
-        let py = r#"
+        let py = r"
 def write_data(f, content):
     f.write(content)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("write"));
     }
@@ -854,69 +854,69 @@ with open("output.txt", "w") as f:
 
     #[test]
     fn test_w12dt_lambda_gen_081_lambda_zero_params() {
-        let py = r#"
+        let py = r"
 get_value = lambda: 42
 result = get_value()
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("||") && rs.contains("42"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_082_lambda_one_param() {
-        let py = r#"
+        let py = r"
 double = lambda x: x * 2
 result = double(5)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("|x|") || rs.contains("*"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_083_lambda_two_params() {
-        let py = r#"
+        let py = r"
 add = lambda a, b: a + b
 result = add(3, 4)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("a") && rs.contains("b"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_084_lambda_three_params() {
-        let py = r#"
+        let py = r"
 combine = lambda x, y, z: x + y + z
 result = combine(1, 2, 3)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("x") && rs.contains("y") && rs.contains("z"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_085_lambda_four_params() {
-        let py = r#"
+        let py = r"
 calc = lambda a, b, c, d: (a + b) * (c + d)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("a") && rs.contains("d"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_086_lambda_in_map() {
-        let py = r#"
+        let py = r"
 nums = [1, 2, 3]
 squared = list(map(lambda x: x * x, nums))
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("map") || rs.contains("iter"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_087_lambda_in_filter() {
-        let py = r#"
+        let py = r"
 nums = [1, 2, 3, 4, 5]
 evens = list(filter(lambda x: x % 2 == 0, nums))
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("filter") || rs.contains("%"));
     }
@@ -933,22 +933,22 @@ sorted_words = sorted(words, key=lambda x: len(x))
 
     #[test]
     fn test_w12dt_lambda_gen_089_nested_lambda() {
-        let py = r#"
+        let py = r"
 make_adder = lambda x: lambda y: x + y
 add_five = make_adder(5)
 result = add_five(3)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("|x|") || rs.contains("|y|"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_090_lambda_capturing_outer_var() {
-        let py = r#"
+        let py = r"
 multiplier = 10
 scale = lambda x: x * multiplier
 result = scale(5)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("multiplier"));
     }
@@ -965,37 +965,37 @@ format_result = lambda x: prefix + str(x)
 
     #[test]
     fn test_w12dt_lambda_gen_092_lambda_with_list_capture() {
-        let py = r#"
+        let py = r"
 items = [1, 2, 3]
 get_first = lambda: items[0]
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("items"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_093_generator_expression_simple() {
-        let py = r#"
+        let py = r"
 gen = (x * 2 for x in range(10))
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("map") || rs.contains("iter"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_094_generator_with_condition() {
-        let py = r#"
+        let py = r"
 gen = (x for x in range(10) if x > 5)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("filter") || rs.contains(">"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_095_generator_nested() {
-        let py = r#"
+        let py = r"
 gen = (x * y for x in range(3) for y in range(3))
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("flat_map") || rs.contains("*"));
     }
@@ -1082,19 +1082,19 @@ result = "negative" if x < 0 else "zero" if x == 0 else "positive"
 
     #[test]
     fn test_w12dt_lambda_gen_104_ternary_in_assignment() {
-        let py = r#"
+        let py = r"
 condition = True
 value = 1 if condition else 0
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("if") || rs.contains("condition"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_105_lambda_with_ternary() {
-        let py = r#"
+        let py = r"
 clamp = lambda x: 0 if x < 0 else 100 if x > 100 else x
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("if"));
     }
@@ -1111,18 +1111,18 @@ sorted_items = sorted(items, key=lambda x: x["value"])
 
     #[test]
     fn test_w12dt_lambda_gen_107_lambda_boolean_logic() {
-        let py = r#"
+        let py = r"
 check = lambda x, y: x > 0 and y > 0
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("&&") || rs.contains("and"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_108_lambda_list_comprehension() {
-        let py = r#"
+        let py = r"
 process = lambda items: [x * 2 for x in items]
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("map") || rs.contains("iter"));
     }
@@ -1140,27 +1140,27 @@ result = f"{x} + {y} = {x + y}"
 
     #[test]
     fn test_w12dt_lambda_gen_110_generator_sum() {
-        let py = r#"
+        let py = r"
 total = sum(x * x for x in range(10))
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("sum") || rs.contains("*"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_111_generator_any() {
-        let py = r#"
+        let py = r"
 has_even = any(x % 2 == 0 for x in nums)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("any") || rs.contains("%"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_112_generator_all() {
-        let py = r#"
+        let py = r"
 all_positive = all(x > 0 for x in nums)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("all") || rs.contains(">"));
     }
@@ -1176,9 +1176,9 @@ get_name = lambda obj: obj["name"]
 
     #[test]
     fn test_w12dt_lambda_gen_114_lambda_tuple_destructure() {
-        let py = r#"
+        let py = r"
 get_first = lambda pair: pair[0]
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("[0]") || rs.contains("first"));
     }
@@ -1195,27 +1195,27 @@ message = f"Count: {len(items)}"
 
     #[test]
     fn test_w12dt_lambda_gen_116_lambda_string_ops() {
-        let py = r#"
+        let py = r"
 uppercase = lambda s: s.upper()
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("to_uppercase") || rs.contains("upper"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_117_lambda_arithmetic() {
-        let py = r#"
+        let py = r"
 calc = lambda a, b: (a + b) * (a - b)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("+") && rs.contains("-"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_118_generator_comprehension_filter() {
-        let py = r#"
+        let py = r"
 evens = (x for x in range(20) if x % 2 == 0 if x > 5)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("filter"));
     }
@@ -1232,36 +1232,36 @@ s = f"{val!s}"
 
     #[test]
     fn test_w12dt_lambda_gen_120_lambda_comparison_chain() {
-        let py = r#"
+        let py = r"
 in_range = lambda x: 0 <= x <= 100
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("<="));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_121_ternary_with_function_call() {
-        let py = r#"
+        let py = r"
 result = len(items) if items else 0
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("len") || rs.contains("if"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_122_lambda_with_default_handling() {
-        let py = r#"
+        let py = r"
 get_or_default = lambda d, k: d[k] if k in d else None
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("get") || rs.contains("if"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_123_generator_with_tuple() {
-        let py = r#"
+        let py = r"
 pairs = ((i, i*2) for i in range(5))
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("map") || rs.contains("*"));
     }
@@ -1278,30 +1278,30 @@ msg = f"The value is {data['key']}"
 
     #[test]
     fn test_w12dt_lambda_gen_125_lambda_capturing_multiple_vars() {
-        let py = r#"
+        let py = r"
 a = 5
 b = 10
 combine = lambda x: x + a + b
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("a") || rs.contains("b"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_126_sorted_reverse_with_lambda() {
-        let py = r#"
+        let py = r"
 nums = [3, 1, 4, 1, 5]
 sorted_desc = sorted(nums, key=lambda x: -x)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("sort"));
     }
 
     #[test]
     fn test_w12dt_lambda_gen_127_map_with_lambda_index() {
-        let py = r#"
+        let py = r"
 indexed = list(map(lambda x: (x[0], x[1]), enumerate(items)))
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("map") || rs.contains("enumerate"));
     }
@@ -1327,9 +1327,9 @@ is_vowel = lambda c: c in "aeiou"
 
     #[test]
     fn test_w12dt_lambda_gen_130_generator_with_enumerate() {
-        let py = r#"
+        let py = r"
 indexed = ((i, x*2) for i, x in enumerate(items))
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("enumerate"));
     }
@@ -1342,9 +1342,9 @@ indexed = ((i, x*2) for i, x in enumerate(items))
 
     #[test]
     fn test_w12dt_dict_const_131_empty_dict() {
-        let py = r#"
+        let py = r"
 d = {}
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("HashMap") || rs.contains("{}"));
     }
@@ -1360,9 +1360,9 @@ d = {"a": 1, "b": 2}
 
     #[test]
     fn test_w12dt_dict_const_133_dict_comprehension() {
-        let py = r#"
+        let py = r"
 d = {k: v for k, v in items}
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("collect") || rs.contains("HashMap"));
     }
@@ -1418,9 +1418,9 @@ d = {1: "a", 2: "b", 3: "c"}
 
     #[test]
     fn test_w12dt_dict_const_139_dict_with_computed_keys() {
-        let py = r#"
+        let py = r"
 d = {str(i): i*2 for i in range(5)}
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("HashMap") || rs.contains("collect"));
     }
@@ -1454,9 +1454,9 @@ d = dict([("a", 1), ("b", 2)])
 
     #[test]
     fn test_w12dt_dict_const_143_dict_with_conditional_values() {
-        let py = r#"
+        let py = r"
 d = {k: v if v > 0 else 0 for k, v in items}
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("HashMap"));
     }
@@ -1492,9 +1492,9 @@ d = {w: w.upper() for w in words}
 
     #[test]
     fn test_w12dt_dict_const_147_dict_filtered_comprehension() {
-        let py = r#"
+        let py = r"
 d = {k: v for k, v in items if v > 10}
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("filter") || rs.contains(">"));
     }
@@ -1541,9 +1541,9 @@ stats = {"mean": 5.5, "median": 5.0, "std": 1.2}
 
     #[test]
     fn test_w12dt_dict_const_152_dict_comprehension_enumerate() {
-        let py = r#"
+        let py = r"
 d = {i: v for i, v in enumerate(items)}
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("enumerate"));
     }
@@ -1607,9 +1607,9 @@ d.update({"b": 2})
 
     #[test]
     fn test_w12dt_dict_const_159_dict_with_computed_values() {
-        let py = r#"
+        let py = r"
 d = {k: k*k for k in range(10)}
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("HashMap"));
     }
@@ -1704,70 +1704,70 @@ result = ", ".join(["a", "b", "c"])
 
     #[test]
     fn test_w12dt_method_routing_169_list_append() {
-        let py = r#"
+        let py = r"
 items = [1, 2, 3]
 items.append(4)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("push") || rs.contains("append"));
     }
 
     #[test]
     fn test_w12dt_method_routing_170_list_extend() {
-        let py = r#"
+        let py = r"
 items = [1, 2]
 items.extend([3, 4])
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("extend"));
     }
 
     #[test]
     fn test_w12dt_method_routing_171_list_sort() {
-        let py = r#"
+        let py = r"
 items = [3, 1, 2]
 items.sort()
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("sort"));
     }
 
     #[test]
     fn test_w12dt_method_routing_172_list_reverse() {
-        let py = r#"
+        let py = r"
 items = [1, 2, 3]
 items.reverse()
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("reverse"));
     }
 
     #[test]
     fn test_w12dt_method_routing_173_list_pop() {
-        let py = r#"
+        let py = r"
 items = [1, 2, 3]
 last = items.pop()
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("pop"));
     }
 
     #[test]
     fn test_w12dt_method_routing_174_list_remove() {
-        let py = r#"
+        let py = r"
 items = [1, 2, 3, 2]
 items.remove(2)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("retain") || rs.contains("remove"));
     }
 
     #[test]
     fn test_w12dt_method_routing_175_list_index() {
-        let py = r#"
+        let py = r"
 items = [10, 20, 30]
 idx = items.index(20)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("position") || rs.contains("index"));
     }
@@ -1834,42 +1834,42 @@ value = d.pop("a")
 
     #[test]
     fn test_w12dt_method_routing_182_set_add() {
-        let py = r#"
+        let py = r"
 s = {1, 2, 3}
 s.add(4)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("insert") || rs.contains("add"));
     }
 
     #[test]
     fn test_w12dt_method_routing_183_set_remove() {
-        let py = r#"
+        let py = r"
 s = {1, 2, 3}
 s.remove(2)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("remove"));
     }
 
     #[test]
     fn test_w12dt_method_routing_184_set_union() {
-        let py = r#"
+        let py = r"
 s1 = {1, 2}
 s2 = {2, 3}
 s3 = s1.union(s2)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("union"));
     }
 
     #[test]
     fn test_w12dt_method_routing_185_set_intersection() {
-        let py = r#"
+        let py = r"
 s1 = {1, 2, 3}
 s2 = {2, 3, 4}
 s3 = s1.intersection(s2)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("intersection"));
     }
@@ -1894,40 +1894,40 @@ result = "hello world".split(" ")[0].upper()
 
     #[test]
     fn test_w12dt_method_routing_188_usage_inference_append() {
-        let py = r#"
+        let py = r"
 def process(data):
     data.append(42)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("push") || rs.contains("append"));
     }
 
     #[test]
     fn test_w12dt_method_routing_189_usage_inference_upper() {
-        let py = r#"
+        let py = r"
 def process(text):
     return text.upper()
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("to_uppercase") || rs.contains("upper"));
     }
 
     #[test]
     fn test_w12dt_method_routing_190_usage_inference_keys() {
-        let py = r#"
+        let py = r"
 def process(mapping):
     return list(mapping.keys())
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("keys"));
     }
 
     #[test]
     fn test_w12dt_method_routing_191_list_count() {
-        let py = r#"
+        let py = r"
 items = [1, 2, 2, 3, 2]
 count = items.count(2)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("filter") || rs.contains("count"));
     }
@@ -1962,10 +1962,10 @@ result = "hello world".title()
 
     #[test]
     fn test_w12dt_method_routing_195_list_clear() {
-        let py = r#"
+        let py = r"
 items = [1, 2, 3]
 items.clear()
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("clear"));
     }
@@ -1982,11 +1982,11 @@ d.setdefault("key", [])
 
     #[test]
     fn test_w12dt_method_routing_197_set_difference() {
-        let py = r#"
+        let py = r"
 s1 = {1, 2, 3}
 s2 = {2, 3}
 s3 = s1.difference(s2)
-"#;
+";
         let rs = transpile(py);
         assert!(rs.contains("difference"));
     }

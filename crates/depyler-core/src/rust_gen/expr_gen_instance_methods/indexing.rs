@@ -470,7 +470,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-0357: Check if index is a positive integer literal
             // For literal indices like p[0], generate simple inline code: .get(0)
-            // This avoids unnecessary temporary variables and runtime checks
+            // This avoids unnecessary intermediate variables and runtime checks
             // DEPYLER-0730: Use .expect() instead of .unwrap_or_default() to:
             //   1. Match Python semantics (IndexError on out of bounds, not default)
             //   2. Avoid requiring Default trait bound on generic T

@@ -641,7 +641,7 @@ mod tests {
         };
         let json = serde_json::to_string(&summary).unwrap();
         assert!(json.contains("42"));
-        assert!(json.contains("X"));
+        assert!(json.contains('X'));
     }
 
     // === Global instance tests ===

@@ -2676,7 +2676,7 @@ mod tests {
         let constraint = TypeConstraint::Compatible { var: "x".to_string(), ty: Type::Int };
         let debug = format!("{:?}", constraint);
         assert!(debug.contains("Compatible"));
-        assert!(debug.contains("x"));
+        assert!(debug.contains('x'));
     }
 
     #[test]
@@ -3140,7 +3140,7 @@ mod tests {
         }];
         let result = provider.format_hints(&hints);
         assert!(
-            result.contains("x") || result.contains("Int") || !result.is_empty(),
+            result.contains('x') || result.contains("Int") || !result.is_empty(),
             "formatted: {}",
             result
         );

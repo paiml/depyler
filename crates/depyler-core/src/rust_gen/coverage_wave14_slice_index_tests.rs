@@ -34,10 +34,10 @@ mod tests {
 
     #[test]
     fn test_w14si_slice_001_list_reverse_full() {
-        let code = r#"
+        let code = r"
 def reverse_list(data: list) -> list:
     return data[::-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("rev") || result.contains("step"));
@@ -45,10 +45,10 @@ def reverse_list(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_002_list_step_by_two() {
-        let code = r#"
+        let code = r"
 def every_other(data: list) -> list:
     return data[::2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("step_by") || result.contains("step"));
@@ -56,10 +56,10 @@ def every_other(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_003_list_start_step_two() {
-        let code = r#"
+        let code = r"
 def from_one_step_two(data: list) -> list:
     return data[1::2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("step") || result.contains("iter"));
@@ -67,10 +67,10 @@ def from_one_step_two(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_004_list_stop_step_two() {
-        let code = r#"
+        let code = r"
 def to_three_step_two(data: list) -> list:
     return data[:3:2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("step") || result.contains("min"));
@@ -78,10 +78,10 @@ def to_three_step_two(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_005_list_negative_start() {
-        let code = r#"
+        let code = r"
 def last_three(data: list) -> list:
     return data[-3:]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("isize") || result.contains("start") || result.contains("len"));
@@ -89,10 +89,10 @@ def last_three(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_006_list_negative_stop() {
-        let code = r#"
+        let code = r"
 def except_last_two(data: list) -> list:
     return data[:-2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("isize") || result.contains("stop") || result.contains("len"));
@@ -100,10 +100,10 @@ def except_last_two(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_007_list_negative_both() {
-        let code = r#"
+        let code = r"
 def middle_neg(data: list) -> list:
     return data[1:-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("isize") || result.contains("to_vec"));
@@ -111,10 +111,10 @@ def middle_neg(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_008_string_step_two() {
-        let code = r#"
+        let code = r"
 def every_other_char(s: str) -> str:
     return s[::2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("step_by"));
@@ -122,10 +122,10 @@ def every_other_char(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_009_string_reverse() {
-        let code = r#"
+        let code = r"
 def reverse_string(s: str) -> str:
     return s[::-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("rev") || result.contains("chars"));
@@ -133,10 +133,10 @@ def reverse_string(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_010_string_neg_start() {
-        let code = r#"
+        let code = r"
 def last_three_chars(s: str) -> str:
     return s[-3:]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("skip"));
@@ -144,10 +144,10 @@ def last_three_chars(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_011_string_neg_to_neg() {
-        let code = r#"
+        let code = r"
 def middle_chars(s: str) -> str:
     return s[1:-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("String"));
@@ -155,10 +155,10 @@ def middle_chars(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_012_list_start_neg_step() {
-        let code = r#"
+        let code = r"
 def from_two_reverse(data: list) -> list:
     return data[2::-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("rev") || result.contains("step") || result.contains("iter"));
@@ -166,10 +166,10 @@ def from_two_reverse(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_013_list_stop_neg_step() {
-        let code = r#"
+        let code = r"
 def until_two_reverse(data: list) -> list:
     return data[:2:-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("rev") || result.contains("step") || result.contains("iter"));
@@ -177,10 +177,10 @@ def until_two_reverse(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_014_list_full_range_neg_step() {
-        let code = r#"
+        let code = r"
 def full_reverse_step(data: list) -> list:
     return data[4:1:-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("rev") || result.contains("step") || result.contains("collect"));
@@ -188,10 +188,10 @@ def full_reverse_step(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_015_list_positive_range_step() {
-        let code = r#"
+        let code = r"
 def range_with_step(data: list) -> list:
     return data[0:5:2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("step_by") || result.contains("step"));
@@ -199,10 +199,10 @@ def range_with_step(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_016_string_start_stop_step() {
-        let code = r#"
+        let code = r"
 def substr_step(s: str) -> str:
     return s[0:5:2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("step"));
@@ -210,10 +210,10 @@ def substr_step(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_017_string_neg_step_two() {
-        let code = r#"
+        let code = r"
 def reverse_step_two(s: str) -> str:
     return s[::-2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("rev") || result.contains("step") || result.contains("chars"));
@@ -221,10 +221,10 @@ def reverse_step_two(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_018_list_neg_start_step() {
-        let code = r#"
+        let code = r"
 def neg_start_step(data: list) -> list:
     return data[-4::2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("step") || result.contains("isize") || result.contains("iter"));
@@ -232,10 +232,10 @@ def neg_start_step(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_019_list_full_clone() {
-        let code = r#"
+        let code = r"
 def clone_list(data: list) -> list:
     return data[:]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clone"));
@@ -243,10 +243,10 @@ def clone_list(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_020_string_full_clone() {
-        let code = r#"
+        let code = r"
 def clone_str(s: str) -> str:
     return s[:]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("to_string"));
@@ -254,10 +254,10 @@ def clone_str(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_021_list_step_three() {
-        let code = r#"
+        let code = r"
 def every_third(data: list) -> list:
     return data[::3]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("step") || result.contains("iter"));
@@ -265,10 +265,10 @@ def every_third(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_022_list_start_stop_positive() {
-        let code = r#"
+        let code = r"
 def sublist(data: list) -> list:
     return data[2:7]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("to_vec") || result.contains("start") || result.contains("stop"));
@@ -276,10 +276,10 @@ def sublist(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_023_string_start_only() {
-        let code = r#"
+        let code = r"
 def from_second(s: str) -> str:
     return s[2:]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("skip"));
@@ -287,10 +287,10 @@ def from_second(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_024_string_stop_only() {
-        let code = r#"
+        let code = r"
 def first_four(s: str) -> str:
     return s[:4]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("take"));
@@ -298,10 +298,10 @@ def first_four(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_025_list_neg_step_neg_start() {
-        let code = r#"
+        let code = r"
 def neg_both(data: list) -> list:
     return data[-1::-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("rev") || result.contains("step") || result.contains("iter"));
@@ -309,10 +309,10 @@ def neg_both(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_026_string_start_step() {
-        let code = r#"
+        let code = r"
 def from_one_step(s: str) -> str:
     return s[1::2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("step"));
@@ -320,10 +320,10 @@ def from_one_step(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_027_string_stop_step() {
-        let code = r#"
+        let code = r"
 def to_four_step(s: str) -> str:
     return s[:4:2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("step") || result.contains("take"));
@@ -331,10 +331,10 @@ def to_four_step(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_028_list_neg_stop_only() {
-        let code = r#"
+        let code = r"
 def trim_end(data: list) -> list:
     return data[:-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("isize") || result.contains("to_vec") || result.contains("len"));
@@ -342,10 +342,10 @@ def trim_end(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_029_string_neg_stop_only() {
-        let code = r#"
+        let code = r"
 def trim_last(s: str) -> str:
     return s[:-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("take"));
@@ -353,10 +353,10 @@ def trim_last(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_030_list_start_to_neg_stop() {
-        let code = r#"
+        let code = r"
 def mid_section(data: list) -> list:
     return data[2:-2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("isize") || result.contains("to_vec"));
@@ -364,10 +364,10 @@ def mid_section(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_031_string_neg_start_neg_stop() {
-        let code = r#"
+        let code = r"
 def neg_range_str(s: str) -> str:
     return s[-4:-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("String"));
@@ -375,10 +375,10 @@ def neg_range_str(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_032_list_step_one() {
-        let code = r#"
+        let code = r"
 def step_one(data: list) -> list:
     return data[::1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("step") || result.contains("clone") || result.contains("base"));
@@ -386,10 +386,10 @@ def step_one(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_033_string_step_one() {
-        let code = r#"
+        let code = r"
 def str_step_one(s: str) -> str:
     return s[::1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -399,10 +399,10 @@ def str_step_one(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_034_list_start_stop_step_one() {
-        let code = r#"
+        let code = r"
 def sublist_step_one(data: list) -> list:
     return data[1:4:1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("to_vec") || result.contains("step") || result.contains("base"));
@@ -410,10 +410,10 @@ def sublist_step_one(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_035_string_start_stop_step_one() {
-        let code = r#"
+        let code = r"
 def substr_step_one(s: str) -> str:
     return s[1:4:1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("String") || result.contains("step"));
@@ -421,10 +421,10 @@ def substr_step_one(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_036_list_neg_start_pos_stop() {
-        let code = r#"
+        let code = r"
 def neg_to_pos(data: list) -> list:
     return data[-5:3]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("isize") || result.contains("to_vec") || result.contains("start"));
@@ -432,10 +432,10 @@ def neg_to_pos(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_037_string_neg_start_pos_stop() {
-        let code = r#"
+        let code = r"
 def str_neg_to_pos(s: str) -> str:
     return s[-5:3]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("String"));
@@ -443,10 +443,10 @@ def str_neg_to_pos(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_038_list_start_neg_step_two() {
-        let code = r#"
+        let code = r"
 def rev_step_two(data: list) -> list:
     return data[4:0:-2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("rev") || result.contains("step") || result.contains("collect"));
@@ -454,10 +454,10 @@ def rev_step_two(data: list) -> list:
 
     #[test]
     fn test_w14si_slice_039_string_start_neg_step() {
-        let code = r#"
+        let code = r"
 def str_rev_from(s: str) -> str:
     return s[3:0:-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("rev") || result.contains("step"));
@@ -465,10 +465,10 @@ def str_rev_from(s: str) -> str:
 
     #[test]
     fn test_w14si_slice_040_list_neg_start_neg_stop_neg_step() {
-        let code = r#"
+        let code = r"
 def full_neg(data: list) -> list:
     return data[-1:-4:-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -485,10 +485,10 @@ def full_neg(data: list) -> list:
 
     #[test]
     fn test_w14si_index_001_tuple_first() {
-        let code = r#"
+        let code = r"
 def first(t: tuple) -> int:
     return t[0]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains(".0") || result.contains("get(0") || result.contains("t[0"));
@@ -496,10 +496,10 @@ def first(t: tuple) -> int:
 
     #[test]
     fn test_w14si_index_002_tuple_second() {
-        let code = r#"
+        let code = r"
 def second(t: tuple) -> int:
     return t[1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains(".1") || result.contains("get(1") || result.contains("t[1"));
@@ -518,10 +518,10 @@ def get_name(d: dict) -> str:
 
     #[test]
     fn test_w14si_index_004_dict_variable_key() {
-        let code = r#"
+        let code = r"
 def get_val(d: dict, k: str):
     return d[k]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("get") || result.contains("k"));
@@ -540,10 +540,10 @@ def nested(d: dict) -> int:
 
     #[test]
     fn test_w14si_index_006_list_neg_one() {
-        let code = r#"
+        let code = r"
 def last_item(data: list) -> int:
     return data[-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -553,10 +553,10 @@ def last_item(data: list) -> int:
 
     #[test]
     fn test_w14si_index_007_string_first_char() {
-        let code = r#"
+        let code = r"
 def first_char(s: str) -> str:
     return s[0]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("nth"));
@@ -564,10 +564,10 @@ def first_char(s: str) -> str:
 
     #[test]
     fn test_w14si_index_008_string_neg_one() {
-        let code = r#"
+        let code = r"
 def last_char(s: str) -> str:
     return s[-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -589,10 +589,10 @@ def set_key():
 
     #[test]
     fn test_w14si_index_010_nested_list_index() {
-        let code = r#"
+        let code = r"
 def get_cell(matrix: list, i: int, j: int) -> int:
     return matrix[i][j]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("get") || result.contains("matrix"));
@@ -600,10 +600,10 @@ def get_cell(matrix: list, i: int, j: int) -> int:
 
     #[test]
     fn test_w14si_index_011_list_positive_literal() {
-        let code = r#"
+        let code = r"
 def third(data: list) -> int:
     return data[2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("get(2") || result.contains("data"));
@@ -611,10 +611,10 @@ def third(data: list) -> int:
 
     #[test]
     fn test_w14si_index_012_list_variable_index() {
-        let code = r#"
+        let code = r"
 def by_index(data: list, idx: int) -> int:
     return data[idx]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("get") || result.contains("idx") || result.contains("as usize"));
@@ -622,10 +622,10 @@ def by_index(data: list, idx: int) -> int:
 
     #[test]
     fn test_w14si_index_013_dict_get_method() {
-        let code = r#"
+        let code = r"
 def safe_get(d: dict, key: str) -> str:
     return d.get(key)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains(".get(") || result.contains("cloned"));
@@ -633,10 +633,10 @@ def safe_get(d: dict, key: str) -> str:
 
     #[test]
     fn test_w14si_index_014_dict_get_with_default() {
-        let code = r#"
+        let code = r"
 def safe_get_default(d: dict, key: str) -> int:
     return d.get(key, 0)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains(".get(") || result.contains("unwrap_or"));
@@ -644,10 +644,10 @@ def safe_get_default(d: dict, key: str) -> int:
 
     #[test]
     fn test_w14si_index_015_list_neg_two() {
-        let code = r#"
+        let code = r"
 def second_to_last(data: list) -> int:
     return data[-2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -657,10 +657,10 @@ def second_to_last(data: list) -> int:
 
     #[test]
     fn test_w14si_index_016_string_index_two() {
-        let code = r#"
+        let code = r"
 def third_char(s: str) -> str:
     return s[2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("nth"));
@@ -679,10 +679,10 @@ def add_entry(d: dict):
 
     #[test]
     fn test_w14si_index_018_list_computed_index() {
-        let code = r#"
+        let code = r"
 def computed(data: list, n: int) -> int:
     return data[n - 1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("get") || result.contains("idx") || result.contains("actual_idx"));
@@ -702,10 +702,10 @@ def int_key():
 
     #[test]
     fn test_w14si_index_020_string_neg_two() {
-        let code = r#"
+        let code = r"
 def second_last_char(s: str) -> str:
     return s[-2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("nth") || result.contains("count"));
@@ -713,10 +713,10 @@ def second_last_char(s: str) -> str:
 
     #[test]
     fn test_w14si_index_021_list_zero() {
-        let code = r#"
+        let code = r"
 def first_elem(data: list) -> int:
     return data[0]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("get(0") || result.contains("data"));
@@ -736,10 +736,10 @@ def nested_set(d: dict):
 
     #[test]
     fn test_w14si_index_023_list_assign_index() {
-        let code = r#"
+        let code = r"
 def set_elem(data: list, i: int):
     data[i] = 42
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("42") || result.contains("data"));
@@ -760,10 +760,10 @@ def multi_access(d: dict) -> str:
 
     #[test]
     fn test_w14si_index_025_string_index_variable() {
-        let code = r#"
+        let code = r"
 def char_at(s: str, i: int) -> str:
     return s[i]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("chars") || result.contains("nth") || result.contains("idx"));
@@ -783,10 +783,10 @@ def from_literal():
 
     #[test]
     fn test_w14si_index_027_list_last_positive() {
-        let code = r#"
+        let code = r"
 def element_four(data: list) -> int:
     return data[4]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("get(4") || result.contains("data"));
@@ -794,10 +794,10 @@ def element_four(data: list) -> int:
 
     #[test]
     fn test_w14si_index_028_tuple_third() {
-        let code = r#"
+        let code = r"
 def third_elem(t: tuple):
     return t[2]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains(".2") || result.contains("get(2") || result.contains("t"));
@@ -805,11 +805,11 @@ def third_elem(t: tuple):
 
     #[test]
     fn test_w14si_index_029_list_append_then_index() {
-        let code = r#"
+        let code = r"
 def build_and_get():
     data = [10, 20, 30]
     return data[1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("vec!") || result.contains("get") || result.contains("10"));
@@ -895,10 +895,10 @@ def update_dict(d: dict):
 
     #[test]
     fn test_w14si_dict_006_keys_basic() {
-        let code = r#"
+        let code = r"
 def get_keys(d: dict):
     return d.keys()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("keys()") || result.contains("collect"));
@@ -906,10 +906,10 @@ def get_keys(d: dict):
 
     #[test]
     fn test_w14si_dict_007_values_basic() {
-        let code = r#"
+        let code = r"
 def get_values(d: dict):
     return d.values()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("values()") || result.contains("collect"));
@@ -917,10 +917,10 @@ def get_values(d: dict):
 
     #[test]
     fn test_w14si_dict_008_items_basic() {
-        let code = r#"
+        let code = r"
 def get_items(d: dict):
     return d.items()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -930,10 +930,10 @@ def get_items(d: dict):
 
     #[test]
     fn test_w14si_dict_009_dict_comprehension() {
-        let code = r#"
+        let code = r"
 def square_map():
     return {i: i * 2 for i in range(5)}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -957,10 +957,10 @@ def get_with_str_default(d: dict) -> str:
 
     #[test]
     fn test_w14si_dict_011_clear() {
-        let code = r#"
+        let code = r"
 def clear_dict(d: dict):
     d.clear()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clear()"));
@@ -968,10 +968,10 @@ def clear_dict(d: dict):
 
     #[test]
     fn test_w14si_dict_012_copy() {
-        let code = r#"
+        let code = r"
 def copy_dict(d: dict) -> dict:
     return d.copy()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clone()"));
@@ -979,10 +979,10 @@ def copy_dict(d: dict) -> dict:
 
     #[test]
     fn test_w14si_dict_013_popitem() {
-        let code = r#"
+        let code = r"
 def pop_item(d: dict):
     return d.popitem()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("keys") || result.contains("remove") || result.contains("popitem"));
@@ -1013,11 +1013,11 @@ def update_and_read(d: dict):
 
     #[test]
     fn test_w14si_dict_016_keys_in_loop() {
-        let code = r#"
+        let code = r"
 def print_keys(d: dict):
     for k in d.keys():
         print(k)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("keys()") || result.contains("for") || result.contains("println"));
@@ -1025,11 +1025,11 @@ def print_keys(d: dict):
 
     #[test]
     fn test_w14si_dict_017_values_in_loop() {
-        let code = r#"
+        let code = r"
 def print_values(d: dict):
     for v in d.values():
         print(v)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -1039,11 +1039,11 @@ def print_values(d: dict):
 
     #[test]
     fn test_w14si_dict_018_items_in_loop() {
-        let code = r#"
+        let code = r"
 def print_items(d: dict):
     for k, v in d.items():
         print(k, v)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("iter") || result.contains("for") || result.contains("items"));
@@ -1051,10 +1051,10 @@ def print_items(d: dict):
 
     #[test]
     fn test_w14si_dict_019_dict_comp_with_filter() {
-        let code = r#"
+        let code = r"
 def even_squares():
     return {i: i * i for i in range(10) if i % 2 == 0}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -1080,10 +1080,10 @@ def multi_dict():
 
     #[test]
     fn test_w14si_dict_021_get_one_arg() {
-        let code = r#"
+        let code = r"
 def maybe_get(d: dict, key: str):
     return d.get(key)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("get") || result.contains("cloned"));
@@ -1127,10 +1127,10 @@ def batch_update(d: dict):
 
     #[test]
     fn test_w14si_dict_025_dict_comp_string_keys() {
-        let code = r#"
+        let code = r"
 def word_lengths(words: list):
     return {w: len(w) for w in words}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("collect") || result.contains("map") || result.contains("len"));
@@ -1138,10 +1138,10 @@ def word_lengths(words: list):
 
     #[test]
     fn test_w14si_dict_026_keys_to_list() {
-        let code = r#"
+        let code = r"
 def keys_list(d: dict) -> list:
     return list(d.keys())
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("keys") || result.contains("collect") || result.contains("Vec"));
@@ -1149,10 +1149,10 @@ def keys_list(d: dict) -> list:
 
     #[test]
     fn test_w14si_dict_027_values_to_list() {
-        let code = r#"
+        let code = r"
 def values_list(d: dict) -> list:
     return list(d.values())
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("values") || result.contains("collect") || result.contains("Vec"));
@@ -1195,11 +1195,11 @@ def reset_dict(d: dict):
 
     #[test]
     fn test_w14si_dict_031_copy_and_modify() {
-        let code = r#"
+        let code = r"
 def copy_modify(d: dict) -> dict:
     new_d = d.copy()
     return new_d
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clone") || result.contains("new_d"));
@@ -1207,10 +1207,10 @@ def copy_modify(d: dict) -> dict:
 
     #[test]
     fn test_w14si_dict_032_dict_empty_literal() {
-        let code = r#"
+        let code = r"
 def empty_dict() -> dict:
     return {}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("HashMap") || result.contains("new()"));
@@ -1218,10 +1218,10 @@ def empty_dict() -> dict:
 
     #[test]
     fn test_w14si_dict_033_dict_get_int_default() {
-        let code = r#"
+        let code = r"
 def count_get(counts: dict, key: str) -> int:
     return counts.get(key, 0)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("get") || result.contains("unwrap_or"));
@@ -1229,13 +1229,13 @@ def count_get(counts: dict, key: str) -> int:
 
     #[test]
     fn test_w14si_dict_034_items_unpack() {
-        let code = r#"
+        let code = r"
 def process_items(d: dict):
     result = []
     for k, v in d.items():
         result.append(k)
     return result
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("iter") || result.contains("push") || result.contains("for"));
@@ -1243,10 +1243,10 @@ def process_items(d: dict):
 
     #[test]
     fn test_w14si_dict_035_dict_in_check() {
-        let code = r#"
+        let code = r"
 def has_key(d: dict, key: str) -> bool:
     return key in d
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("contains_key") || result.contains("contains"));
@@ -1254,10 +1254,10 @@ def has_key(d: dict, key: str) -> bool:
 
     #[test]
     fn test_w14si_dict_036_dict_len() {
-        let code = r#"
+        let code = r"
 def dict_size(d: dict) -> int:
     return len(d)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("len()"));
@@ -1265,10 +1265,10 @@ def dict_size(d: dict) -> int:
 
     #[test]
     fn test_w14si_dict_037_dict_comp_conditional() {
-        let code = r#"
+        let code = r"
 def positive_only(d: dict):
     return {k: v for k, v in d.items() if v > 0}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("filter") || result.contains("collect") || result.contains("iter"));
@@ -1289,11 +1289,11 @@ def fill_empty():
 
     #[test]
     fn test_w14si_dict_039_get_with_none_check() {
-        let code = r#"
+        let code = r"
 def check_exists(d: dict, key: str) -> bool:
     val = d.get(key)
     return val is not None
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -1321,10 +1321,10 @@ def feature_flags():
 
     #[test]
     fn test_w14si_ctor_001_list_with_none() {
-        let code = r#"
+        let code = r"
 def with_none():
     return [1, None, 3]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("Some") || result.contains("None") || result.contains("vec!"));
@@ -1332,10 +1332,10 @@ def with_none():
 
     #[test]
     fn test_w14si_ctor_002_list_all_none() {
-        let code = r#"
+        let code = r"
 def all_none():
     return [None, None]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("None") || result.contains("vec!"));
@@ -1343,10 +1343,10 @@ def all_none():
 
     #[test]
     fn test_w14si_ctor_003_set_literal_ints() {
-        let code = r#"
+        let code = r"
 def make_set():
     return {1, 2, 3}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("HashSet") || result.contains("insert"));
@@ -1367,10 +1367,10 @@ def make_str_set():
 
     #[test]
     fn test_w14si_ctor_005_frozenset_ints() {
-        let code = r#"
+        let code = r"
 def make_frozen():
     return frozenset([1, 2, 3])
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("HashSet") || result.contains("Arc") || result.contains("insert"));
@@ -1391,11 +1391,11 @@ def mixed_tuple():
 
     #[test]
     fn test_w14si_ctor_007_empty_list() {
-        let code = r#"
+        let code = r"
 def empty():
     x = []
     return x
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("vec!") || result.contains("Vec::new"));
@@ -1403,11 +1403,11 @@ def empty():
 
     #[test]
     fn test_w14si_ctor_008_empty_dict() {
-        let code = r#"
+        let code = r"
 def empty_d():
     x = {}
     return x
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("HashMap") || result.contains("new"));
@@ -1426,10 +1426,10 @@ def string_list():
 
     #[test]
     fn test_w14si_ctor_010_list_of_floats() {
-        let code = r#"
+        let code = r"
 def float_list():
     return [1.5, 2.5, 3.5]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("vec!") || result.contains("1.5"));
@@ -1437,10 +1437,10 @@ def float_list():
 
     #[test]
     fn test_w14si_ctor_011_list_of_bools() {
-        let code = r#"
+        let code = r"
 def bool_list():
     return [True, False, True]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("vec!") || result.contains("true") || result.contains("false"));
@@ -1448,10 +1448,10 @@ def bool_list():
 
     #[test]
     fn test_w14si_ctor_012_nested_list() {
-        let code = r#"
+        let code = r"
 def nested():
     return [[1, 2], [3, 4]]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("vec!"));
@@ -1459,10 +1459,10 @@ def nested():
 
     #[test]
     fn test_w14si_ctor_013_tuple_two_ints() {
-        let code = r#"
+        let code = r"
 def pair():
     return (1, 2)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("1") && result.contains("2"));
@@ -1470,10 +1470,10 @@ def pair():
 
     #[test]
     fn test_w14si_ctor_014_tuple_single() {
-        let code = r#"
+        let code = r"
 def single():
     return (42,)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("42"));
@@ -1481,10 +1481,10 @@ def single():
 
     #[test]
     fn test_w14si_ctor_015_set_single_element() {
-        let code = r#"
+        let code = r"
 def single_set():
     return {42}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("HashSet") || result.contains("insert") || result.contains("42"));
@@ -1514,10 +1514,10 @@ def str_none():
 
     #[test]
     fn test_w14si_ctor_018_list_ints_large() {
-        let code = r#"
+        let code = r"
 def large_list():
     return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("vec!") || result.contains("10"));
@@ -1536,13 +1536,13 @@ def triple_str():
 
     #[test]
     fn test_w14si_ctor_020_set_from_range() {
-        let code = r#"
+        let code = r"
 def range_set():
     s = set()
     for i in range(5):
         s.add(i)
     return s
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("HashSet") || result.contains("insert"));
@@ -1561,10 +1561,10 @@ def int_vals():
 
     #[test]
     fn test_w14si_ctor_022_list_single_int() {
-        let code = r#"
+        let code = r"
 def single_list():
     return [42]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("vec!") || result.contains("42"));
@@ -1583,10 +1583,10 @@ def frozen_strs():
 
     #[test]
     fn test_w14si_ctor_024_tuple_with_bool() {
-        let code = r#"
+        let code = r"
 def bool_tuple():
     return (True, False)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("true") || result.contains("false"));
@@ -1594,10 +1594,10 @@ def bool_tuple():
 
     #[test]
     fn test_w14si_ctor_025_list_mixed_int_float() {
-        let code = r#"
+        let code = r"
 def mixed_nums():
     return [1, 2.5, 3]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -1621,20 +1621,20 @@ def flag_dict():
 
     #[test]
     fn test_w14si_ctor_027_empty_tuple() {
-        let code = r#"
+        let code = r"
 def empty_tup():
     return ()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w14si_ctor_028_list_comprehension_range() {
-        let code = r#"
+        let code = r"
 def comp_list():
     return [i for i in range(5)]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("collect") || result.contains("0..5") || result.contains("map"));
@@ -1642,10 +1642,10 @@ def comp_list():
 
     #[test]
     fn test_w14si_ctor_029_set_comprehension() {
-        let code = r#"
+        let code = r"
 def comp_set():
     return {i for i in range(5)}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -1679,10 +1679,10 @@ def mixed_types():
 
     #[test]
     fn test_w14si_ctor_032_list_mixed_int_bool() {
-        let code = r#"
+        let code = r"
 def int_bool_mix():
     return [1, True, 0, False]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("vec!") || result.contains("json") || result.contains("format"));
@@ -1701,10 +1701,10 @@ def nested_dict():
 
     #[test]
     fn test_w14si_ctor_034_set_with_duplicates() {
-        let code = r#"
+        let code = r"
 def dedup():
     return {1, 2, 2, 3, 3, 3}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("HashSet") || result.contains("insert"));
@@ -1712,10 +1712,10 @@ def dedup():
 
     #[test]
     fn test_w14si_ctor_035_tuple_five_ints() {
-        let code = r#"
+        let code = r"
 def five_tuple():
     return (1, 2, 3, 4, 5)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("1") && result.contains("5"));
@@ -1745,10 +1745,10 @@ def big_dict():
 
     #[test]
     fn test_w14si_ctor_038_frozenset_empty() {
-        let code = r#"
+        let code = r"
 def empty_frozen():
     return frozenset([])
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("HashSet") || result.contains("Arc"));
@@ -1756,10 +1756,10 @@ def empty_frozen():
 
     #[test]
     fn test_w14si_ctor_039_list_of_tuples() {
-        let code = r#"
+        let code = r"
 def tuple_list():
     return [(1, 2), (3, 4)]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("vec!") || result.contains("(1") || result.contains("(3"));

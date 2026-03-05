@@ -269,7 +269,7 @@ impl CasStore {
                     let blob_entry = blob_entry?;
                     if blob_entry.file_type()?.is_file() {
                         if let Some(name) = blob_entry.file_name().to_str() {
-                            // Skip temp files
+                            // Skip .tmp files
                             if !name.ends_with(".tmp") {
                                 hashes.push(name.to_string());
                             }

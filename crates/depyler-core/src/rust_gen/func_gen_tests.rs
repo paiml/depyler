@@ -850,10 +850,10 @@ fn test_func_raise_always() {
 #[test]
 fn test_func_generic_type_param() {
     assert!(transpile_ok(
-        r#"from typing import TypeVar, Generic
+        r"from typing import TypeVar, Generic
 T = TypeVar('T')
 def identity(x: T) -> T:
-    return x"#
+    return x"
     ));
 }
 
@@ -861,24 +861,24 @@ def identity(x: T) -> T:
 #[test]
 fn test_func_nested_functions() {
     assert!(transpile_ok(
-        r#"def outer():
+        r"def outer():
     def inner1():
         return 1
     def inner2():
         return 2
-    return inner1() + inner2()"#
+    return inner1() + inner2()"
     ));
 }
 
 #[test]
 fn test_func_deeply_nested() {
     assert!(transpile_ok(
-        r#"def level1():
+        r"def level1():
     def level2():
         def level3():
             return 3
         return level3()
-    return level2()"#
+    return level2()"
     ));
 }
 
@@ -913,20 +913,20 @@ fn test_func_escaping_var_multiple_branches() {
 #[test]
 fn test_func_toplevel_assignments() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     a = 1
     b = 2
     c = a + b
-    return c"#
+    return c"
     ));
 }
 
 #[test]
 fn test_func_tuple_unpack_toplevel() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     a, b, c = (1, 2, 3)
-    return a + b + c"#
+    return a + b + c"
     ));
 }
 
@@ -934,9 +934,9 @@ fn test_func_tuple_unpack_toplevel() {
 #[test]
 fn test_func_var_type_from_literal() {
     assert!(transpile_ok(
-        r#"def foo() -> int:
+        r"def foo() -> int:
     x = 42
-    return x"#
+    return x"
     ));
 }
 
@@ -953,24 +953,24 @@ fn test_func_var_type_from_annotation() {
 #[test]
 fn test_func_escaping_from_for_loop() {
     assert!(transpile_ok(
-        r#"def foo(items):
+        r"def foo(items):
     found = None
     for item in items:
         if item > 0:
             found = item
             break
-    return found"#
+    return found"
     ));
 }
 
 #[test]
 fn test_func_escaping_from_while_loop() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     count = 0
     while count < 10:
         count += 1
-    return count"#
+    return count"
     ));
 }
 
@@ -978,14 +978,14 @@ fn test_func_escaping_from_while_loop() {
 #[test]
 fn test_func_all_assigned_vars() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     a = 1
     b = 2
     if True:
         c = 3
     for i in range(5):
         d = i
-    return a + b"#
+    return a + b"
     ));
 }
 
@@ -993,19 +993,19 @@ fn test_func_all_assigned_vars() {
 #[test]
 fn test_func_var_used_later() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 1
     y = 2
-    return x + y"#
+    return x + y"
     ));
 }
 
 #[test]
 fn test_func_var_unused_later() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 1
-    return 0"#
+    return 0"
     ));
 }
 
@@ -1097,11 +1097,11 @@ fn test_func_borrowed_dict_param() {
 #[test]
 fn test_func_borrowed_optional_param() {
     assert!(transpile_ok(
-        r#"from typing import Optional
+        r"from typing import Optional
 def foo(x: Optional[str] = None) -> int:
     if x:
         return len(x)
-    return 0"#
+    return 0"
     ));
 }
 
@@ -1148,30 +1148,30 @@ fn test_func_float_return_coercion() {
 #[test]
 fn test_func_classmethod() {
     assert!(transpile_ok(
-        r#"class Foo:
+        r"class Foo:
     @classmethod
     def create(cls):
-        return cls()"#
+        return cls()"
     ));
 }
 
 #[test]
 fn test_func_staticmethod() {
     assert!(transpile_ok(
-        r#"class Foo:
+        r"class Foo:
     @staticmethod
     def helper(x):
-        return x * 2"#
+        return x * 2"
     ));
 }
 
 #[test]
 fn test_func_property() {
     assert!(transpile_ok(
-        r#"class Foo:
+        r"class Foo:
     @property
     def value(self):
-        return self._value"#
+        return self._value"
     ));
 }
 
@@ -1205,41 +1205,41 @@ fn test_func_multiline_docstring_coverage() {
 #[test]
 fn test_func_closure_coverage() {
     assert!(transpile_ok(
-        r#"def outer(x):
+        r"def outer(x):
     def inner(y):
         return x + y
-    return inner"#
+    return inner"
     ));
 }
 
 #[test]
 fn test_func_decorator_coverage() {
     assert!(transpile_ok(
-        r#"def decorator(func):
+        r"def decorator(func):
     def wrapper(*args):
         return func(*args)
     return wrapper
 
 @decorator
 def foo():
-    return 42"#
+    return 42"
     ));
 }
 
 #[test]
 fn test_func_recursive_coverage() {
     assert!(transpile_ok(
-        r#"def factorial(n):
+        r"def factorial(n):
     if n <= 1:
         return 1
-    return n * factorial(n - 1)"#
+    return n * factorial(n - 1)"
     ));
 }
 
 #[test]
 fn test_func_mutual_recursion() {
     assert!(transpile_ok(
-        r#"def is_even(n):
+        r"def is_even(n):
     if n == 0:
         return True
     return is_odd(n - 1)
@@ -1247,7 +1247,7 @@ fn test_func_mutual_recursion() {
 def is_odd(n):
     if n == 0:
         return False
-    return is_even(n - 1)"#
+    return is_even(n - 1)"
     ));
 }
 
@@ -1259,8 +1259,8 @@ def is_odd(n):
 #[test]
 fn test_func_typed_int_param() {
     let code = transpile(
-        r#"def add(a: int, b: int) -> int:
-    return a + b"#,
+        r"def add(a: int, b: int) -> int:
+    return a + b",
     );
     assert!(code.contains("i32") || code.contains("i64"));
 }
@@ -1268,8 +1268,8 @@ fn test_func_typed_int_param() {
 #[test]
 fn test_func_typed_float_param() {
     let code = transpile(
-        r#"def multiply(a: float, b: float) -> float:
-    return a * b"#,
+        r"def multiply(a: float, b: float) -> float:
+    return a * b",
     );
     assert!(code.contains("f64"));
 }
@@ -1286,8 +1286,8 @@ fn test_func_typed_string_param() {
 #[test]
 fn test_func_typed_bool_param() {
     let code = transpile(
-        r#"def negate(value: bool) -> bool:
-    return not value"#,
+        r"def negate(value: bool) -> bool:
+    return not value",
     );
     assert!(code.contains("bool"));
 }
@@ -1295,12 +1295,12 @@ fn test_func_typed_bool_param() {
 #[test]
 fn test_func_typed_list_param() {
     let code = transpile(
-        r#"from typing import List
+        r"from typing import List
 def sum_list(nums: List[int]) -> int:
     total = 0
     for n in nums:
         total += n
-    return total"#,
+    return total",
     );
     assert!(code.contains("Vec"));
 }
@@ -1308,9 +1308,9 @@ def sum_list(nums: List[int]) -> int:
 #[test]
 fn test_func_typed_dict_param() {
     let code = transpile(
-        r#"from typing import Dict
+        r"from typing import Dict
 def get_value(d: Dict[str, int], key: str) -> int:
-    return d.get(key, 0)"#,
+    return d.get(key, 0)",
     );
     assert!(code.contains("HashMap"));
 }
@@ -1318,11 +1318,11 @@ def get_value(d: Dict[str, int], key: str) -> int:
 #[test]
 fn test_func_typed_optional_param() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def maybe_double(x: Optional[int]) -> Optional[int]:
     if x is None:
         return None
-    return x * 2"#,
+    return x * 2",
     );
     assert!(code.contains("Option"));
 }
@@ -1330,9 +1330,9 @@ def maybe_double(x: Optional[int]) -> Optional[int]:
 #[test]
 fn test_func_typed_tuple_param() {
     let code = transpile(
-        r#"from typing import Tuple
+        r"from typing import Tuple
 def swap(pair: Tuple[int, int]) -> Tuple[int, int]:
-    return (pair[1], pair[0])"#,
+    return (pair[1], pair[0])",
     );
     assert!(!code.is_empty());
 }
@@ -1341,8 +1341,8 @@ def swap(pair: Tuple[int, int]) -> Tuple[int, int]:
 #[test]
 fn test_ext_func_default_int() {
     let code = transpile(
-        r#"def increment(x: int, by: int = 1) -> int:
-    return x + by"#,
+        r"def increment(x: int, by: int = 1) -> int:
+    return x + by",
     );
     assert!(!code.is_empty());
 }
@@ -1359,10 +1359,10 @@ fn test_ext_func_default_string() {
 #[test]
 fn test_ext_func_default_none() {
     let code = transpile(
-        r#"def process(data: list = None):
+        r"def process(data: list = None):
     if data is None:
         data = []
-    return len(data)"#,
+    return len(data)",
     );
     assert!(!code.is_empty());
 }
@@ -1370,9 +1370,9 @@ fn test_ext_func_default_none() {
 #[test]
 fn test_ext_func_default_bool() {
     let code = transpile(
-        r#"def debug_print(msg: str, verbose: bool = False):
+        r"def debug_print(msg: str, verbose: bool = False):
     if verbose:
-        print(msg)"#,
+        print(msg)",
     );
     assert!(!code.is_empty());
 }
@@ -1390,11 +1390,11 @@ fn test_ext_func_multiple_defaults() {
 #[test]
 fn test_ext_func_args() {
     let code = transpile(
-        r#"def sum_all(*args):
+        r"def sum_all(*args):
     total = 0
     for x in args:
         total += x
-    return total"#,
+    return total",
     );
     assert!(!code.is_empty());
 }
@@ -1402,9 +1402,9 @@ fn test_ext_func_args() {
 #[test]
 fn test_ext_func_kwargs() {
     let code = transpile(
-        r#"def print_kwargs(**kwargs):
+        r"def print_kwargs(**kwargs):
     for key, value in kwargs.items():
-        print(key, value)"#,
+        print(key, value)",
     );
     assert!(!code.is_empty());
 }
@@ -1412,10 +1412,10 @@ fn test_ext_func_kwargs() {
 #[test]
 fn test_ext_func_args_kwargs() {
     let code = transpile(
-        r#"def mixed(first, *args, **kwargs):
+        r"def mixed(first, *args, **kwargs):
     print(first)
     print(args)
-    print(kwargs)"#,
+    print(kwargs)",
     );
     assert!(!code.is_empty());
 }
@@ -1433,9 +1433,9 @@ fn test_ext_func_async_basic() {
 #[test]
 fn test_ext_func_async_await() {
     let code = transpile(
-        r#"async def process():
+        r"async def process():
     data = await fetch()
-    return data"#,
+    return data",
     );
     assert!(!code.is_empty());
 }
@@ -1444,11 +1444,11 @@ fn test_ext_func_async_await() {
 #[test]
 fn test_ext_func_generator_basic() {
     let code = transpile(
-        r#"def counter(n: int):
+        r"def counter(n: int):
     i = 0
     while i < n:
         yield i
-        i += 1"#,
+        i += 1",
     );
     assert!(!code.is_empty());
 }
@@ -1456,9 +1456,9 @@ fn test_ext_func_generator_basic() {
 #[test]
 fn test_ext_func_generator_yield_from() {
     let code = transpile(
-        r#"def flatten(nested: list):
+        r"def flatten(nested: list):
     for item in nested:
-        yield from item"#,
+        yield from item",
     );
     assert!(!code.is_empty());
 }
@@ -1467,8 +1467,8 @@ fn test_ext_func_generator_yield_from() {
 #[test]
 fn test_ext_func_lambda_simple() {
     let code = transpile(
-        r#"def get_adder():
-    return lambda x: x + 1"#,
+        r"def get_adder():
+    return lambda x: x + 1",
     );
     assert!(code.contains("|") || code.contains("closure"));
 }
@@ -1476,8 +1476,8 @@ fn test_ext_func_lambda_simple() {
 #[test]
 fn test_ext_func_lambda_multi_arg() {
     let code = transpile(
-        r#"def get_multiplier():
-    return lambda x, y: x * y"#,
+        r"def get_multiplier():
+    return lambda x, y: x * y",
     );
     assert!(!code.is_empty());
 }
@@ -1485,8 +1485,8 @@ fn test_ext_func_lambda_multi_arg() {
 #[test]
 fn test_ext_func_lambda_no_arg() {
     let code = transpile(
-        r#"def get_constant():
-    return lambda: 42"#,
+        r"def get_constant():
+    return lambda: 42",
     );
     assert!(!code.is_empty());
 }
@@ -1494,8 +1494,8 @@ fn test_ext_func_lambda_no_arg() {
 #[test]
 fn test_ext_func_lambda_in_call() {
     let code = transpile(
-        r#"def sort_by_len(items: list) -> list:
-    return sorted(items, key=lambda x: len(x))"#,
+        r"def sort_by_len(items: list) -> list:
+    return sorted(items, key=lambda x: len(x))",
     );
     assert!(!code.is_empty());
 }
@@ -1504,9 +1504,9 @@ fn test_ext_func_lambda_in_call() {
 #[test]
 fn test_ext_func_higher_order_param() {
     let code = transpile(
-        r#"from typing import Callable
+        r"from typing import Callable
 def apply(f: Callable[[int], int], x: int) -> int:
-    return f(x)"#,
+    return f(x)",
     );
     assert!(code.contains("Fn") || !code.is_empty());
 }
@@ -1514,10 +1514,10 @@ def apply(f: Callable[[int], int], x: int) -> int:
 #[test]
 fn test_ext_func_higher_order_return() {
     let code = transpile(
-        r#"def make_adder(n: int):
+        r"def make_adder(n: int):
     def adder(x: int) -> int:
         return x + n
-    return adder"#,
+    return adder",
     );
     assert!(!code.is_empty());
 }
@@ -1525,8 +1525,8 @@ fn test_ext_func_higher_order_return() {
 #[test]
 fn test_ext_func_map_usage() {
     let code = transpile(
-        r#"def double_all(nums: list) -> list:
-    return list(map(lambda x: x * 2, nums))"#,
+        r"def double_all(nums: list) -> list:
+    return list(map(lambda x: x * 2, nums))",
     );
     assert!(!code.is_empty());
 }
@@ -1534,8 +1534,8 @@ fn test_ext_func_map_usage() {
 #[test]
 fn test_ext_func_filter_usage() {
     let code = transpile(
-        r#"def filter_positive(nums: list) -> list:
-    return list(filter(lambda x: x > 0, nums))"#,
+        r"def filter_positive(nums: list) -> list:
+    return list(filter(lambda x: x > 0, nums))",
     );
     assert!(!code.is_empty());
 }
@@ -1544,12 +1544,12 @@ fn test_ext_func_filter_usage() {
 #[test]
 fn test_ext_func_method_self() {
     let code = transpile(
-        r#"class Counter:
+        r"class Counter:
     def __init__(self):
         self.count = 0
 
     def increment(self):
-        self.count += 1"#,
+        self.count += 1",
     );
     assert!(!code.is_empty());
 }
@@ -1557,10 +1557,10 @@ fn test_ext_func_method_self() {
 #[test]
 fn test_ext_func_method_classmethod() {
     let code = transpile(
-        r#"class Factory:
+        r"class Factory:
     @classmethod
     def create(cls) -> 'Factory':
-        return cls()"#,
+        return cls()",
     );
     assert!(!code.is_empty());
 }
@@ -1568,10 +1568,10 @@ fn test_ext_func_method_classmethod() {
 #[test]
 fn test_ext_func_method_staticmethod() {
     let code = transpile(
-        r#"class Math:
+        r"class Math:
     @staticmethod
     def add(a: int, b: int) -> int:
-        return a + b"#,
+        return a + b",
     );
     assert!(!code.is_empty());
 }
@@ -1579,13 +1579,13 @@ fn test_ext_func_method_staticmethod() {
 #[test]
 fn test_ext_func_method_property() {
     let code = transpile(
-        r#"class Circle:
+        r"class Circle:
     def __init__(self, radius: float):
         self._radius = radius
 
     @property
     def area(self) -> float:
-        return 3.14159 * self._radius ** 2"#,
+        return 3.14159 * self._radius ** 2",
     );
     assert!(!code.is_empty());
 }
@@ -1594,10 +1594,10 @@ fn test_ext_func_method_property() {
 #[test]
 fn test_ext_func_init() {
     let code = transpile(
-        r#"class Point:
+        r"class Point:
     def __init__(self, x: int, y: int):
         self.x = x
-        self.y = y"#,
+        self.y = y",
     );
     assert!(code.contains("new") || code.contains("impl"));
 }
@@ -1628,12 +1628,12 @@ fn test_ext_func_repr() {
 #[test]
 fn test_ext_func_len() {
     let code = transpile(
-        r#"class Container:
+        r"class Container:
     def __init__(self):
         self.items = []
 
     def __len__(self) -> int:
-        return len(self.items)"#,
+        return len(self.items)",
     );
     assert!(!code.is_empty());
 }
@@ -1641,13 +1641,13 @@ fn test_ext_func_len() {
 #[test]
 fn test_ext_func_eq() {
     let code = transpile(
-        r#"class Point:
+        r"class Point:
     def __init__(self, x: int, y: int):
         self.x = x
         self.y = y
 
     def __eq__(self, other) -> bool:
-        return self.x == other.x and self.y == other.y"#,
+        return self.x == other.x and self.y == other.y",
     );
     assert!(!code.is_empty());
 }
@@ -1656,12 +1656,12 @@ fn test_ext_func_eq() {
 #[test]
 fn test_ext_func_nested_deep() {
     let code = transpile(
-        r#"def outer():
+        r"def outer():
     def middle():
         def inner():
             return 42
         return inner()
-    return middle()"#,
+    return middle()",
     );
     assert!(!code.is_empty());
 }
@@ -1681,12 +1681,12 @@ fn test_ext_func_conditional_return_types() {
 #[test]
 fn test_ext_func_early_return_guard() {
     let code = transpile(
-        r#"def process(data: list):
+        r"def process(data: list):
     if not data:
         return None
     if len(data) == 0:
         return []
-    return data[0]"#,
+    return data[0]",
     );
     assert!(!code.is_empty());
 }
@@ -1694,11 +1694,11 @@ fn test_ext_func_early_return_guard() {
 #[test]
 fn test_ext_func_multiple_decorators() {
     let code = transpile(
-        r#"@decorator1
+        r"@decorator1
 @decorator2
 @decorator3
 def decorated():
-    return 42"#,
+    return 42",
     );
     assert!(!code.is_empty());
 }
@@ -1706,10 +1706,10 @@ def decorated():
 #[test]
 fn test_ext_func_generic_type_param() {
     let code = transpile(
-        r#"from typing import TypeVar, List
+        r"from typing import TypeVar, List
 T = TypeVar('T')
 def first(items: List[T]) -> T:
-    return items[0]"#,
+    return items[0]",
     );
     assert!(!code.is_empty());
 }
@@ -1718,7 +1718,7 @@ def first(items: List[T]) -> T:
 #[test]
 fn test_ext_func_complex_control_flow() {
     let code = transpile(
-        r#"def process(items: list) -> int:
+        r"def process(items: list) -> int:
     count = 0
     for item in items:
         if item > 0:
@@ -1727,7 +1727,7 @@ fn test_ext_func_complex_control_flow() {
             count -= 1
         else:
             continue
-    return count"#,
+    return count",
     );
     assert!(!code.is_empty());
 }
@@ -1735,11 +1735,11 @@ fn test_ext_func_complex_control_flow() {
 #[test]
 fn test_ext_func_try_in_body() {
     let code = transpile(
-        r#"def safe_parse(s: str) -> int:
+        r"def safe_parse(s: str) -> int:
     try:
         return int(s)
     except ValueError:
-        return 0"#,
+        return 0",
     );
     assert!(!code.is_empty());
 }
@@ -1747,9 +1747,9 @@ fn test_ext_func_try_in_body() {
 #[test]
 fn test_ext_func_with_in_body() {
     let code = transpile(
-        r#"def read_first_line(path: str) -> str:
+        r"def read_first_line(path: str) -> str:
     with open(path) as f:
-        return f.readline()"#,
+        return f.readline()",
     );
     assert!(!code.is_empty());
 }
@@ -1757,8 +1757,8 @@ fn test_ext_func_with_in_body() {
 #[test]
 fn test_ext_func_list_comp_in_body() {
     let code = transpile(
-        r#"def squares(n: int) -> list:
-    return [x * x for x in range(n)]"#,
+        r"def squares(n: int) -> list:
+    return [x * x for x in range(n)]",
     );
     assert!(!code.is_empty());
 }
@@ -1766,8 +1766,8 @@ fn test_ext_func_list_comp_in_body() {
 #[test]
 fn test_ext_func_dict_comp_in_body() {
     let code = transpile(
-        r#"def invert_dict(d: dict) -> dict:
-    return {v: k for k, v in d.items()}"#,
+        r"def invert_dict(d: dict) -> dict:
+    return {v: k for k, v in d.items()}",
     );
     assert!(!code.is_empty());
 }
@@ -1776,8 +1776,8 @@ fn test_ext_func_dict_comp_in_body() {
 #[test]
 fn test_ext_func_empty_body() {
     let code = transpile(
-        r#"def noop():
-    pass"#,
+        r"def noop():
+    pass",
     );
     assert!(!code.is_empty());
 }
@@ -1795,8 +1795,8 @@ fn test_ext_func_only_docstring() {
 #[test]
 fn test_ext_func_single_expression() {
     let code = transpile(
-        r#"def identity(x):
-    return x"#,
+        r"def identity(x):
+    return x",
     );
     assert!(!code.is_empty());
 }
@@ -1804,8 +1804,8 @@ fn test_ext_func_single_expression() {
 #[test]
 fn test_ext_func_long_param_list() {
     let code = transpile(
-        r#"def many_params(a: int, b: int, c: int, d: int, e: int, f: int) -> int:
-    return a + b + c + d + e + f"#,
+        r"def many_params(a: int, b: int, c: int, d: int, e: int, f: int) -> int:
+    return a + b + c + d + e + f",
     );
     assert!(!code.is_empty());
 }
@@ -1813,8 +1813,8 @@ fn test_ext_func_long_param_list() {
 #[test]
 fn test_ext_func_keyword_only_params() {
     let code = transpile(
-        r#"def keyword_only(*, name: str, value: int):
-    print(name, value)"#,
+        r"def keyword_only(*, name: str, value: int):
+    print(name, value)",
     );
     assert!(!code.is_empty());
 }
@@ -1822,8 +1822,8 @@ fn test_ext_func_keyword_only_params() {
 #[test]
 fn test_ext_func_positional_only_params() {
     let code = transpile(
-        r#"def positional_only(x: int, y: int, /):
-    return x + y"#,
+        r"def positional_only(x: int, y: int, /):
+    return x + y",
     );
     assert!(!code.is_empty());
 }
@@ -1837,8 +1837,8 @@ fn test_ext_func_positional_only_params() {
 #[test]
 fn test_cov_return_type_inference_int() {
     let code = transpile(
-        r#"def get_count():
-    return 42"#,
+        r"def get_count():
+    return 42",
     );
     assert!(code.contains("i64") || code.contains("fn"));
 }
@@ -1846,8 +1846,8 @@ fn test_cov_return_type_inference_int() {
 #[test]
 fn test_cov_return_type_inference_float() {
     let code = transpile(
-        r#"def get_pi():
-    return 3.14"#,
+        r"def get_pi():
+    return 3.14",
     );
     assert!(code.contains("f64") || code.contains("fn"));
 }
@@ -1864,8 +1864,8 @@ fn test_cov_return_type_inference_string() {
 #[test]
 fn test_cov_return_type_inference_list() {
     let code = transpile(
-        r#"def get_items():
-    return [1, 2, 3]"#,
+        r"def get_items():
+    return [1, 2, 3]",
     );
     assert!(code.contains("Vec") || code.contains("fn"));
 }
@@ -1891,8 +1891,8 @@ fn test_cov_return_type_inference_tuple() {
 #[test]
 fn test_cov_return_type_inference_bool() {
     let code = transpile(
-        r#"def is_valid():
-    return True"#,
+        r"def is_valid():
+    return True",
     );
     assert!(code.contains("bool") || code.contains("fn"));
 }
@@ -1901,9 +1901,9 @@ fn test_cov_return_type_inference_bool() {
 #[test]
 fn test_cov_param_type_from_len_call() {
     let code = transpile(
-        r#"def process(items):
+        r"def process(items):
     n = len(items)
-    return n"#,
+    return n",
     );
     assert!(code.contains("fn") || code.contains("Vec") || code.contains("len"));
 }
@@ -1911,8 +1911,8 @@ fn test_cov_param_type_from_len_call() {
 #[test]
 fn test_cov_param_type_from_method_call() {
     let code = transpile(
-        r#"def process(text):
-    return text.upper()"#,
+        r"def process(text):
+    return text.upper()",
     );
     assert!(code.contains("fn") || code.contains("&str") || code.contains("String"));
 }
@@ -1920,9 +1920,9 @@ fn test_cov_param_type_from_method_call() {
 #[test]
 fn test_cov_param_type_from_iteration() {
     let code = transpile(
-        r#"def process(items):
+        r"def process(items):
     for item in items:
-        print(item)"#,
+        print(item)",
     );
     assert!(code.contains("fn") || code.contains("for") || code.contains("iter"));
 }
@@ -1930,8 +1930,8 @@ fn test_cov_param_type_from_iteration() {
 #[test]
 fn test_cov_param_type_from_index() {
     let code = transpile(
-        r#"def get_first(items):
-    return items[0]"#,
+        r"def get_first(items):
+    return items[0]",
     );
     assert!(code.contains("fn") || code.contains("[0]") || code.contains("get"));
 }
@@ -1939,8 +1939,8 @@ fn test_cov_param_type_from_index() {
 #[test]
 fn test_cov_param_type_from_arithmetic() {
     let code = transpile(
-        r#"def double(x):
-    return x * 2"#,
+        r"def double(x):
+    return x * 2",
     );
     assert!(code.contains("fn") || code.contains("* 2") || code.contains("i64"));
 }
@@ -1965,8 +1965,8 @@ def main():
 #[test]
 fn test_cov_function_inline_always() {
     let code = transpile(
-        r#"def tiny():
-    return 1"#,
+        r"def tiny():
+    return 1",
     );
     assert!(code.contains("inline") || code.contains("fn"));
 }
@@ -1975,10 +1975,10 @@ fn test_cov_function_inline_always() {
 #[test]
 fn test_cov_nested_function() {
     let code = transpile(
-        r#"def outer(x: int):
+        r"def outer(x: int):
     def inner(y: int):
         return y * 2
-    return inner(x)"#,
+    return inner(x)",
     );
     assert!(code.contains("fn outer") || code.contains("fn inner") || code.contains("fn"));
 }
@@ -1986,10 +1986,10 @@ fn test_cov_nested_function() {
 #[test]
 fn test_cov_nested_function_capture() {
     let code = transpile(
-        r#"def outer(x: int):
+        r"def outer(x: int):
     def inner():
         return x * 2
-    return inner()"#,
+    return inner()",
     );
     assert!(code.contains("fn") || code.contains("let"));
 }
@@ -1998,10 +1998,10 @@ fn test_cov_nested_function_capture() {
 #[test]
 fn test_cov_generic_function() {
     let code = transpile(
-        r#"from typing import TypeVar
+        r"from typing import TypeVar
 T = TypeVar('T')
 def identity(x: T) -> T:
-    return x"#,
+    return x",
     );
     assert!(code.contains("fn identity") || code.contains("<T>") || code.contains("fn"));
 }
@@ -2010,10 +2010,10 @@ def identity(x: T) -> T:
 #[test]
 fn test_cov_where_clause_bounded_generic() {
     let code = transpile(
-        r#"from typing import TypeVar
+        r"from typing import TypeVar
 T = TypeVar('T', bound='int')
 def process(x: T) -> T:
-    return x"#,
+    return x",
     );
     assert!(code.contains("fn") || code.contains("where") || code.contains("fn process"));
 }
@@ -2022,12 +2022,12 @@ def process(x: T) -> T:
 #[test]
 fn test_cov_escaping_variable_from_if() {
     let code = transpile(
-        r#"def choose(cond: bool):
+        r"def choose(cond: bool):
     if cond:
         value = 1
     else:
         value = 2
-    return value"#,
+    return value",
     );
     assert!(code.contains("let mut value") || code.contains("if") || code.contains("fn"));
 }
@@ -2035,12 +2035,12 @@ fn test_cov_escaping_variable_from_if() {
 #[test]
 fn test_cov_escaping_variable_from_try() {
     let code = transpile(
-        r#"def safe_parse(text: str):
+        r"def safe_parse(text: str):
     try:
         result = int(text)
     except:
         result = 0
-    return result"#,
+    return result",
     );
     assert!(code.contains("let") || code.contains("match") || code.contains("fn"));
 }
@@ -2049,13 +2049,13 @@ fn test_cov_escaping_variable_from_try() {
 #[test]
 fn test_cov_escaping_variable_from_loop() {
     let code = transpile(
-        r#"def find_first(items: list) -> int:
+        r"def find_first(items: list) -> int:
     result = -1
     for i, item in enumerate(items):
         if item > 0:
             result = i
             break
-    return result"#,
+    return result",
     );
     assert!(code.contains("let mut result") || code.contains("fn") || code.contains("break"));
 }
@@ -2064,11 +2064,11 @@ fn test_cov_escaping_variable_from_loop() {
 #[test]
 fn test_cov_var_used_in_remaining() {
     let code = transpile(
-        r#"def process():
+        r"def process():
     x = 1
     y = x + 1
     z = y + 1
-    return z"#,
+    return z",
     );
     assert!(code.contains("let") || code.contains("fn"));
 }
@@ -2077,8 +2077,8 @@ fn test_cov_var_used_in_remaining() {
 #[test]
 fn test_cov_string_method_owned() {
     let code = transpile(
-        r#"def format_name(name: str) -> str:
-    return name.upper()"#,
+        r"def format_name(name: str) -> str:
+    return name.upper()",
     );
     assert!(code.contains("to_uppercase") || code.contains("fn") || code.contains("String"));
 }
@@ -2124,8 +2124,8 @@ fn test_cov_returns_owned_string_format() {
 #[test]
 fn test_cov_return_expects_float() {
     let code = transpile(
-        r#"def div(a: int, b: int) -> float:
-    return a / b"#,
+        r"def div(a: int, b: int) -> float:
+    return a / b",
     );
     assert!(code.contains("f64") || code.contains("as f64") || code.contains("fn"));
 }
@@ -2147,10 +2147,10 @@ def get_writer(use_file: bool):
 #[test]
 fn test_cov_detect_returns_nested() {
     let code = transpile(
-        r#"def make_adder(x: int):
+        r"def make_adder(x: int):
     def add(y: int):
         return x + y
-    return add"#,
+    return add",
     );
     assert!(code.contains("fn make_adder") || code.contains("closure") || code.contains("fn"));
 }
@@ -2159,8 +2159,8 @@ fn test_cov_detect_returns_nested() {
 #[test]
 fn test_cov_param_borrow_str() {
     let code = transpile(
-        r#"def process_text(text: str):
-    print(text)"#,
+        r"def process_text(text: str):
+    print(text)",
     );
     assert!(code.contains("&str") || code.contains("&String") || code.contains("fn"));
 }
@@ -2168,9 +2168,9 @@ fn test_cov_param_borrow_str() {
 #[test]
 fn test_cov_param_borrow_list() {
     let code = transpile(
-        r#"def process_items(items: list):
+        r"def process_items(items: list):
     for item in items:
-        print(item)"#,
+        print(item)",
     );
     assert!(code.contains("&[") || code.contains("&Vec") || code.contains("fn"));
 }
@@ -2178,9 +2178,9 @@ fn test_cov_param_borrow_list() {
 #[test]
 fn test_cov_param_no_borrow_owned() {
     let code = transpile(
-        r#"def consume_list(items: list):
+        r"def consume_list(items: list):
     items.clear()
-    return items"#,
+    return items",
     );
     assert!(code.contains("mut") || code.contains("Vec") || code.contains("fn"));
 }
@@ -2218,8 +2218,8 @@ def main():
 #[test]
 fn test_cov_infer_numeric_from_add() {
     let code = transpile(
-        r#"def add_one(x):
-    return x + 1"#,
+        r"def add_one(x):
+    return x + 1",
     );
     assert!(code.contains("i64") || code.contains("fn"));
 }
@@ -2227,8 +2227,8 @@ fn test_cov_infer_numeric_from_add() {
 #[test]
 fn test_cov_infer_numeric_from_div() {
     let code = transpile(
-        r#"def half(x):
-    return x / 2"#,
+        r"def half(x):
+    return x / 2",
     );
     assert!(code.contains("f64") || code.contains("/") || code.contains("fn"));
 }
@@ -2236,8 +2236,8 @@ fn test_cov_infer_numeric_from_div() {
 #[test]
 fn test_cov_infer_float_from_literal() {
     let code = transpile(
-        r#"def add_half(x):
-    return x + 0.5"#,
+        r"def add_half(x):
+    return x + 0.5",
     );
     assert!(code.contains("f64") || code.contains("0.5") || code.contains("fn"));
 }
@@ -2270,9 +2270,9 @@ fn test_cov_mixed_params() {
 #[test]
 fn test_cov_varargs_only() {
     let code = transpile(
-        r#"def varargs(*args):
+        r"def varargs(*args):
     for arg in args:
-        print(arg)"#,
+        print(arg)",
     );
     assert!(code.contains("args") || code.contains("fn varargs") || code.contains("fn"));
 }
@@ -2280,9 +2280,9 @@ fn test_cov_varargs_only() {
 #[test]
 fn test_cov_kwargs_only() {
     let code = transpile(
-        r#"def kwargs(**kwargs):
+        r"def kwargs(**kwargs):
     for k, v in kwargs.items():
-        print(k, v)"#,
+        print(k, v)",
     );
     assert!(code.contains("kwargs") || code.contains("fn") || code.contains("HashMap"));
 }
@@ -2291,10 +2291,10 @@ fn test_cov_kwargs_only() {
 #[test]
 fn test_cov_dunder_init() {
     let code = transpile(
-        r#"class Point:
+        r"class Point:
     def __init__(self, x: int, y: int):
         self.x = x
-        self.y = y"#,
+        self.y = y",
     );
     assert!(
         code.contains("new")
@@ -2328,9 +2328,9 @@ fn test_cov_dunder_repr() {
 #[test]
 fn test_cov_async_function() {
     let code = transpile(
-        r#"async def fetch(url: str):
+        r"async def fetch(url: str):
     response = await get(url)
-    return response"#,
+    return response",
     );
     assert!(code.contains("async") || code.contains("await") || code.contains("fn"));
 }
@@ -2338,9 +2338,9 @@ fn test_cov_async_function() {
 #[test]
 fn test_cov_async_function_with_return_type() {
     let code = transpile(
-        r#"async def fetch(url: str) -> str:
+        r"async def fetch(url: str) -> str:
     response = await get(url)
-    return response"#,
+    return response",
     );
     assert!(code.contains("async") || code.contains("Future") || code.contains("fn"));
 }
@@ -2349,9 +2349,9 @@ fn test_cov_async_function_with_return_type() {
 #[test]
 fn test_cov_generator_function() {
     let code = transpile(
-        r#"def count(n: int):
+        r"def count(n: int):
     for i in range(n):
-        yield i"#,
+        yield i",
     );
     assert!(code.contains("Iterator") || code.contains("yield") || code.contains("fn"));
 }
@@ -2359,10 +2359,10 @@ fn test_cov_generator_function() {
 #[test]
 fn test_cov_generator_with_return() {
     let code = transpile(
-        r#"def generate(items: list):
+        r"def generate(items: list):
     for item in items:
         yield item
-    return"#,
+    return",
     );
     assert!(code.contains("Iterator") || code.contains("fn"));
 }
@@ -2371,8 +2371,8 @@ fn test_cov_generator_with_return() {
 #[test]
 fn test_cov_lambda_in_body() {
     let code = transpile(
-        r#"def apply_to_all(items: list):
-    return list(map(lambda x: x * 2, items))"#,
+        r"def apply_to_all(items: list):
+    return list(map(lambda x: x * 2, items))",
     );
     assert!(code.contains("map") || code.contains("|x|") || code.contains("fn"));
 }
@@ -2395,11 +2395,11 @@ fn test_cov_multiple_return_paths() {
 #[test]
 fn test_cov_return_in_try_except() {
     let code = transpile(
-        r#"def safe_divide(a: int, b: int) -> int:
+        r"def safe_divide(a: int, b: int) -> int:
     try:
         return a // b
     except:
-        return 0"#,
+        return 0",
     );
     assert!(code.contains("match") || code.contains("Ok") || code.contains("fn"));
 }
@@ -2407,9 +2407,9 @@ fn test_cov_return_in_try_except() {
 #[test]
 fn test_cov_return_from_with() {
     let code = transpile(
-        r#"def read_first_line(path: str) -> str:
+        r"def read_first_line(path: str) -> str:
     with open(path) as f:
-        return f.readline()"#,
+        return f.readline()",
     );
     assert!(code.contains("File") || code.contains("BufReader") || code.contains("fn"));
 }
@@ -2430,11 +2430,11 @@ fn test_cov_var_type_env_from_assign() {
 #[test]
 fn test_cov_var_type_env_from_for() {
     let code = transpile(
-        r#"def sum_items(items: list) -> int:
+        r"def sum_items(items: list) -> int:
     total = 0
     for item in items:
         total += item
-    return total"#,
+    return total",
     );
     assert!(code.contains("let mut total") || code.contains("for") || code.contains("fn"));
 }
@@ -2443,8 +2443,8 @@ fn test_cov_var_type_env_from_for() {
 #[test]
 fn test_cov_return_type_from_param_method() {
     let code = transpile(
-        r#"def get_length(text: str):
-    return len(text)"#,
+        r"def get_length(text: str):
+    return len(text)",
     );
     assert!(code.contains("usize") || code.contains("len") || code.contains("fn"));
 }
@@ -2452,8 +2452,8 @@ fn test_cov_return_type_from_param_method() {
 #[test]
 fn test_cov_return_type_from_param_index() {
     let code = transpile(
-        r#"def get_first(items: list):
-    return items[0]"#,
+        r"def get_first(items: list):
+    return items[0]",
     );
     assert!(code.contains("get(0)") || code.contains("[0]") || code.contains("fn"));
 }
@@ -2462,8 +2462,8 @@ fn test_cov_return_type_from_param_index() {
 #[test]
 fn test_cov_negative_int_literal() {
     let code = transpile(
-        r#"def get_negative() -> int:
-    return -1"#,
+        r"def get_negative() -> int:
+    return -1",
     );
     assert!(code.contains("-1") || code.contains("i64") || code.contains("fn"));
 }
@@ -2471,8 +2471,8 @@ fn test_cov_negative_int_literal() {
 #[test]
 fn test_cov_negative_int_expression() {
     let code = transpile(
-        r#"def negate(x: int) -> int:
-    return -x"#,
+        r"def negate(x: int) -> int:
+    return -x",
     );
     assert!(code.contains("-") || code.contains("fn"));
 }
@@ -2490,10 +2490,10 @@ fn test_cov_default_param_complex() {
 #[test]
 fn test_cov_default_param_list() {
     let code = transpile(
-        r#"def process(items: list = None):
+        r"def process(items: list = None):
     if items is None:
         items = []
-    return items"#,
+    return items",
     );
     assert!(code.contains("Option") || code.contains("None") || code.contains("fn"));
 }
@@ -2522,9 +2522,9 @@ def get_file():
 #[test]
 fn test_cov_stdio_stdout() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def get_output():
-    return sys.stdout"#,
+    return sys.stdout",
     );
     assert!(code.contains("stdout") || code.contains("io::") || code.contains("fn"));
 }
@@ -2532,9 +2532,9 @@ def get_output():
 #[test]
 fn test_cov_stdio_stderr() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def get_error_output():
-    return sys.stderr"#,
+    return sys.stderr",
     );
     assert!(code.contains("stderr") || code.contains("io::") || code.contains("fn"));
 }
@@ -2543,14 +2543,14 @@ def get_error_output():
 #[test]
 fn test_cov_all_assigned_in_if() {
     let code = transpile(
-        r#"def process(cond: bool):
+        r"def process(cond: bool):
     if cond:
         a = 1
         b = 2
     else:
         a = 3
         b = 4
-    return a + b"#,
+    return a + b",
     );
     assert!(code.contains("let mut a") || code.contains("let mut b") || code.contains("fn"));
 }
@@ -2558,12 +2558,12 @@ fn test_cov_all_assigned_in_if() {
 #[test]
 fn test_cov_all_assigned_in_loop() {
     let code = transpile(
-        r#"def process(items: list):
+        r"def process(items: list):
     result = []
     for item in items:
         x = item * 2
         result.append(x)
-    return result"#,
+    return result",
     );
     assert!(code.contains("let") || code.contains("for") || code.contains("fn"));
 }
@@ -2572,11 +2572,11 @@ fn test_cov_all_assigned_in_loop() {
 #[test]
 fn test_cov_stmt_always_returns_if_else() {
     let code = transpile(
-        r#"def get_value(cond: bool) -> int:
+        r"def get_value(cond: bool) -> int:
     if cond:
         return 1
     else:
-        return 2"#,
+        return 2",
     );
     assert!(code.contains("if") || code.contains("return") || code.contains("fn"));
 }
@@ -2594,8 +2594,8 @@ fn test_cov_stmt_always_returns_raise() {
 #[test]
 fn test_cov_param_unused() {
     let code = transpile(
-        r#"def ignore(x: int):
-    return 42"#,
+        r"def ignore(x: int):
+    return 42",
     );
     assert!(code.contains("_x") || code.contains("fn ignore") || code.contains("fn"));
 }
@@ -2603,9 +2603,9 @@ fn test_cov_param_unused() {
 #[test]
 fn test_cov_param_used_in_call() {
     let code = transpile(
-        r#"def process(x: int):
+        r"def process(x: int):
     print(x)
-    return x"#,
+    return x",
     );
     assert!(code.contains("x") || code.contains("fn"));
 }
@@ -2614,8 +2614,8 @@ fn test_cov_param_used_in_call() {
 #[test]
 fn test_cov_infer_type_dict_values() {
     let code = transpile(
-        r#"def get_values(d: dict):
-    return list(d.values())"#,
+        r"def get_values(d: dict):
+    return list(d.values())",
     );
     assert!(code.contains("values") || code.contains("Vec") || code.contains("fn"));
 }
@@ -2623,8 +2623,8 @@ fn test_cov_infer_type_dict_values() {
 #[test]
 fn test_cov_infer_type_dict_keys() {
     let code = transpile(
-        r#"def get_keys(d: dict):
-    return list(d.keys())"#,
+        r"def get_keys(d: dict):
+    return list(d.keys())",
     );
     assert!(code.contains("keys") || code.contains("Vec") || code.contains("fn"));
 }
@@ -2636,11 +2636,11 @@ fn test_cov_infer_type_dict_keys() {
 #[test]
 fn test_batch_func_default_mutable() {
     let code = transpile(
-        r#"def add_items(items=None):
+        r"def add_items(items=None):
     if items is None:
         items = []
     items.append(1)
-    return items"#,
+    return items",
     );
     assert!(code.contains("fn") || code.contains("None") || code.contains("vec!"));
 }
@@ -2648,10 +2648,10 @@ fn test_batch_func_default_mutable() {
 #[test]
 fn test_batch_func_generic_bounds() {
     let code = transpile(
-        r#"from typing import TypeVar
+        r"from typing import TypeVar
 T = TypeVar('T', bound='Comparable')
 def find_max(items: list[T]) -> T:
-    return max(items)"#,
+    return max(items)",
     );
     assert!(code.contains("fn") || code.contains("max") || code.contains("Ord"));
 }
@@ -2659,11 +2659,11 @@ def find_max(items: list[T]) -> T:
 #[test]
 fn test_batch_func_multiple_return_types() {
     let code = transpile(
-        r#"def parse(s: str):
+        r"def parse(s: str):
     try:
         return int(s)
     except:
-        return s"#,
+        return s",
     );
     assert!(code.contains("fn") || code.contains("parse") || code.contains("match"));
 }
@@ -2671,10 +2671,10 @@ fn test_batch_func_multiple_return_types() {
 #[test]
 fn test_batch_func_recursive() {
     let code = transpile(
-        r#"def factorial(n: int) -> int:
+        r"def factorial(n: int) -> int:
     if n <= 1:
         return 1
-    return n * factorial(n - 1)"#,
+    return n * factorial(n - 1)",
     );
     assert!(code.contains("fn factorial") || code.contains("*") || code.contains("recursion"));
 }
@@ -2682,7 +2682,7 @@ fn test_batch_func_recursive() {
 #[test]
 fn test_batch_func_mutual_recursion() {
     let code = transpile(
-        r#"def is_even(n: int) -> bool:
+        r"def is_even(n: int) -> bool:
     if n == 0:
         return True
     return is_odd(n - 1)
@@ -2690,7 +2690,7 @@ fn test_batch_func_mutual_recursion() {
 def is_odd(n: int) -> bool:
     if n == 0:
         return False
-    return is_even(n - 1)"#,
+    return is_even(n - 1)",
     );
     assert!(code.contains("fn is_even") || code.contains("fn is_odd"));
 }
@@ -2698,10 +2698,10 @@ def is_odd(n: int) -> bool:
 #[test]
 fn test_batch_func_closure() {
     let code = transpile(
-        r#"def make_adder(x: int):
+        r"def make_adder(x: int):
     def add(y: int) -> int:
         return x + y
-    return add"#,
+    return add",
     );
     assert!(code.contains("fn") || code.contains("Fn") || code.contains("move"));
 }
@@ -2709,10 +2709,10 @@ fn test_batch_func_closure() {
 #[test]
 fn test_batch_func_decorator_staticmethod() {
     let code = transpile(
-        r#"class Math:
+        r"class Math:
     @staticmethod
     def add(a: int, b: int) -> int:
-        return a + b"#,
+        return a + b",
     );
     assert!(code.contains("fn add") || code.contains("impl") || code.contains("struct"));
 }
@@ -2720,11 +2720,11 @@ fn test_batch_func_decorator_staticmethod() {
 #[test]
 fn test_batch_func_decorator_classmethod() {
     let code = transpile(
-        r#"class Counter:
+        r"class Counter:
     count = 0
     @classmethod
     def increment(cls):
-        cls.count += 1"#,
+        cls.count += 1",
     );
     assert!(code.contains("fn increment") || code.contains("impl") || code.contains("struct"));
 }
@@ -2732,13 +2732,13 @@ fn test_batch_func_decorator_classmethod() {
 #[test]
 fn test_batch_func_decorator_property() {
     let code = transpile(
-        r#"class Circle:
+        r"class Circle:
     def __init__(self, radius: float):
         self._radius = radius
     
     @property
     def area(self) -> float:
-        return 3.14159 * self._radius ** 2"#,
+        return 3.14159 * self._radius ** 2",
     );
     assert!(code.contains("fn area") || code.contains("impl") || code.contains("struct"));
 }
@@ -2746,11 +2746,11 @@ fn test_batch_func_decorator_property() {
 #[test]
 fn test_batch_func_varargs() {
     let code = transpile(
-        r#"def sum_all(*args) -> int:
+        r"def sum_all(*args) -> int:
     total = 0
     for x in args:
         total += x
-    return total"#,
+    return total",
     );
     assert!(code.contains("fn sum_all") || code.contains("args") || code.contains("Vec"));
 }
@@ -2758,8 +2758,8 @@ fn test_batch_func_varargs() {
 #[test]
 fn test_batch_func_kwargs() {
     let code = transpile(
-        r#"def configure(**kwargs) -> dict:
-    return kwargs"#,
+        r"def configure(**kwargs) -> dict:
+    return kwargs",
     );
     assert!(code.contains("fn configure") || code.contains("HashMap") || code.contains("kwargs"));
 }
@@ -2767,8 +2767,8 @@ fn test_batch_func_kwargs() {
 #[test]
 fn test_batch_func_mixed_args() {
     let code = transpile(
-        r#"def process(a: int, *args, **kwargs):
-    return a + len(args) + len(kwargs)"#,
+        r"def process(a: int, *args, **kwargs):
+    return a + len(args) + len(kwargs)",
     );
     assert!(code.contains("fn process") || code.contains("len"));
 }
@@ -2776,10 +2776,10 @@ fn test_batch_func_mixed_args() {
 #[test]
 fn test_batch_func_keyword_only() {
     let code = transpile(
-        r#"def greet(*, name: str, loud: bool = False):
+        r"def greet(*, name: str, loud: bool = False):
     if loud:
         return name.upper()
-    return name"#,
+    return name",
     );
     assert!(code.contains("fn greet") || code.contains("name") || code.contains("loud"));
 }
@@ -2787,8 +2787,8 @@ fn test_batch_func_keyword_only() {
 #[test]
 fn test_batch_func_positional_only() {
     let code = transpile(
-        r#"def divide(a: int, b: int, /) -> float:
-    return a / b"#,
+        r"def divide(a: int, b: int, /) -> float:
+    return a / b",
     );
     assert!(code.contains("fn divide") || code.contains("/") || code.contains("f64"));
 }
@@ -2796,8 +2796,8 @@ fn test_batch_func_positional_only() {
 #[test]
 fn test_batch_async_simple() {
     let code = transpile(
-        r#"async def fetch():
-    return 42"#,
+        r"async def fetch():
+    return 42",
     );
     assert!(code.contains("fn fetch") || code.contains("async") || code.contains("Future"));
 }
@@ -2805,9 +2805,9 @@ fn test_batch_async_simple() {
 #[test]
 fn test_batch_async_await() {
     let code = transpile(
-        r#"async def fetch_data():
+        r"async def fetch_data():
     data = await get_data()
-    return data"#,
+    return data",
     );
     assert!(code.contains("fn fetch_data") || code.contains("await") || code.contains("async"));
 }
@@ -2815,9 +2815,9 @@ fn test_batch_async_await() {
 #[test]
 fn test_batch_generator_simple() {
     let code = transpile(
-        r#"def count_up(n: int):
+        r"def count_up(n: int):
     for i in range(n):
-        yield i"#,
+        yield i",
     );
     assert!(code.contains("fn count_up") || code.contains("Iterator") || code.contains("yield"));
 }
@@ -2825,12 +2825,12 @@ fn test_batch_generator_simple() {
 #[test]
 fn test_batch_generator_with_return() {
     let code = transpile(
-        r#"def count_and_sum(n: int):
+        r"def count_and_sum(n: int):
     total = 0
     for i in range(n):
         yield i
         total += i
-    return total"#,
+    return total",
     );
     assert!(code.contains("fn") || code.contains("Iterator") || code.contains("yield"));
 }
@@ -2838,10 +2838,10 @@ fn test_batch_generator_with_return() {
 #[test]
 fn test_batch_generator_send() {
     let code = transpile(
-        r#"def echo():
+        r"def echo():
     while True:
         x = yield
-        yield x * 2"#,
+        yield x * 2",
     );
     assert!(code.contains("fn echo") || code.contains("yield"));
 }
@@ -2858,9 +2858,9 @@ fn test_batch_func_return_none() {
 #[test]
 fn test_batch_func_return_list() {
     let code = transpile(
-        r#"from typing import List
+        r"from typing import List
 def get_items() -> List[int]:
-    return [1, 2, 3]"#,
+    return [1, 2, 3]",
     );
     assert!(code.contains("fn get_items") || code.contains("Vec") || code.contains("vec!"));
 }
@@ -2888,9 +2888,9 @@ def get_pair() -> Tuple[int, str]:
 #[test]
 fn test_batch_func_return_set() {
     let code = transpile(
-        r#"from typing import Set
+        r"from typing import Set
 def get_unique() -> Set[int]:
-    return {1, 2, 3}"#,
+    return {1, 2, 3}",
     );
     assert!(code.contains("fn get_unique") || code.contains("HashSet"));
 }
@@ -2898,12 +2898,12 @@ def get_unique() -> Set[int]:
 #[test]
 fn test_batch_func_return_optional() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def maybe_int(s: str) -> Optional[int]:
     try:
         return int(s)
     except:
-        return None"#,
+        return None",
     );
     assert!(code.contains("fn maybe_int") || code.contains("Option"));
 }
@@ -2911,12 +2911,12 @@ def maybe_int(s: str) -> Optional[int]:
 #[test]
 fn test_batch_func_return_union() {
     let code = transpile(
-        r#"from typing import Union
+        r"from typing import Union
 def parse(s: str) -> Union[int, str]:
     try:
         return int(s)
     except:
-        return s"#,
+        return s",
     );
     assert!(code.contains("fn parse") || code.contains("enum") || code.contains("Result"));
 }
@@ -2953,8 +2953,8 @@ fn test_batch_func_complex_docstring() {
 #[test]
 fn test_batch_func_infer_bool_from_comparison() {
     let code = transpile(
-        r#"def is_positive(x: int):
-    return x > 0"#,
+        r"def is_positive(x: int):
+    return x > 0",
     );
     assert!(code.contains("fn is_positive") || code.contains("bool") || code.contains(">"));
 }
@@ -2962,8 +2962,8 @@ fn test_batch_func_infer_bool_from_comparison() {
 #[test]
 fn test_batch_func_infer_int_from_literal() {
     let code = transpile(
-        r#"def get_constant():
-    return 42"#,
+        r"def get_constant():
+    return 42",
     );
     assert!(code.contains("fn get_constant") || code.contains("i64") || code.contains("42"));
 }
@@ -2971,8 +2971,8 @@ fn test_batch_func_infer_int_from_literal() {
 #[test]
 fn test_batch_func_infer_float_from_literal() {
     let code = transpile(
-        r#"def get_pi():
-    return 3.14159"#,
+        r"def get_pi():
+    return 3.14159",
     );
     assert!(code.contains("fn get_pi") || code.contains("f64") || code.contains("3.14"));
 }
@@ -2989,8 +2989,8 @@ fn test_batch_func_infer_string_from_literal() {
 #[test]
 fn test_batch_func_infer_list_from_literal() {
     let code = transpile(
-        r#"def get_numbers():
-    return [1, 2, 3]"#,
+        r"def get_numbers():
+    return [1, 2, 3]",
     );
     assert!(code.contains("fn get_numbers") || code.contains("Vec") || code.contains("vec!"));
 }
@@ -2998,11 +2998,11 @@ fn test_batch_func_infer_list_from_literal() {
 #[test]
 fn test_batch_func_infer_from_conditional() {
     let code = transpile(
-        r#"def get_value(flag: bool):
+        r"def get_value(flag: bool):
     if flag:
         return 1
     else:
-        return 0"#,
+        return 0",
     );
     assert!(code.contains("fn get_value") || code.contains("i64") || code.contains("if"));
 }
@@ -3010,8 +3010,8 @@ fn test_batch_func_infer_from_conditional() {
 #[test]
 fn test_batch_func_infer_from_binary_op() {
     let code = transpile(
-        r#"def multiply(a, b):
-    return a * b"#,
+        r"def multiply(a, b):
+    return a * b",
     );
     assert!(code.contains("fn multiply") || code.contains("*"));
 }
@@ -3019,8 +3019,8 @@ fn test_batch_func_infer_from_binary_op() {
 #[test]
 fn test_batch_func_borrow_immutable() {
     let code = transpile(
-        r#"def first(items: list) -> int:
-    return items[0]"#,
+        r"def first(items: list) -> int:
+    return items[0]",
     );
     assert!(code.contains("fn first") || code.contains("&") || code.contains("[0]"));
 }
@@ -3028,9 +3028,9 @@ fn test_batch_func_borrow_immutable() {
 #[test]
 fn test_batch_func_borrow_mutable() {
     let code = transpile(
-        r#"def append_and_return(items: list, x: int) -> list:
+        r"def append_and_return(items: list, x: int) -> list:
     items.append(x)
-    return items"#,
+    return items",
     );
     assert!(
         code.contains("fn append_and_return") || code.contains("&mut") || code.contains("push")
@@ -3040,8 +3040,8 @@ fn test_batch_func_borrow_mutable() {
 #[test]
 fn test_batch_func_owned_param() {
     let code = transpile(
-        r#"def consume(s: str) -> int:
-    return len(s)"#,
+        r"def consume(s: str) -> int:
+    return len(s)",
     );
     assert!(code.contains("fn consume") || code.contains("String") || code.contains("len"));
 }
@@ -3061,8 +3061,8 @@ fn test_batch_func_multiple_defaults() {
 #[test]
 fn test_batch_func_can_fail() {
     let code = transpile(
-        r#"def parse_int(s: str) -> int:
-    return int(s)"#,
+        r"def parse_int(s: str) -> int:
+    return int(s)",
     );
     assert!(code.contains("fn parse_int") || code.contains("Result") || code.contains("parse"));
 }
@@ -3070,9 +3070,9 @@ fn test_batch_func_can_fail() {
 #[test]
 fn test_batch_func_error_propagation() {
     let code = transpile(
-        r#"def read_number(path: str) -> int:
+        r"def read_number(path: str) -> int:
     with open(path) as f:
-        return int(f.read())"#,
+        return int(f.read())",
     );
     assert!(code.contains("fn read_number") || code.contains("?") || code.contains("Result"));
 }
@@ -3089,11 +3089,11 @@ fn test_batch_main_entry() {
 #[test]
 fn test_batch_main_with_args() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def main():
     args = sys.argv[1:]
     for arg in args:
-        print(arg)"#,
+        print(arg)",
     );
     assert!(code.contains("fn main") || code.contains("args") || code.contains("env"));
 }
@@ -3101,8 +3101,8 @@ def main():
 #[test]
 fn test_batch_main_return_code() {
     let code = transpile(
-        r#"def main() -> int:
-    return 0"#,
+        r"def main() -> int:
+    return 0",
     );
     assert!(code.contains("fn main") || code.contains("Ok(())") || code.contains("exit"));
 }

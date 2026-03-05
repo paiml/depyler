@@ -326,7 +326,7 @@ mod tests {
         };
         let debug = format!("{:?}", yp);
         assert!(debug.contains("state_id"));
-        assert!(debug.contains("3"));
+        assert!(debug.contains('3'));
     }
 
     // === YieldAnalysis tests ===

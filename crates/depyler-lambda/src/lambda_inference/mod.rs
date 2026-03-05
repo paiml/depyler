@@ -376,12 +376,12 @@ mod tests {
     #[test]
     fn test_s3_event_inference() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.5);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     bucket = event['Records'][0]['s3']['bucket']['name']
     key = event['Records'][0]['s3']['object']['key']
     return {'status': 'processed'}
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast).unwrap();
         assert_eq!(result, EventType::S3Event);
@@ -390,12 +390,12 @@ def handler(event, context):
     #[test]
     fn test_api_gateway_v2_inference() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.1);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     method = event['requestContext']['http']['method']
     path = event['requestContext']['http']['path']
     return {'statusCode': 200}
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast).unwrap();
         assert!(matches!(
@@ -414,13 +414,13 @@ def handler(event, context):
     #[test]
     fn test_sqs_event_inference() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.1);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     for record in event['Records']:
         message_id = record['messageId']
         body = record['body']
     return {'batchItemFailures': []}
-"#;
+";
         let ast = parse_python(python_code);
 
         match inferencer.infer_event_type(&ast) {
@@ -442,12 +442,12 @@ def handler(event, context):
     #[test]
     fn test_eventbridge_inference() {
         let inferencer = LambdaTypeInferencer::new();
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     detail_type = event['detail-type']
     detail = event['detail']
     return None
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast).unwrap();
         assert_eq!(result, EventType::EventBridge);
@@ -456,10 +456,10 @@ def handler(event, context):
     #[test]
     fn test_no_pattern_match() {
         let inferencer = LambdaTypeInferencer::new();
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     return {'message': 'hello world'}
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast);
         assert!(matches!(result, Err(InferenceError::NoPatternMatch)));
@@ -468,11 +468,11 @@ def handler(event, context):
     #[test]
     fn test_confidence_threshold() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.95);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     data = event['Records']
     return {'status': 'ok'}
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast);
         assert!(result.is_err());
@@ -481,11 +481,11 @@ def handler(event, context):
     #[test]
     fn test_analysis_report() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.5);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     bucket = event['Records'][0]['s3']['bucket']['name']
     return {'processed': bucket}
-"#;
+";
         let ast = parse_python(python_code);
         let report = inferencer.analyze_handler(&ast).unwrap();
 
@@ -522,13 +522,13 @@ def handler(event, context):
     #[test]
     fn test_mixed_pattern_types() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.5);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     record = event['Records'][0]
     sns_message = record['Sns']['Message']
     sns_subject = record['Sns']['Subject']
     return {'message': sns_message}
-"#;
+";
         let ast = parse_python(python_code);
 
         let result = inferencer.infer_event_type(&ast);
@@ -543,7 +543,7 @@ def handler(event, context):
                         | EventType::DynamodbEvent
                 ));
             }
-            Err(InferenceError::AmbiguousEventType) | Err(InferenceError::NoPatternMatch) => {}
+            Err(InferenceError::AmbiguousEventType | InferenceError::NoPatternMatch) => {}
             Err(e) => panic!("Unexpected error: {e:?}"),
         }
     }
@@ -551,12 +551,12 @@ def handler(event, context):
     #[test]
     fn test_numeric_index_handling() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.5);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     bucket = event['Records'][0]['s3']['bucket']['name']
     key = event['Records'][0]['s3']['object']['key']
     return {'bucket': bucket, 'key': key}
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast).unwrap();
         assert_eq!(result, EventType::S3Event);
@@ -620,21 +620,21 @@ def handler(event, context):
     #[test]
     fn test_inference_error_display_ambiguous() {
         let error = InferenceError::AmbiguousEventType;
-        let display = format!("{}", error);
+        let display = format!("{error}");
         assert!(display.contains("confidence"));
     }
 
     #[test]
     fn test_inference_error_display_no_match() {
         let error = InferenceError::NoPatternMatch;
-        let display = format!("{}", error);
+        let display = format!("{error}");
         assert!(display.contains("No matching"));
     }
 
     #[test]
     fn test_inference_error_display_parse_error() {
         let error = InferenceError::ParseError("test error".to_string());
-        let display = format!("{}", error);
+        let display = format!("{error}");
         assert!(display.contains("Parse error"));
         assert!(display.contains("test error"));
     }
@@ -762,10 +762,10 @@ def handler(event, context):
     #[test]
     fn test_empty_handler() {
         let inferencer = LambdaTypeInferencer::new();
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     pass
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast);
         assert!(matches!(result, Err(InferenceError::NoPatternMatch)));
@@ -774,11 +774,11 @@ def handler(event, context):
     #[test]
     fn test_handler_with_no_event_access() {
         let inferencer = LambdaTypeInferencer::new();
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     x = 1 + 2
     return {'result': x}
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast);
         assert!(matches!(result, Err(InferenceError::NoPatternMatch)));
@@ -787,10 +787,10 @@ def handler(event, context):
     #[test]
     fn test_analysis_report_empty_patterns() {
         let inferencer = LambdaTypeInferencer::new();
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     return 'hello'
-"#;
+";
         let ast = parse_python(python_code);
         let report = inferencer.analyze_handler(&ast).unwrap();
         assert!(report.detected_patterns.is_empty());
@@ -801,11 +801,11 @@ def handler(event, context):
     #[test]
     fn test_analysis_report_single_pattern() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.5);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     detail = event['detail']
     return detail
-"#;
+";
         let ast = parse_python(python_code);
         let report = inferencer.analyze_handler(&ast).unwrap();
         assert!(!report.detected_patterns.is_empty());
@@ -815,11 +815,11 @@ def handler(event, context):
     #[test]
     fn test_generic_access_recommendation() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.1);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     body = event['body']
     return body
-"#;
+";
         let ast = parse_python(python_code);
         let report = inferencer.analyze_handler(&ast).unwrap();
         assert!(report
@@ -831,11 +831,11 @@ def handler(event, context):
     #[test]
     fn test_headers_generic_access() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.1);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     headers = event['headers']
     return headers
-"#;
+";
         let ast = parse_python(python_code);
         let report = inferencer.analyze_handler(&ast).unwrap();
         assert!(!report.recommendations.is_empty());
@@ -844,13 +844,13 @@ def handler(event, context):
     #[test]
     fn test_dynamodb_event_detection() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.5);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     records = event['Records']
     for record in records:
         dynamodb = record['dynamodb']
     return None
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast);
         match result {
@@ -863,7 +863,7 @@ def handler(event, context):
                         | EventType::SnsEvent
                 ));
             }
-            Err(InferenceError::NoPatternMatch) | Err(InferenceError::AmbiguousEventType) => {}
+            Err(InferenceError::NoPatternMatch | InferenceError::AmbiguousEventType) => {}
             Err(e) => panic!("Unexpected error: {e:?}"),
         }
     }
@@ -926,13 +926,13 @@ def handler(event, context):
     #[test]
     fn test_if_statement_pattern_extraction() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.5);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     if event['Records'][0]['s3']:
         return 'S3'
     else:
         return 'Other'
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast).unwrap();
         assert_eq!(result, EventType::S3Event);
@@ -941,10 +941,10 @@ def handler(event, context):
     #[test]
     fn test_return_statement_pattern_extraction() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.5);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     return event['Records'][0]['s3']['bucket']['name']
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast).unwrap();
         assert_eq!(result, EventType::S3Event);
@@ -953,11 +953,11 @@ def handler(event, context):
     #[test]
     fn test_annotated_assignment_pattern_extraction() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.5);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     bucket: str = event['Records'][0]['s3']['bucket']['name']
     return bucket
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast).unwrap();
         assert_eq!(result, EventType::S3Event);
@@ -966,11 +966,11 @@ def handler(event, context):
     #[test]
     fn test_call_expression_pattern_extraction() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.5);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     process(event['Records'][0]['s3']['bucket']['name'])
     return 'done'
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast).unwrap();
         assert_eq!(result, EventType::S3Event);
@@ -979,12 +979,12 @@ def handler(event, context):
     #[test]
     fn test_multiple_event_types_detected() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.1);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     records = event['Records']
     detail = event['detail']
     return records
-"#;
+";
         let ast = parse_python(python_code);
         let report = inferencer.analyze_handler(&ast).unwrap();
         assert!(!report.confidence_scores.is_empty());
@@ -993,11 +993,11 @@ def handler(event, context):
     #[test]
     fn test_sns_message_pattern() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.5);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     message = event['Records'][0]['Sns']['Message']
     return message
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast).unwrap();
         assert_eq!(result, EventType::SnsEvent);
@@ -1006,11 +1006,11 @@ def handler(event, context):
     #[test]
     fn test_low_confidence_threshold() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.1);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     data = event['Records']
     return data
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast);
         // With low threshold, may succeed, be ambiguous, or have no pattern match
@@ -1024,11 +1024,11 @@ def handler(event, context):
     #[test]
     fn test_very_high_confidence_threshold() {
         let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(0.99);
-        let python_code = r#"
+        let python_code = r"
 def handler(event, context):
     bucket = event['Records'][0]['s3']['bucket']['name']
     return bucket
-"#;
+";
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast);
         assert!(result.is_ok() || matches!(result, Err(InferenceError::AmbiguousEventType)));

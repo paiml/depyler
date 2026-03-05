@@ -503,7 +503,7 @@ mod tests {
     #[test]
     fn test_is_string_literal_true() {
         assert!(is_string_literal(&HirExpr::Literal(Literal::String("hello".to_string()))));
-        assert!(is_string_literal(&HirExpr::Literal(Literal::String("".to_string()))));
+        assert!(is_string_literal(&HirExpr::Literal(Literal::String(String::new()))));
     }
 
     #[test]

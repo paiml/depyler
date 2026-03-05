@@ -1020,11 +1020,11 @@ mod tests {
     fn test_detect_getattr_dunder() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 class Foo:
     def __getattr__(self, name):
         return None
-"#,
+",
         );
         assert_eq!(warnings.len(), 1);
         assert_eq!(warnings[0].code, "DPL008");
@@ -1034,11 +1034,11 @@ class Foo:
     fn test_detect_setattr_dunder() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 class Foo:
     def __setattr__(self, name, value):
         pass
-"#,
+",
         );
         assert_eq!(warnings.len(), 1);
         assert_eq!(warnings[0].code, "DPL009");
@@ -1048,11 +1048,11 @@ class Foo:
     fn test_detect_delattr_dunder() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 class Foo:
     def __delattr__(self, name):
         pass
-"#,
+",
         );
         assert_eq!(warnings.len(), 1);
         assert_eq!(warnings[0].code, "DPL010");
@@ -1062,11 +1062,11 @@ class Foo:
     fn test_detect_getattribute_dunder() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 class Foo:
     def __getattribute__(self, name):
         return object.__getattribute__(self, name)
-"#,
+",
         );
         assert_eq!(warnings.len(), 1);
         assert_eq!(warnings[0].code, "DPL011");
@@ -1076,14 +1076,14 @@ class Foo:
     fn test_clean_code_no_warnings() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 def add(a: int, b: int) -> int:
     return a + b
 
 class Calculator:
     def multiply(self, x: float, y: float) -> float:
         return x * y
-"#,
+",
         );
         assert!(warnings.is_empty(), "Clean code should have no warnings");
     }
@@ -1115,11 +1115,11 @@ class Calculator:
     fn test_multiple_different_warnings() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 eval('1')
 exec('2')
 globals()
-"#,
+",
         );
         assert_eq!(warnings.len(), 3);
     }
@@ -1128,10 +1128,10 @@ globals()
     fn test_nested_in_function() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 def foo():
     return eval('x')
-"#,
+",
         );
         assert_eq!(warnings.len(), 1);
         assert_eq!(warnings[0].code, "DPL001");
@@ -1141,11 +1141,11 @@ def foo():
     fn test_nested_in_class() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 class Foo:
     def method(self):
         exec('pass')
-"#,
+",
         );
         assert_eq!(warnings.len(), 1);
     }
@@ -1154,10 +1154,10 @@ class Foo:
     fn test_in_if_statement() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 if True:
     eval('1')
-"#,
+",
         );
         assert_eq!(warnings.len(), 1);
     }
@@ -1166,10 +1166,10 @@ if True:
     fn test_in_for_loop() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 for i in range(10):
     eval(str(i))
-"#,
+",
         );
         assert_eq!(warnings.len(), 1);
     }
@@ -1178,10 +1178,10 @@ for i in range(10):
     fn test_in_while_loop() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 while True:
     exec('break')
-"#,
+",
         );
         assert_eq!(warnings.len(), 1);
     }
@@ -1190,12 +1190,12 @@ while True:
     fn test_in_try_block() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 try:
     eval('bad')
 except:
     pass
-"#,
+",
         );
         assert_eq!(warnings.len(), 1);
     }
@@ -1204,10 +1204,10 @@ except:
     fn test_in_with_statement() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 with open('f') as f:
     eval(f.read())
-"#,
+",
         );
         assert_eq!(warnings.len(), 1);
     }
@@ -1244,10 +1244,10 @@ with open('f') as f:
     fn test_async_function() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
-            r#"
+            r"
 async def foo():
     return eval('x')
-"#,
+",
         );
         assert_eq!(warnings.len(), 1);
     }
@@ -1786,7 +1786,7 @@ class Foo:
 
     #[test]
     fn test_s12_check_cyclic_assignment_basic() {
-        let source = r#"
+        let source = r"
 class Node:
     pass
 
@@ -1794,7 +1794,7 @@ a = Node()
 b = Node()
 a.next = b
 b.next = a
-"#;
+";
         let mut analyzer = DepylintAnalyzer::new();
         // Parse to get statements
         let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
@@ -1809,10 +1809,10 @@ b.next = a
 
     #[test]
     fn test_s12_check_cyclic_assignment_no_cycle() {
-        let source = r#"
+        let source = r"
 a = 1
 b = 2
-"#;
+";
         let mut analyzer = DepylintAnalyzer::new();
         let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
             .expect("parse");
@@ -1856,10 +1856,10 @@ b = 2
 
     #[test]
     fn test_s12_check_mutation_while_iterating_ast() {
-        let source = r#"
+        let source = r"
 for x in items:
     items.append(x * 2)
-"#;
+";
         let mut analyzer = DepylintAnalyzer::new();
         let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
             .expect("parse");
@@ -1876,10 +1876,10 @@ for x in items:
 
     #[test]
     fn test_s12_check_mutation_while_iterating_safe() {
-        let source = r#"
+        let source = r"
 for x in items:
     result.append(x)
-"#;
+";
         let mut analyzer = DepylintAnalyzer::new();
         let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
             .expect("parse");
@@ -1910,7 +1910,7 @@ for x in items:
 
     #[test]
     fn test_s12_check_self_reference_list_append() {
-        let source = r#"lst.append(lst)"#;
+        let source = r"lst.append(lst)";
         let mut analyzer = DepylintAnalyzer::new();
         let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
             .expect("parse");
@@ -1925,7 +1925,7 @@ for x in items:
 
     #[test]
     fn test_s12_check_self_reference_no_match() {
-        let source = r#"a.append(b)"#;
+        let source = r"a.append(b)";
         let mut analyzer = DepylintAnalyzer::new();
         let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
             .expect("parse");
@@ -1939,7 +1939,7 @@ for x in items:
 
     #[test]
     fn test_s12_check_self_reference_other_stmt() {
-        let source = r#"x = 1"#;
+        let source = r"x = 1";
         let mut analyzer = DepylintAnalyzer::new();
         let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
             .expect("parse");
@@ -1953,11 +1953,11 @@ for x in items:
 
     #[test]
     fn test_s12_mutation_in_if_branch() {
-        let source = r#"
+        let source = r"
 for x in items:
     if x > 0:
         items.remove(x)
-"#;
+";
         let mut analyzer = DepylintAnalyzer::new();
         let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
             .expect("parse");
@@ -1974,10 +1974,10 @@ for x in items:
 
     #[test]
     fn test_s12_mutation_non_name_iter() {
-        let source = r#"
+        let source = r"
 for x in get_items():
     pass
-"#;
+";
         let mut analyzer = DepylintAnalyzer::new();
         let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
             .expect("parse");

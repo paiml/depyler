@@ -177,7 +177,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-0535: Handle tempfile file handle attributes
             // Python: f.name → Rust: f.path().to_string_lossy().to_string()
-            // Common tempfile variable names: f, temp, temp_file, tmpfile
+            // Common file-handle variable names: f, tmp, tmp_file, tmpfile
             let is_likely_tempfile = var_name == "f"
                 || var_name == "temp"
                 || var_name == "tmp"

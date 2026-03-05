@@ -10317,7 +10317,7 @@ mod tests {
 
     #[test]
     fn test_extract_string_literal_empty() {
-        let expr = HirExpr::Literal(Literal::String("".to_string()));
+        let expr = HirExpr::Literal(Literal::String(String::new()));
         assert_eq!(extract_string_literal(&expr), "");
     }
 
@@ -11608,88 +11608,88 @@ def make_dict() -> dict:
 
     #[test]
     fn test_s9_assign_list_to_var() {
-        let code = r#"
+        let code = r"
 def make_list() -> list:
     items = [1, 2, 3]
     return items
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn make_list"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_assign_tuple_unpacking() {
-        let code = r#"
+        let code = r"
 def unpack() -> int:
     a, b = 1, 2
     return a + b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn unpack"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_assign_tuple_unpacking_three() {
-        let code = r#"
+        let code = r"
 def unpack_three() -> int:
     a, b, c = 1, 2, 3
     return a + b + c
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn unpack_three"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_assign_augmented_floordiv() {
-        let code = r#"
+        let code = r"
 def floor_assign(n: int) -> int:
     n //= 2
     return n
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn floor_assign"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_assign_augmented_power() {
-        let code = r#"
+        let code = r"
 def power_assign(n: int) -> int:
     n **= 2
     return n
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn power_assign"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_assign_augmented_bitand() {
-        let code = r#"
+        let code = r"
 def bitand_assign(n: int) -> int:
     n &= 0xFF
     return n
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn bitand_assign"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_assign_augmented_bitor() {
-        let code = r#"
+        let code = r"
 def bitor_assign(n: int) -> int:
     n |= 0x01
     return n
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn bitor_assign"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_assign_augmented_bitxor() {
-        let code = r#"
+        let code = r"
 def bitxor_assign(n: int) -> int:
     n ^= 0xFF
     return n
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn bitxor_assign"), "output: {}", rust);
     }
@@ -11698,22 +11698,22 @@ def bitxor_assign(n: int) -> int:
 
     #[test]
     fn test_s9_return_none_explicit() {
-        let code = r#"
+        let code = r"
 def noop() -> None:
     return None
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn noop"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_return_empty() {
-        let code = r#"
+        let code = r"
 def early_exit(x: int) -> None:
     if x < 0:
         return
     print(x)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn early_exit"), "output: {}", rust);
         assert!(rust.contains("return"), "Should contain return: {}", rust);
@@ -11721,42 +11721,42 @@ def early_exit(x: int) -> None:
 
     #[test]
     fn test_s9_return_tuple() {
-        let code = r#"
+        let code = r"
 def minmax(items: list) -> tuple:
     return (min(items), max(items))
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn minmax"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_return_list_literal() {
-        let code = r#"
+        let code = r"
 def empty_list() -> list:
     return []
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn empty_list"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_return_dict_literal() {
-        let code = r#"
+        let code = r"
 def empty_dict() -> dict:
     return {}
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn empty_dict"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_return_conditional() {
-        let code = r#"
+        let code = r"
 def abs_val(x: int) -> int:
     if x < 0:
         return -x
     return x
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn abs_val"), "output: {}", rust);
     }
@@ -11765,65 +11765,65 @@ def abs_val(x: int) -> int:
 
     #[test]
     fn test_s9_for_range_basic() {
-        let code = r#"
+        let code = r"
 def sum_range(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn sum_range"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_for_range_start_end() {
-        let code = r#"
+        let code = r"
 def sum_range_start(start: int, end: int) -> int:
     total = 0
     for i in range(start, end):
         total += i
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn sum_range_start"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_for_range_step() {
-        let code = r#"
+        let code = r"
 def sum_evens(n: int) -> int:
     total = 0
     for i in range(0, n, 2):
         total += i
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn sum_evens"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_for_enumerate() {
-        let code = r#"
+        let code = r"
 def indexed(items: list) -> int:
     total = 0
     for i, val in enumerate(items):
         total += i
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn indexed"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_for_zip() {
-        let code = r#"
+        let code = r"
 def dot_product(a: list, b: list) -> int:
     total = 0
     for x, y in zip(a, b):
         total += x * y
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn dot_product"), "output: {}", rust);
     }
@@ -11843,52 +11843,52 @@ def format_dict(d: dict) -> str:
 
     #[test]
     fn test_s9_for_dict_keys() {
-        let code = r#"
+        let code = r"
 def get_keys(d: dict) -> list:
     result = []
     for k in d.keys():
         result.append(k)
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn get_keys"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_for_dict_values() {
-        let code = r#"
+        let code = r"
 def sum_dict_values(d: dict) -> int:
     total = 0
     for v in d.values():
         total += v
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn sum_dict_values"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_for_string_chars() {
-        let code = r#"
+        let code = r"
 def count_chars(s: str) -> int:
     count = 0
     for c in s:
         count += 1
     return count
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn count_chars"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_for_with_break() {
-        let code = r#"
+        let code = r"
 def find_first_negative(items: list) -> int:
     for item in items:
         if item < 0:
             return item
     return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn find_first_negative"), "output: {}", rust);
     }
@@ -11897,7 +11897,7 @@ def find_first_negative(items: list) -> int:
 
     #[test]
     fn test_s9_while_true_break() {
-        let code = r#"
+        let code = r"
 def read_until_done() -> int:
     count = 0
     while True:
@@ -11905,14 +11905,14 @@ def read_until_done() -> int:
         if count > 10:
             break
     return count
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn read_until_done"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_while_with_continue() {
-        let code = r#"
+        let code = r"
 def skip_negatives(items: list) -> int:
     total = 0
     i = 0
@@ -11922,7 +11922,7 @@ def skip_negatives(items: list) -> int:
             continue
         total += items[i - 1]
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn skip_negatives"), "output: {}", rust);
     }
@@ -11946,7 +11946,7 @@ def classify(n: int) -> str:
 
     #[test]
     fn test_s9_if_nested() {
-        let code = r#"
+        let code = r"
 def quadrant(x: int, y: int) -> int:
     if x >= 0:
         if y >= 0:
@@ -11958,7 +11958,7 @@ def quadrant(x: int, y: int) -> int:
             return 2
         else:
             return 3
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn quadrant"), "output: {}", rust);
     }
@@ -11967,14 +11967,14 @@ def quadrant(x: int, y: int) -> int:
 
     #[test]
     fn test_s9_with_open_read_lines() {
-        let code = r#"
+        let code = r"
 def read_lines(path: str) -> list:
     lines = []
     with open(path) as f:
         for line in f:
             lines.append(line.strip())
     return lines
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn read_lines"), "output: {}", rust);
     }
@@ -11983,20 +11983,20 @@ def read_lines(path: str) -> list:
 
     #[test]
     fn test_s9_assign_list_index() {
-        let code = r#"
+        let code = r"
 def set_first(items: list, val: int) -> None:
     items[0] = val
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn set_first"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_assign_dict_index() {
-        let code = r#"
+        let code = r"
 def set_key(d: dict, key: str, val: str) -> None:
     d[key] = val
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn set_key"), "output: {}", rust);
     }
@@ -12005,11 +12005,11 @@ def set_key(d: dict, key: str, val: str) -> None:
 
     #[test]
     fn test_s9_del_variable() {
-        let code = r#"
+        let code = r"
 def del_test() -> None:
     x = 10
     del x
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn del_test"), "output: {}", rust);
     }
@@ -12018,7 +12018,7 @@ def del_test() -> None:
 
     #[test]
     fn test_s9_binary_search() {
-        let code = r#"
+        let code = r"
 def binary_search(items: list, target: int) -> int:
     lo = 0
     hi = len(items) - 1
@@ -12031,14 +12031,14 @@ def binary_search(items: list, target: int) -> int:
         else:
             hi = mid - 1
     return -1
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn binary_search"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_bubble_sort() {
-        let code = r#"
+        let code = r"
 def bubble_sort(items: list) -> list:
     n = len(items)
     for i in range(n):
@@ -12046,14 +12046,14 @@ def bubble_sort(items: list) -> list:
             if items[j] > items[j + 1]:
                 items[j], items[j + 1] = items[j + 1], items[j]
     return items
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn bubble_sort"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_fibonacci() {
-        let code = r#"
+        let code = r"
 def fibonacci(n: int) -> int:
     if n <= 1:
         return n
@@ -12062,39 +12062,39 @@ def fibonacci(n: int) -> int:
     for i in range(2, n + 1):
         a, b = b, a + b
     return b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn fibonacci"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_gcd() {
-        let code = r#"
+        let code = r"
 def gcd(a: int, b: int) -> int:
     while b != 0:
         a, b = b, a % b
     return a
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn gcd"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_factorial() {
-        let code = r#"
+        let code = r"
 def factorial(n: int) -> int:
     result = 1
     for i in range(1, n + 1):
         result *= i
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn factorial"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_is_prime() {
-        let code = r#"
+        let code = r"
 def is_prime(n: int) -> bool:
     if n < 2:
         return False
@@ -12102,7 +12102,7 @@ def is_prime(n: int) -> bool:
         if n % i == 0:
             return False
     return True
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn is_prime"), "output: {}", rust);
     }
@@ -12122,18 +12122,18 @@ def reverse_str(s: str) -> str:
 
     #[test]
     fn test_s9_count_words() {
-        let code = r#"
+        let code = r"
 def count_words(text: str) -> int:
     words = text.split()
     return len(words)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn count_words"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_two_sum() {
-        let code = r#"
+        let code = r"
 def two_sum(nums: list, target: int) -> list:
     seen = {}
     for i, num in enumerate(nums):
@@ -12142,7 +12142,7 @@ def two_sum(nums: list, target: int) -> list:
             return [seen[complement], i]
         seen[num] = i
     return []
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn two_sum"), "output: {}", rust);
     }
@@ -12151,22 +12151,22 @@ def two_sum(nums: list, target: int) -> list:
 
     #[test]
     fn test_s9b6_nested_list_type_inference() {
-        let code = r#"
+        let code = r"
 def make_matrix() -> list:
     matrix = [[1, 2], [3, 4]]
     return matrix
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn make_matrix"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_mixed_int_float_list() {
-        let code = r#"
+        let code = r"
 def mixed_list() -> list:
     data = [1, 2, 3]
     return data
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn mixed_list"), "output: {}", rust);
     }
@@ -12196,27 +12196,27 @@ def parse_pair(line: str) -> str:
 
     #[test]
     fn test_s9b6_walrus_in_while() {
-        let code = r#"
+        let code = r"
 def count_lines(lines: list) -> int:
     count = 0
     for line in lines:
         if len(line) > 0:
             count += 1
     return count
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn count_lines"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_augmented_assign_float() {
-        let code = r#"
+        let code = r"
 def accumulate(values: list) -> float:
     total = 0.0
     for v in values:
         total += v
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn accumulate"), "output: {}", rust);
         assert!(rust.contains("total"), "output: {}", rust);
@@ -12224,10 +12224,10 @@ def accumulate(values: list) -> float:
 
     #[test]
     fn test_s9b6_multiple_return_values() {
-        let code = r#"
+        let code = r"
 def min_max(nums: list) -> tuple:
     return min(nums), max(nums)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn min_max"), "output: {}", rust);
     }
@@ -12261,26 +12261,26 @@ def make_dict() -> dict:
 
     #[test]
     fn test_s9b6_assign_empty_list() {
-        let code = r#"
+        let code = r"
 def make_list() -> list:
     items = []
     items.append(1)
     items.append(2)
     return items
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn make_list"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_for_range_step() {
-        let code = r#"
+        let code = r"
 def even_numbers(n: int) -> list:
     result = []
     for i in range(0, n, 2):
         result.append(i)
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn even_numbers"), "output: {}", rust);
         assert!(rust.contains("step_by") || rust.contains("range"), "output: {}", rust);
@@ -12288,21 +12288,21 @@ def even_numbers(n: int) -> list:
 
     #[test]
     fn test_s9b6_nested_for_loops() {
-        let code = r#"
+        let code = r"
 def flatten(matrix: list) -> list:
     result = []
     for row in matrix:
         for item in row:
             result.append(item)
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn flatten"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_while_with_break() {
-        let code = r#"
+        let code = r"
 def find_first(items: list, target: int) -> int:
     i = 0
     while i < len(items):
@@ -12310,7 +12310,7 @@ def find_first(items: list, target: int) -> int:
             return i
         i += 1
     return -1
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn find_first"), "output: {}", rust);
     }
@@ -12337,11 +12337,11 @@ def classify(x: int) -> str:
 
     #[test]
     fn test_s9b6_del_statement() {
-        let code = r#"
+        let code = r"
 def remove_key(d: dict, key: str) -> dict:
     del d[key]
     return d
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn remove_key"), "output: {}", rust);
     }
@@ -12361,30 +12361,30 @@ def get_max() -> int:
 
     #[test]
     fn test_s9b6_string_multiplication() {
-        let code = r#"
+        let code = r"
 def repeat_str(s: str, n: int) -> str:
     return s * n
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn repeat_str"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_list_multiplication() {
-        let code = r#"
+        let code = r"
 def zeros(n: int) -> list:
     return [0] * n
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn zeros"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_power_operator() {
-        let code = r#"
+        let code = r"
 def square(x: int) -> int:
     return x ** 2
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn square"), "output: {}", rust);
         assert!(rust.contains("pow") || rust.contains("powi"), "output: {}", rust);
@@ -12392,21 +12392,21 @@ def square(x: int) -> int:
 
     #[test]
     fn test_s9b6_floor_division() {
-        let code = r#"
+        let code = r"
 def half(x: int) -> int:
     return x // 2
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn half"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_assert_statement() {
-        let code = r#"
+        let code = r"
 def checked_div(a: int, b: int) -> int:
     assert b != 0
     return a // b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn checked_div"), "output: {}", rust);
         assert!(rust.contains("assert"), "output: {}", rust);
@@ -12425,12 +12425,12 @@ def positive(x: int) -> int:
 
     #[test]
     fn test_s9b6_with_open_read() {
-        let code = r#"
+        let code = r"
 def read_file(path: str) -> str:
     with open(path) as f:
         content = f.read()
     return content
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn read_file"), "output: {}", rust);
     }
@@ -12448,30 +12448,30 @@ def write_file(path: str, data: str) -> None:
 
     #[test]
     fn test_s9b6_chained_comparison() {
-        let code = r#"
+        let code = r"
 def in_range(x: int) -> bool:
     return 0 < x < 100
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn in_range"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_triple_comparison() {
-        let code = r#"
+        let code = r"
 def valid_range(x: int, lo: int, hi: int) -> bool:
     return lo <= x <= hi
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn valid_range"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_string_in_check() {
-        let code = r#"
+        let code = r"
 def has_substring(text: str, sub: str) -> bool:
     return sub in text
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn has_substring"), "output: {}", rust);
         assert!(rust.contains("contains"), "output: {}", rust);
@@ -12479,75 +12479,75 @@ def has_substring(text: str, sub: str) -> bool:
 
     #[test]
     fn test_s9b6_list_in_check() {
-        let code = r#"
+        let code = r"
 def contains_item(items: list, target: int) -> bool:
     return target in items
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn contains_item"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_dict_in_check() {
-        let code = r#"
+        let code = r"
 def has_key(d: dict, key: str) -> bool:
     return key in d
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn has_key"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_not_in_check() {
-        let code = r#"
+        let code = r"
 def missing_key(d: dict, key: str) -> bool:
     return key not in d
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn missing_key"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_isinstance_check() {
-        let code = r#"
+        let code = r"
 def is_string(x) -> bool:
     return isinstance(x, str)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn is_string"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_pass_in_function() {
-        let code = r#"
+        let code = r"
 def noop() -> None:
     pass
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn noop"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_nested_if_in_for() {
-        let code = r#"
+        let code = r"
 def filter_positive(nums: list) -> list:
     result = []
     for n in nums:
         if n > 0:
             result.append(n)
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn filter_positive"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_multiple_assignments() {
-        let code = r#"
+        let code = r"
 def swap(a: int, b: int) -> tuple:
     a, b = b, a
     return a, b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn swap"), "output: {}", rust);
     }
@@ -12564,33 +12564,33 @@ def greet(name: str) -> str:
 
     #[test]
     fn test_s9b6_list_slicing() {
-        let code = r#"
+        let code = r"
 def first_three(items: list) -> list:
     return items[0:3]
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn first_three"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_negative_indexing() {
-        let code = r#"
+        let code = r"
 def last_item(items: list) -> int:
     return items[-1]
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn last_item"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_enumerate_with_index() {
-        let code = r#"
+        let code = r"
 def indexed_items(items: list) -> list:
     result = []
     for i, item in enumerate(items):
         result.append(i)
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn indexed_items"), "output: {}", rust);
         assert!(rust.contains("enumerate"), "output: {}", rust);
@@ -12598,13 +12598,13 @@ def indexed_items(items: list) -> list:
 
     #[test]
     fn test_s9b6_zip_two_lists() {
-        let code = r#"
+        let code = r"
 def pair_up(a: list, b: list) -> list:
     result = []
     for x, y in zip(a, b):
         result.append(x)
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn pair_up"), "output: {}", rust);
         assert!(rust.contains("zip"), "output: {}", rust);
@@ -12612,127 +12612,127 @@ def pair_up(a: list, b: list) -> list:
 
     #[test]
     fn test_s9b6_map_function() {
-        let code = r#"
+        let code = r"
 def double_all(nums: list) -> list:
     return list(map(lambda x: x * 2, nums))
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn double_all"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_filter_function() {
-        let code = r#"
+        let code = r"
 def positives(nums: list) -> list:
     return list(filter(lambda x: x > 0, nums))
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn positives"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_sorted_with_key() {
-        let code = r#"
+        let code = r"
 def sort_by_length(words: list) -> list:
     return sorted(words, key=lambda w: len(w))
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn sort_by_length"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_list_comprehension_with_condition() {
-        let code = r#"
+        let code = r"
 def even_squares(n: int) -> list:
     return [x * x for x in range(n) if x % 2 == 0]
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn even_squares"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_dict_comprehension() {
-        let code = r#"
+        let code = r"
 def square_dict(n: int) -> dict:
     return {i: i * i for i in range(n)}
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn square_dict"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_set_comprehension() {
-        let code = r#"
+        let code = r"
 def unique_lengths(words: list) -> set:
     return {len(w) for w in words}
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn unique_lengths"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_ternary_expression() {
-        let code = r#"
+        let code = r"
 def abs_val(x: int) -> int:
     return x if x >= 0 else -x
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn abs_val"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_bool_expression_and() {
-        let code = r#"
+        let code = r"
 def both_positive(a: int, b: int) -> bool:
     return a > 0 and b > 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn both_positive"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_bool_expression_or() {
-        let code = r#"
+        let code = r"
 def any_positive(a: int, b: int) -> bool:
     return a > 0 or b > 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn any_positive"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_nested_function_call() {
-        let code = r#"
+        let code = r"
 def process(x: int) -> int:
     return abs(min(x, 0))
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn process"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_class_with_init_and_method() {
-        let code = r#"
+        let code = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
         self.y = y
     def distance(self) -> float:
         return (self.x ** 2 + self.y ** 2) ** 0.5
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("struct Point"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_class_with_str_method() {
-        let code = r#"
+        let code = r"
 class Named:
     def __init__(self, name: str):
         self.name = name
     def get_name(self) -> str:
         return self.name
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("struct Named"), "output: {}", rust);
     }
@@ -12743,26 +12743,26 @@ class Named:
 
     #[test]
     fn test_cov95_try_except_basic() {
-        let code = r#"
+        let code = r"
 def safe_divide(a: int, b: int) -> int:
     try:
         return a // b
     except ZeroDivisionError:
         return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn safe_divide"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_try_except_generic() {
-        let code = r#"
+        let code = r"
 def safe_parse(s: str) -> int:
     try:
         return int(s)
     except Exception:
         return -1
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn safe_parse"), "output: {}", rust);
     }
@@ -12802,14 +12802,14 @@ def parse_value(s: str) -> str:
 
     #[test]
     fn test_cov95_try_except_as_variable() {
-        let code = r#"
+        let code = r"
 def safe_call() -> str:
     try:
         x = 1 // 0
         return str(x)
     except Exception as e:
         return str(e)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn safe_call"), "output: {}", rust);
     }
@@ -12846,10 +12846,10 @@ def write_file(path: str, data: str):
 
     #[test]
     fn test_cov95_assert_simple() {
-        let code = r#"
+        let code = r"
 def check_positive(x: int):
     assert x > 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("assert!"), "output: {}", rust);
     }
@@ -12866,20 +12866,20 @@ def check_positive(x: int):
 
     #[test]
     fn test_cov95_assert_eq() {
-        let code = r#"
+        let code = r"
 def check_equal(a: int, b: int):
     assert a == b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("assert_eq!"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_assert_ne() {
-        let code = r#"
+        let code = r"
 def check_not_equal(a: int, b: int):
     assert a != b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("assert_ne!"), "output: {}", rust);
     }
@@ -12900,76 +12900,76 @@ def check_equal(a: int, b: int):
 
     #[test]
     fn test_cov95_for_range_one_arg() {
-        let code = r#"
+        let code = r"
 def count_up(n: int) -> int:
     total = 0
     for i in range(n):
         total = total + i
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("for") || rust.contains("range"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_for_range_two_args() {
-        let code = r#"
+        let code = r"
 def sum_range(start: int, end: int) -> int:
     total = 0
     for i in range(start, end):
         total = total + i
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("for"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_for_range_three_args() {
-        let code = r#"
+        let code = r"
 def sum_evens(n: int) -> int:
     total = 0
     for i in range(0, n, 2):
         total = total + i
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("step_by") || rust.contains("for"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_for_enumerate() {
-        let code = r#"
+        let code = r"
 def indexed_items(items: list) -> list:
     result = []
     for i, item in enumerate(items):
         result.append(str(i))
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("enumerate"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_for_zip() {
-        let code = r#"
+        let code = r"
 def combine(a: list, b: list) -> list:
     result = []
     for x, y in zip(a, b):
         result.append(x + y)
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("zip"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_for_dict_items() {
-        let code = r#"
+        let code = r"
 def print_dict(d: dict):
     for key, value in d.items():
         print(key, value)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("for"), "output: {}", rust);
     }
@@ -12990,20 +12990,20 @@ def count_vowels(s: str) -> int:
 
     #[test]
     fn test_cov95_for_with_break() {
-        let code = r#"
+        let code = r"
 def find_first(items: list, target: int) -> int:
     for i, x in enumerate(items):
         if x == target:
             return i
     return -1
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("for"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_for_with_continue() {
-        let code = r#"
+        let code = r"
 def sum_positive(nums: list) -> int:
     total = 0
     for x in nums:
@@ -13011,7 +13011,7 @@ def sum_positive(nums: list) -> int:
             continue
         total = total + x
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("continue"), "output: {}", rust);
     }
@@ -13022,20 +13022,20 @@ def sum_positive(nums: list) -> int:
 
     #[test]
     fn test_cov95_while_basic() {
-        let code = r#"
+        let code = r"
 def countdown(n: int) -> int:
     count = n
     while count > 0:
         count = count - 1
     return count
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("while"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_while_with_break() {
-        let code = r#"
+        let code = r"
 def find_pow2(limit: int) -> int:
     x = 1
     while True:
@@ -13043,7 +13043,7 @@ def find_pow2(limit: int) -> int:
             break
         x = x * 2
     return x
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("loop") || rust.contains("while"), "output: {}", rust);
     }
@@ -13054,79 +13054,79 @@ def find_pow2(limit: int) -> int:
 
     #[test]
     fn test_cov95_augmented_assign_add() {
-        let code = r#"
+        let code = r"
 def accumulate(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("+="), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_augmented_assign_sub() {
-        let code = r#"
+        let code = r"
 def decrement(n: int) -> int:
     x = n
     x -= 1
     return x
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("-="), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_augmented_assign_mul() {
-        let code = r#"
+        let code = r"
 def double(n: int) -> int:
     x = n
     x *= 2
     return x
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("*=") || rust.contains("py_mul"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_tuple_unpack_assign() {
-        let code = r#"
+        let code = r"
 def swap(a: int, b: int) -> int:
     a, b = b, a
     return a
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn swap"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_multiple_assign() {
-        let code = r#"
+        let code = r"
 def init() -> int:
     x = y = z = 0
     return x + y + z
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn init"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_dict_index_assign() {
-        let code = r#"
+        let code = r"
 def set_value(d: dict, key: str, val: int):
     d[key] = val
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("insert"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_list_index_assign() {
-        let code = r#"
+        let code = r"
 def set_first(items: list, val: int):
     items[0] = val
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn set_first"), "output: {}", rust);
     }
@@ -13165,36 +13165,36 @@ def has_vowel(s: str) -> bool:
 
     #[test]
     fn test_cov95_if_not_in_check() {
-        let code = r#"
+        let code = r"
 def missing(items: list, target: int) -> bool:
     if target not in items:
         return True
     return False
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn missing"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_if_is_none() {
-        let code = r#"
+        let code = r"
 def check_none(x) -> bool:
     if x is None:
         return True
     return False
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("is_none") || rust.contains("None"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_if_is_not_none() {
-        let code = r#"
+        let code = r"
 def check_not_none(x) -> bool:
     if x is not None:
         return True
     return False
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("is_some") || rust.contains("None"), "output: {}", rust);
     }
@@ -13238,7 +13238,7 @@ def fail():
 
     #[test]
     fn test_cov95_class_basic() {
-        let code = r#"
+        let code = r"
 class Counter:
     def __init__(self):
         self.count = 0
@@ -13246,7 +13246,7 @@ class Counter:
         self.count += 1
     def get_count(self) -> int:
         return self.count
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("struct Counter"), "output: {}", rust);
         assert!(rust.contains("impl Counter"), "output: {}", rust);
@@ -13254,20 +13254,20 @@ class Counter:
 
     #[test]
     fn test_cov95_class_with_default_values() {
-        let code = r#"
+        let code = r"
 class Config:
     def __init__(self, name: str, value: int):
         self.name = name
         self.value = value
         self.active = True
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("struct Config"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_class_with_multiple_methods() {
-        let code = r#"
+        let code = r"
 class Stack:
     def __init__(self):
         self.items = []
@@ -13279,7 +13279,7 @@ class Stack:
         return len(self.items) == 0
     def size(self) -> int:
         return len(self.items)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("struct Stack"), "output: {}", rust);
         assert!(rust.contains("impl Stack"), "output: {}", rust);
@@ -13291,30 +13291,30 @@ class Stack:
 
     #[test]
     fn test_cov95_return_none() {
-        let code = r#"
+        let code = r"
 def do_nothing():
     return
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn do_nothing"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_return_tuple() {
-        let code = r#"
+        let code = r"
 def min_max(items: list) -> tuple:
     return min(items), max(items)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn min_max"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_return_list_literal() {
-        let code = r#"
+        let code = r"
 def make_list() -> list:
     return [1, 2, 3]
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("vec!"), "output: {}", rust);
     }
@@ -13335,60 +13335,60 @@ def make_dict() -> dict:
 
     #[test]
     fn test_cov95_truthiness_empty_list() {
-        let code = r#"
+        let code = r"
 def is_populated(items: list) -> bool:
     if items:
         return True
     return False
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("is_empty") || rust.contains("!items"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_truthiness_not_list() {
-        let code = r#"
+        let code = r"
 def is_empty_list(items: list) -> bool:
     if not items:
         return True
     return False
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("is_empty"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_truthiness_string() {
-        let code = r#"
+        let code = r"
 def has_content(s: str) -> bool:
     if s:
         return True
     return False
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("is_empty") || rust.contains("!s"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_truthiness_not_string() {
-        let code = r#"
+        let code = r"
 def is_blank(s: str) -> bool:
     if not s:
         return True
     return False
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("is_empty"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_truthiness_int() {
-        let code = r#"
+        let code = r"
 def is_nonzero(x: int) -> bool:
     if x:
         return True
     return False
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("!= 0") || rust.contains("x"), "output: {}", rust);
     }
@@ -13399,10 +13399,10 @@ def is_nonzero(x: int) -> bool:
 
     #[test]
     fn test_cov95_del_dict_key() {
-        let code = r#"
+        let code = r"
 def remove_key(d: dict, key: str):
     del d[key]
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("remove"), "output: {}", rust);
     }
@@ -13413,12 +13413,12 @@ def remove_key(d: dict, key: str):
 
     #[test]
     fn test_cov95_global_variable() {
-        let code = r#"
+        let code = r"
 counter = 0
 def increment():
     global counter
     counter += 1
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("counter"), "output: {}", rust);
     }
@@ -13429,23 +13429,23 @@ def increment():
 
     #[test]
     fn test_cov95_pass_in_if() {
-        let code = r#"
+        let code = r"
 def noop(x: int):
     if x > 0:
         pass
     else:
         x = 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn noop"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_pass_in_class() {
-        let code = r#"
+        let code = r"
 class Empty:
     pass
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("struct Empty"), "output: {}", rust);
     }
@@ -13456,12 +13456,12 @@ class Empty:
 
     #[test]
     fn test_cov95_nested_function() {
-        let code = r#"
+        let code = r"
 def outer(x: int) -> int:
     def inner(y: int) -> int:
         return y * 2
     return inner(x) + 1
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn outer"), "output: {}", rust);
     }
@@ -13472,30 +13472,30 @@ def outer(x: int) -> int:
 
     #[test]
     fn test_cov95_lambda_in_sort() {
-        let code = r#"
+        let code = r"
 def sort_by_second(items: list) -> list:
     return sorted(items, key=lambda x: x[1])
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("sort") || rust.contains("sorted"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_lambda_in_map() {
-        let code = r#"
+        let code = r"
 def double_all(nums: list) -> list:
     return list(map(lambda x: x * 2, nums))
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("map") || rust.contains("iter"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_lambda_in_filter() {
-        let code = r#"
+        let code = r"
 def evens(nums: list) -> list:
     return list(filter(lambda x: x % 2 == 0, nums))
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("filter") || rust.contains("iter"), "output: {}", rust);
     }
@@ -13551,11 +13551,11 @@ def make_scores() -> dict:
 
     #[test]
     fn test_cov95_type_annotated_list() {
-        let code = r#"
+        let code = r"
 def make_nums() -> list:
     nums: list = [1, 2, 3]
     return nums
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("vec!"), "output: {}", rust);
     }
@@ -13566,50 +13566,50 @@ def make_nums() -> list:
 
     #[test]
     fn test_cov95_set_literal() {
-        let code = r#"
+        let code = r"
 def unique_items() -> set:
     return {1, 2, 3, 2, 1}
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("HashSet") || rust.contains("hash_set"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_set_operations() {
-        let code = r#"
+        let code = r"
 def common(a: set, b: set) -> set:
     return a & b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("intersection") || rust.contains("&"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_dict_comprehension() {
-        let code = r#"
+        let code = r"
 def squares(n: int) -> dict:
     return {i: i * i for i in range(n)}
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("collect") || rust.contains("HashMap"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_list_comprehension_with_filter() {
-        let code = r#"
+        let code = r"
 def evens(n: int) -> list:
     return [i for i in range(n) if i % 2 == 0]
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("filter") || rust.contains("collect"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_set_comprehension() {
-        let code = r#"
+        let code = r"
 def unique_lengths(words: list) -> set:
     return {len(w) for w in words}
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("HashSet") || rust.contains("collect"), "output: {}", rust);
     }
@@ -13770,30 +13770,30 @@ def unique_lengths(words: list) -> set:
 
     #[test]
     fn test_cov95_list_multiplication() {
-        let code = r#"
+        let code = r"
 def repeat(n: int) -> list:
     return [0] * n
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("vec!") || rust.contains("repeat"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_string_multiplication() {
-        let code = r#"
+        let code = r"
 def repeat_str(s: str, n: int) -> str:
     return s * n
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("repeat"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_chained_comparison() {
-        let code = r#"
+        let code = r"
 def in_range(x: int) -> bool:
     return 0 < x < 100
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn in_range"), "output: {}", rust);
     }
@@ -13852,20 +13852,20 @@ def format_msg(name: str, age: int) -> str:
 
     #[test]
     fn test_cov95_isinstance_check() {
-        let code = r#"
+        let code = r"
 def is_string(x) -> bool:
     return isinstance(x, str)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn is_string"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_multiple_return_values() {
-        let code = r#"
+        let code = r"
 def divmod_custom(a: int, b: int) -> tuple:
     return a // b, a % b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn divmod_custom"), "output: {}", rust);
     }
@@ -13882,313 +13882,313 @@ def get_nested(d: dict) -> int:
 
     #[test]
     fn test_cov95_list_slice() {
-        let code = r#"
+        let code = r"
 def first_three(items: list) -> list:
     return items[0:3]
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn first_three"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_negative_index() {
-        let code = r#"
+        let code = r"
 def last_item(items: list) -> int:
     return items[-1]
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn last_item"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_enumerate_with_start() {
-        let code = r#"
+        let code = r"
 def numbered(items: list) -> list:
     result = []
     for i, x in enumerate(items, 1):
         result.append(i)
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("enumerate"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_int_division() {
-        let code = r#"
+        let code = r"
 def half(n: int) -> int:
     return n // 2
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn half"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_power_operator() {
-        let code = r#"
+        let code = r"
 def square(x: int) -> int:
     return x ** 2
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("pow") || rust.contains("powi"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_modulo_operator() {
-        let code = r#"
+        let code = r"
 def is_even(x: int) -> bool:
     return x % 2 == 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("%"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_bitwise_and() {
-        let code = r#"
+        let code = r"
 def mask(x: int, m: int) -> int:
     return x & m
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("&"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_bitwise_or() {
-        let code = r#"
+        let code = r"
 def combine_flags(a: int, b: int) -> int:
     return a | b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("|"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_bitwise_xor() {
-        let code = r#"
+        let code = r"
 def toggle(x: int, mask: int) -> int:
     return x ^ mask
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("^"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_left_shift() {
-        let code = r#"
+        let code = r"
 def shift_left(x: int, n: int) -> int:
     return x << n
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("<<"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_right_shift() {
-        let code = r#"
+        let code = r"
 def shift_right(x: int, n: int) -> int:
     return x >> n
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains(">>"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_unary_not() {
-        let code = r#"
+        let code = r"
 def negate(x: bool) -> bool:
     return not x
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("!"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_unary_minus() {
-        let code = r#"
+        let code = r"
 def negate_num(x: int) -> int:
     return -x
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("-"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_any_all() {
-        let code = r#"
+        let code = r"
 def all_positive(nums: list) -> bool:
     return all(x > 0 for x in nums)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("all") || rust.contains("iter"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_any_check() {
-        let code = r#"
+        let code = r"
 def has_negative(nums: list) -> bool:
     return any(x < 0 for x in nums)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("any") || rust.contains("iter"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_sum_builtin() {
-        let code = r#"
+        let code = r"
 def total(nums: list) -> int:
     return sum(nums)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("sum") || rust.contains("iter"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_abs_builtin() {
-        let code = r#"
+        let code = r"
 def absolute(x: int) -> int:
     return abs(x)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("abs"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_reversed_builtin() {
-        let code = r#"
+        let code = r"
 def reverse_list(items: list) -> list:
     return list(reversed(items))
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("rev") || rust.contains("reversed"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_min_max_builtins() {
-        let code = r#"
+        let code = r"
 def clamp(x: int, lo: int, hi: int) -> int:
     return max(lo, min(x, hi))
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("max") && rust.contains("min"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_ord_chr() {
-        let code = r#"
+        let code = r"
 def char_code(c: str) -> int:
     return ord(c)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn char_code"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_chr_builtin() {
-        let code = r#"
+        let code = r"
 def code_char(n: int) -> str:
     return chr(n)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn code_char"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_hex_oct_bin() {
-        let code = r#"
+        let code = r"
 def to_hex(n: int) -> str:
     return hex(n)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn to_hex"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_round_builtin() {
-        let code = r#"
+        let code = r"
 def round_val(x: float) -> float:
     return round(x, 2)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn round_val"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_divmod_builtin() {
-        let code = r#"
+        let code = r"
 def divide_mod(a: int, b: int) -> tuple:
     return divmod(a, b)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn divide_mod"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_type_conversions() {
-        let code = r#"
+        let code = r"
 def to_int(s: str) -> int:
     return int(s)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("parse") || rust.contains("as i"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_float_conversion() {
-        let code = r#"
+        let code = r"
 def to_float(s: str) -> float:
     return float(s)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("parse") || rust.contains("as f"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_str_conversion() {
-        let code = r#"
+        let code = r"
 def to_str(x: int) -> str:
     return str(x)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("to_string") || rust.contains("format"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_bool_conversion() {
-        let code = r#"
+        let code = r"
 def to_bool(x: int) -> bool:
     return bool(x)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn to_bool"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_len_list() {
-        let code = r#"
+        let code = r"
 def list_len(items: list) -> int:
     return len(items)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("len()"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_len_str() {
-        let code = r#"
+        let code = r"
 def str_len(s: str) -> int:
     return len(s)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("len()"), "output: {}", rust);
     }
 
     #[test]
     fn test_cov95_len_dict() {
-        let code = r#"
+        let code = r"
 def dict_len(d: dict) -> int:
     return len(d)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("len()"), "output: {}", rust);
     }

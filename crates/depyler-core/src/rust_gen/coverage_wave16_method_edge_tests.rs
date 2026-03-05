@@ -167,10 +167,10 @@ def to_bytes(s: str) -> list:
 
     #[test]
     fn test_w16me_string_013_encode_no_arg() {
-        let code = r#"
+        let code = r"
 def to_default_bytes(s: str) -> list:
     return s.encode()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("as_bytes") || result.contains("to_vec"));
@@ -178,10 +178,10 @@ def to_default_bytes(s: str) -> list:
 
     #[test]
     fn test_w16me_string_014_casefold_basic() {
-        let code = r#"
+        let code = r"
 def normalize_case(s: str) -> str:
     return s.casefold()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("to_lowercase"));
@@ -189,10 +189,10 @@ def normalize_case(s: str) -> str:
 
     #[test]
     fn test_w16me_string_015_center_basic() {
-        let code = r#"
+        let code = r"
 def center_it(s: str) -> str:
     return s.center(20)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("width") || result.contains("pad") || result.contains("format"));
@@ -213,10 +213,10 @@ def center_stars(s: str) -> str:
 
     #[test]
     fn test_w16me_string_017_ljust_basic() {
-        let code = r#"
+        let code = r"
 def pad_right(s: str) -> str:
     return s.ljust(20)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("width") || result.contains("format"));
@@ -235,10 +235,10 @@ def pad_right_dot(s: str) -> str:
 
     #[test]
     fn test_w16me_string_019_rjust_basic() {
-        let code = r#"
+        let code = r"
 def pad_left(s: str) -> str:
     return s.rjust(20)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("width") || result.contains("format"));
@@ -257,10 +257,10 @@ def pad_left_zero(s: str) -> str:
 
     #[test]
     fn test_w16me_string_021_zfill_basic() {
-        let code = r#"
+        let code = r"
 def zero_pad(s: str) -> str:
     return s.zfill(5)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("width") || result.contains("zfill") || result.contains("repeat"));
@@ -268,20 +268,20 @@ def zero_pad(s: str) -> str:
 
     #[test]
     fn test_w16me_string_022_zfill_large() {
-        let code = r#"
+        let code = r"
 def zero_pad_large(s: str) -> str:
     return s.zfill(10)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16me_string_023_expandtabs_default() {
-        let code = r#"
+        let code = r"
 def expand_tabs(s: str) -> str:
     return s.expandtabs()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("replace") || result.contains("repeat"));
@@ -289,10 +289,10 @@ def expand_tabs(s: str) -> str:
 
     #[test]
     fn test_w16me_string_024_expandtabs_four() {
-        let code = r#"
+        let code = r"
 def expand_tabs_four(s: str) -> str:
     return s.expandtabs(4)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("replace") || result.contains("repeat"));
@@ -300,10 +300,10 @@ def expand_tabs_four(s: str) -> str:
 
     #[test]
     fn test_w16me_string_025_isdigit_basic() {
-        let code = r#"
+        let code = r"
 def check_digit(s: str) -> bool:
     return s.isdigit()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_numeric") || result.contains("isdigit"));
@@ -311,10 +311,10 @@ def check_digit(s: str) -> bool:
 
     #[test]
     fn test_w16me_string_026_isnumeric_basic() {
-        let code = r#"
+        let code = r"
 def check_numeric(s: str) -> bool:
     return s.isnumeric()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_numeric") || result.contains("isnumeric"));
@@ -322,10 +322,10 @@ def check_numeric(s: str) -> bool:
 
     #[test]
     fn test_w16me_string_027_isdecimal_basic() {
-        let code = r#"
+        let code = r"
 def check_decimal(s: str) -> bool:
     return s.isdecimal()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_ascii_digit") || result.contains("isdecimal"));
@@ -333,10 +333,10 @@ def check_decimal(s: str) -> bool:
 
     #[test]
     fn test_w16me_string_028_title_basic() {
-        let code = r#"
+        let code = r"
 def make_title(s: str) -> str:
     return s.title()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("to_uppercase") || result.contains("split_whitespace"));
@@ -344,10 +344,10 @@ def make_title(s: str) -> str:
 
     #[test]
     fn test_w16me_string_029_swapcase_basic() {
-        let code = r#"
+        let code = r"
 def swap_case(s: str) -> str:
     return s.swapcase()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -359,10 +359,10 @@ def swap_case(s: str) -> str:
 
     #[test]
     fn test_w16me_string_030_capitalize_basic() {
-        let code = r#"
+        let code = r"
 def cap_first(s: str) -> str:
     return s.capitalize()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("to_uppercase") || result.contains("chars"));
@@ -402,10 +402,10 @@ def no_format() -> str:
 
     #[test]
     fn test_w16me_string_034_hex_method() {
-        let code = r#"
+        let code = r"
 def to_hex(s: str) -> str:
     return s.hex()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("bytes") || result.contains("hex") || result.contains("format"));
@@ -413,10 +413,10 @@ def to_hex(s: str) -> str:
 
     #[test]
     fn test_w16me_string_035_splitlines_basic() {
-        let code = r#"
+        let code = r"
 def get_lines(s: str) -> list:
     return s.splitlines()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("lines") || result.contains("splitlines"));
@@ -457,10 +457,10 @@ def find_last(s: str) -> int:
 
     #[test]
     fn test_w16me_string_039_isprintable_basic() {
-        let code = r#"
+        let code = r"
 def check_printable(s: str) -> bool:
     return s.isprintable()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_control") || result.contains("isprintable"));
@@ -468,10 +468,10 @@ def check_printable(s: str) -> bool:
 
     #[test]
     fn test_w16me_string_040_isidentifier_basic() {
-        let code = r#"
+        let code = r"
 def check_ident(s: str) -> bool:
     return s.isidentifier()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_alphabetic") || result.contains("is_alphanumeric"));
@@ -479,10 +479,10 @@ def check_ident(s: str) -> bool:
 
     #[test]
     fn test_w16me_string_041_isascii_basic() {
-        let code = r#"
+        let code = r"
 def check_ascii(s: str) -> bool:
     return s.isascii()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_ascii"));
@@ -490,10 +490,10 @@ def check_ascii(s: str) -> bool:
 
     #[test]
     fn test_w16me_string_042_isupper_basic() {
-        let code = r#"
+        let code = r"
 def check_upper(s: str) -> bool:
     return s.isupper()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_uppercase") || result.contains("is_alphabetic"));
@@ -501,10 +501,10 @@ def check_upper(s: str) -> bool:
 
     #[test]
     fn test_w16me_string_043_islower_basic() {
-        let code = r#"
+        let code = r"
 def check_lower(s: str) -> bool:
     return s.islower()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_lowercase") || result.contains("is_alphabetic"));
@@ -512,10 +512,10 @@ def check_lower(s: str) -> bool:
 
     #[test]
     fn test_w16me_string_044_istitle_basic() {
-        let code = r#"
+        let code = r"
 def check_title(s: str) -> bool:
     return s.istitle()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -527,10 +527,10 @@ def check_title(s: str) -> bool:
 
     #[test]
     fn test_w16me_string_045_isspace_basic() {
-        let code = r#"
+        let code = r"
 def check_space(s: str) -> bool:
     return s.isspace()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_whitespace"));
@@ -538,10 +538,10 @@ def check_space(s: str) -> bool:
 
     #[test]
     fn test_w16me_string_046_isalpha_basic() {
-        let code = r#"
+        let code = r"
 def check_alpha(s: str) -> bool:
     return s.isalpha()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_alphabetic"));
@@ -549,10 +549,10 @@ def check_alpha(s: str) -> bool:
 
     #[test]
     fn test_w16me_string_047_isalnum_basic() {
-        let code = r#"
+        let code = r"
 def check_alnum(s: str) -> bool:
     return s.isalnum()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_alphanumeric"));
@@ -582,10 +582,10 @@ def rsplit_once(s: str) -> list:
 
     #[test]
     fn test_w16me_string_050_rsplit_no_args() {
-        let code = r#"
+        let code = r"
 def rsplit_whitespace(s: str) -> list:
     return s.rsplit()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("split_whitespace") || result.contains("rev"));
@@ -619,10 +619,10 @@ def get_count(d: dict) -> int:
 
     #[test]
     fn test_w16me_dict_053_get_single_arg() {
-        let code = r#"
+        let code = r"
 def get_val(d: dict, key: str):
     return d.get(key)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("get") || result.contains("cloned"));
@@ -630,10 +630,10 @@ def get_val(d: dict, key: str):
 
     #[test]
     fn test_w16me_dict_054_popitem_basic() {
-        let code = r#"
+        let code = r"
 def pop_any(d: dict) -> tuple:
     return d.popitem()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("keys") || result.contains("remove") || result.contains("popitem"));
@@ -656,10 +656,10 @@ def ensure_key(d: dict) -> str:
 
     #[test]
     fn test_w16me_dict_056_keys_basic() {
-        let code = r#"
+        let code = r"
 def get_keys(d: dict) -> list:
     return d.keys()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("keys") || result.contains("collect"));
@@ -667,10 +667,10 @@ def get_keys(d: dict) -> list:
 
     #[test]
     fn test_w16me_dict_057_values_basic() {
-        let code = r#"
+        let code = r"
 def get_values(d: dict) -> list:
     return d.values()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("values") || result.contains("collect"));
@@ -678,10 +678,10 @@ def get_values(d: dict) -> list:
 
     #[test]
     fn test_w16me_dict_058_items_basic() {
-        let code = r#"
+        let code = r"
 def get_items(d: dict) -> list:
     return d.items()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("iter") || result.contains("items") || result.contains("clone"));
@@ -689,10 +689,10 @@ def get_items(d: dict) -> list:
 
     #[test]
     fn test_w16me_dict_059_update_basic() {
-        let code = r#"
+        let code = r"
 def merge_dicts(d1: dict, d2: dict):
     d1.update(d2)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("insert") || result.contains("iter") || result.contains("update"));
@@ -700,10 +700,10 @@ def merge_dicts(d1: dict, d2: dict):
 
     #[test]
     fn test_w16me_dict_060_pop_with_key() {
-        let code = r#"
+        let code = r"
 def remove_key(d: dict, key: str):
     return d.pop(key)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("remove") || result.contains("pop"));
@@ -711,10 +711,10 @@ def remove_key(d: dict, key: str):
 
     #[test]
     fn test_w16me_dict_061_pop_with_default() {
-        let code = r#"
+        let code = r"
 def remove_or_default(d: dict, key: str) -> int:
     return d.pop(key, 0)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("remove") || result.contains("unwrap_or"));
@@ -722,10 +722,10 @@ def remove_or_default(d: dict, key: str) -> int:
 
     #[test]
     fn test_w16me_dict_062_clear_basic() {
-        let code = r#"
+        let code = r"
 def empty_dict(d: dict):
     d.clear()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clear"));
@@ -733,10 +733,10 @@ def empty_dict(d: dict):
 
     #[test]
     fn test_w16me_dict_063_copy_basic() {
-        let code = r#"
+        let code = r"
 def clone_dict(d: dict) -> dict:
     return d.copy()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clone") || result.contains("copy"));
@@ -756,10 +756,10 @@ def get_from_literal() -> int:
 
     #[test]
     fn test_w16me_dict_065_dict_comprehension_basic() {
-        let code = r#"
+        let code = r"
 def square_map(nums: list) -> dict:
     return {x: x * x for x in nums}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("collect") || result.contains("map") || result.contains("HashMap"));
@@ -767,13 +767,13 @@ def square_map(nums: list) -> dict:
 
     #[test]
     fn test_w16me_dict_066_dict_keys_iteration() {
-        let code = r#"
+        let code = r"
 def iterate_keys(d: dict) -> list:
     result = []
     for k in d.keys():
         result.append(k)
     return result
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("keys"));
@@ -781,13 +781,13 @@ def iterate_keys(d: dict) -> list:
 
     #[test]
     fn test_w16me_dict_067_dict_values_iteration() {
-        let code = r#"
+        let code = r"
 def iterate_values(d: dict) -> list:
     result = []
     for v in d.values():
         result.append(v)
     return result
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("values"));
@@ -795,11 +795,11 @@ def iterate_values(d: dict) -> list:
 
     #[test]
     fn test_w16me_dict_068_dict_items_iteration() {
-        let code = r#"
+        let code = r"
 def iterate_items(d: dict):
     for k, v in d.items():
         pass
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -840,11 +840,11 @@ def remove_str_key(d: dict) -> str:
 
     #[test]
     fn test_w16me_dict_072_dict_update_in_func() {
-        let code = r#"
+        let code = r"
 def add_entry(d: dict, key: str, val: int):
     other = {key: val}
     d.update(other)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -862,10 +862,10 @@ def nested() -> dict:
 
     #[test]
     fn test_w16me_dict_074_dict_empty() {
-        let code = r#"
+        let code = r"
 def empty() -> dict:
     return {}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("HashMap") || result.contains("new"));
@@ -873,10 +873,10 @@ def empty() -> dict:
 
     #[test]
     fn test_w16me_dict_075_dict_len() {
-        let code = r#"
+        let code = r"
 def size(d: dict) -> int:
     return len(d)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("len"));
@@ -884,10 +884,10 @@ def size(d: dict) -> int:
 
     #[test]
     fn test_w16me_dict_076_dict_in_check() {
-        let code = r#"
+        let code = r"
 def has_key(d: dict, key: str) -> bool:
     return key in d
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("contains"));
@@ -895,10 +895,10 @@ def has_key(d: dict, key: str) -> bool:
 
     #[test]
     fn test_w16me_dict_077_dict_not_in_check() {
-        let code = r#"
+        let code = r"
 def missing_key(d: dict, key: str) -> bool:
     return key not in d
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("contains"));
@@ -928,10 +928,10 @@ def set_or_get(d: dict) -> int:
 
     #[test]
     fn test_w16me_dict_080_dict_keys_list() {
-        let code = r#"
+        let code = r"
 def key_list(d: dict) -> list:
     return list(d.keys())
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("keys"));
@@ -939,10 +939,10 @@ def key_list(d: dict) -> list:
 
     #[test]
     fn test_w16me_dict_081_dict_values_list() {
-        let code = r#"
+        let code = r"
 def val_list(d: dict) -> list:
     return list(d.values())
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("values"));
@@ -950,10 +950,10 @@ def val_list(d: dict) -> list:
 
     #[test]
     fn test_w16me_dict_082_dict_fromkeys_basic() {
-        let code = r#"
+        let code = r"
 def make_dict(keys: list) -> dict:
     return dict.fromkeys(keys, 0)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("iter") || result.contains("map") || result.contains("collect"));
@@ -961,10 +961,10 @@ def make_dict(keys: list) -> dict:
 
     #[test]
     fn test_w16me_dict_083_dict_fromkeys_no_default() {
-        let code = r#"
+        let code = r"
 def make_dict_none(keys: list) -> dict:
     return dict.fromkeys(keys)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -982,10 +982,10 @@ def safe_pop(d: dict, key: str) -> str:
 
     #[test]
     fn test_w16me_dict_085_dict_get_with_var_key() {
-        let code = r#"
+        let code = r"
 def lookup(d: dict, key: str) -> int:
     return d.get(key, 0)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("get"));
@@ -993,10 +993,10 @@ def lookup(d: dict, key: str) -> int:
 
     #[test]
     fn test_w16me_dict_086_dict_comprehension_filter() {
-        let code = r#"
+        let code = r"
 def filter_dict(d: dict) -> dict:
     return {k: v for k, v in d.items() if v > 0}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -1006,10 +1006,10 @@ def filter_dict(d: dict) -> dict:
 
     #[test]
     fn test_w16me_dict_087_dict_setdefault_list() {
-        let code = r#"
+        let code = r"
 def set_default_list(d: dict, key: str) -> list:
     return d.setdefault(key, [])
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("entry") || result.contains("or_insert"));
@@ -1017,11 +1017,11 @@ def set_default_list(d: dict, key: str) -> list:
 
     #[test]
     fn test_w16me_dict_088_dict_multi_ops() {
-        let code = r#"
+        let code = r"
 def dict_ops(d: dict):
     d.clear()
     return len(d)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clear"));
@@ -1029,11 +1029,11 @@ def dict_ops(d: dict):
 
     #[test]
     fn test_w16me_dict_089_dict_copy_and_modify() {
-        let code = r#"
+        let code = r"
 def copy_and_add(d: dict) -> dict:
     result = d.copy()
     return result
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clone") || result.contains("copy"));
@@ -1041,11 +1041,11 @@ def copy_and_add(d: dict) -> dict:
 
     #[test]
     fn test_w16me_dict_090_dict_popitem_in_func() {
-        let code = r#"
+        let code = r"
 def drain_one(d: dict):
     item = d.popitem()
     return item
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1063,21 +1063,21 @@ def get_literal(d: dict) -> int:
 
     #[test]
     fn test_w16me_dict_092_dict_update_and_read() {
-        let code = r#"
+        let code = r"
 def update_read(d: dict, extra: dict):
     d.update(extra)
     return d.keys()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16me_dict_093_dict_pop_int_key() {
-        let code = r#"
+        let code = r"
 def pop_int_key(d: dict) -> str:
     return d.pop(1)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("remove"));
@@ -1098,10 +1098,10 @@ def multi_get(d: dict) -> list:
 
     #[test]
     fn test_w16me_dict_095_dict_values_sum() {
-        let code = r#"
+        let code = r"
 def total(d: dict) -> int:
     return sum(d.values())
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("values") || result.contains("sum"));
@@ -1109,20 +1109,20 @@ def total(d: dict) -> int:
 
     #[test]
     fn test_w16me_dict_096_dict_items_to_list() {
-        let code = r#"
+        let code = r"
 def items_list(d: dict) -> list:
     return list(d.items())
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16me_dict_097_dict_keys_sorted() {
-        let code = r#"
+        let code = r"
 def sorted_keys(d: dict) -> list:
     return sorted(d.keys())
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("keys") || result.contains("sort"));
@@ -1130,10 +1130,10 @@ def sorted_keys(d: dict) -> list:
 
     #[test]
     fn test_w16me_dict_098_dict_len_check() {
-        let code = r#"
+        let code = r"
 def is_empty(d: dict) -> bool:
     return len(d) == 0
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("len"));
@@ -1141,10 +1141,10 @@ def is_empty(d: dict) -> bool:
 
     #[test]
     fn test_w16me_dict_099_dict_get_no_default_str() {
-        let code = r#"
+        let code = r"
 def get_optional(d: dict, key: str):
     return d.get(key)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("get") || result.contains("cloned"));
@@ -1167,10 +1167,10 @@ def set_str_default(d: dict) -> str:
 
     #[test]
     fn test_w16me_list_101_pop_no_args() {
-        let code = r#"
+        let code = r"
 def pop_last(lst: list) -> int:
     return lst.pop()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("pop") || result.contains("unwrap_or_default"));
@@ -1178,10 +1178,10 @@ def pop_last(lst: list) -> int:
 
     #[test]
     fn test_w16me_list_102_pop_with_index_zero() {
-        let code = r#"
+        let code = r"
 def pop_first(lst: list) -> int:
     return lst.pop(0)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("remove") || result.contains("pop"));
@@ -1189,10 +1189,10 @@ def pop_first(lst: list) -> int:
 
     #[test]
     fn test_w16me_list_103_pop_with_index_two() {
-        let code = r#"
+        let code = r"
 def pop_at(lst: list) -> int:
     return lst.pop(2)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("remove") || result.contains("pop"));
@@ -1200,10 +1200,10 @@ def pop_at(lst: list) -> int:
 
     #[test]
     fn test_w16me_list_104_sort_no_args() {
-        let code = r#"
+        let code = r"
 def sort_list(lst: list):
     lst.sort()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("sort"));
@@ -1211,10 +1211,10 @@ def sort_list(lst: list):
 
     #[test]
     fn test_w16me_list_105_sort_reverse_true() {
-        let code = r#"
+        let code = r"
 def sort_desc(lst: list):
     lst.sort(reverse=True)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("sort_by") || result.contains("cmp") || result.contains("sort"));
@@ -1222,10 +1222,10 @@ def sort_desc(lst: list):
 
     #[test]
     fn test_w16me_list_106_sort_key_len() {
-        let code = r#"
+        let code = r"
 def sort_by_len(lst: list):
     lst.sort(key=len)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("sort_by_key") || result.contains("sort"));
@@ -1233,10 +1233,10 @@ def sort_by_len(lst: list):
 
     #[test]
     fn test_w16me_list_107_insert_at_zero() {
-        let code = r#"
+        let code = r"
 def prepend(lst: list, val: int):
     lst.insert(0, val)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("insert"));
@@ -1244,10 +1244,10 @@ def prepend(lst: list, val: int):
 
     #[test]
     fn test_w16me_list_108_insert_at_middle() {
-        let code = r#"
+        let code = r"
 def insert_mid(lst: list, val: int):
     lst.insert(2, val)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("insert"));
@@ -1255,10 +1255,10 @@ def insert_mid(lst: list, val: int):
 
     #[test]
     fn test_w16me_list_109_extend_basic() {
-        let code = r#"
+        let code = r"
 def combine(lst: list, other: list):
     lst.extend(other)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("extend") || result.contains("iter"));
@@ -1266,10 +1266,10 @@ def combine(lst: list, other: list):
 
     #[test]
     fn test_w16me_list_110_count_basic() {
-        let code = r#"
+        let code = r"
 def count_val(lst: list, val: int) -> int:
     return lst.count(val)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("filter") || result.contains("count"));
@@ -1277,10 +1277,10 @@ def count_val(lst: list, val: int) -> int:
 
     #[test]
     fn test_w16me_list_111_index_basic() {
-        let code = r#"
+        let code = r"
 def find_pos(lst: list, val: int) -> int:
     return lst.index(val)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("position") || result.contains("index"));
@@ -1288,10 +1288,10 @@ def find_pos(lst: list, val: int) -> int:
 
     #[test]
     fn test_w16me_list_112_copy_basic() {
-        let code = r#"
+        let code = r"
 def clone_list(lst: list) -> list:
     return lst.copy()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clone") || result.contains("copy"));
@@ -1299,10 +1299,10 @@ def clone_list(lst: list) -> list:
 
     #[test]
     fn test_w16me_list_113_clear_basic() {
-        let code = r#"
+        let code = r"
 def empty_list(lst: list):
     lst.clear()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clear"));
@@ -1310,10 +1310,10 @@ def empty_list(lst: list):
 
     #[test]
     fn test_w16me_list_114_reverse_basic() {
-        let code = r#"
+        let code = r"
 def flip_list(lst: list):
     lst.reverse()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("reverse"));
@@ -1321,10 +1321,10 @@ def flip_list(lst: list):
 
     #[test]
     fn test_w16me_list_115_remove_basic() {
-        let code = r#"
+        let code = r"
 def remove_val(lst: list, val: int):
     lst.remove(val)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("position") || result.contains("remove"));
@@ -1332,10 +1332,10 @@ def remove_val(lst: list, val: int):
 
     #[test]
     fn test_w16me_list_116_append_int() {
-        let code = r#"
+        let code = r"
 def add_item(lst: list, val: int):
     lst.append(val)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("push") || result.contains("append"));
@@ -1343,10 +1343,10 @@ def add_item(lst: list, val: int):
 
     #[test]
     fn test_w16me_list_117_append_str() {
-        let code = r#"
+        let code = r"
 def add_name(lst: list, name: str):
     lst.append(name)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("push"));
@@ -1354,11 +1354,11 @@ def add_name(lst: list, name: str):
 
     #[test]
     fn test_w16me_list_118_list_literal_ops() {
-        let code = r#"
+        let code = r"
 def list_ops() -> int:
     lst = [1, 2, 3, 4, 5]
     return len(lst)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("len") || result.contains("vec!"));
@@ -1366,10 +1366,10 @@ def list_ops() -> int:
 
     #[test]
     fn test_w16me_list_119_nested_list() {
-        let code = r#"
+        let code = r"
 def nested() -> list:
     return [[1, 2], [3, 4]]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("vec!") || result.contains("Vec"));
@@ -1377,10 +1377,10 @@ def nested() -> list:
 
     #[test]
     fn test_w16me_list_120_list_of_tuples() {
-        let code = r#"
+        let code = r"
 def pairs() -> list:
     return [(1, 2), (3, 4)]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("vec!") || result.contains("Vec"));
@@ -1388,10 +1388,10 @@ def pairs() -> list:
 
     #[test]
     fn test_w16me_list_121_list_comprehension_basic() {
-        let code = r#"
+        let code = r"
 def squares(n: int) -> list:
     return [x * x for x in range(n)]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("map") || result.contains("collect"));
@@ -1399,10 +1399,10 @@ def squares(n: int) -> list:
 
     #[test]
     fn test_w16me_list_122_list_comprehension_filter() {
-        let code = r#"
+        let code = r"
 def evens(n: int) -> list:
     return [x for x in range(n) if x % 2 == 0]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("filter") || result.contains("collect"));
@@ -1410,10 +1410,10 @@ def evens(n: int) -> list:
 
     #[test]
     fn test_w16me_list_123_sort_reverse_false() {
-        let code = r#"
+        let code = r"
 def sort_asc(lst: list):
     lst.sort(reverse=False)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("sort"));
@@ -1421,11 +1421,11 @@ def sort_asc(lst: list):
 
     #[test]
     fn test_w16me_list_124_pop_and_use() {
-        let code = r#"
+        let code = r"
 def pop_and_store(lst: list) -> int:
     val = lst.pop()
     return val
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("pop"));
@@ -1433,11 +1433,11 @@ def pop_and_store(lst: list) -> int:
 
     #[test]
     fn test_w16me_list_125_extend_and_sort() {
-        let code = r#"
+        let code = r"
 def merge_sorted(lst: list, other: list):
     lst.extend(other)
     lst.sort()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("extend"));
@@ -1446,11 +1446,11 @@ def merge_sorted(lst: list, other: list):
 
     #[test]
     fn test_w16me_list_126_insert_and_remove() {
-        let code = r#"
+        let code = r"
 def insert_remove(lst: list, val: int):
     lst.insert(0, val)
     lst.remove(val)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("insert"));
@@ -1458,10 +1458,10 @@ def insert_remove(lst: list, val: int):
 
     #[test]
     fn test_w16me_list_127_count_and_check() {
-        let code = r#"
+        let code = r"
 def has_item(lst: list, val: int) -> bool:
     return lst.count(val) > 0
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("filter") || result.contains("count"));
@@ -1469,12 +1469,12 @@ def has_item(lst: list, val: int) -> bool:
 
     #[test]
     fn test_w16me_list_128_reverse_and_return() {
-        let code = r#"
+        let code = r"
 def reversed_copy(lst: list) -> list:
     result = lst.copy()
     result.reverse()
     return result
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clone") || result.contains("reverse"));
@@ -1482,11 +1482,11 @@ def reversed_copy(lst: list) -> list:
 
     #[test]
     fn test_w16me_list_129_clear_and_rebuild() {
-        let code = r#"
+        let code = r"
 def reset_list(lst: list):
     lst.clear()
     lst.append(0)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clear"));
@@ -1495,11 +1495,11 @@ def reset_list(lst: list):
 
     #[test]
     fn test_w16me_list_130_index_and_pop() {
-        let code = r#"
+        let code = r"
 def find_and_pop(lst: list, val: int) -> int:
     idx = lst.index(val)
     return lst.pop(idx)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("position") || result.contains("index"));
@@ -1518,10 +1518,10 @@ def add_str(lst: list):
 
     #[test]
     fn test_w16me_list_132_extend_empty() {
-        let code = r#"
+        let code = r"
 def extend_empty(lst: list):
     lst.extend([])
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("extend"));
@@ -1529,10 +1529,10 @@ def extend_empty(lst: list):
 
     #[test]
     fn test_w16me_list_133_list_len() {
-        let code = r#"
+        let code = r"
 def size(lst: list) -> int:
     return len(lst)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("len"));
@@ -1540,10 +1540,10 @@ def size(lst: list) -> int:
 
     #[test]
     fn test_w16me_list_134_list_in_check() {
-        let code = r#"
+        let code = r"
 def has_val(lst: list, val: int) -> bool:
     return val in lst
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("contains"));
@@ -1551,10 +1551,10 @@ def has_val(lst: list, val: int) -> bool:
 
     #[test]
     fn test_w16me_list_135_list_not_in_check() {
-        let code = r#"
+        let code = r"
 def missing_val(lst: list, val: int) -> bool:
     return val not in lst
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("contains"));
@@ -1562,20 +1562,20 @@ def missing_val(lst: list, val: int) -> bool:
 
     #[test]
     fn test_w16me_list_136_list_concat() {
-        let code = r#"
+        let code = r"
 def concat(a: list, b: list) -> list:
     return a + b
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16me_list_137_list_empty_check() {
-        let code = r#"
+        let code = r"
 def is_empty(lst: list) -> bool:
     return len(lst) == 0
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("len"));
@@ -1583,10 +1583,10 @@ def is_empty(lst: list) -> bool:
 
     #[test]
     fn test_w16me_list_138_list_min() {
-        let code = r#"
+        let code = r"
 def minimum(lst: list) -> int:
     return min(lst)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("min") || result.contains("iter"));
@@ -1594,10 +1594,10 @@ def minimum(lst: list) -> int:
 
     #[test]
     fn test_w16me_list_139_list_max() {
-        let code = r#"
+        let code = r"
 def maximum(lst: list) -> int:
     return max(lst)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("max") || result.contains("iter"));
@@ -1605,10 +1605,10 @@ def maximum(lst: list) -> int:
 
     #[test]
     fn test_w16me_list_140_list_sum() {
-        let code = r#"
+        let code = r"
 def total(lst: list) -> int:
     return sum(lst)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("sum") || result.contains("iter"));
@@ -1616,10 +1616,10 @@ def total(lst: list) -> int:
 
     #[test]
     fn test_w16me_list_141_list_sorted() {
-        let code = r#"
+        let code = r"
 def sorted_copy(lst: list) -> list:
     return sorted(lst)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("sort") || result.contains("sorted"));
@@ -1627,20 +1627,20 @@ def sorted_copy(lst: list) -> list:
 
     #[test]
     fn test_w16me_list_142_list_reversed() {
-        let code = r#"
+        let code = r"
 def reversed_iter(lst: list) -> list:
     return list(reversed(lst))
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16me_list_143_list_enumerate() {
-        let code = r#"
+        let code = r"
 def with_index(lst: list) -> list:
     return list(enumerate(lst))
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("enumerate") || result.contains("iter"));
@@ -1648,10 +1648,10 @@ def with_index(lst: list) -> list:
 
     #[test]
     fn test_w16me_list_144_list_zip() {
-        let code = r#"
+        let code = r"
 def combine(a: list, b: list) -> list:
     return list(zip(a, b))
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("zip") || result.contains("iter"));
@@ -1659,22 +1659,22 @@ def combine(a: list, b: list) -> list:
 
     #[test]
     fn test_w16me_list_145_list_bool_check() {
-        let code = r#"
+        let code = r"
 def check(lst: list) -> bool:
     if lst:
         return True
     return False
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16me_list_146_sort_key_reverse_true() {
-        let code = r#"
+        let code = r"
 def sort_key_desc(lst: list):
     lst.sort(key=len, reverse=True)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -1684,30 +1684,30 @@ def sort_key_desc(lst: list):
 
     #[test]
     fn test_w16me_list_147_list_slice() {
-        let code = r#"
+        let code = r"
 def first_three(lst: list) -> list:
     return lst[0:3]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16me_list_148_list_negative_index() {
-        let code = r#"
+        let code = r"
 def last_item(lst: list) -> int:
     return lst[-1]
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16me_list_149_pop_index_one() {
-        let code = r#"
+        let code = r"
 def pop_second(lst: list) -> int:
     return lst.pop(1)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("remove") || result.contains("pop"));
@@ -1715,11 +1715,11 @@ def pop_second(lst: list) -> int:
 
     #[test]
     fn test_w16me_list_150_append_and_len() {
-        let code = r#"
+        let code = r"
 def add_and_count(lst: list, val: int) -> int:
     lst.append(val)
     return len(lst)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("push"));
@@ -1732,10 +1732,10 @@ def add_and_count(lst: list, val: int) -> int:
 
     #[test]
     fn test_w16me_set_151_add_int() {
-        let code = r#"
+        let code = r"
 def add_to_set(s: set, val: int):
     s.add(val)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("insert"));
@@ -1754,10 +1754,10 @@ def add_name(s: set):
 
     #[test]
     fn test_w16me_set_153_discard_int() {
-        let code = r#"
+        let code = r"
 def discard_val(s: set, val: int):
     s.discard(val)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("remove"));
@@ -1776,10 +1776,10 @@ def discard_name(s: set):
 
     #[test]
     fn test_w16me_set_155_remove_int() {
-        let code = r#"
+        let code = r"
 def remove_val(s: set, val: int):
     s.remove(val)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("remove"));
@@ -1798,10 +1798,10 @@ def remove_name(s: set):
 
     #[test]
     fn test_w16me_set_157_clear_basic() {
-        let code = r#"
+        let code = r"
 def empty_set(s: set):
     s.clear()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clear"));
@@ -1809,10 +1809,10 @@ def empty_set(s: set):
 
     #[test]
     fn test_w16me_set_158_union_basic() {
-        let code = r#"
+        let code = r"
 def merge_sets(a: set, b: set) -> set:
     return a.union(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("union") || result.contains("collect"));
@@ -1820,10 +1820,10 @@ def merge_sets(a: set, b: set) -> set:
 
     #[test]
     fn test_w16me_set_159_intersection_basic() {
-        let code = r#"
+        let code = r"
 def common_elements(a: set, b: set) -> set:
     return a.intersection(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("intersection") || result.contains("collect"));
@@ -1831,10 +1831,10 @@ def common_elements(a: set, b: set) -> set:
 
     #[test]
     fn test_w16me_set_160_difference_basic() {
-        let code = r#"
+        let code = r"
 def only_in_first(a: set, b: set) -> set:
     return a.difference(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("difference") || result.contains("collect"));
@@ -1842,10 +1842,10 @@ def only_in_first(a: set, b: set) -> set:
 
     #[test]
     fn test_w16me_set_161_symmetric_difference_basic() {
-        let code = r#"
+        let code = r"
 def unique_to_each(a: set, b: set) -> set:
     return a.symmetric_difference(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("symmetric_difference") || result.contains("collect"));
@@ -1853,10 +1853,10 @@ def unique_to_each(a: set, b: set) -> set:
 
     #[test]
     fn test_w16me_set_162_issubset_basic() {
-        let code = r#"
+        let code = r"
 def check_subset(a: set, b: set) -> bool:
     return a.issubset(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_subset") || result.contains("issubset"));
@@ -1864,10 +1864,10 @@ def check_subset(a: set, b: set) -> bool:
 
     #[test]
     fn test_w16me_set_163_issuperset_basic() {
-        let code = r#"
+        let code = r"
 def check_superset(a: set, b: set) -> bool:
     return a.issuperset(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_superset") || result.contains("issuperset"));
@@ -1875,10 +1875,10 @@ def check_superset(a: set, b: set) -> bool:
 
     #[test]
     fn test_w16me_set_164_isdisjoint_basic() {
-        let code = r#"
+        let code = r"
 def check_disjoint(a: set, b: set) -> bool:
     return a.isdisjoint(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_disjoint") || result.contains("isdisjoint"));
@@ -1886,10 +1886,10 @@ def check_disjoint(a: set, b: set) -> bool:
 
     #[test]
     fn test_w16me_set_165_update_basic() {
-        let code = r#"
+        let code = r"
 def extend_set(a: set, b: set):
     a.update(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("insert") || result.contains("update"));
@@ -1897,10 +1897,10 @@ def extend_set(a: set, b: set):
 
     #[test]
     fn test_w16me_set_166_intersection_update_basic() {
-        let code = r#"
+        let code = r"
 def keep_common(a: set, b: set):
     a.intersection_update(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -1912,10 +1912,10 @@ def keep_common(a: set, b: set):
 
     #[test]
     fn test_w16me_set_167_difference_update_basic() {
-        let code = r#"
+        let code = r"
 def remove_common(a: set, b: set):
     a.difference_update(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -1925,10 +1925,10 @@ def remove_common(a: set, b: set):
 
     #[test]
     fn test_w16me_set_168_set_comprehension_basic() {
-        let code = r#"
+        let code = r"
 def unique_squares(n: int) -> set:
     return {x * x for x in range(n)}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("collect") || result.contains("HashSet") || result.contains("map"));
@@ -1936,10 +1936,10 @@ def unique_squares(n: int) -> set:
 
     #[test]
     fn test_w16me_set_169_set_from_list() {
-        let code = r#"
+        let code = r"
 def deduplicate(lst: list) -> set:
     return set(lst)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -1951,10 +1951,10 @@ def deduplicate(lst: list) -> set:
 
     #[test]
     fn test_w16me_set_170_set_len() {
-        let code = r#"
+        let code = r"
 def set_size(s: set) -> int:
     return len(s)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("len"));
@@ -1962,10 +1962,10 @@ def set_size(s: set) -> int:
 
     #[test]
     fn test_w16me_set_171_set_in_check() {
-        let code = r#"
+        let code = r"
 def has_element(s: set, val: int) -> bool:
     return val in s
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("contains"));
@@ -1973,10 +1973,10 @@ def has_element(s: set, val: int) -> bool:
 
     #[test]
     fn test_w16me_set_172_set_not_in_check() {
-        let code = r#"
+        let code = r"
 def missing_element(s: set, val: int) -> bool:
     return val not in s
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("contains"));
@@ -1984,10 +1984,10 @@ def missing_element(s: set, val: int) -> bool:
 
     #[test]
     fn test_w16me_set_173_set_literal() {
-        let code = r#"
+        let code = r"
 def make_set() -> set:
     return {1, 2, 3}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("HashSet") || result.contains("insert") || result.contains("from"));
@@ -1995,11 +1995,11 @@ def make_set() -> set:
 
     #[test]
     fn test_w16me_set_174_set_add_and_check() {
-        let code = r#"
+        let code = r"
 def add_and_check(s: set, val: int) -> bool:
     s.add(val)
     return val in s
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("insert"));
@@ -2007,11 +2007,11 @@ def add_and_check(s: set, val: int) -> bool:
 
     #[test]
     fn test_w16me_set_175_set_discard_and_len() {
-        let code = r#"
+        let code = r"
 def discard_and_count(s: set, val: int) -> int:
     s.discard(val)
     return len(s)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("remove"));
@@ -2019,11 +2019,11 @@ def discard_and_count(s: set, val: int) -> int:
 
     #[test]
     fn test_w16me_set_176_set_union_multiple_ops() {
-        let code = r#"
+        let code = r"
 def union_ops(a: set, b: set) -> int:
     result = a.union(b)
     return len(result)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("union"));
@@ -2031,11 +2031,11 @@ def union_ops(a: set, b: set) -> int:
 
     #[test]
     fn test_w16me_set_177_set_intersection_and_len() {
-        let code = r#"
+        let code = r"
 def common_count(a: set, b: set) -> int:
     result = a.intersection(b)
     return len(result)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("intersection"));
@@ -2043,11 +2043,11 @@ def common_count(a: set, b: set) -> int:
 
     #[test]
     fn test_w16me_set_178_set_difference_and_len() {
-        let code = r#"
+        let code = r"
 def diff_count(a: set, b: set) -> int:
     result = a.difference(b)
     return len(result)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("difference"));
@@ -2055,11 +2055,11 @@ def diff_count(a: set, b: set) -> int:
 
     #[test]
     fn test_w16me_set_179_set_symmetric_diff_and_len() {
-        let code = r#"
+        let code = r"
 def sym_diff_count(a: set, b: set) -> int:
     result = a.symmetric_difference(b)
     return len(result)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("symmetric_difference"));
@@ -2067,11 +2067,11 @@ def sym_diff_count(a: set, b: set) -> int:
 
     #[test]
     fn test_w16me_set_180_set_clear_and_rebuild() {
-        let code = r#"
+        let code = r"
 def reset_set(s: set):
     s.clear()
     s.add(0)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("clear"));
@@ -2080,13 +2080,13 @@ def reset_set(s: set):
 
     #[test]
     fn test_w16me_set_181_set_iter_basic() {
-        let code = r#"
+        let code = r"
 def iterate_set(s: set) -> list:
     result = []
     for item in s:
         result.append(item)
     return result
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("for") || result.contains("push"));
@@ -2094,10 +2094,10 @@ def iterate_set(s: set) -> list:
 
     #[test]
     fn test_w16me_set_182_set_comprehension_filter() {
-        let code = r#"
+        let code = r"
 def even_set(n: int) -> set:
     return {x for x in range(n) if x % 2 == 0}
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(
@@ -2107,12 +2107,12 @@ def even_set(n: int) -> set:
 
     #[test]
     fn test_w16me_set_183_set_add_multiple() {
-        let code = r#"
+        let code = r"
 def add_many(s: set):
     s.add(1)
     s.add(2)
     s.add(3)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("insert"));
@@ -2120,10 +2120,10 @@ def add_many(s: set):
 
     #[test]
     fn test_w16me_set_184_set_discard_missing() {
-        let code = r#"
+        let code = r"
 def safe_discard(s: set, val: int):
     s.discard(val)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("remove"));
@@ -2131,10 +2131,10 @@ def safe_discard(s: set, val: int):
 
     #[test]
     fn test_w16me_set_185_set_issubset_check() {
-        let code = r#"
+        let code = r"
 def is_contained(small: set, big: set) -> bool:
     return small.issubset(big)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_subset"));
@@ -2142,10 +2142,10 @@ def is_contained(small: set, big: set) -> bool:
 
     #[test]
     fn test_w16me_set_186_set_issuperset_check() {
-        let code = r#"
+        let code = r"
 def contains_all(big: set, small: set) -> bool:
     return big.issuperset(small)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_superset"));
@@ -2153,10 +2153,10 @@ def contains_all(big: set, small: set) -> bool:
 
     #[test]
     fn test_w16me_set_187_set_isdisjoint_check() {
-        let code = r#"
+        let code = r"
 def no_overlap(a: set, b: set) -> bool:
     return a.isdisjoint(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("is_disjoint"));
@@ -2164,21 +2164,21 @@ def no_overlap(a: set, b: set) -> bool:
 
     #[test]
     fn test_w16me_set_188_set_update_and_check() {
-        let code = r#"
+        let code = r"
 def merge_and_check(a: set, b: set) -> int:
     a.update(b)
     return len(a)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16me_set_189_set_empty_literal() {
-        let code = r#"
+        let code = r"
 def make_empty() -> set:
     return set()
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("HashSet") || result.contains("new"));
@@ -2186,10 +2186,10 @@ def make_empty() -> set:
 
     #[test]
     fn test_w16me_set_190_set_from_range() {
-        let code = r#"
+        let code = r"
 def range_set(n: int) -> set:
     return set(range(n))
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("collect") || result.contains("HashSet"));
@@ -2197,10 +2197,10 @@ def range_set(n: int) -> set:
 
     #[test]
     fn test_w16me_set_191_set_union_return() {
-        let code = r#"
+        let code = r"
 def merged(a: set, b: set) -> set:
     return a.union(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("union") || result.contains("collect"));
@@ -2208,10 +2208,10 @@ def merged(a: set, b: set) -> set:
 
     #[test]
     fn test_w16me_set_192_set_intersection_return() {
-        let code = r#"
+        let code = r"
 def shared(a: set, b: set) -> set:
     return a.intersection(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("intersection"));
@@ -2219,10 +2219,10 @@ def shared(a: set, b: set) -> set:
 
     #[test]
     fn test_w16me_set_193_set_difference_return() {
-        let code = r#"
+        let code = r"
 def exclusive(a: set, b: set) -> set:
     return a.difference(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("difference"));
@@ -2230,10 +2230,10 @@ def exclusive(a: set, b: set) -> set:
 
     #[test]
     fn test_w16me_set_194_set_symmetric_diff_return() {
-        let code = r#"
+        let code = r"
 def xor_set(a: set, b: set) -> set:
     return a.symmetric_difference(b)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("symmetric_difference"));
@@ -2241,11 +2241,11 @@ def xor_set(a: set, b: set) -> set:
 
     #[test]
     fn test_w16me_set_195_set_add_and_discard() {
-        let code = r#"
+        let code = r"
 def add_then_discard(s: set, val: int):
     s.add(val)
     s.discard(val)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("insert"));
@@ -2254,34 +2254,34 @@ def add_then_discard(s: set, val: int):
 
     #[test]
     fn test_w16me_set_196_set_update_and_diff() {
-        let code = r#"
+        let code = r"
 def update_then_diff(a: set, b: set, c: set):
     a.update(b)
     result = a.difference(c)
     return result
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16me_set_197_set_bool_check() {
-        let code = r#"
+        let code = r"
 def set_truthy(s: set) -> bool:
     if s:
         return True
     return False
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16me_set_198_set_add_string_var() {
-        let code = r#"
+        let code = r"
 def add_str_var(s: set, name: str):
     s.add(name)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("insert"));
@@ -2289,22 +2289,22 @@ def add_str_var(s: set, name: str):
 
     #[test]
     fn test_w16me_set_199_set_intersection_update_ops() {
-        let code = r#"
+        let code = r"
 def keep_common_only(a: set, b: set) -> int:
     a.intersection_update(b)
     return len(a)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16me_set_200_set_difference_update_ops() {
-        let code = r#"
+        let code = r"
 def remove_overlap(a: set, b: set) -> int:
     a.difference_update(b)
     return len(a)
-"#;
+";
         let result = transpile(code);
         assert!(!result.is_empty());
     }

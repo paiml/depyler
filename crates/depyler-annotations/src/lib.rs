@@ -2285,10 +2285,10 @@ def hot_function():
     #[test]
     fn test_custom_custom_attribute_empty() {
         let parser = AnnotationParser::new();
-        let source = r#"
+        let source = r"
 def my_function():
     pass
-        "#;
+        ";
 
         let annotations = parser.parse_annotations(source).unwrap();
         assert_eq!(annotations.custom_attributes.len(), 0);
@@ -3043,7 +3043,7 @@ def full_function():
     #[test]
     fn test_s9b7_annotation_validator_default() {
         let v = AnnotationValidator;
-        let debug = format!("{:?}", v);
+        let debug = format!("{v:?}");
         assert!(debug.contains("AnnotationValidator"));
     }
 
@@ -3138,10 +3138,10 @@ def my_func(x: int) -> int:
     #[test]
     fn test_s12_extract_function_annotations_not_found() {
         let extractor = AnnotationExtractor::new();
-        let source = r#"
+        let source = r"
 def my_func(x: int) -> int:
     return x + 1
-"#;
+";
         let result = extractor.extract_function_annotations(source, "my_func");
         assert!(result.is_none());
     }
@@ -3191,10 +3191,10 @@ class MyClass:
     #[test]
     fn test_s12_extract_class_annotations_not_found() {
         let extractor = AnnotationExtractor::new();
-        let source = r#"
+        let source = r"
 class MyClass:
     pass
-"#;
+";
         let result = extractor.extract_class_annotations(source, "MyClass");
         assert!(result.is_none());
     }
@@ -3440,9 +3440,9 @@ def process(data):
     #[test]
     fn test_s12_parse_function_annotations_missing() {
         let parser = AnnotationParser::new();
-        let source = r#"def process(data):
+        let source = r"def process(data):
     return data
-"#;
+";
         let result = parser.parse_function_annotations(source);
         assert!(result.is_ok());
     }

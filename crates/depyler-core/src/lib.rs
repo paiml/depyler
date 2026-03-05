@@ -1204,10 +1204,10 @@ mod tests {
     #[test]
     fn test_simple_transpilation() {
         let pipeline = DepylerPipeline::new();
-        let python_code = r#"
+        let python_code = r"
 def add(a: int, b: int) -> int:
     return a + b
-"#;
+";
 
         let result = pipeline.transpile(python_code);
         assert!(result.is_ok());
@@ -1285,12 +1285,12 @@ def test_func(x: int) -> str:
     #[test]
     fn test_complex_function_transpilation() {
         let pipeline = DepylerPipeline::new();
-        let python_code = r#"
+        let python_code = r"
 def fibonacci(n: int) -> int:
     if n <= 1:
         return n
     return fibonacci(n - 1) + fibonacci(n - 2)
-"#;
+";
 
         let result = pipeline.transpile(python_code);
         assert!(result.is_ok());
@@ -1303,14 +1303,14 @@ def fibonacci(n: int) -> int:
     #[test]
     fn test_type_annotations() {
         let pipeline = DepylerPipeline::new();
-        let python_code = r#"
+        let python_code = r"
 from typing import List, Optional
 
 def process_list(items: List[str]) -> Optional[str]:
     if items:
         return items[0]
     return None
-"#;
+";
 
         let hir = pipeline.parse_to_hir(python_code).unwrap();
         assert_eq!(hir.functions.len(), 1);
@@ -1571,10 +1571,10 @@ def greet(name: str) -> str:
     #[test]
     fn test_analyze_to_typed_hir() {
         let pipeline = DepylerPipeline::new();
-        let python_code = r#"
+        let python_code = r"
 def double(x: int) -> int:
     return x * 2
-"#;
+";
         let hir = pipeline.analyze_to_typed_hir(python_code).unwrap();
         assert_eq!(hir.functions.len(), 1);
         assert_eq!(hir.functions[0].name, "double");
@@ -1669,13 +1669,13 @@ def double(x: int) -> int:
     #[test]
     fn test_transpile_multiple_functions() {
         let pipeline = DepylerPipeline::new();
-        let python_code = r#"
+        let python_code = r"
 def add(a: int, b: int) -> int:
     return a + b
 
 def subtract(a: int, b: int) -> int:
     return a - b
-"#;
+";
         let result = pipeline.transpile(python_code);
         assert!(result.is_ok());
         let rust_code = result.unwrap();
@@ -1696,33 +1696,33 @@ def subtract(a: int, b: int) -> int:
     #[test]
     fn test_99mode_try_except_basic() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return 0
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_try_except_with_binding() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(s: str) -> int:
     try:
         return int(s)
     except ValueError as e:
         return -1
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_try_except_multiple_handlers() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(s: str) -> int:
     try:
         return int(s)
@@ -1730,14 +1730,14 @@ def f(s: str) -> int:
         return -1
     except TypeError:
         return -2
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_try_finally() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int) -> int:
     result = 0
     try:
@@ -1745,14 +1745,14 @@ def f(x: int) -> int:
     finally:
         result = result + 1
     return result
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_try_except_finally() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(s: str) -> int:
     result = 0
     try:
@@ -1762,58 +1762,58 @@ def f(s: str) -> int:
     finally:
         result = result + 1
     return result
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_try_except_return_literal() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f() -> int:
     try:
         return 42
     except Exception:
         return 0
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_try_except_return_negation() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f() -> int:
     try:
         return -42
     except Exception:
         return 0
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_nested_function_basic() {
         assert!(transpile_ok(
-            r#"
+            r"
 def outer(x: int) -> int:
     def inner(y: int) -> int:
         return y + 1
     return inner(x)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_nested_function_captures_outer() {
         assert!(transpile_ok(
-            r#"
+            r"
 def outer(x: int) -> int:
     factor = 2
     def inner(y: int) -> int:
         return y * factor
     return inner(x)
-"#
+"
         ));
     }
 
@@ -1822,33 +1822,33 @@ def outer(x: int) -> int:
     #[test]
     fn test_99mode_augmented_assign_all() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int) -> int:
     x += 1
     x -= 2
     x *= 3
     x //= 2
     return x
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_augmented_assign_mod_pow() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int) -> int:
     x %= 5
     x **= 2
     return x
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_augmented_assign_bitwise() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int) -> int:
     x &= 0xFF
     x |= 0x01
@@ -1856,14 +1856,14 @@ def f(x: int) -> int:
     x >>= 1
     x <<= 2
     return x
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_while_with_break() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(n: int) -> int:
     i = 0
     while i < n:
@@ -1871,14 +1871,14 @@ def f(n: int) -> int:
             break
         i += 1
     return i
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_while_with_continue() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(n: int) -> int:
     total = 0
     i = 0
@@ -1888,33 +1888,33 @@ def f(n: int) -> int:
             continue
         total += i
     return total
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_for_with_enumerate() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list) -> int:
     total = 0
     for i, item in enumerate(items):
         total += i
     return total
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_for_with_zip() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(a: list, b: list) -> list:
     result = []
     for x, y in zip(a, b):
         result.append(x + y)
     return result
-"#
+"
         ));
     }
 
@@ -1933,24 +1933,24 @@ def f(x: int) -> int:
     #[test]
     fn test_99mode_multiple_assignment_targets() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f() -> int:
     x, y = 1, 2
     a, b, c = 10, 20, 30
     return x + y + a + b + c
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_global_constant() {
         assert!(transpile_ok(
-            r#"
+            r"
 MAX_SIZE = 100
 
 def f() -> int:
     return MAX_SIZE
-"#
+"
         ));
     }
 
@@ -1959,30 +1959,30 @@ def f() -> int:
     #[test]
     fn test_99mode_list_comprehension() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(n: int) -> list:
     return [x * 2 for x in range(n)]
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_list_comprehension_with_filter() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(n: int) -> list:
     return [x for x in range(n) if x % 2 == 0]
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_dict_comprehension() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(n: int) -> dict:
     return {str(i): i * i for i in range(n)}
-"#
+"
         ));
     }
 
@@ -2029,70 +2029,70 @@ def f(x: int) -> str:
     #[test]
     fn test_99mode_lambda_expression() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list) -> list:
     return sorted(items, key=lambda x: x)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_chained_comparison() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int) -> bool:
     return 0 < x < 100
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_boolean_operators() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(a: bool, b: bool, c: bool) -> bool:
     return a and b or not c
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_string_multiply() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(s: str, n: int) -> str:
     return s * n
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_unary_operators() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int) -> int:
     return -x + (~x)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_subscript_access() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list) -> int:
     return items[0] + items[-1]
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_slice_expression() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list) -> list:
     return items[1:3]
-"#
+"
         ));
     }
 
@@ -2109,20 +2109,20 @@ def f() -> dict:
     #[test]
     fn test_99mode_set_literal() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f() -> set:
     return {1, 2, 3, 4, 5}
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_tuple_literal() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f() -> tuple:
     return (1, 2, 3)
-"#
+"
         ));
     }
 
@@ -2131,10 +2131,10 @@ def f() -> tuple:
     #[test]
     fn test_99mode_str_methods_comprehensive() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(s: str) -> str:
     return s.upper().lower().strip()
-"#
+"
         ));
     }
 
@@ -2172,27 +2172,27 @@ def f(s: str) -> bool:
     #[test]
     fn test_99mode_list_methods() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f() -> list:
     items = [3, 1, 2]
     items.append(4)
     items.sort()
     items.reverse()
     return items
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_list_extend_insert() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f() -> list:
     items = [1, 2]
     items.extend([3, 4])
     items.insert(0, 0)
     return items
-"#
+"
         ));
     }
 
@@ -2212,23 +2212,23 @@ def f() -> list:
     #[test]
     fn test_99mode_dict_get_default() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(d: dict, key: str) -> int:
     return d.get(key, 0)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_dict_items_iteration() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(d: dict) -> list:
     result = []
     for k, v in d.items():
         result.append(k)
     return result
-"#
+"
         ));
     }
 
@@ -2245,20 +2245,20 @@ def f(name: str) -> str:
     #[test]
     fn test_99mode_str_count() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(s: str, c: str) -> int:
     return s.count(c)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_str_isdigit_isalpha() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(s: str) -> bool:
     return s.isdigit() or s.isalpha()
-"#
+"
         ));
     }
 
@@ -2284,21 +2284,21 @@ def classify(x: int) -> str:
     #[test]
     fn test_99mode_nested_loops() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(n: int) -> int:
     total = 0
     for i in range(n):
         for j in range(n):
             total += i * j
     return total
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_while_true_break() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(target: int) -> int:
     x = 0
     while True:
@@ -2306,104 +2306,104 @@ def f(target: int) -> int:
         if x >= target:
             break
     return x
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_power_operator() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(base: int, exp: int) -> int:
     return base ** exp
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_floor_division() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(a: int, b: int) -> int:
     return a // b
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_modulo() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(a: int, b: int) -> int:
     return a % b
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_in_operator_list() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int, items: list) -> bool:
     return x in items
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_not_in_operator() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int, items: list) -> bool:
     return x not in items
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_in_operator_dict() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(key: str, d: dict) -> bool:
     return key in d
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_in_operator_string() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(sub: str, s: str) -> bool:
     return sub in s
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_isinstance_check() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int) -> bool:
     return isinstance(x, int)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_len_builtin() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list) -> int:
     return len(items)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_range_variants() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f() -> int:
     total = 0
     for i in range(10):
@@ -2413,110 +2413,110 @@ def f() -> int:
     for i in range(0, 10, 2):
         total += i
     return total
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_print_variants() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int, s: str):
     print(x)
     print(s)
     print(x, s)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_type_conversions() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int) -> str:
     s = str(x)
     f_val = float(x)
     b = bool(x)
     return s
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_abs_min_max() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(a: int, b: int) -> int:
     return abs(a) + min(a, b) + max(a, b)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_sum_builtin() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list) -> int:
     return sum(items)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_any_all_builtins() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list) -> bool:
     return any(items) and all(items)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_sorted_reversed() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list) -> list:
     s = sorted(items)
     r = list(reversed(items))
     return s
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_map_filter() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list) -> list:
     doubled = list(map(lambda x: x * 2, items))
     evens = list(filter(lambda x: x % 2 == 0, items))
     return doubled
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_optional_return() {
         assert!(transpile_ok(
-            r#"
+            r"
 from typing import Optional
 
 def f(items: list) -> Optional[int]:
     if len(items) > 0:
         return items[0]
     return None
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_multiple_return_types() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int) -> tuple:
     return (x, x * 2, x * 3)
-"#
+"
         ));
     }
 
@@ -2533,10 +2533,10 @@ def f(a: str, b: str) -> str:
     #[test]
     fn test_99mode_list_concatenation() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(a: list, b: list) -> list:
     return a + b
-"#
+"
         ));
     }
 
@@ -2553,10 +2553,10 @@ def f() -> dict:
     #[test]
     fn test_99mode_empty_function() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f():
     pass
-"#
+"
         ));
     }
 
@@ -2574,7 +2574,7 @@ def f(x: int) -> int:
     #[test]
     fn test_99mode_class_basic() {
         assert!(transpile_ok(
-            r#"
+            r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
@@ -2582,14 +2582,14 @@ class Point:
 
     def distance(self) -> float:
         return (self.x ** 2 + self.y ** 2) ** 0.5
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_class_method() {
         assert!(transpile_ok(
-            r#"
+            r"
 class Counter:
     def __init__(self):
         self.count = 0
@@ -2599,74 +2599,74 @@ class Counter:
 
     def get_count(self) -> int:
         return self.count
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_generator_function() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(n: int) -> list:
     def gen():
         for i in range(n):
             yield i * 2
     return list(gen())
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_with_statement() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(path: str) -> str:
     with open(path) as file:
         return file.read()
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_complex_dict_operations() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(data: dict) -> int:
     result = 0
     for key in data:
         result += len(key)
     return result
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_string_slicing() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(s: str) -> str:
     return s[:5]
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_walrus_operator() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list) -> int:
     total = 0
     for item in items:
         total += item
     return total
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_multiline_logic() {
         assert!(transpile_ok(
-            r#"
+            r"
 def process(data: list) -> dict:
     counts = {}
     for item in data:
@@ -2675,137 +2675,137 @@ def process(data: list) -> dict:
         else:
             counts[item] = 1
     return counts
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_early_return_pattern() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list) -> int:
     if not items:
         return -1
     if len(items) == 1:
         return items[0]
     return items[0] + items[-1]
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_accumulator_pattern() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(n: int) -> int:
     result = 1
     for i in range(1, n + 1):
         result *= i
     return result
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_str_title_capitalize() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(s: str) -> str:
     return s.title()
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_str_lstrip_rstrip() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(s: str) -> str:
     return s.lstrip().rstrip()
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_list_pop() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list) -> int:
     return items.pop()
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_list_index() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list, x: int) -> int:
     return items.index(x)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_nested_comprehension() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(n: int) -> list:
     return [i + j for i in range(n) for j in range(n)]
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_complex_boolean_logic() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int, y: int, z: int) -> bool:
     return (x > 0 and y > 0) or (z < 0 and not (x == y))
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_bitwise_operations() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int, y: int) -> int:
     return (x & y) | (x ^ y) | (x << 2) | (y >> 1)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_recursive_function() {
         assert!(transpile_ok(
-            r#"
+            r"
 def gcd(a: int, b: int) -> int:
     if b == 0:
         return a
     return gcd(b, a % b)
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_complex_return_expression() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int) -> int:
     return x * (x + 1) // 2 if x > 0 else 0
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_multiple_string_operations() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(s: str) -> list:
     words = s.strip().lower().split()
     return words
-"#
+"
         ));
     }
 
@@ -2825,54 +2825,54 @@ def f() -> dict:
     #[test]
     fn test_99mode_list_remove() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list, x: int) -> list:
     items.remove(x)
     return items
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_enumerate_with_start() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(items: list) -> list:
     result = []
     for i, item in enumerate(items):
         result.append(i)
     return result
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_complex_comprehension_filter() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(data: list) -> list:
     return [x * 2 for x in data if x > 0 and x < 100]
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_try_except_broad() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int) -> int:
     try:
         return 100 // x
     except Exception:
         return 0
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_nested_try() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(s: str) -> int:
     try:
         try:
@@ -2881,79 +2881,79 @@ def f(s: str) -> int:
             return -1
     except Exception:
         return -2
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_set_operations() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f() -> set:
     a = {1, 2, 3}
     b = {2, 3, 4}
     a.add(5)
     return a
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_tuple_unpacking() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f() -> int:
     point = (3, 4)
     x, y = point
     return x + y
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_complex_for_pattern() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(matrix: list) -> int:
     total = 0
     for row in matrix:
         for val in row:
             total += val
     return total
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_is_none_check() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int) -> bool:
     result = None
     if x > 0:
         result = x
     return result is None
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_is_not_none_check() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(x: int) -> bool:
     result = None
     if x > 0:
         result = x
     return result is not None
-"#
+"
         ));
     }
 
     #[test]
     fn test_99mode_comparison_operators() {
         assert!(transpile_ok(
-            r#"
+            r"
 def f(a: int, b: int) -> list:
     results = []
     results.append(a == b)
@@ -2963,7 +2963,7 @@ def f(a: int, b: int) -> list:
     results.append(a > b)
     results.append(a >= b)
     return results
-"#
+"
         ));
     }
 }

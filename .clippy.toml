@@ -4,8 +4,9 @@
 # Enforce maximum cognitive complexity per function
 cognitive-complexity-threshold = 25
 
-# Banned methods (Cloudflare-class defect prevention)
-disallowed-methods = [
-    { path = "std::option::Option::unwrap", reason = "Use .expect() or ? operator" },
-    { path = "std::result::Result::unwrap", reason = "Use .expect() or ? operator" },
-]
+# Allow unwrap in tests (unwrap is natural in test assertions)
+allow-unwrap-in-tests = true
+
+# unwrap() enforcement: workspace lints set `unwrap_used = "warn"` (catches non-test code),
+# and `allow-unwrap-in-tests = true` (above) exempts test code. No need for disallowed-methods
+# duplication — the lint system handles both cases.

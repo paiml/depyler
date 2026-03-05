@@ -202,13 +202,13 @@ mod tests {
     #[test]
     fn test_source_location_display() {
         let loc = SourceLocation { file: "example.py".to_string(), line: 42, column: 8 };
-        assert_eq!(format!("{}", loc), "example.py:42:8");
+        assert_eq!(format!("{loc}"), "example.py:42:8");
     }
 
     #[test]
     fn test_source_location_display_edge_cases() {
-        let loc = SourceLocation { file: "".to_string(), line: 0, column: 0 };
-        assert_eq!(format!("{}", loc), ":0:0");
+        let loc = SourceLocation { file: String::new(), line: 0, column: 0 };
+        assert_eq!(format!("{loc}"), ":0:0");
     }
 
     #[test]
@@ -230,7 +230,7 @@ mod tests {
     #[test]
     fn test_source_location_debug() {
         let loc = SourceLocation { file: "test.py".to_string(), line: 5, column: 10 };
-        let debug = format!("{:?}", loc);
+        let debug = format!("{loc:?}");
         assert!(debug.contains("SourceLocation"));
         assert!(debug.contains("test.py"));
     }
@@ -240,27 +240,27 @@ mod tests {
     #[test]
     fn test_error_kind_parse_error() {
         let err = ErrorKind::ParseError;
-        assert_eq!(format!("{}", err), "Python parse error");
+        assert_eq!(format!("{err}"), "Python parse error");
     }
 
     #[test]
     fn test_error_kind_unsupported_feature() {
         let err = ErrorKind::UnsupportedFeature("async generators".to_string());
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Unsupported Python feature"));
     }
 
     #[test]
     fn test_error_kind_type_inference_error() {
         let err = ErrorKind::TypeInferenceError("cannot infer type".to_string());
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Type inference error"));
     }
 
     #[test]
     fn test_error_kind_invalid_type_annotation() {
         let err = ErrorKind::InvalidTypeAnnotation("List[Unknown]".to_string());
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Invalid type annotation"));
     }
 
@@ -271,35 +271,35 @@ mod tests {
             found: "str".to_string(),
             context: "function return".to_string(),
         };
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Type mismatch"));
     }
 
     #[test]
     fn test_error_kind_code_generation_error() {
         let err = ErrorKind::CodeGenerationError("failed to generate".to_string());
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Code generation error"));
     }
 
     #[test]
     fn test_error_kind_verification_error() {
         let err = ErrorKind::VerificationError("verification failed".to_string());
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Verification failed"));
     }
 
     #[test]
     fn test_error_kind_internal_error() {
         let err = ErrorKind::InternalError("unexpected state".to_string());
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Internal error"));
     }
 
     #[test]
     fn test_error_kind_debug() {
         let err = ErrorKind::ParseError;
-        let debug = format!("{:?}", err);
+        let debug = format!("{err:?}");
         assert!(debug.contains("ParseError"));
     }
 
@@ -359,7 +359,7 @@ mod tests {
     #[test]
     fn test_error_display_no_location() {
         let err = TranspileError::new(ErrorKind::ParseError);
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Python parse error"));
         assert!(!display.contains("at "));
     }
@@ -367,7 +367,7 @@ mod tests {
     #[test]
     fn test_error_display_no_context() {
         let err = TranspileError::new(ErrorKind::ParseError);
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(!display.contains("Context:"));
     }
 
@@ -377,7 +377,7 @@ mod tests {
             .with_context("first")
             .with_context("second")
             .with_context("third");
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("1. first"));
         assert!(display.contains("2. second"));
         assert!(display.contains("3. third"));
@@ -401,7 +401,7 @@ mod tests {
     #[test]
     fn test_error_debug() {
         let err = TranspileError::new(ErrorKind::ParseError);
-        let debug = format!("{:?}", err);
+        let debug = format!("{err:?}");
         assert!(debug.contains("TranspileError"));
         assert!(debug.contains("ParseError"));
     }
@@ -431,7 +431,7 @@ mod tests {
         let anyhow_err = anyhow::anyhow!("something went wrong");
         let err: TranspileError = anyhow_err.into();
         assert!(matches!(err.kind, ErrorKind::InternalError(_)));
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Internal error"));
     }
 
@@ -513,19 +513,19 @@ mod tests {
 
     #[test]
     fn test_empty_strings_in_error_kind() {
-        let err = ErrorKind::UnsupportedFeature("".to_string());
-        let display = format!("{}", err);
+        let err = ErrorKind::UnsupportedFeature(String::new());
+        let display = format!("{err}");
         assert!(display.contains("Unsupported Python feature"));
     }
 
     #[test]
     fn test_type_mismatch_all_empty() {
         let err = ErrorKind::TypeMismatch {
-            expected: "".to_string(),
-            found: "".to_string(),
-            context: "".to_string(),
+            expected: String::new(),
+            found: String::new(),
+            context: String::new(),
         };
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Type mismatch"));
     }
 
@@ -541,7 +541,7 @@ mod tests {
     fn test_long_context_chain() {
         let mut err = TranspileError::new(ErrorKind::ParseError);
         for i in 0..100 {
-            err = err.with_context(format!("context {}", i));
+            err = err.with_context(format!("context {i}"));
         }
         assert_eq!(err.context.len(), 100);
     }

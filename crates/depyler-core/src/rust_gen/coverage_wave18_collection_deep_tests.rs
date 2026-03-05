@@ -191,11 +191,11 @@ def f():
 
     #[test]
     fn test_w18cd_dict_014_update_in_function() {
-        let code = r#"
+        let code = r"
 def merge(base, extra):
     base.update(extra)
     return base
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("insert") || result.contains("iter") || result.contains("extend"));
     }
@@ -497,12 +497,12 @@ def f():
 
     #[test]
     fn test_w18cd_dict_038_clear_empty_dict() {
-        let code = r#"
+        let code = r"
 def f():
     d = {}
     d.clear()
     return d
-"#;
+";
         let result = transpile(code);
         assert!(result.contains(".clear()"));
     }
@@ -657,11 +657,11 @@ def lookup(data, key: str):
 
     #[test]
     fn test_w18cd_dict_050_update_param_dict() {
-        let code = r#"
+        let code = r"
 def extend_config(config, overrides):
     config.update(overrides)
     return config
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("insert") || result.contains("iter") || result.contains("extend"));
     }
@@ -670,10 +670,10 @@ def extend_config(config, overrides):
 
     #[test]
     fn test_w18cd_dict_051_get_int_default() {
-        let code = r#"
+        let code = r"
 def count_word(counts, word: str) -> int:
     return counts.get(word, 0)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains(".get(") && result.contains("unwrap_or"));
     }
@@ -899,12 +899,12 @@ def f():
 
     #[test]
     fn test_w18cd_dict_068_copy_empty() {
-        let code = r#"
+        let code = r"
 def f():
     d = {}
     e = d.copy()
     return e
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("clone"));
     }
@@ -942,36 +942,36 @@ def f():
 
     #[test]
     fn test_w18cd_list_071_sort_basic() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [3, 1, 2]
     nums.sort()
     return nums
-"#;
+";
         let result = transpile(code);
         assert!(result.contains(".sort()") || result.contains("sort"));
     }
 
     #[test]
     fn test_w18cd_list_072_sort_reverse_true() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [3, 1, 2]
     nums.sort(reverse=True)
     return nums
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("sort_by") || result.contains("sort") || result.contains("cmp"));
     }
 
     #[test]
     fn test_w18cd_list_073_sort_reverse_false() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [3, 1, 2]
     nums.sort(reverse=False)
     return nums
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("sort"));
     }
@@ -1006,26 +1006,26 @@ def f():
 
     #[test]
     fn test_w18cd_list_076_extend_list() {
-        let code = r#"
+        let code = r"
 def f():
     a = [1, 2]
     b = [3, 4]
     a.extend(b)
     return a
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("extend"));
     }
 
     #[test]
     fn test_w18cd_list_077_extend_empty() {
-        let code = r#"
+        let code = r"
 def f():
     a = [1, 2]
     b = []
     a.extend(b)
     return a
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("extend"));
     }
@@ -1045,12 +1045,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_079_extend_param() {
-        let code = r#"
+        let code = r"
 def f(extra):
     base = [1, 2, 3]
     base.extend(extra)
     return base
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("extend"));
     }
@@ -1059,24 +1059,24 @@ def f(extra):
 
     #[test]
     fn test_w18cd_list_080_insert_at_zero() {
-        let code = r#"
+        let code = r"
 def f():
     items = [2, 3]
     items.insert(0, 1)
     return items
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("insert") && (result.contains("usize") || result.contains("0")));
     }
 
     #[test]
     fn test_w18cd_list_081_insert_at_end() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 2]
     items.insert(2, 3)
     return items
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("insert"));
     }
@@ -1095,12 +1095,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_083_insert_middle() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 3]
     items.insert(1, 2)
     return items
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("insert"));
     }
@@ -1109,11 +1109,11 @@ def f():
 
     #[test]
     fn test_w18cd_list_084_count_int() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [1, 2, 2, 3, 2]
     return nums.count(2)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("filter") || result.contains("count"));
     }
@@ -1131,24 +1131,24 @@ def f():
 
     #[test]
     fn test_w18cd_list_086_count_zero() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [1, 2, 3]
     return nums.count(42)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("filter") || result.contains("count"));
     }
 
     #[test]
     fn test_w18cd_list_087_count_in_comparison() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 1, 2]
     if items.count(1) > 1:
         return True
     return False
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("filter") || result.contains("count"));
     }
@@ -1157,11 +1157,11 @@ def f():
 
     #[test]
     fn test_w18cd_list_088_index_int() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [10, 20, 30]
     return nums.index(20)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("position") || result.contains("index"));
     }
@@ -1179,11 +1179,11 @@ def f():
 
     #[test]
     fn test_w18cd_list_090_index_first_occurrence() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [1, 2, 3, 2]
     return nums.index(2)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("position") || result.contains("index"));
     }
@@ -1204,12 +1204,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_092_reverse_basic() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [1, 2, 3]
     nums.reverse()
     return nums
-"#;
+";
         let result = transpile(code);
         assert!(result.contains(".reverse()"));
     }
@@ -1228,12 +1228,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_094_reverse_single_element() {
-        let code = r#"
+        let code = r"
 def f():
     items = [42]
     items.reverse()
     return items
-"#;
+";
         let result = transpile(code);
         assert!(result.contains(".reverse()"));
     }
@@ -1242,12 +1242,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_095_copy_basic() {
-        let code = r#"
+        let code = r"
 def f():
     a = [1, 2, 3]
     b = a.copy()
     return b
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("clone"));
     }
@@ -1266,13 +1266,13 @@ def f():
 
     #[test]
     fn test_w18cd_list_097_copy_then_modify() {
-        let code = r#"
+        let code = r"
 def f():
     original = [1, 2, 3]
     copied = original.copy()
     copied.append(4)
     return copied
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("clone"));
     }
@@ -1281,12 +1281,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_098_clear_basic() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 2, 3]
     items.clear()
     return items
-"#;
+";
         let result = transpile(code);
         assert!(result.contains(".clear()"));
     }
@@ -1295,24 +1295,24 @@ def f():
 
     #[test]
     fn test_w18cd_list_099_pop_no_args() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 2, 3]
     last = items.pop()
     return last
-"#;
+";
         let result = transpile(code);
         assert!(result.contains(".pop()") || result.contains("unwrap_or"));
     }
 
     #[test]
     fn test_w18cd_list_100_pop_index() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 2, 3]
     first = items.pop(0)
     return first
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("remove") || result.contains("pop"));
     }
@@ -1321,12 +1321,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_101_remove_int() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [1, 2, 3]
     nums.remove(2)
     return nums
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("position") || result.contains("remove"));
     }
@@ -1347,12 +1347,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_103_append_int() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [1, 2]
     nums.append(3)
     return nums
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("push"));
     }
@@ -1373,12 +1373,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_105_sort_integers() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [5, 3, 8, 1]
     nums.sort()
     return nums
-"#;
+";
         let result = transpile(code);
         assert!(result.contains(".sort()") || result.contains("sort"));
     }
@@ -1399,26 +1399,26 @@ def f():
 
     #[test]
     fn test_w18cd_list_107_extend_then_sort() {
-        let code = r#"
+        let code = r"
 def f():
     a = [3, 1]
     b = [2, 4]
     a.extend(b)
     a.sort()
     return a
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("extend") && result.contains("sort"));
     }
 
     #[test]
     fn test_w18cd_list_108_insert_then_count() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [1, 2, 3]
     nums.insert(0, 1)
     return nums.count(1)
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("insert") && (result.contains("filter") || result.contains("count"))
@@ -1427,12 +1427,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_109_reverse_then_index() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [10, 20, 30]
     nums.reverse()
     return nums.index(30)
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("reverse") && (result.contains("position") || result.contains("index"))
@@ -1441,13 +1441,13 @@ def f():
 
     #[test]
     fn test_w18cd_list_110_copy_then_clear() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 2, 3]
     backup = items.copy()
     items.clear()
     return backup
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("clone") && result.contains("clear"));
     }
@@ -1456,20 +1456,20 @@ def f():
 
     #[test]
     fn test_w18cd_list_111_extend_range() {
-        let code = r#"
+        let code = r"
 def f():
     items = [0]
     extra = [1, 2, 3]
     items.extend(extra)
     return items
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("extend"));
     }
 
     #[test]
     fn test_w18cd_list_112_extend_multiple() {
-        let code = r#"
+        let code = r"
 def f():
     result = []
     a = [1]
@@ -1477,7 +1477,7 @@ def f():
     result.extend(a)
     result.extend(b)
     return result
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("extend"));
     }
@@ -1486,12 +1486,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_113_insert_negative() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 2, 3]
     items.insert(-1, 99)
     return items
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("insert"));
     }
@@ -1500,11 +1500,11 @@ def f():
 
     #[test]
     fn test_w18cd_list_114_count_bool() {
-        let code = r#"
+        let code = r"
 def f():
     flags = [True, False, True, True]
     return flags.count(True)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("filter") || result.contains("count"));
     }
@@ -1513,11 +1513,11 @@ def f():
 
     #[test]
     fn test_w18cd_list_115_index_variable() {
-        let code = r#"
+        let code = r"
 def f(target: int):
     nums = [10, 20, 30, 40]
     return nums.index(target)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("position") || result.contains("index"));
     }
@@ -1540,26 +1540,26 @@ def f():
 
     #[test]
     fn test_w18cd_list_117_append_in_loop() {
-        let code = r#"
+        let code = r"
 def f():
     result = []
     for i in range(5):
         result.append(i)
     return result
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("push"));
     }
 
     #[test]
     fn test_w18cd_list_118_insert_in_loop() {
-        let code = r#"
+        let code = r"
 def f():
     items = []
     for i in range(3):
         items.insert(0, i)
     return items
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("insert"));
     }
@@ -1568,12 +1568,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_119_pop_and_use() {
-        let code = r#"
+        let code = r"
 def f():
     stack = [1, 2, 3]
     top = stack.pop()
     return top
-"#;
+";
         let result = transpile(code);
         assert!(result.contains(".pop()") || result.contains("unwrap_or"));
     }
@@ -1582,12 +1582,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_120_remove_then_count() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 2, 2, 3]
     items.remove(2)
     return items.count(2)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("remove") || result.contains("position"));
     }
@@ -1596,13 +1596,13 @@ def f():
 
     #[test]
     fn test_w18cd_list_121_reverse_twice() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 2, 3]
     items.reverse()
     items.reverse()
     return items
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("reverse"));
     }
@@ -1611,12 +1611,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_122_copy_empty() {
-        let code = r#"
+        let code = r"
 def f():
     items = []
     copy = items.copy()
     return copy
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("clone"));
     }
@@ -1625,11 +1625,11 @@ def f():
 
     #[test]
     fn test_w18cd_list_123_pop_index_var() {
-        let code = r#"
+        let code = r"
 def f(idx: int):
     items = [10, 20, 30]
     return items.pop(idx)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("remove") || result.contains("pop"));
     }
@@ -1638,14 +1638,14 @@ def f(idx: int):
 
     #[test]
     fn test_w18cd_list_124_extend_reverse() {
-        let code = r#"
+        let code = r"
 def f():
     a = [1, 2]
     b = [3, 4]
     a.extend(b)
     a.reverse()
     return a
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("extend") && result.contains("reverse"));
     }
@@ -1654,27 +1654,27 @@ def f():
 
     #[test]
     fn test_w18cd_list_125_sort_then_reverse() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [3, 1, 4, 1, 5]
     nums.sort()
     nums.reverse()
     return nums
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("sort") && result.contains("reverse"));
     }
 
     #[test]
     fn test_w18cd_list_126_clear_then_extend() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 2, 3]
     items.clear()
     new_items = [4, 5]
     items.extend(new_items)
     return items
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("clear") && result.contains("extend"));
     }
@@ -1683,13 +1683,13 @@ def f():
 
     #[test]
     fn test_w18cd_list_127_count_equals_zero() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 2, 3]
     if items.count(99) == 0:
         return True
     return False
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("filter") || result.contains("count"));
     }
@@ -1698,12 +1698,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_128_index_used_in_slice() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [10, 20, 30, 40]
     idx = nums.index(30)
     return idx
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("position") || result.contains("index"));
     }
@@ -1728,12 +1728,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_130_sort_key_abs() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [-3, 1, -2]
     nums.sort(key=abs)
     return nums
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("sort_by_key") || result.contains("sort"));
     }
@@ -1742,13 +1742,13 @@ def f():
 
     #[test]
     fn test_w18cd_list_131_extend_from_function() {
-        let code = r#"
+        let code = r"
 def combine(a, b):
     result = []
     result.extend(a)
     result.extend(b)
     return result
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("extend"));
     }
@@ -1757,12 +1757,12 @@ def combine(a, b):
 
     #[test]
     fn test_w18cd_list_132_remove_last() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 2, 3]
     items.remove(3)
     return items
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("remove") || result.contains("position"));
     }
@@ -1771,13 +1771,13 @@ def f():
 
     #[test]
     fn test_w18cd_list_133_count_and_index() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [1, 2, 3, 2, 1]
     c = nums.count(2)
     i = nums.index(2)
     return c + i
-"#;
+";
         let result = transpile(code);
         assert!(
             (result.contains("filter") || result.contains("count"))
@@ -1789,13 +1789,13 @@ def f():
 
     #[test]
     fn test_w18cd_list_134_pop_until_empty() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1, 2]
     a = items.pop()
     b = items.pop()
     return a + b
-"#;
+";
         let result = transpile(code);
         assert!(result.contains(".pop()") || result.contains("unwrap_or"));
     }
@@ -1804,11 +1804,11 @@ def f():
 
     #[test]
     fn test_w18cd_list_135_reverse_param() {
-        let code = r#"
+        let code = r"
 def reverse_list(items):
     items.reverse()
     return items
-"#;
+";
         let result = transpile(code);
         assert!(result.contains(".reverse()"));
     }
@@ -1817,14 +1817,14 @@ def reverse_list(items):
 
     #[test]
     fn test_w18cd_list_136_copy_extend() {
-        let code = r#"
+        let code = r"
 def f():
     base = [1, 2]
     extended = base.copy()
     extra = [3, 4]
     extended.extend(extra)
     return extended
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("clone") && result.contains("extend"));
     }
@@ -1833,12 +1833,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_137_sort_inplace() {
-        let code = r#"
+        let code = r"
 def f():
     items = [5, 2, 8]
     items.sort()
     return items[0]
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("sort"));
     }
@@ -1847,12 +1847,12 @@ def f():
 
     #[test]
     fn test_w18cd_list_138_insert_large_index() {
-        let code = r#"
+        let code = r"
 def f():
     items = [1]
     items.insert(100, 2)
     return items
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("insert"));
     }
@@ -1861,11 +1861,11 @@ def f():
 
     #[test]
     fn test_w18cd_list_139_count_negative() {
-        let code = r#"
+        let code = r"
 def f():
     nums = [-1, 0, 1, -1]
     return nums.count(-1)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("filter") || result.contains("count"));
     }
@@ -1874,14 +1874,14 @@ def f():
 
     #[test]
     fn test_w18cd_list_140_extend_sort_reverse() {
-        let code = r#"
+        let code = r"
 def f():
     a = [5, 3]
     b = [1, 4]
     a.extend(b)
     a.sort(reverse=True)
     return a
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("extend") && result.contains("sort"));
     }
@@ -1894,12 +1894,12 @@ def f():
 
     #[test]
     fn test_w18cd_set_141_union_basic() {
-        let code = r#"
+        let code = r"
 def f():
     s1 = {1, 2, 3}
     s2 = {3, 4, 5}
     return s1.union(s2)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("union") || result.contains("HashSet"));
     }
@@ -1918,24 +1918,24 @@ def f():
 
     #[test]
     fn test_w18cd_set_143_union_disjoint() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2}
     b = {3, 4}
     return a.union(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("union"));
     }
 
     #[test]
     fn test_w18cd_set_144_union_same() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2, 3}
     b = {1, 2, 3}
     return a.union(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("union"));
     }
@@ -1944,12 +1944,12 @@ def f():
 
     #[test]
     fn test_w18cd_set_145_intersection_basic() {
-        let code = r#"
+        let code = r"
 def f():
     s1 = {1, 2, 3}
     s2 = {2, 3, 4}
     return s1.intersection(s2)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("intersection"));
     }
@@ -1968,24 +1968,24 @@ def f():
 
     #[test]
     fn test_w18cd_set_147_intersection_empty_result() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2}
     b = {3, 4}
     return a.intersection(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("intersection"));
     }
 
     #[test]
     fn test_w18cd_set_148_intersection_complete_overlap() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2, 3}
     b = {1, 2, 3}
     return a.intersection(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("intersection"));
     }
@@ -1994,12 +1994,12 @@ def f():
 
     #[test]
     fn test_w18cd_set_149_difference_basic() {
-        let code = r#"
+        let code = r"
 def f():
     s1 = {1, 2, 3, 4}
     s2 = {3, 4, 5}
     return s1.difference(s2)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("difference"));
     }
@@ -2018,24 +2018,24 @@ def f():
 
     #[test]
     fn test_w18cd_set_151_difference_no_overlap() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2}
     b = {3, 4}
     return a.difference(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("difference"));
     }
 
     #[test]
     fn test_w18cd_set_152_difference_complete_removal() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2}
     b = {1, 2, 3}
     return a.difference(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("difference"));
     }
@@ -2044,12 +2044,12 @@ def f():
 
     #[test]
     fn test_w18cd_set_153_symmetric_difference_basic() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2, 3}
     b = {2, 3, 4}
     return a.symmetric_difference(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("symmetric_difference"));
     }
@@ -2068,24 +2068,24 @@ def f():
 
     #[test]
     fn test_w18cd_set_155_symmetric_difference_disjoint() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2}
     b = {3, 4}
     return a.symmetric_difference(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("symmetric_difference"));
     }
 
     #[test]
     fn test_w18cd_set_156_symmetric_difference_identical() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2}
     b = {1, 2}
     return a.symmetric_difference(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("symmetric_difference"));
     }
@@ -2094,48 +2094,48 @@ def f():
 
     #[test]
     fn test_w18cd_set_157_issubset_true() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2}
     b = {1, 2, 3}
     return a.issubset(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_subset"));
     }
 
     #[test]
     fn test_w18cd_set_158_issubset_false() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2, 3}
     b = {1, 2}
     return a.issubset(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_subset"));
     }
 
     #[test]
     fn test_w18cd_set_159_issubset_equal() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2}
     b = {1, 2}
     return a.issubset(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_subset"));
     }
 
     #[test]
     fn test_w18cd_set_160_issubset_empty() {
-        let code = r#"
+        let code = r"
 def f():
     a = set()
     b = {1, 2, 3}
     return a.issubset(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_subset"));
     }
@@ -2144,36 +2144,36 @@ def f():
 
     #[test]
     fn test_w18cd_set_161_issuperset_true() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2, 3}
     b = {1, 2}
     return a.issuperset(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_superset"));
     }
 
     #[test]
     fn test_w18cd_set_162_issuperset_false() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1}
     b = {1, 2}
     return a.issuperset(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_superset"));
     }
 
     #[test]
     fn test_w18cd_set_163_issuperset_equal() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2, 3}
     b = {1, 2, 3}
     return a.issuperset(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_superset"));
     }
@@ -2194,24 +2194,24 @@ def f():
 
     #[test]
     fn test_w18cd_set_165_isdisjoint_true() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2}
     b = {3, 4}
     return a.isdisjoint(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_disjoint"));
     }
 
     #[test]
     fn test_w18cd_set_166_isdisjoint_false() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2, 3}
     b = {3, 4, 5}
     return a.isdisjoint(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_disjoint"));
     }
@@ -2244,13 +2244,13 @@ def f():
 
     #[test]
     fn test_w18cd_set_169_intersection_update_basic() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2, 3, 4}
     b = {2, 3, 5}
     a.intersection_update(b)
     return a
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("intersection")
@@ -2278,26 +2278,26 @@ def f():
 
     #[test]
     fn test_w18cd_set_171_intersection_update_disjoint() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2}
     b = {3, 4}
     a.intersection_update(b)
     return a
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("intersection") || result.contains("clear"));
     }
 
     #[test]
     fn test_w18cd_set_172_intersection_update_subset() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2, 3}
     b = {1, 2, 3, 4}
     a.intersection_update(b)
     return a
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("intersection") || result.contains("clear"));
     }
@@ -2306,13 +2306,13 @@ def f():
 
     #[test]
     fn test_w18cd_set_173_difference_update_basic() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2, 3, 4}
     b = {2, 4}
     a.difference_update(b)
     return a
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("difference") || result.contains("retain") || result.contains("clear")
@@ -2334,26 +2334,26 @@ def f():
 
     #[test]
     fn test_w18cd_set_175_difference_update_no_overlap() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2}
     b = {3, 4}
     a.difference_update(b)
     return a
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("difference") || result.contains("clear"));
     }
 
     #[test]
     fn test_w18cd_set_176_difference_update_all() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2}
     b = {1, 2, 3}
     a.difference_update(b)
     return a
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("difference") || result.contains("clear"));
     }
@@ -2362,12 +2362,12 @@ def f():
 
     #[test]
     fn test_w18cd_set_177_add_int() {
-        let code = r#"
+        let code = r"
 def f():
     s = {1, 2}
     s.add(3)
     return s
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("insert"));
     }
@@ -2386,12 +2386,12 @@ def f():
 
     #[test]
     fn test_w18cd_set_179_add_duplicate() {
-        let code = r#"
+        let code = r"
 def f():
     s = {1, 2, 3}
     s.add(2)
     return s
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("insert"));
     }
@@ -2400,24 +2400,24 @@ def f():
 
     #[test]
     fn test_w18cd_set_180_discard_existing() {
-        let code = r#"
+        let code = r"
 def f():
     s = {1, 2, 3}
     s.discard(2)
     return s
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("remove"));
     }
 
     #[test]
     fn test_w18cd_set_181_discard_missing() {
-        let code = r#"
+        let code = r"
 def f():
     s = {1, 2, 3}
     s.discard(99)
     return s
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("remove"));
     }
@@ -2438,12 +2438,12 @@ def f():
 
     #[test]
     fn test_w18cd_set_183_remove_int() {
-        let code = r#"
+        let code = r"
 def f():
     s = {1, 2, 3}
     s.remove(2)
     return s
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("remove"));
     }
@@ -2464,12 +2464,12 @@ def f():
 
     #[test]
     fn test_w18cd_set_185_clear_basic() {
-        let code = r#"
+        let code = r"
 def f():
     s = {1, 2, 3}
     s.clear()
     return s
-"#;
+";
         let result = transpile(code);
         assert!(result.contains(".clear()"));
     }
@@ -2478,13 +2478,13 @@ def f():
 
     #[test]
     fn test_w18cd_set_186_update_basic() {
-        let code = r#"
+        let code = r"
 def f():
     s = {1, 2}
     other = {3, 4}
     s.update(other)
     return s
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("insert") || result.contains("extend"));
     }
@@ -2504,13 +2504,13 @@ def f():
 
     #[test]
     fn test_w18cd_set_188_update_overlap() {
-        let code = r#"
+        let code = r"
 def f():
     s = {1, 2, 3}
     other = {2, 3, 4}
     s.update(other)
     return s
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("insert") || result.contains("extend"));
     }
@@ -2549,27 +2549,27 @@ def f():
 
     #[test]
     fn test_w18cd_set_191_union_then_intersection() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2}
     b = {2, 3}
     c = {2, 4}
     ab = a.union(b)
     return ab
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("union"));
     }
 
     #[test]
     fn test_w18cd_set_192_difference_then_union() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2, 3}
     b = {2}
     diff = a.difference(b)
     return diff
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("difference"));
     }
@@ -2578,30 +2578,30 @@ def f():
 
     #[test]
     fn test_w18cd_set_193_union_params() {
-        let code = r#"
+        let code = r"
 def merge_sets(a, b):
     return a.union(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("union"));
     }
 
     #[test]
     fn test_w18cd_set_194_intersection_params() {
-        let code = r#"
+        let code = r"
 def common(a, b):
     return a.intersection(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("intersection"));
     }
 
     #[test]
     fn test_w18cd_set_195_difference_params() {
-        let code = r#"
+        let code = r"
 def subtract(a, b):
     return a.difference(b)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("difference"));
     }
@@ -2610,13 +2610,13 @@ def subtract(a, b):
 
     #[test]
     fn test_w18cd_set_196_add_in_loop() {
-        let code = r#"
+        let code = r"
 def f():
     s = set()
     for i in range(5):
         s.add(i)
     return s
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("insert"));
     }
@@ -2625,10 +2625,10 @@ def f():
 
     #[test]
     fn test_w18cd_set_197_issuperset_in_function() {
-        let code = r#"
+        let code = r"
 def has_all(required, available):
     return available.issuperset(required)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_superset"));
     }
@@ -2637,13 +2637,13 @@ def has_all(required, available):
 
     #[test]
     fn test_w18cd_set_198_symmetric_difference_assign() {
-        let code = r#"
+        let code = r"
 def f():
     a = {1, 2, 3}
     b = {3, 4, 5}
     result = a.symmetric_difference(b)
     return result
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("symmetric_difference"));
     }
@@ -2652,11 +2652,11 @@ def f():
 
     #[test]
     fn test_w18cd_set_199_intersection_update_function() {
-        let code = r#"
+        let code = r"
 def keep_common(s, other):
     s.intersection_update(other)
     return s
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("intersection") || result.contains("clear"));
     }
@@ -2665,11 +2665,11 @@ def keep_common(s, other):
 
     #[test]
     fn test_w18cd_set_200_difference_update_function() {
-        let code = r#"
+        let code = r"
 def remove_items(s, to_remove):
     s.difference_update(to_remove)
     return s
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("difference") || result.contains("clear"));
     }

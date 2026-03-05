@@ -977,12 +977,12 @@ def set_add_string_literal() -> None:
     #[test]
     fn test_w22md_072() {
         let result = transpile(
-            r#"
+            r"
 def set_add_variable() -> None:
     s: set = {1, 2, 3}
     item: int = 4
     s.add(item)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -990,13 +990,13 @@ def set_add_variable() -> None:
     #[test]
     fn test_w22md_073() {
         let result = transpile(
-            r#"
+            r"
 def set_add_loop() -> None:
     s: set = set()
     items: list = [1, 2, 3]
     for item in items:
         s.add(item)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1016,12 +1016,12 @@ def set_remove_literal() -> None:
     #[test]
     fn test_w22md_075() {
         let result = transpile(
-            r#"
+            r"
 def set_remove_variable() -> None:
     s: set = {10, 20, 30}
     item: int = 20
     s.remove(item)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1041,12 +1041,12 @@ def set_discard_literal() -> None:
     #[test]
     fn test_w22md_077() {
         let result = transpile(
-            r#"
+            r"
 def set_discard_variable() -> None:
     s: set = {100, 200, 300}
     item: int = 200
     s.discard(item)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1054,11 +1054,11 @@ def set_discard_variable() -> None:
     #[test]
     fn test_w22md_078() {
         let result = transpile(
-            r#"
+            r"
 def set_discard_not_present() -> None:
     s: set = {1, 2}
     s.discard(99)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1066,11 +1066,11 @@ def set_discard_not_present() -> None:
     #[test]
     fn test_w22md_079() {
         let result = transpile(
-            r#"
+            r"
 def set_clear() -> None:
     s: set = {1, 2, 3, 4, 5}
     s.clear()
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1078,11 +1078,11 @@ def set_clear() -> None:
     #[test]
     fn test_w22md_080() {
         let result = transpile(
-            r#"
+            r"
 def set_clear_empty() -> None:
     s: set = set()
     s.clear()
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1090,13 +1090,13 @@ def set_clear_empty() -> None:
     #[test]
     fn test_w22md_081() {
         let result = transpile(
-            r#"
+            r"
 def set_add_conditional() -> None:
     s: set = {1, 2}
     x: int = 3
     if x > 0:
         s.add(x)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1104,13 +1104,13 @@ def set_add_conditional() -> None:
     #[test]
     fn test_w22md_082() {
         let result = transpile(
-            r#"
+            r"
 def set_remove_loop() -> None:
     s: set = {1, 2, 3, 4, 5}
     to_remove: list = [2, 4]
     for item in to_remove:
         s.remove(item)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1132,13 +1132,13 @@ def set_discard_loop() -> None:
     #[test]
     fn test_w22md_084() {
         let result = transpile(
-            r#"
+            r"
 def set_add_multiple() -> None:
     s: set = set()
     s.add(1)
     s.add(2)
     s.add(3)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1159,12 +1159,12 @@ def set_add_string() -> None:
     #[test]
     fn test_w22md_086() {
         let result = transpile(
-            r#"
+            r"
 def set_clear_conditional() -> None:
     s: set = {1, 2, 3}
     if len(s) > 2:
         s.clear()
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1172,13 +1172,13 @@ def set_clear_conditional() -> None:
     #[test]
     fn test_w22md_087() {
         let result = transpile(
-            r#"
+            r"
 def set_operations_chained() -> None:
     s: set = {1, 2, 3}
     s.add(4)
     s.remove(1)
     s.discard(99)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1186,12 +1186,12 @@ def set_operations_chained() -> None:
     #[test]
     fn test_w22md_088() {
         let result = transpile(
-            r#"
+            r"
 def set_add_in_expression() -> int:
     s: set = {1, 2}
     s.add(3)
     return len(s)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1199,13 +1199,13 @@ def set_add_in_expression() -> int:
     #[test]
     fn test_w22md_089() {
         let result = transpile(
-            r#"
+            r"
 def set_remove_conditional() -> None:
     s: set = {10, 20, 30}
     x: int = 20
     if x in s:
         s.remove(x)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1228,12 +1228,12 @@ def set_discard_conditional() -> None:
     #[test]
     fn test_w22md_091() {
         let result = transpile(
-            r#"
+            r"
 def set_update() -> None:
     s: set = {1, 2, 3}
     other: set = {3, 4, 5}
     s.update(other)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1241,12 +1241,12 @@ def set_update() -> None:
     #[test]
     fn test_w22md_092() {
         let result = transpile(
-            r#"
+            r"
 def set_update_list() -> None:
     s: set = {1, 2}
     items: list = [3, 4, 5]
     s.update(items)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1254,12 +1254,12 @@ def set_update_list() -> None:
     #[test]
     fn test_w22md_093() {
         let result = transpile(
-            r#"
+            r"
 def set_intersection_update() -> None:
     s: set = {1, 2, 3}
     other: set = {2, 3, 4}
     s.intersection_update(other)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1267,12 +1267,12 @@ def set_intersection_update() -> None:
     #[test]
     fn test_w22md_094() {
         let result = transpile(
-            r#"
+            r"
 def set_difference_update() -> None:
     s: set = {1, 2, 3}
     other: set = {2, 3}
     s.difference_update(other)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1280,12 +1280,12 @@ def set_difference_update() -> None:
     #[test]
     fn test_w22md_095() {
         let result = transpile(
-            r#"
+            r"
 def set_symmetric_difference_result() -> set:
     s: set = {1, 2, 3}
     other: set = {3, 4, 5}
     return s.symmetric_difference(other)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1293,12 +1293,12 @@ def set_symmetric_difference_result() -> set:
     #[test]
     fn test_w22md_096() {
         let result = transpile(
-            r#"
+            r"
 def set_union() -> set:
     s: set = {1, 2}
     other: set = {2, 3}
     return s.union(other)
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("union"));
@@ -1307,12 +1307,12 @@ def set_union() -> set:
     #[test]
     fn test_w22md_097() {
         let result = transpile(
-            r#"
+            r"
 def set_intersection() -> set:
     s: set = {1, 2, 3}
     other: set = {2, 3, 4}
     return s.intersection(other)
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("intersection"));
@@ -1321,12 +1321,12 @@ def set_intersection() -> set:
     #[test]
     fn test_w22md_098() {
         let result = transpile(
-            r#"
+            r"
 def set_difference() -> set:
     s: set = {1, 2, 3}
     other: set = {2, 3}
     return s.difference(other)
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("difference"));
@@ -1335,12 +1335,12 @@ def set_difference() -> set:
     #[test]
     fn test_w22md_099() {
         let result = transpile(
-            r#"
+            r"
 def set_symmetric_difference() -> set:
     s: set = {1, 2, 3}
     other: set = {3, 4, 5}
     return s.symmetric_difference(other)
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("symmetric_difference"));
@@ -1349,12 +1349,12 @@ def set_symmetric_difference() -> set:
     #[test]
     fn test_w22md_100() {
         let result = transpile(
-            r#"
+            r"
 def set_issubset() -> bool:
     s: set = {1, 2}
     other: set = {1, 2, 3}
     return s.issubset(other)
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("issubset"));
@@ -1363,12 +1363,12 @@ def set_issubset() -> bool:
     #[test]
     fn test_w22md_101() {
         let result = transpile(
-            r#"
+            r"
 def set_issuperset() -> bool:
     s: set = {1, 2, 3}
     other: set = {1, 2}
     return s.issuperset(other)
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("issuperset"));
@@ -1377,12 +1377,12 @@ def set_issuperset() -> bool:
     #[test]
     fn test_w22md_102() {
         let result = transpile(
-            r#"
+            r"
 def set_isdisjoint() -> bool:
     s: set = {1, 2, 3}
     other: set = {4, 5, 6}
     return s.isdisjoint(other)
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("isdisjoint"));
@@ -1391,12 +1391,12 @@ def set_isdisjoint() -> bool:
     #[test]
     fn test_w22md_103() {
         let result = transpile(
-            r#"
+            r"
 def set_update_multiple() -> None:
     s: set = {1}
     s.update({2})
     s.update({3})
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1404,14 +1404,14 @@ def set_update_multiple() -> None:
     #[test]
     fn test_w22md_104() {
         let result = transpile(
-            r#"
+            r"
 def set_operations_loop() -> list:
     sets: list = [{1, 2}, {2, 3}, {3, 4}]
     result: list = []
     for s in sets:
         result.append(s.union({5}))
     return result
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("union"));
@@ -1420,14 +1420,14 @@ def set_operations_loop() -> list:
     #[test]
     fn test_w22md_105() {
         let result = transpile(
-            r#"
+            r"
 def set_intersection_conditional() -> set:
     s1: set = {1, 2, 3}
     s2: set = {2, 3, 4}
     if len(s1) > 0:
         return s1.intersection(s2)
     return set()
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("intersection"));
@@ -1436,12 +1436,12 @@ def set_intersection_conditional() -> set:
     #[test]
     fn test_w22md_106() {
         let result = transpile(
-            r#"
+            r"
 def set_difference_assign() -> None:
     s: set = {1, 2, 3, 4}
     other: set = {3, 4}
     result: set = s.difference(other)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1449,13 +1449,13 @@ def set_difference_assign() -> None:
     #[test]
     fn test_w22md_107() {
         let result = transpile(
-            r#"
+            r"
 def set_union_chain() -> set:
     s1: set = {1}
     s2: set = {2}
     s3: set = {3}
     return s1.union(s2).union(s3)
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("union"));
@@ -1480,7 +1480,7 @@ def set_issubset_conditional() -> str:
     #[test]
     fn test_w22md_109() {
         let result = transpile(
-            r#"
+            r"
 def set_issuperset_loop() -> list:
     sets: list = [{1, 2, 3}, {1, 2}, {1}]
     result: list = []
@@ -1488,7 +1488,7 @@ def set_issuperset_loop() -> list:
     for s in sets:
         result.append(base.issuperset(s))
     return result
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("issuperset"));
@@ -1497,12 +1497,12 @@ def set_issuperset_loop() -> list:
     #[test]
     fn test_w22md_110() {
         let result = transpile(
-            r#"
+            r"
 def set_isdisjoint_check() -> bool:
     evens: set = {2, 4, 6}
     odds: set = {1, 3, 5}
     return evens.isdisjoint(odds)
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("isdisjoint"));
@@ -1512,13 +1512,13 @@ def set_isdisjoint_check() -> bool:
     #[test]
     fn test_w22md_111() {
         let result = transpile(
-            r#"
+            r"
 def set_loop_add() -> set:
     s: set = set()
     for i in range(5):
         s.add(i)
     return s
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1526,13 +1526,13 @@ def set_loop_add() -> set:
     #[test]
     fn test_w22md_112() {
         let result = transpile(
-            r#"
+            r"
 def set_conditional_update() -> None:
     s: set = {1, 2}
     other: set = {3, 4}
     if len(s) < 5:
         s.update(other)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1540,14 +1540,14 @@ def set_conditional_update() -> None:
     #[test]
     fn test_w22md_113() {
         let result = transpile(
-            r#"
+            r"
 def set_nested_loops() -> set:
     result: set = set()
     for i in range(3):
         for j in range(3):
             result.add(i + j)
     return result
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1555,7 +1555,7 @@ def set_nested_loops() -> set:
     #[test]
     fn test_w22md_114() {
         let result = transpile(
-            r#"
+            r"
 def set_while_add() -> set:
     s: set = set()
     i: int = 0
@@ -1563,7 +1563,7 @@ def set_while_add() -> set:
         s.add(i)
         i = i + 1
     return s
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1571,7 +1571,7 @@ def set_while_add() -> set:
     #[test]
     fn test_w22md_115() {
         let result = transpile(
-            r#"
+            r"
 def set_if_else_operations() -> None:
     s: set = {1, 2, 3}
     x: int = 4
@@ -1579,7 +1579,7 @@ def set_if_else_operations() -> None:
         s.remove(x)
     else:
         s.add(x)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1587,14 +1587,14 @@ def set_if_else_operations() -> None:
     #[test]
     fn test_w22md_116() {
         let result = transpile(
-            r#"
+            r"
 def set_loop_union() -> set:
     sets: list = [{1}, {2}, {3}]
     result: set = set()
     for s in sets:
         result = result.union(s)
     return result
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("union"));
@@ -1603,14 +1603,14 @@ def set_loop_union() -> set:
     #[test]
     fn test_w22md_117() {
         let result = transpile(
-            r#"
+            r"
 def set_loop_intersection() -> set:
     s: set = {1, 2, 3, 4, 5}
     filters: list = [{1, 2, 3}, {2, 3, 4}]
     for f in filters:
         s = s.intersection(f)
     return s
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("intersection"));
@@ -1619,14 +1619,14 @@ def set_loop_intersection() -> set:
     #[test]
     fn test_w22md_118() {
         let result = transpile(
-            r#"
+            r"
 def set_comprehension_with_add() -> None:
     s: set = set()
     values: list = [1, 2, 3, 4, 5]
     for v in values:
         if v % 2 == 0:
             s.add(v)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1634,13 +1634,13 @@ def set_comprehension_with_add() -> None:
     #[test]
     fn test_w22md_119() {
         let result = transpile(
-            r#"
+            r"
 def set_multiple_updates() -> None:
     s: set = {1}
     others: list = [{2}, {3}, {4}]
     for other in others:
         s.update(other)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1648,14 +1648,14 @@ def set_multiple_updates() -> None:
     #[test]
     fn test_w22md_120() {
         let result = transpile(
-            r#"
+            r"
 def set_conditional_clear() -> None:
     s: set = {1, 2, 3, 4, 5}
     if len(s) > 3:
         s.clear()
     else:
         s.add(6)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1663,13 +1663,13 @@ def set_conditional_clear() -> None:
     #[test]
     fn test_w22md_121() {
         let result = transpile(
-            r#"
+            r"
 def set_loop_discard() -> None:
     s: set = {1, 2, 3, 4, 5}
     to_remove: list = [1, 3, 5, 7]
     for item in to_remove:
         s.discard(item)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1677,14 +1677,14 @@ def set_loop_discard() -> None:
     #[test]
     fn test_w22md_122() {
         let result = transpile(
-            r#"
+            r"
 def set_nested_conditional() -> None:
     s: set = {1, 2}
     x: int = 3
     if x > 0:
         if x not in s:
             s.add(x)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1692,14 +1692,14 @@ def set_nested_conditional() -> None:
     #[test]
     fn test_w22md_123() {
         let result = transpile(
-            r#"
+            r"
 def set_operations_mixed() -> None:
     s: set = {1, 2, 3}
     s.add(4)
     s.update({5, 6})
     s.discard(1)
     s.remove(2)
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1707,7 +1707,7 @@ def set_operations_mixed() -> None:
     #[test]
     fn test_w22md_124() {
         let result = transpile(
-            r#"
+            r"
 def set_loop_check_subset() -> list:
     base: set = {1, 2, 3, 4, 5}
     candidates: list = [{1, 2}, {3, 4}, {5, 6}]
@@ -1715,7 +1715,7 @@ def set_loop_check_subset() -> list:
     for c in candidates:
         result.append(c.issubset(base))
     return result
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1723,13 +1723,13 @@ def set_loop_check_subset() -> list:
     #[test]
     fn test_w22md_125() {
         let result = transpile(
-            r#"
+            r"
 def set_while_remove() -> set:
     s: set = {1, 2, 3, 4, 5}
     while len(s) > 2:
         s.remove(len(s))
     return s
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1737,14 +1737,14 @@ def set_while_remove() -> set:
     #[test]
     fn test_w22md_126() {
         let result = transpile(
-            r#"
+            r"
 def set_conditional_difference() -> set:
     s1: set = {1, 2, 3}
     s2: set = {2, 3}
     if len(s2) > 0:
         return s1.difference(s2)
     return s1
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("difference"));
@@ -1753,14 +1753,14 @@ def set_conditional_difference() -> set:
     #[test]
     fn test_w22md_127() {
         let result = transpile(
-            r#"
+            r"
 def set_loop_symmetric_diff() -> list:
     sets: list = [{1, 2}, {2, 3}, {3, 4}]
     result: list = []
     for s in sets:
         result.append(s.symmetric_difference({2}))
     return result
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("symmetric_difference"));
@@ -1769,7 +1769,7 @@ def set_loop_symmetric_diff() -> list:
     #[test]
     fn test_w22md_128() {
         let result = transpile(
-            r#"
+            r"
 def set_if_elif_operations() -> None:
     s: set = {1, 2, 3}
     x: int = 4
@@ -1779,7 +1779,7 @@ def set_if_elif_operations() -> None:
         s.add(x)
     else:
         s.clear()
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1787,7 +1787,7 @@ def set_if_elif_operations() -> None:
     #[test]
     fn test_w22md_129() {
         let result = transpile(
-            r#"
+            r"
 def set_loop_disjoint_check() -> int:
     sets: list = [{1, 2}, {3, 4}, {5, 6}]
     base: set = {1, 3, 5}
@@ -1796,7 +1796,7 @@ def set_loop_disjoint_check() -> int:
         if not s.isdisjoint(base):
             count = count + 1
     return count
-"#,
+",
         );
         assert!(!result.is_empty());
     }
@@ -1804,14 +1804,14 @@ def set_loop_disjoint_check() -> int:
     #[test]
     fn test_w22md_130() {
         let result = transpile(
-            r#"
+            r"
 def set_complex_operations() -> set:
     s1: set = {1, 2, 3}
     s2: set = {2, 3, 4}
     s3: set = {3, 4, 5}
     result: set = s1.union(s2).intersection(s3)
     return result
-"#,
+",
         );
         assert!(!result.is_empty());
         assert!(result.contains("union"));

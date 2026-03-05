@@ -1179,7 +1179,7 @@ mod tests {
         ];
 
         // Each category should have a unique display string
-        let displays: Vec<String> = categories.iter().map(|c| c.to_string()).collect();
+        let displays: Vec<String> = categories.iter().map(std::string::ToString::to_string).collect();
         let unique_count = displays.iter().collect::<std::collections::HashSet<_>>().len();
         assert_eq!(
             unique_count,
@@ -1600,7 +1600,7 @@ mod tests {
         ];
 
         // Each variant should have unique display string
-        let displays: Vec<String> = decisions.iter().map(|d| d.to_string()).collect();
+        let displays: Vec<String> = decisions.iter().map(std::string::ToString::to_string).collect();
         let unique_count = displays.iter().collect::<std::collections::HashSet<_>>().len();
         assert_eq!(unique_count, decisions.len(), "All decisions should have unique display names");
     }
@@ -1713,9 +1713,9 @@ mod tests {
         for i in 0..5 {
             let trace = TranspileTrace::new(
                 TranspileDecision::TypeInference,
-                &format!("RULE-{:03}", i),
+                &format!("RULE-{i:03}"),
                 0.9,
-                &format!("Trace {}", i),
+                &format!("Trace {i}"),
             );
             collector.collect(trace);
         }
@@ -1733,9 +1733,9 @@ mod tests {
         for i in 0..10 {
             let trace = TranspileTrace::new(
                 TranspileDecision::TypeInference,
-                &format!("RULE-{:03}", i),
+                &format!("RULE-{i:03}"),
                 0.9,
-                &format!("Trace {}", i),
+                &format!("Trace {i}"),
             );
             collector.collect(trace);
         }
@@ -1753,7 +1753,7 @@ mod tests {
         for i in 0..5 {
             let trace = TranspileTrace::new(
                 TranspileDecision::TypeInference,
-                &format!("RULE-{:03}", i),
+                &format!("RULE-{i:03}"),
                 0.9,
                 "Test",
             );
@@ -1864,7 +1864,7 @@ mod tests {
         for i in 0..6 {
             let trace = TranspileTrace::new(
                 TranspileDecision::TypeInference,
-                &format!("RULE-{:03}", i),
+                &format!("RULE-{i:03}"),
                 0.9,
                 "Test",
             );
@@ -1884,7 +1884,7 @@ mod tests {
         for i in 0..5 {
             let trace = TranspileTrace::new(
                 TranspileDecision::TypeInference,
-                &format!("RULE-{:03}", i),
+                &format!("RULE-{i:03}"),
                 0.9,
                 "Test",
             );
@@ -1936,9 +1936,9 @@ mod tests {
         for i in 0..5 {
             let trace = TranspileTrace::new(
                 TranspileDecision::MethodResolution,
-                &format!("RULE-{:03}", i),
+                &format!("RULE-{i:03}"),
                 0.8,
-                &format!("Trace {}", i),
+                &format!("Trace {i}"),
             );
             collector.collect(trace);
         }
@@ -1949,8 +1949,7 @@ mod tests {
             assert_eq!(
                 chained[i].prev_hash,
                 chained[i - 1].entry_hash,
-                "Hash chain broken at index {}",
-                i
+                "Hash chain broken at index {i}"
             );
         }
     }
@@ -1962,9 +1961,9 @@ mod tests {
         for i in 0..10 {
             let trace = TranspileTrace::new(
                 TranspileDecision::ImportMapping,
-                &format!("RULE-{:03}", i),
+                &format!("RULE-{i:03}"),
                 0.9,
-                &format!("Trace {}", i),
+                &format!("Trace {i}"),
             );
             collector.collect(trace);
         }
@@ -1985,7 +1984,7 @@ mod tests {
         for i in 0..5 {
             let trace = TranspileTrace::new(
                 TranspileDecision::TypeInference,
-                &format!("RULE-{:03}", i),
+                &format!("RULE-{i:03}"),
                 0.9,
                 "Test",
             );
@@ -2098,7 +2097,7 @@ mod tests {
         for i in 0..1000 {
             let trace = TranspileTrace::new(
                 TranspileDecision::MethodResolution,
-                &format!("RULE-{:04}", i),
+                &format!("RULE-{i:04}"),
                 0.85,
                 "Hash chain bulk test",
             );
@@ -2206,7 +2205,7 @@ mod tests {
             "test.rs",
             1,
         );
-        let debug = format!("{:?}", decision);
+        let debug = format!("{decision:?}");
         assert!(debug.contains("DepylerDecision"));
         assert!(debug.contains("MethodDispatch"));
     }
@@ -2222,8 +2221,8 @@ mod tests {
         ];
 
         for variant in &variants {
-            let _s = format!("{}", variant);
-            let _d = format!("{:?}", variant);
+            let _s = format!("{variant}");
+            let _d = format!("{variant:?}");
         }
     }
 
@@ -2244,7 +2243,7 @@ mod tests {
             0.9,
             "Debug test",
         );
-        let debug = format!("{:?}", trace);
+        let debug = format!("{trace:?}");
         assert!(debug.contains("TranspileTrace"));
     }
 
@@ -2254,7 +2253,7 @@ mod tests {
         for i in 0..50 {
             let trace = TranspileTrace::new(
                 TranspileDecision::TypeInference,
-                &format!("RULE-{:03}", i),
+                &format!("RULE-{i:03}"),
                 0.85,
                 "Test",
             );
@@ -2270,7 +2269,7 @@ mod tests {
         for i in 0..25 {
             let trace = TranspileTrace::new(
                 TranspileDecision::TypeInference,
-                &format!("RULE-{:03}", i),
+                &format!("RULE-{i:03}"),
                 0.85,
                 "Test",
             );
@@ -2287,7 +2286,7 @@ mod tests {
         for i in 0..5 {
             let trace = TranspileTrace::new(
                 TranspileDecision::MethodResolution,
-                &format!("RULE-{:03}", i),
+                &format!("RULE-{i:03}"),
                 0.9,
                 "Stream test",
             );
@@ -2327,14 +2326,14 @@ mod tests {
         for i in 0..5 {
             let trace = TranspileTrace::new(
                 TranspileDecision::TypeInference,
-                &format!("RULE-{:03}", i),
+                &format!("RULE-{i:03}"),
                 0.85,
                 "Hash uniqueness test",
             );
             collector.collect(trace);
             let hash = collector.chain_hash();
             // Each addition should produce a different hash
-            assert!(seen_hashes.insert(hash), "Hash collision detected at iteration {}", i);
+            assert!(seen_hashes.insert(hash), "Hash collision detected at iteration {i}");
         }
 
         // Chain should be valid
@@ -2345,7 +2344,7 @@ mod tests {
     #[test]
     fn test_compile_outcome_success_debug_display() {
         let outcome = CompileOutcome::Success;
-        let _debug = format!("{:?}", outcome);
+        let _debug = format!("{outcome:?}");
     }
 
     #[test]
@@ -2355,7 +2354,7 @@ mod tests {
             message: "test error".to_string(),
             span: Some((10, 50)),
         };
-        let _debug = format!("{:?}", outcome);
+        let _debug = format!("{outcome:?}");
     }
 
     #[test]
@@ -2395,7 +2394,7 @@ mod tests {
                 assert!(message.contains("mismatch"));
                 assert_eq!(span, Some((1, 10)));
             }
-            _ => panic!("Expected Error variant"),
+            CompileOutcome::Success => panic!("Expected Error variant"),
         }
     }
 
@@ -2531,7 +2530,7 @@ mod tests {
         for i in 0..5 {
             let trace = TranspileTrace::new(
                 TranspileDecision::TypeInference,
-                &format!("RULE-{}", i),
+                &format!("RULE-{i}"),
                 0.85,
                 "Clear test",
             );
@@ -2549,7 +2548,7 @@ mod tests {
         for i in 0..3 {
             let trace = TranspileTrace::new(
                 TranspileDecision::ImportMapping,
-                &format!("RULE-{}", i),
+                &format!("RULE-{i}"),
                 0.9,
                 "Buffer test",
             );
@@ -2651,7 +2650,7 @@ mod tests {
             "test.rs",
             1,
         );
-        assert_eq!(low.confidence, 0.0);
+        assert!((low.confidence - 0.0).abs() < f32::EPSILON);
 
         // Test high confidence
         let high = DepylerDecision::new(
@@ -2663,7 +2662,7 @@ mod tests {
             "test.rs",
             1,
         );
-        assert_eq!(high.confidence, 1.0);
+        assert!((high.confidence - 1.0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -2679,7 +2678,7 @@ mod tests {
     #[test]
     fn test_compile_outcome_success_variant() {
         let outcome = CompileOutcome::Success;
-        let _debug = format!("{:?}", outcome);
+        let _debug = format!("{outcome:?}");
         assert!(matches!(outcome, CompileOutcome::Success));
     }
 
@@ -2694,7 +2693,7 @@ mod tests {
             CompileOutcome::Error { span, .. } => {
                 assert!(span.is_none());
             }
-            _ => panic!("Expected Error variant"),
+            CompileOutcome::Success => panic!("Expected Error variant"),
         }
     }
 
@@ -2711,7 +2710,7 @@ mod tests {
                 assert_eq!(code, "E0308");
                 assert!(message.contains("mismatch"));
             }
-            _ => panic!("Expected Error variant"),
+            CompileOutcome::Success => panic!("Expected Error variant"),
         }
     }
 }

@@ -42,7 +42,7 @@ fn test_convert_literal_string() {
 
 #[test]
 fn test_convert_literal_string_empty() {
-    let lit = Literal::String("".to_string());
+    let lit = Literal::String(String::new());
     let result = convert_literal(&lit);
     let result_str = quote::quote!(#result).to_string();
     assert!(result_str.contains("\"\"") || result_str.contains("String"));

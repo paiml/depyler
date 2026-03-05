@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 /// Symbol is an interned string identifier used for variable and function names throughout the HIR.
 pub type Symbol = String;
 
-/// Helper for creating parameter SmallVecs in tests
+/// Helper for creating parameter `SmallVecs` in tests
 #[cfg(test)]
 #[macro_export]
 macro_rules! params {
@@ -849,7 +849,7 @@ mod tests {
             ret_type: Type::Int,
             body: vec![],
             properties: FunctionProperties::default(),
-            annotations: Default::default(),
+            annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
         assert_eq!(func.name, "test");

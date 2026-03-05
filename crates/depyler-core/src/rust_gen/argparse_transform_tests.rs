@@ -634,7 +634,7 @@ fn test_argparse_metavar() {
 fn test_argparse_multiple_args() {
     // Verify transpilation succeeds
     assert!(transpile_ok(
-        r#"import argparse
+        r"import argparse
 
 parser = argparse.ArgumentParser(description='Process files')
 parser.add_argument('input', help='Input file')
@@ -642,7 +642,7 @@ parser.add_argument('-o', '--output', help='Output file')
 parser.add_argument('-v', '--verbose', action='store_true')
 parser.add_argument('-n', '--num', type=int, default=10)
 args = parser.parse_args()
-"#,
+",
     ));
 }
 
@@ -650,14 +650,14 @@ args = parser.parse_args()
 fn test_argparse_subparsers() {
     // Verify transpilation succeeds
     assert!(transpile_ok(
-        r#"import argparse
+        r"import argparse
 
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers(dest='command')
 clone_parser = subparsers.add_parser('clone')
 clone_parser.add_argument('repo')
 args = parser.parse_args()
-"#,
+",
     ));
 }
 
@@ -665,13 +665,13 @@ args = parser.parse_args()
 fn test_argparse_argument_groups() {
     // Verify transpilation succeeds
     assert!(transpile_ok(
-        r#"import argparse
+        r"import argparse
 
 parser = argparse.ArgumentParser()
 input_group = parser.add_argument_group('Input options')
 input_group.add_argument('--input', help='Input file')
 args = parser.parse_args()
-"#,
+",
     ));
 }
 
@@ -679,14 +679,14 @@ args = parser.parse_args()
 fn test_argparse_mutually_exclusive() {
     // Verify transpilation succeeds
     assert!(transpile_ok(
-        r#"import argparse
+        r"import argparse
 
 parser = argparse.ArgumentParser()
 group = parser.add_mutually_exclusive_group()
 group.add_argument('--verbose', action='store_true')
 group.add_argument('--quiet', action='store_true')
 args = parser.parse_args()
-"#,
+",
     ));
 }
 
@@ -694,13 +694,13 @@ args = parser.parse_args()
 fn test_argparse_path_type() {
     // Verify transpilation succeeds
     assert!(transpile_ok(
-        r#"import argparse
+        r"import argparse
 from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument('file', type=Path)
 args = parser.parse_args()
-"#,
+",
     ));
 }
 
@@ -708,14 +708,14 @@ args = parser.parse_args()
 fn test_argparse_epilog() {
     // Verify transpilation succeeds
     assert!(transpile_ok(
-        r#"import argparse
+        r"import argparse
 
 parser = argparse.ArgumentParser(
     description='My tool',
     epilog='Example: tool --help'
 )
 args = parser.parse_args()
-"#,
+",
     ));
 }
 
@@ -723,12 +723,12 @@ args = parser.parse_args()
 fn test_argparse_nargs_number() {
     // Verify transpilation succeeds
     assert!(transpile_ok(
-        r#"import argparse
+        r"import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('coords', nargs=2, type=float)
 args = parser.parse_args()
-"#,
+",
     ));
 }
 
@@ -736,12 +736,12 @@ args = parser.parse_args()
 fn test_argparse_const_value() {
     // Verify transpilation succeeds
     assert!(transpile_ok(
-        r#"import argparse
+        r"import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--debug', action='store_const', const=True)
 args = parser.parse_args()
-"#,
+",
     ));
 }
 
@@ -749,12 +749,12 @@ args = parser.parse_args()
 fn test_argparse_short_flag_only() {
     // Verify transpilation succeeds
     assert!(transpile_ok(
-        r#"import argparse
+        r"import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-q', action='store_true')
 args = parser.parse_args()
-"#,
+",
     ));
 }
 
@@ -762,12 +762,12 @@ args = parser.parse_args()
 fn test_argparse_long_flag_only() {
     // Verify transpilation succeeds
     assert!(transpile_ok(
-        r#"import argparse
+        r"import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--silent', action='store_true')
 args = parser.parse_args()
-"#,
+",
     ));
 }
 
@@ -775,12 +775,12 @@ args = parser.parse_args()
 fn test_argparse_store_false() {
     // Verify transpilation succeeds
     assert!(transpile_ok(
-        r#"import argparse
+        r"import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--no-cache', action='store_false', dest='use_cache')
 args = parser.parse_args()
-"#,
+",
     ));
 }
 
@@ -940,7 +940,7 @@ fn test_subcommand_with_empty_name_filtered() {
     tracker.register_subcommand(
         "empty_parser".to_string(),
         SubcommandInfo {
-            name: "".to_string(), // Empty name
+            name: String::new(), // Empty name
             help: None,
             arguments: vec![],
             subparsers_var: "subparsers".to_string(),

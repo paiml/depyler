@@ -299,7 +299,7 @@ mod tests {
     fn test_classify_core_python() {
         let classifier = SemanticClassifier::new();
 
-        let source = r#"
+        let source = r"
 def fibonacci(n: int) -> int:
     if n <= 1:
         return n
@@ -308,7 +308,7 @@ def fibonacci(n: int) -> int:
 class Calculator:
     def add(self, a: int, b: int) -> int:
         return a + b
-"#;
+";
 
         assert_eq!(classifier.classify_file(source), PythonDomain::Core);
     }
@@ -317,7 +317,7 @@ class Calculator:
     fn test_classify_stdlib() {
         let classifier = SemanticClassifier::new();
 
-        let source = r#"
+        let source = r"
 import json
 import os
 from datetime import datetime
@@ -325,7 +325,7 @@ from datetime import datetime
 def load_config(path: str) -> dict:
     with open(path) as f:
         return json.load(f)
-"#;
+";
 
         assert_eq!(classifier.classify_file(source), PythonDomain::Stdlib);
     }
@@ -334,7 +334,7 @@ def load_config(path: str) -> dict:
     fn test_classify_external() {
         let classifier = SemanticClassifier::new();
 
-        let source = r#"
+        let source = r"
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
@@ -342,7 +342,7 @@ from sklearn.linear_model import LinearRegression
 def train_model(data: pd.DataFrame):
     model = LinearRegression()
     return model.fit(data)
-"#;
+";
 
         assert_eq!(classifier.classify_file(source), PythonDomain::External);
     }
@@ -351,13 +351,13 @@ def train_model(data: pd.DataFrame):
     fn test_extract_imports() {
         let classifier = SemanticClassifier::new();
 
-        let source = r#"
+        let source = r"
 import os
 import json, sys
 from datetime import datetime
 from collections.abc import Mapping
 import numpy as np
-"#;
+";
 
         let imports = classifier.extract_imports(source);
         assert!(imports.contains(&"os".to_string()));
@@ -420,11 +420,11 @@ import numpy as np
         let classifier = SemanticClassifier::new();
 
         // File that uses both stdlib and external
-        let source = r#"
+        let source = r"
 import os
 import json
 import numpy as np
-"#;
+";
 
         // External should win over stdlib
         assert_eq!(classifier.classify_file(source), PythonDomain::External);

@@ -1019,8 +1019,8 @@ mod tests {
             category: WarningCategory::RedundantComputation,
             severity: WarningSeverity::Critical,
             message: "debug test".to_string(),
-            explanation: "".to_string(),
-            suggestion: "".to_string(),
+            explanation: String::new(),
+            suggestion: String::new(),
             impact: PerformanceImpact {
                 complexity: "O(1)".to_string(),
                 scales_with_input: false,
@@ -1420,7 +1420,7 @@ mod tests {
             Location { function: "f".to_string(), line: 1, in_loop: true, loop_depth: 2 };
         let info = analyzer.format_loop_info(&loc_in_loop);
         assert!(info.contains("loop"));
-        assert!(info.contains("2"));
+        assert!(info.contains('2'));
 
         let loc_not_in_loop =
             Location { function: "f".to_string(), line: 1, in_loop: false, loop_depth: 0 };
@@ -1435,11 +1435,11 @@ mod tests {
             PerformanceWarning {
                 category: WarningCategory::StringPerformance,
                 severity: WarningSeverity::Critical,
-                message: "".to_string(),
-                explanation: "".to_string(),
-                suggestion: "".to_string(),
+                message: String::new(),
+                explanation: String::new(),
+                suggestion: String::new(),
                 impact: PerformanceImpact {
-                    complexity: "".to_string(),
+                    complexity: String::new(),
                     scales_with_input: false,
                     in_hot_path: false,
                 },
@@ -1448,11 +1448,11 @@ mod tests {
             PerformanceWarning {
                 category: WarningCategory::StringPerformance,
                 severity: WarningSeverity::High,
-                message: "".to_string(),
-                explanation: "".to_string(),
-                suggestion: "".to_string(),
+                message: String::new(),
+                explanation: String::new(),
+                suggestion: String::new(),
                 impact: PerformanceImpact {
-                    complexity: "".to_string(),
+                    complexity: String::new(),
                     scales_with_input: false,
                     in_hot_path: false,
                 },
@@ -1461,11 +1461,11 @@ mod tests {
             PerformanceWarning {
                 category: WarningCategory::StringPerformance,
                 severity: WarningSeverity::High,
-                message: "".to_string(),
-                explanation: "".to_string(),
-                suggestion: "".to_string(),
+                message: String::new(),
+                explanation: String::new(),
+                suggestion: String::new(),
                 impact: PerformanceImpact {
-                    complexity: "".to_string(),
+                    complexity: String::new(),
                     scales_with_input: false,
                     in_hot_path: false,
                 },
