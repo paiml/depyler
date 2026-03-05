@@ -62,7 +62,9 @@ impl BatchCompiler {
     pub fn new(input_dir: &Path) -> Self {
         Self {
             input_dir: input_dir.to_path_buf(),
-            parallel_jobs: std::thread::available_parallelism().map(std::num::NonZero::get).unwrap_or(4),
+            parallel_jobs: std::thread::available_parallelism()
+                .map(std::num::NonZero::get)
+                .unwrap_or(4),
             display_mode: DisplayMode::default(),
         }
     }

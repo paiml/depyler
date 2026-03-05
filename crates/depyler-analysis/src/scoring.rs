@@ -402,10 +402,14 @@ impl ScoreCalculator {
         let n = results.len() as f32;
 
         // Calculate averages
-        let aggregate_score: f32 = results.iter().map(|r| f32::from(r.score.total)).sum::<f32>() / n;
+        let aggregate_score: f32 =
+            results.iter().map(|r| f32::from(r.score.total)).sum::<f32>() / n;
 
         let category_averages = CategoryBreakdown {
-            a1_parse: (results.iter().map(|r| f32::from(r.category_breakdown.a1_parse)).sum::<f32>()
+            a1_parse: (results
+                .iter()
+                .map(|r| f32::from(r.category_breakdown.a1_parse))
+                .sum::<f32>()
                 / n) as u8,
             a2_type_check: (results
                 .iter()
@@ -447,10 +451,13 @@ impl ScoreCalculator {
                 .map(|r| f32::from(r.category_breakdown.c3_property_test))
                 .sum::<f32>()
                 / n) as u8,
-            d1_clippy: (results.iter().map(|r| f32::from(r.category_breakdown.d1_clippy)).sum::<f32>()
+            d1_clippy: (results
+                .iter()
+                .map(|r| f32::from(r.category_breakdown.d1_clippy))
+                .sum::<f32>()
                 / n) as u8,
-            d2_tdg: (results.iter().map(|r| f32::from(r.category_breakdown.d2_tdg)).sum::<f32>() / n)
-                as u8,
+            d2_tdg: (results.iter().map(|r| f32::from(r.category_breakdown.d2_tdg)).sum::<f32>()
+                / n) as u8,
             d3_complexity: (results
                 .iter()
                 .map(|r| f32::from(r.category_breakdown.d3_complexity))

@@ -248,12 +248,7 @@ impl DifferentialTester {
     /// - Platform-specific line endings
     /// - Floating point precision differences
     fn normalize_output(&self, output: &str) -> String {
-        output
-            .lines()
-            .map(str::trim)
-            .filter(|line| !line.is_empty())
-            .collect::<Vec<_>>()
-            .join("\n")
+        output.lines().map(str::trim).filter(|line| !line.is_empty()).collect::<Vec<_>>().join("\n")
     }
 
     /// Compute unified diff between two strings

@@ -154,7 +154,8 @@ impl ReportManifest {
             .arg("--version")
             .output()
             .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok()).map_or_else(|| "unknown".to_string(), |s| s.trim().to_string())
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map_or_else(|| "unknown".to_string(), |s| s.trim().to_string())
     }
 
     /// Serialize to JSON.

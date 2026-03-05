@@ -242,9 +242,13 @@ impl OracleRoiMetrics {
         }
 
         let avg_confidence = |key: &str| -> f64 {
-            category_confidences
-                .get(key)
-                .map_or(0.0, |(sum, count)| if *count > 0 { sum / *count as f64 } else { 0.0 })
+            category_confidences.get(key).map_or(0.0, |(sum, count)| {
+                if *count > 0 {
+                    sum / *count as f64
+                } else {
+                    0.0
+                }
+            })
         };
 
         Self {

@@ -107,9 +107,9 @@ fn generate_fix_suggestion(failure: &VectorizedFailure) -> Option<String> {
                 "E0308" => Some(format!(
                     "In {node_id}: Type mismatch - check return type or add explicit conversion"
                 )),
-                "E0282" => Some(format!(
-                    "In {node_id}: Cannot infer type - add explicit type annotation"
-                )),
+                "E0282" => {
+                    Some(format!("In {node_id}: Cannot infer type - add explicit type annotation"))
+                }
                 _ => Some(format!("In {node_id}: Review type inference logic")),
             }
         }

@@ -134,7 +134,7 @@ impl PythonPathVisitor {
 
     /// Visit a parsed Python module
     fn visit_module(&mut self, module: &rustpython_parser::ast::Mod) {
-        use rustpython_parser::ast::{Mod, ModModule, ModInteractive, ModExpression};
+        use rustpython_parser::ast::{Mod, ModExpression, ModInteractive, ModModule};
 
         match module {
             Mod::Module(ModModule { body, .. }) => {
@@ -155,7 +155,10 @@ impl PythonPathVisitor {
     }
 
     fn visit_stmt(&mut self, stmt: &rustpython_parser::ast::Stmt) {
-        use rustpython_parser::ast::{Stmt, StmtFunctionDef, StmtAsyncFunctionDef, StmtClassDef, StmtAssign, Expr, ExprName, StmtAnnAssign, StmtReturn, StmtFor, StmtIf, StmtWhile, StmtWith, StmtExpr};
+        use rustpython_parser::ast::{
+            Expr, ExprName, Stmt, StmtAnnAssign, StmtAssign, StmtAsyncFunctionDef, StmtClassDef,
+            StmtExpr, StmtFor, StmtFunctionDef, StmtIf, StmtReturn, StmtWhile, StmtWith,
+        };
 
         match stmt {
             Stmt::FunctionDef(StmtFunctionDef { name, args, body, .. }) => {
@@ -315,7 +318,10 @@ impl PythonPathVisitor {
     }
 
     fn visit_expr(&mut self, expr: &rustpython_parser::ast::Expr) {
-        use rustpython_parser::ast::{Expr, ExprCall, ExprBinOp, ExprCompare, ExprAttribute, ExprSubscript, ExprList, ExprTuple, ExprDict};
+        use rustpython_parser::ast::{
+            Expr, ExprAttribute, ExprBinOp, ExprCall, ExprCompare, ExprDict, ExprList,
+            ExprSubscript, ExprTuple,
+        };
 
         // Limit path depth
         if self.current_path.len() >= self.max_path_length {
@@ -389,7 +395,9 @@ impl PythonPathVisitor {
 
     /// Get a type name for an expression (for terminal nodes)
     fn expr_type_name(&self, expr: &rustpython_parser::ast::Expr) -> String {
-        use rustpython_parser::ast::{Expr, ExprName, ExprConstant, Constant, ExprCall, ExprAttribute};
+        use rustpython_parser::ast::{
+            Constant, Expr, ExprAttribute, ExprCall, ExprConstant, ExprName,
+        };
 
         match expr {
             Expr::Name(ExprName { id, .. }) => id.to_string(),

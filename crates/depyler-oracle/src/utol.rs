@@ -725,7 +725,11 @@ pub fn compile_corpus(config: &CorpusConfig, classifier: &crate::Oracle) -> Vec<
         config.exclude_patterns.iter().filter_map(|p| Pattern::new(p).ok()).collect();
 
     // Walk corpus directory
-    for entry in WalkDir::new(&config.path).follow_links(true).into_iter().filter_map(std::result::Result::ok) {
+    for entry in WalkDir::new(&config.path)
+        .follow_links(true)
+        .into_iter()
+        .filter_map(std::result::Result::ok)
+    {
         let path = entry.path();
         if !path.is_file() {
             continue;

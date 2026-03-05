@@ -199,7 +199,9 @@ pub fn build_oracle_config(config: &TranspileConfig) -> OracleConfig {
 
 /// Compute output path from input path
 pub fn compute_output_path(input: &Path, output: Option<&Path>) -> PathBuf {
-    if let Some(path) = output { path.to_path_buf() } else {
+    if let Some(path) = output {
+        path.to_path_buf()
+    } else {
         let mut path = input.to_path_buf();
         path.set_extension("rs");
         path

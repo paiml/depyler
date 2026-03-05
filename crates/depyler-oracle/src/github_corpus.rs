@@ -232,7 +232,8 @@ fn extract_fix_from_commit(message: &str) -> String {
     // Extract from commit title
     message
         .lines()
-        .next().map_or_else(|| "See commit for fix details".to_string(), |s| s.trim().to_string())
+        .next()
+        .map_or_else(|| "See commit for fix details".to_string(), |s| s.trim().to_string())
 }
 
 /// Build corpus from OIP training data file
@@ -412,8 +413,13 @@ mod tests {
     fn test_load_real_oip_data_if_exists() {
         // Try to load real OIP training data if available
         let oip_path_buf = std::env::var_os("HOME")
-            .map(|h| std::path::PathBuf::from(h).join("src/organizational-intelligence-plugin/training-data.json"))
-            .unwrap_or_else(|| std::path::PathBuf::from("../organizational-intelligence-plugin/training-data.json"));
+            .map(|h| {
+                std::path::PathBuf::from(h)
+                    .join("src/organizational-intelligence-plugin/training-data.json")
+            })
+            .unwrap_or_else(|| {
+                std::path::PathBuf::from("../organizational-intelligence-plugin/training-data.json")
+            });
         let oip_path = oip_path_buf.as_path();
 
         if oip_path.exists() {

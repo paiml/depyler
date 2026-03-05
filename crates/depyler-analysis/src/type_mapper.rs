@@ -634,7 +634,8 @@ impl RustType {
                 if types.is_empty() {
                     "()".to_string()
                 } else {
-                    let type_strs: Vec<String> = types.iter().map(RustType::to_rust_string).collect();
+                    let type_strs: Vec<String> =
+                        types.iter().map(RustType::to_rust_string).collect();
                     format!("({})", type_strs.join(", "))
                 }
             }

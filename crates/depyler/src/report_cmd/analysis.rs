@@ -485,7 +485,8 @@ pub fn extract_transpile_message(stderr: &str) -> String {
     if let Some(caused_by) = stderr.find("Caused by:") {
         let rest = &stderr[caused_by + 10..];
         rest.lines()
-            .find(|l| !l.trim().is_empty()).map_or_else(|| "Unknown transpiler error".to_string(), |l| l.trim().to_string())
+            .find(|l| !l.trim().is_empty())
+            .map_or_else(|| "Unknown transpiler error".to_string(), |l| l.trim().to_string())
     } else if let Some(unsupported) = stderr.find("Unsupported") {
         stderr[unsupported..].lines().next().unwrap_or("Unsupported syntax").to_string()
     } else if let Some(not_supported) = stderr.find("not yet supported") {

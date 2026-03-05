@@ -338,40 +338,33 @@ impl GraphAnalyzer {
         }
 
         // Sum of weights to nodes in target community
-        let k_in: f64 = adjacency
-            .get(node)
-            .map_or(0.0, |neighbors| {
-                neighbors
-                    .iter()
-                    .filter(|(n, _)| *community.get(n).unwrap_or(&0) == to_comm)
-                    .map(|(_, w)| w)
-                    .sum()
-            });
+        let k_in: f64 = adjacency.get(node).map_or(0.0, |neighbors| {
+            neighbors
+                .iter()
+                .filter(|(n, _)| *community.get(n).unwrap_or(&0) == to_comm)
+                .map(|(_, w)| w)
+                .sum()
+        });
 
         // Sum of weights to nodes in source community
-        let k_out: f64 = adjacency
-            .get(node)
-            .map_or(0.0, |neighbors| {
-                neighbors
-                    .iter()
-                    .filter(|(n, _)| *community.get(n).unwrap_or(&0) == from_comm)
-                    .map(|(_, w)| w)
-                    .sum()
-            });
+        let k_out: f64 = adjacency.get(node).map_or(0.0, |neighbors| {
+            neighbors
+                .iter()
+                .filter(|(n, _)| *community.get(n).unwrap_or(&0) == from_comm)
+                .map(|(_, w)| w)
+                .sum()
+        });
 
         // Node degree
-        let k_i: f64 = adjacency
-            .get(node)
-            .map_or(0.0, |neighbors| neighbors.iter().map(|(_, w)| w).sum());
+        let k_i: f64 =
+            adjacency.get(node).map_or(0.0, |neighbors| neighbors.iter().map(|(_, w)| w).sum());
 
         // Sum of degrees in target community
         let sigma_tot: f64 = community
             .iter()
             .filter(|(_, &c)| c == to_comm)
             .map(|(n, _)| {
-                adjacency
-                    .get(n)
-                    .map_or(0.0, |neighbors| neighbors.iter().map(|(_, w)| w).sum())
+                adjacency.get(n).map_or(0.0, |neighbors| neighbors.iter().map(|(_, w)| w).sum())
             })
             .sum();
 
@@ -394,8 +387,7 @@ impl GraphAnalyzer {
         let mut q = 0.0;
 
         for (node_i, &comm_i) in community {
-            let k_i: f64 =
-                adjacency.get(node_i).map_or(0.0, |n| n.iter().map(|(_, w)| w).sum());
+            let k_i: f64 = adjacency.get(node_i).map_or(0.0, |n| n.iter().map(|(_, w)| w).sum());
 
             for (node_j, &comm_j) in community {
                 if comm_i != comm_j {

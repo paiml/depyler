@@ -467,12 +467,8 @@ impl TypeHintProvider {
                 if let HirExpr::Var(module_name) = object.as_ref() {
                     let module_method_type = match (module_name.as_str(), method.as_str()) {
                         // Regex methods that return lists
-                        ("re" | "regex", "findall") => {
-                            Some(Type::List(Box::new(Type::String)))
-                        }
-                        ("re" | "regex", "split") => {
-                            Some(Type::List(Box::new(Type::String)))
-                        }
+                        ("re" | "regex", "findall") => Some(Type::List(Box::new(Type::String))),
+                        ("re" | "regex", "split") => Some(Type::List(Box::new(Type::String))),
                         // JSON methods
                         ("json", "loads" | "load") => {
                             Some(Type::Custom("serde_json::Value".to_string()))
