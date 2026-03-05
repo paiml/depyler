@@ -35,9 +35,9 @@ impl HarvestResult {
     /// Returns all parseable files (stubs preferred, sources as fallback).
     pub fn all_files(&self) -> Vec<&Path> {
         if self.stub_files.is_empty() {
-            self.source_files.iter().map(|p| p.as_path()).collect()
+            self.source_files.iter().map(std::path::PathBuf::as_path).collect()
         } else {
-            self.stub_files.iter().map(|p| p.as_path()).collect()
+            self.stub_files.iter().map(std::path::PathBuf::as_path).collect()
         }
     }
 
@@ -149,8 +149,7 @@ impl Harvester {
             .output()
             .map_err(|e| {
                 KnowledgeError::UvCommandFailed(format!(
-                    "Failed to execute uv: {}. Is uv installed? Try: curl -LsSf https://astral.sh/uv/install.sh | sh",
-                    e
+                    "Failed to execute uv: {e}. Is uv installed? Try: curl -LsSf https://astral.sh/uv/install.sh | sh"
                 ))
             })?;
 
@@ -169,7 +168,7 @@ impl Harvester {
     fn find_files_by_extension(&self, root: &Path, ext: &str) -> Vec<PathBuf> {
         WalkDir::new(root)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .filter(|e| e.file_type().is_file())
             .filter(|e| e.path().extension().is_some_and(|x| x == ext))
             .map(|e| e.path().to_path_buf())

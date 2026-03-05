@@ -1,3 +1,11 @@
+#![allow(
+    clippy::cast_precision_loss,
+    clippy::return_self_not_must_use,
+    clippy::similar_names,
+    clippy::unnecessary_wraps,
+    clippy::unused_self
+)]
+
 use depyler_analyzer::{calculate_cognitive, calculate_cyclomatic, count_statements};
 use depyler_annotations::AnnotationValidator;
 use depyler_core::hir::HirFunction;
@@ -206,7 +214,7 @@ impl QualityAnalyzer {
         let avg_complexity = if functions.is_empty() {
             0.0
         } else {
-            functions.iter().map(|f| calculate_cyclomatic(&f.body) as f64).sum::<f64>()
+            functions.iter().map(|f| f64::from(calculate_cyclomatic(&f.body))).sum::<f64>()
                 / functions.len() as f64
         };
 
@@ -217,7 +225,7 @@ impl QualityAnalyzer {
         let avg_cognitive = if functions.is_empty() {
             0.0
         } else {
-            functions.iter().map(|f| calculate_cognitive(&f.body) as f64).sum::<f64>()
+            functions.iter().map(|f| f64::from(calculate_cognitive(&f.body))).sum::<f64>()
                 / functions.len() as f64
         };
         let maintainability_score = (100.0_f64 / (avg_cognitive + 1.0)).min(100.0);

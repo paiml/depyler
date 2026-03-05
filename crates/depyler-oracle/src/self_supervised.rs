@@ -286,10 +286,10 @@ pub struct RustcError {
 /// Maps rustc error codes to Oracle categories.
 ///
 /// # Error Code Mapping Strategy
-/// - E03xx: Type system errors → TypeMismatch
+/// - E03xx: Type system errors → `TypeMismatch`
 /// - E04xx: Name resolution → MissingImport/SyntaxError
-/// - E05xx: Borrow checker → BorrowChecker
-/// - E06xx: Lifetime errors → LifetimeError
+/// - E05xx: Borrow checker → `BorrowChecker`
+/// - E06xx: Lifetime errors → `LifetimeError`
 #[must_use]
 pub fn auto_label(error: &RustcError) -> ErrorCategory {
     match error.code.as_str() {
@@ -472,13 +472,13 @@ impl SelfSupervisedCorpusGenerator {
 /// to maximize Oracle classification accuracy on the generated corpus.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GenerationParams {
-    /// Weight for DocstringMining strategy (0.0-1.0)
+    /// Weight for `DocstringMining` strategy (0.0-1.0)
     pub weight_docstring: f64,
-    /// Weight for TypeEnumeration strategy (0.0-1.0)
+    /// Weight for `TypeEnumeration` strategy (0.0-1.0)
     pub weight_type_enum: f64,
-    /// Weight for EdgeCases strategy (0.0-1.0)
+    /// Weight for `EdgeCases` strategy (0.0-1.0)
     pub weight_edge_cases: f64,
-    /// Weight for ErrorInduction strategy (0.0-1.0)
+    /// Weight for `ErrorInduction` strategy (0.0-1.0)
     pub weight_error_induction: f64,
     /// Weight for Composition strategy (0.0-1.0)
     pub weight_composition: f64,
@@ -555,7 +555,7 @@ impl GenerationParams {
         }
     }
 
-    /// Get strategy weights as a HashMap for easy lookup.
+    /// Get strategy weights as a `HashMap` for easy lookup.
     #[must_use]
     pub fn strategy_weights(&self) -> HashMap<GenerationStrategy, f64> {
         let mut weights = HashMap::new();
@@ -735,13 +735,13 @@ pub fn evaluate_fitness(
 
     // Fitness components:
     // 1. Acceptance rate (want high)
-    let acceptance_score = metrics.acceptance_rate() as f64;
+    let acceptance_score = f64::from(metrics.acceptance_rate());
 
     // 2. Category balance (want low imbalance)
-    let balance_score = 1.0 / (1.0 + metrics.imbalance_ratio() as f64 / 10.0);
+    let balance_score = 1.0 / (1.0 + f64::from(metrics.imbalance_ratio()) / 10.0);
 
     // 3. Diversity (want high)
-    let diversity_score = metrics.diversity_score as f64;
+    let diversity_score = f64::from(metrics.diversity_score);
 
     // 4. Error code coverage (want many unique codes)
     let coverage_score = (metrics.unique_error_codes as f64 / 50.0).min(1.0);
@@ -765,7 +765,7 @@ pub struct EvaluationMetrics {
     pub class_balance: f64,
     /// Coverage of error categories (0.0-1.0)
     pub category_coverage: f64,
-    /// Diversity score from DiversityMonitor (0.0-1.0)
+    /// Diversity score from `DiversityMonitor` (0.0-1.0)
     pub diversity_score: f64,
     /// Estimated Oracle accuracy (from k-fold CV)
     pub estimated_accuracy: f64,
@@ -782,10 +782,10 @@ impl EvaluationMetrics {
 
         Self {
             corpus_size: metrics.accepted,
-            uniqueness_rate: 1.0 - metrics.duplicate_rate() as f64,
-            class_balance: 1.0 / (1.0 + metrics.imbalance_ratio() as f64 / 10.0),
-            category_coverage: covered_categories as f64 / total_categories as f64,
-            diversity_score: metrics.diversity_score as f64,
+            uniqueness_rate: 1.0 - f64::from(metrics.duplicate_rate()),
+            class_balance: 1.0 / (1.0 + f64::from(metrics.imbalance_ratio()) / 10.0),
+            category_coverage: covered_categories as f64 / f64::from(total_categories),
+            diversity_score: f64::from(metrics.diversity_score),
             estimated_accuracy: k_fold_accuracy,
             macro_f1,
         }
@@ -1234,7 +1234,7 @@ fn evaluate_fitness_with_curriculum(
     }
 
     if level_count > 0 {
-        total_fitness / level_count as f64 * 4.0 // Normalize
+        total_fitness / f64::from(level_count) * 4.0 // Normalize
     } else {
         0.0
     }
@@ -1251,7 +1251,7 @@ fn evaluate_level_fitness(
     let strategy_diversity = strategies.len() as f64 / 5.0;
     let stdlib_coverage = (stdlib_funcs.len() as f64 / 50.0).min(1.0);
 
-    (strategy_diversity + stdlib_coverage) / 2.0
+    f64::midpoint(strategy_diversity, stdlib_coverage)
 }
 
 // ============================================================================
@@ -1261,9 +1261,9 @@ fn evaluate_level_fitness(
 /// Fix pattern extracted from training sample.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FixPattern {
-    /// Add type conversion (.into(), as, etc.)
+    /// Add type conversion (.`into()`, as, etc.)
     TypeConversion,
-    /// Add .clone() to fix borrow issues
+    /// Add .`clone()` to fix borrow issues
     AddClone,
     /// Add missing import/use statement
     AddImport,

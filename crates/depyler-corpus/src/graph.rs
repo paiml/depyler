@@ -1,6 +1,6 @@
 //! Graph-based error analysis module (DEPYLER-REPORT-V2).
 //!
-//! Uses graph algorithms (PageRank, Louvain community detection) to identify
+//! Uses graph algorithms (`PageRank`, Louvain community detection) to identify
 //! central error patterns and error communities for targeted fixing.
 
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,7 @@ pub struct ErrorNode {
     pub code: String,
     /// Frequency count.
     pub count: usize,
-    /// PageRank score (0.0-1.0, higher = more central).
+    /// `PageRank` score (0.0-1.0, higher = more central).
     pub pagerank: f64,
     /// Community ID from Louvain algorithm.
     pub community: usize,
@@ -54,7 +54,7 @@ pub struct ErrorGraph {
     pub edges: Vec<ErrorEdge>,
     /// Detected communities.
     pub communities: Vec<ErrorCommunity>,
-    /// Top errors by PageRank.
+    /// Top errors by `PageRank`.
     pub top_by_pagerank: Vec<String>,
     /// Modularity score of community detection.
     pub modularity: f64,
@@ -62,9 +62,9 @@ pub struct ErrorGraph {
 
 /// Graph analyzer for error patterns.
 pub struct GraphAnalyzer {
-    /// Damping factor for PageRank (typically 0.85).
+    /// Damping factor for `PageRank` (typically 0.85).
     damping: f64,
-    /// Maximum iterations for PageRank.
+    /// Maximum iterations for `PageRank`.
     max_iterations: usize,
     /// Convergence threshold.
     convergence: f64,
@@ -174,7 +174,7 @@ impl GraphAnalyzer {
         adjacency
     }
 
-    /// Calculate PageRank scores for error nodes.
+    /// Calculate `PageRank` scores for error nodes.
     fn pagerank(
         &self,
         adjacency: &HashMap<String, Vec<(String, f64)>>,
@@ -340,32 +340,29 @@ impl GraphAnalyzer {
         // Sum of weights to nodes in target community
         let k_in: f64 = adjacency
             .get(node)
-            .map(|neighbors| {
+            .map_or(0.0, |neighbors| {
                 neighbors
                     .iter()
                     .filter(|(n, _)| *community.get(n).unwrap_or(&0) == to_comm)
                     .map(|(_, w)| w)
                     .sum()
-            })
-            .unwrap_or(0.0);
+            });
 
         // Sum of weights to nodes in source community
         let k_out: f64 = adjacency
             .get(node)
-            .map(|neighbors| {
+            .map_or(0.0, |neighbors| {
                 neighbors
                     .iter()
                     .filter(|(n, _)| *community.get(n).unwrap_or(&0) == from_comm)
                     .map(|(_, w)| w)
                     .sum()
-            })
-            .unwrap_or(0.0);
+            });
 
         // Node degree
         let k_i: f64 = adjacency
             .get(node)
-            .map(|neighbors| neighbors.iter().map(|(_, w)| w).sum())
-            .unwrap_or(0.0);
+            .map_or(0.0, |neighbors| neighbors.iter().map(|(_, w)| w).sum());
 
         // Sum of degrees in target community
         let sigma_tot: f64 = community
@@ -374,8 +371,7 @@ impl GraphAnalyzer {
             .map(|(n, _)| {
                 adjacency
                     .get(n)
-                    .map(|neighbors| neighbors.iter().map(|(_, w)| w).sum())
-                    .unwrap_or(0.0)
+                    .map_or(0.0, |neighbors| neighbors.iter().map(|(_, w)| w).sum())
             })
             .sum();
 
@@ -399,7 +395,7 @@ impl GraphAnalyzer {
 
         for (node_i, &comm_i) in community {
             let k_i: f64 =
-                adjacency.get(node_i).map(|n| n.iter().map(|(_, w)| w).sum()).unwrap_or(0.0);
+                adjacency.get(node_i).map_or(0.0, |n| n.iter().map(|(_, w)| w).sum());
 
             for (node_j, &comm_j) in community {
                 if comm_i != comm_j {
@@ -407,14 +403,13 @@ impl GraphAnalyzer {
                 }
 
                 let k_j: f64 =
-                    adjacency.get(node_j).map(|n| n.iter().map(|(_, w)| w).sum()).unwrap_or(0.0);
+                    adjacency.get(node_j).map_or(0.0, |n| n.iter().map(|(_, w)| w).sum());
 
                 // Edge weight between i and j
                 let a_ij: f64 = adjacency
                     .get(node_i)
                     .and_then(|neighbors| neighbors.iter().find(|(n, _)| n == node_j))
-                    .map(|(_, w)| *w)
-                    .unwrap_or(0.0);
+                    .map_or(0.0, |(_, w)| *w);
 
                 q += a_ij - k_i * k_j / (2.0 * m);
             }

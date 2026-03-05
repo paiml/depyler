@@ -1,4 +1,6 @@
 #![allow(clippy::missing_errors_doc)] // Parse methods have obvious error conditions
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::unused_self)]
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -454,6 +456,7 @@ impl Default for AnnotationParser {
     }
 }
 
+#[allow(clippy::unused_self)]
 impl AnnotationParser {
     /// Creates a new annotation parser.
     ///
@@ -590,7 +593,7 @@ impl AnnotationParser {
         Ok(())
     }
 
-    /// Apply core annotation (type_strategy, ownership, safety_level, fallback, bounds_checking)
+    /// Apply core annotation (`type_strategy`, ownership, `safety_level`, fallback, `bounds_checking`)
     #[inline]
     fn apply_core_annotation(
         &self,
@@ -619,7 +622,7 @@ impl AnnotationParser {
         Ok(())
     }
 
-    /// Apply optimization annotation (optimization_level, performance_critical, vectorize, unroll_loops, optimization_hint)
+    /// Apply optimization annotation (`optimization_level`, `performance_critical`, vectorize, `unroll_loops`, `optimization_hint`)
     #[inline]
     fn apply_optimization_annotation(
         &self,
@@ -667,7 +670,7 @@ impl AnnotationParser {
             "vectorize" => annotations.performance_hints.push(PerformanceHint::Vectorize),
             "latency" => annotations.performance_hints.push(PerformanceHint::OptimizeForLatency),
             "throughput" => {
-                annotations.performance_hints.push(PerformanceHint::OptimizeForThroughput)
+                annotations.performance_hints.push(PerformanceHint::OptimizeForThroughput);
             }
             "async_ready" => {
                 eprintln!("Warning: async_ready is experimental and not yet fully supported");
@@ -682,7 +685,7 @@ impl AnnotationParser {
         Ok(())
     }
 
-    /// Apply thread safety annotation (thread_safety, interior_mutability)
+    /// Apply thread safety annotation (`thread_safety`, `interior_mutability`)
     #[inline]
     fn apply_thread_safety_annotation(
         &self,
@@ -713,7 +716,7 @@ impl AnnotationParser {
         Ok(())
     }
 
-    /// Apply string/hash strategy annotation (string_strategy, hash_strategy)
+    /// Apply string/hash strategy annotation (`string_strategy`, `hash_strategy`)
     #[inline]
     fn apply_string_hash_annotation(
         &self,
@@ -733,7 +736,7 @@ impl AnnotationParser {
         Ok(())
     }
 
-    /// Apply error handling annotation (panic_behavior, error_strategy)
+    /// Apply error handling annotation (`panic_behavior`, `error_strategy`)
     #[inline]
     fn apply_error_handling_annotation(
         &self,
@@ -753,7 +756,7 @@ impl AnnotationParser {
         Ok(())
     }
 
-    /// Apply verification annotation (termination, invariant, verify_bounds)
+    /// Apply verification annotation (termination, invariant, `verify_bounds`)
     #[inline]
     fn apply_verification_annotation(
         &self,
@@ -776,7 +779,7 @@ impl AnnotationParser {
         Ok(())
     }
 
-    /// Apply service metadata annotation (service_type, migration_strategy, compatibility_layer, pattern)
+    /// Apply service metadata annotation (`service_type`, `migration_strategy`, `compatibility_layer`, pattern)
     #[inline]
     fn apply_service_metadata_annotation(
         &self,
@@ -831,7 +834,7 @@ impl AnnotationParser {
         Ok(())
     }
 
-    /// Apply lambda configuration (runtime, event_type, architecture)
+    /// Apply lambda configuration (runtime, `event_type`, architecture)
     #[inline]
     fn apply_lambda_config(
         &self,
@@ -854,7 +857,7 @@ impl AnnotationParser {
         Ok(())
     }
 
-    /// Apply lambda feature flags (cold_start_optimize, batch_failure_reporting, custom_serialization, tracing)
+    /// Apply lambda feature flags (`cold_start_optimize`, `batch_failure_reporting`, `custom_serialization`, tracing)
     #[inline]
     fn apply_lambda_flags(
         &self,
@@ -879,7 +882,7 @@ impl AnnotationParser {
         }
     }
 
-    /// Apply lambda numeric settings (memory_size, timeout)
+    /// Apply lambda numeric settings (`memory_size`, timeout)
     #[inline]
     fn apply_lambda_numeric(
         &self,
@@ -1121,6 +1124,7 @@ impl AnnotationParser {
         }
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn parse_lambda_runtime(&self, value: &str) -> Result<LambdaRuntime, AnnotationError> {
         match value {
             "provided.al2" => Ok(LambdaRuntime::ProvidedAl2),
@@ -1129,6 +1133,7 @@ impl AnnotationParser {
         }
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn parse_lambda_event_type(&self, value: &str) -> Result<LambdaEventType, AnnotationError> {
         // Quick path for common types
         let event_type = match value {
@@ -1143,7 +1148,7 @@ impl AnnotationParser {
         Ok(event_type)
     }
 
-    /// Parse AWS service events (S3, SQS, SNS, DynamoDB, CloudWatch, Kinesis)
+    /// Parse AWS service events (S3, SQS, SNS, `DynamoDB`, `CloudWatch`, Kinesis)
     #[inline]
     fn parse_aws_service_event(&self, value: &str) -> LambdaEventType {
         match value {
@@ -1167,7 +1172,7 @@ impl AnnotationParser {
         }
     }
 
-    /// Parse custom or EventBridge event types
+    /// Parse custom or `EventBridge` event types
     #[inline]
     fn parse_custom_event_type(&self, value: &str) -> LambdaEventType {
         if value.starts_with("EventBridgeEvent<") && value.ends_with('>') {

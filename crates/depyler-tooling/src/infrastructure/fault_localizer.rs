@@ -104,16 +104,16 @@ impl FaultLocalizer {
 
     /// Calculate Tarantula suspiciousness for a decision
     ///
-    /// Formula: (failed/total_failed) / (failed/total_failed + passed/total_passed)
+    /// Formula: (`failed/total_failed`) / (`failed/total_failed` + `passed/total_passed`)
     pub fn suspiciousness(&self, decision_id: u64) -> f64 {
         if self.total_failed == 0 {
             return 0.0;
         }
 
-        let failed = *self.fail_count.get(&decision_id).unwrap_or(&0) as f64;
-        let passed = *self.pass_count.get(&decision_id).unwrap_or(&0) as f64;
-        let total_failed = self.total_failed as f64;
-        let total_passed = self.total_passed as f64;
+        let failed = f64::from(*self.fail_count.get(&decision_id).unwrap_or(&0));
+        let passed = f64::from(*self.pass_count.get(&decision_id).unwrap_or(&0));
+        let total_failed = f64::from(self.total_failed);
+        let total_passed = f64::from(self.total_passed);
 
         let fail_ratio = failed / total_failed;
         let pass_ratio = if total_passed > 0.0 { passed / total_passed } else { 0.0 };
@@ -125,7 +125,7 @@ impl FaultLocalizer {
     pub fn rank_decisions(&self) -> Vec<(u64, f64)> {
         let mut all_ids: Vec<u64> =
             self.fail_count.keys().chain(self.pass_count.keys()).copied().collect();
-        all_ids.sort();
+        all_ids.sort_unstable();
         all_ids.dedup();
 
         let mut ranked: Vec<_> =

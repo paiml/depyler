@@ -218,7 +218,7 @@ impl ContractChecker {
                 contract.preconditions.push(Condition {
                     name: format!("requires_{}", contract.preconditions.len()),
                     expression: annotation.to_string(),
-                    description: format!("Requires: {}", annotation),
+                    description: format!("Requires: {annotation}"),
                 });
             }
         }
@@ -230,7 +230,7 @@ impl ContractChecker {
                 contract.postconditions.push(Condition {
                     name: format!("ensures_{}", contract.postconditions.len()),
                     expression: annotation.to_string(),
-                    description: format!("Ensures: {}", annotation),
+                    description: format!("Ensures: {annotation}"),
                 });
             }
         }
@@ -242,7 +242,7 @@ impl ContractChecker {
                 contract.invariants.push(Condition {
                     name: format!("invariant_{}", contract.invariants.len()),
                     expression: annotation.to_string(),
-                    description: format!("Invariant: {}", annotation),
+                    description: format!("Invariant: {annotation}"),
                 });
             }
         }
@@ -496,7 +496,7 @@ fn format_array_type(element_type: &Type, size: &depyler_core::hir::ConstGeneric
         depyler_core::hir::ConstGeneric::Parameter(name) => name.clone(),
         depyler_core::hir::ConstGeneric::Expression(expr) => expr.clone(),
     };
-    format!("[{}; {}]", element_str, size_str)
+    format!("[{element_str}; {size_str}]")
 }
 
 fn check_stmt_contracts(stmt: &HirStmt) -> Vec<String> {

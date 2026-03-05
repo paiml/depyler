@@ -1,6 +1,6 @@
 //! Aprender Estimator trait implementation for oracle predictor.
 //!
-//! Wraps NgramFixPredictor to work with aprender's model evaluation framework.
+//! Wraps `NgramFixPredictor` to work with aprender's model evaluation framework.
 
 use aprender::error::{AprenderError, Result as AprenderResult};
 use aprender::primitives::{Matrix, Vector};
@@ -11,7 +11,7 @@ use crate::features::ErrorFeatures;
 use crate::ngram::NgramFixPredictor;
 use crate::training::TrainingSample;
 
-/// Wrapper to make NgramFixPredictor compatible with aprender's Estimator trait.
+/// Wrapper to make `NgramFixPredictor` compatible with aprender's Estimator trait.
 ///
 /// Converts between text-based error classification and numeric features/labels.
 pub struct OracleEstimator {
@@ -104,7 +104,7 @@ impl Estimator for OracleEstimator {
 
     /// Predict category indices for input features.
     ///
-    /// Returns vector of category indices (0-5 for ErrorCategory variants).
+    /// Returns vector of category indices (0-5 for `ErrorCategory` variants).
     fn predict(&self, _x: &Matrix<f32>) -> Vector<f32> {
         // For proper evaluation, we need the original error messages
         // This simplified version returns zeros (would need message storage)
@@ -231,7 +231,7 @@ pub fn message_to_features(message: &str) -> Matrix<f32> {
 /// Uses enhanced features combining:
 /// - Error code one-hot encoding (25 features)
 /// - Keyword occurrence counts (36 features)
-/// - ErrorFeatures hand-crafted features (12 features)
+/// - `ErrorFeatures` hand-crafted features (12 features)
 ///
 /// Total: 73 features for better classification accuracy.
 #[must_use]

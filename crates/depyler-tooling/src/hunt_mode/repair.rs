@@ -165,7 +165,7 @@ impl JidokaRepairEngine {
         if self.total_attempts == 0 {
             return 0.0;
         }
-        self.successful_fixes as f64 / self.total_attempts as f64
+        f64::from(self.successful_fixes) / f64::from(self.total_attempts)
     }
 }
 
@@ -176,7 +176,7 @@ impl JidokaRepairEngine {
 struct ImportMutator;
 
 impl Mutator for ImportMutator {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "ImportMutator"
     }
 
@@ -210,7 +210,7 @@ impl Mutator for ImportMutator {
 struct TypeCoercionMutator;
 
 impl Mutator for TypeCoercionMutator {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "TypeCoercionMutator"
     }
 
@@ -239,12 +239,12 @@ impl Mutator for TypeCoercionMutator {
     }
 }
 
-/// Mutator that falls back to serde_json::Value for untyped data
+/// Mutator that falls back to `serde_json::Value` for untyped data
 #[derive(Debug)]
 struct SerdeValueFallbackMutator;
 
 impl Mutator for SerdeValueFallbackMutator {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "SerdeValueFallbackMutator"
     }
 
@@ -280,12 +280,12 @@ impl Mutator for SerdeValueFallbackMutator {
     }
 }
 
-/// Mutator that adds .to_string() for string conversion
+/// Mutator that adds .`to_string()` for string conversion
 #[derive(Debug)]
 struct ToStringMutator;
 
 impl Mutator for ToStringMutator {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "ToStringMutator"
     }
 
@@ -303,12 +303,12 @@ impl Mutator for ToStringMutator {
     }
 }
 
-/// Mutator that adds .clone() for ownership issues
+/// Mutator that adds .`clone()` for ownership issues
 #[derive(Debug)]
 struct CloneMutator;
 
 impl Mutator for CloneMutator {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "CloneMutator"
     }
 

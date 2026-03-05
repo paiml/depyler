@@ -102,9 +102,7 @@ impl CorpusRegistry {
     pub fn with_defaults() -> Self {
         let mut registry = Self::new();
 
-        let src_dir = std::env::var_os("HOME")
-            .map(|h| PathBuf::from(h).join("src"))
-            .unwrap_or_else(|| PathBuf::from(".."));
+        let src_dir = std::env::var_os("HOME").map_or_else(|| PathBuf::from(".."), |h| PathBuf::from(h).join("src"));
 
         // Corpus 1: reprorusted-python-cli (Original)
         let mut entry1 = CorpusEntry::new(
@@ -249,9 +247,7 @@ fn parse_corpus_entry(name: &str, value: &toml::Value) -> anyhow::Result<CorpusE
 
     let path = table
         .get("path")
-        .and_then(|v| v.as_str())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."));
+        .and_then(|v| v.as_str()).map_or_else(|| PathBuf::from("."), PathBuf::from);
 
     let mut entry = CorpusEntry::new(name, path);
 
@@ -271,15 +267,15 @@ fn parse_corpus_entry(name: &str, value: &toml::Value) -> anyhow::Result<CorpusE
         entry.exclude = exclude.iter().filter_map(|v| v.as_str().map(String::from)).collect();
     }
 
-    if let Some(count) = table.get("file_count").and_then(|v| v.as_integer()) {
+    if let Some(count) = table.get("file_count").and_then(toml::Value::as_integer) {
         entry.file_count = Some(count as usize);
     }
 
-    if let Some(rate) = table.get("target_rate").and_then(|v| v.as_float()) {
+    if let Some(rate) = table.get("target_rate").and_then(toml::Value::as_float) {
         entry.target_rate = rate;
     }
 
-    if let Some(tdg) = table.get("tdg_score").and_then(|v| v.as_float()) {
+    if let Some(tdg) = table.get("tdg_score").and_then(toml::Value::as_float) {
         entry.tdg_score = Some(tdg);
     }
 
@@ -287,11 +283,11 @@ fn parse_corpus_entry(name: &str, value: &toml::Value) -> anyhow::Result<CorpusE
         entry.grade = Some(grade.to_string());
     }
 
-    if let Some(tests) = table.get("tests").and_then(|v| v.as_integer()) {
+    if let Some(tests) = table.get("tests").and_then(toml::Value::as_integer) {
         entry.tests = Some(tests as usize);
     }
 
-    if let Some(coverage) = table.get("coverage").and_then(|v| v.as_float()) {
+    if let Some(coverage) = table.get("coverage").and_then(toml::Value::as_float) {
         entry.coverage = Some(coverage);
     }
 

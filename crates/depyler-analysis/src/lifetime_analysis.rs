@@ -510,9 +510,9 @@ impl LifetimeInference {
                 for gen in generators {
                     // Check if any generator target shadows our parameter
                     let target_shadows = gen.target == param
-                        || gen.target.contains(&format!("({})", param))
-                        || gen.target.contains(&format!("{},", param))
-                        || gen.target.contains(&format!(", {}", param));
+                        || gen.target.contains(&format!("({param})"))
+                        || gen.target.contains(&format!("{param},"))
+                        || gen.target.contains(&format!(", {param}"));
 
                     if !target_shadows {
                         // Only analyze if the comprehension target doesn't shadow our parameter
@@ -542,9 +542,9 @@ impl LifetimeInference {
                 for gen in generators {
                     // Check if any generator target shadows our parameter
                     let target_shadows = gen.target == param
-                        || gen.target.contains(&format!("({})", param))
-                        || gen.target.contains(&format!("{},", param))
-                        || gen.target.contains(&format!(", {}", param));
+                        || gen.target.contains(&format!("({param})"))
+                        || gen.target.contains(&format!("{param},"))
+                        || gen.target.contains(&format!(", {param}"));
 
                     if !target_shadows {
                         // Only analyze if the comprehension target doesn't shadow our parameter
@@ -564,9 +564,9 @@ impl LifetimeInference {
                 for gen in generators {
                     // Check if any generator target shadows our parameter
                     let target_shadows = gen.target == param
-                        || gen.target.contains(&format!("({})", param))
-                        || gen.target.contains(&format!("{},", param))
-                        || gen.target.contains(&format!(", {}", param));
+                        || gen.target.contains(&format!("({param})"))
+                        || gen.target.contains(&format!("{param},"))
+                        || gen.target.contains(&format!(", {param}"));
 
                     if !target_shadows {
                         // Only analyze if the comprehension target doesn't shadow our parameter

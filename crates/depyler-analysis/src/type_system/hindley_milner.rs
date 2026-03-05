@@ -61,13 +61,13 @@ impl std::fmt::Display for TypeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeError::InfiniteType(var, ty) => {
-                write!(f, "Infinite type: variable {} occurs in {:?}", var, ty)
+                write!(f, "Infinite type: variable {var} occurs in {ty:?}")
             }
             TypeError::Mismatch(expected, actual) => {
-                write!(f, "Type mismatch: expected {:?}, got {:?}", expected, actual)
+                write!(f, "Type mismatch: expected {expected:?}, got {actual:?}")
             }
             TypeError::UnificationFailed(msg) => {
-                write!(f, "Unification failed: {}", msg)
+                write!(f, "Unification failed: {msg}")
             }
         }
     }

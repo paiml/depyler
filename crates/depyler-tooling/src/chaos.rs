@@ -208,13 +208,13 @@ impl std::fmt::Display for ChaosError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ChaosError::MemoryLimitExceeded { limit, used } => {
-                write!(f, "Memory limit exceeded: {} > {} bytes", used, limit)
+                write!(f, "Memory limit exceeded: {used} > {limit} bytes")
             }
             ChaosError::Timeout { elapsed, limit } => {
-                write!(f, "Timeout: {:?} > {:?}", elapsed, limit)
+                write!(f, "Timeout: {elapsed:?} > {limit:?}")
             }
             ChaosError::SignalInjectionFailed { signal, reason } => {
-                write!(f, "Signal injection failed ({}): {}", signal, reason)
+                write!(f, "Signal injection failed ({signal}): {reason}")
             }
         }
     }

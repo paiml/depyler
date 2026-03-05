@@ -106,7 +106,7 @@ fn run_utol_loop(config: &UtolConfig) -> Result<UtolResult> {
 pub fn print_final_summary(result: &UtolResult, config: &UtolConfig) {
     if matches!(config.display.mode, DisplayMode::Json) {
         if let Ok(json) = serde_json::to_string_pretty(result) {
-            println!("{}", json);
+            println!("{json}");
         }
         return;
     }

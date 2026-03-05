@@ -77,11 +77,11 @@ impl MinimalReproducer {
         // E0308: Type mismatch
         self.templates.push(ReproTemplate {
             error_code: "E0308".to_string(),
-            template: r#"# Minimal repro: E0308 type mismatch
+            template: r"# Minimal repro: E0308 type mismatch
 def function_with_type_mismatch() -> str:
     value = 42  # int
     return value  # expects str
-"#
+"
             .to_string(),
             description: "Type mismatch between int and str".to_string(),
         });
@@ -89,12 +89,12 @@ def function_with_type_mismatch() -> str:
         // E0432: Unresolved import
         self.templates.push(ReproTemplate {
             error_code: "E0432".to_string(),
-            template: r#"# Minimal repro: E0432 unresolved import
+            template: r"# Minimal repro: E0432 unresolved import
 import json
 
 def parse_json(text: str) -> dict:
     return json.loads(text)
-"#
+"
             .to_string(),
             description: "External crate import required".to_string(),
         });
@@ -115,12 +115,12 @@ def process_data(data: Dict[str, Any]) -> str:
         // E0502: Borrowing conflict
         self.templates.push(ReproTemplate {
             error_code: "E0502".to_string(),
-            template: r#"# Minimal repro: E0502 borrowing conflict
+            template: r"# Minimal repro: E0502 borrowing conflict
 def modify_list(items: list) -> list:
     for i, item in enumerate(items):
         items[i] = item * 2  # Modify while iterating
     return items
-"#
+"
             .to_string(),
             description: "Cannot borrow as mutable while borrowed as immutable".to_string(),
         });
@@ -188,13 +188,13 @@ def process(s: str) -> None:
     /// Generate a minimal stub repro
     fn generate_stub_repro(&self, pattern: &FailurePattern) -> String {
         format!(
-            r#"# Minimal repro: {} - {}
+            r"# Minimal repro: {} - {}
 # Category: {}
 # Fill in minimal code that triggers this error
 
 def repro_function():
     pass  # Placeholder
-"#,
+",
             pattern.error_code, pattern.description, pattern.category
         )
     }

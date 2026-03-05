@@ -111,9 +111,9 @@ impl DocGenerator {
         let class_count = module.classes.len();
         let import_count = module.imports.len();
 
-        writeln!(doc, "- **Functions**: {}", func_count).expect("write to String");
-        writeln!(doc, "- **Classes**: {}", class_count).expect("write to String");
-        writeln!(doc, "- **Imports**: {}", import_count).expect("write to String");
+        writeln!(doc, "- **Functions**: {func_count}").expect("write to String");
+        writeln!(doc, "- **Classes**: {class_count}").expect("write to String");
+        writeln!(doc, "- **Imports**: {import_count}").expect("write to String");
         doc.push('\n');
 
         if !module.imports.is_empty() {
@@ -392,7 +392,7 @@ fn format_type_inner(ty: &Type) -> String {
         Type::Array { element_type, size: _ } => format!("&[{}]", format_type_inner(element_type)),
         Type::UnificationVar(id) => {
             // UnificationVar should never appear in documentation generation
-            panic!("BUG: UnificationVar({}) encountered during documentation. Type inference incomplete.", id)
+            panic!("BUG: UnificationVar({id}) encountered during documentation. Type inference incomplete.")
         }
     }
 }

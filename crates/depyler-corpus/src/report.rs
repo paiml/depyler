@@ -167,10 +167,10 @@ impl CorpusReport {
                 transpilation: TranspilationSummary {
                     success: transpile_success,
                     failure: transpile_results.len() - transpile_success,
-                    rate: if !transpile_results.is_empty() {
-                        (transpile_success as f64 / transpile_results.len() as f64) * 100.0
-                    } else {
+                    rate: if transpile_results.is_empty() {
                         0.0
+                    } else {
+                        (transpile_success as f64 / transpile_results.len() as f64) * 100.0
                     },
                 },
                 compilation: CompilationSummary {
@@ -260,7 +260,7 @@ impl CorpusReport {
                 .iter()
                 .filter(|b| b.priority == BlockerPriority::P0Critical)
                 .count(),
-            andon_triggers: if andon_status == AndonStatus::Red { 1 } else { 0 },
+            andon_triggers: usize::from(andon_status == AndonStatus::Red),
             kaizen_opportunities: taxonomy
                 .blockers
                 .iter()

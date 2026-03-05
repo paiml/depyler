@@ -53,10 +53,10 @@ impl StatisticalAnalysis {
         let total_errors = taxonomy.errors.len();
         let errors_per_file = Self::compute_errors_per_file(results, taxonomy);
 
-        let mean_errors_per_file = if !errors_per_file.is_empty() {
-            errors_per_file.iter().sum::<f64>() / errors_per_file.len() as f64
-        } else {
+        let mean_errors_per_file = if errors_per_file.is_empty() {
             0.0
+        } else {
+            errors_per_file.iter().sum::<f64>() / errors_per_file.len() as f64
         };
 
         let std_deviation = Self::standard_deviation(&errors_per_file, mean_errors_per_file);
@@ -143,7 +143,7 @@ impl StatisticalAnalysis {
 
         let mid = sorted.len() / 2;
         if sorted.len().is_multiple_of(2) {
-            (sorted[mid - 1] + sorted[mid]) / 2.0
+            f64::midpoint(sorted[mid - 1], sorted[mid])
         } else {
             sorted[mid]
         }

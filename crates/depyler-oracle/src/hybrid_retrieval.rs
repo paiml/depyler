@@ -10,7 +10,7 @@
 //! RRF_score(d) = Σ 1/(k + rank_i(d))
 //! ```
 //!
-//! where k=60 (Cormack et al. 2009) and rank_i(d) is the rank of
+//! where k=60 (Cormack et al. 2009) and `rank_i(d)` is the rank of
 //! document d in ranking system i.
 //!
 //! # References
@@ -116,7 +116,7 @@ impl Bm25Scorer {
     ///
     /// # Returns
     ///
-    /// Vector of (document_index, score) pairs sorted by score descending.
+    /// Vector of (`document_index`, score) pairs sorted by score descending.
     #[must_use]
     pub fn score(&self, query: &str) -> Vec<(usize, f64)> {
         let query_tokens = tokenize(query);
@@ -212,8 +212,8 @@ pub struct RrfResult {
 ///
 /// # Arguments
 ///
-/// * `bm25_ranking` - BM25 ranking: vec of (doc_idx, score)
-/// * `tfidf_ranking` - TF-IDF ranking: vec of (doc_idx, score)
+/// * `bm25_ranking` - BM25 ranking: vec of (`doc_idx`, score)
+/// * `tfidf_ranking` - TF-IDF ranking: vec of (`doc_idx`, score)
 /// * `top_k` - Maximum number of results to return
 ///
 /// # Returns
@@ -275,7 +275,7 @@ pub fn reciprocal_rank_fusion(
 pub struct HybridRetriever {
     /// BM25 scorer
     bm25: Bm25Scorer,
-    /// TF-IDF extractor (uses existing depyler TfidfFeatureExtractor)
+    /// TF-IDF extractor (uses existing depyler `TfidfFeatureExtractor`)
     tfidf: crate::tfidf::TfidfFeatureExtractor,
     /// Original documents for reference
     documents: Vec<String>,

@@ -125,7 +125,7 @@ impl StateAnalyzer {
             HirExpr::List(items) => {
                 // Infer element type from first item
                 let elem_type =
-                    items.first().map(Self::infer_type_from_expression).unwrap_or(Type::Unknown);
+                    items.first().map_or(Type::Unknown, Self::infer_type_from_expression);
                 Type::List(Box::new(elem_type))
             }
             HirExpr::Dict(_) => Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),

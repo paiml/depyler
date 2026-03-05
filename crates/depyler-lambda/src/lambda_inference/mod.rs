@@ -310,8 +310,7 @@ impl LambdaTypeInferencer {
             .iter()
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
             .filter(|(_, conf)| *conf > self.confidence_threshold)
-            .map(|(event_type, _)| event_type.clone())
-            .unwrap_or(EventType::Unknown);
+            .map_or(EventType::Unknown, |(event_type, _)| event_type.clone());
 
         let recommendations = self.generate_recommendations(&patterns);
         Ok(AnalysisReport {

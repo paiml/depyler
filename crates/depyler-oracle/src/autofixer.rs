@@ -52,7 +52,7 @@ pub struct FixContext<'a> {
 }
 
 impl AutoFixer {
-    /// Create a new AutoFixer with trained oracle.
+    /// Create a new `AutoFixer` with trained oracle.
     pub fn new() -> Result<Self, OracleError> {
         #[cfg(feature = "training")]
         let oracle = Oracle::load_or_train()?;
@@ -251,7 +251,7 @@ struct ParsedError {
 // Transformation Functions
 // ============================================================================
 
-/// Fix: Pre-compute .is_some() before value is moved.
+/// Fix: Pre-compute .`is_some()` before value is moved.
 ///
 /// Pattern: `let x = foo(args.hash); ... args.hash.is_some()`
 /// Fix: `let has_hash = args.hash.is_some(); let x = foo(args.hash); ... has_hash`
@@ -262,7 +262,7 @@ fn fix_pre_compute_is_some(ctx: &mut FixContext) -> bool {
     };
 
     // Find the pattern: var.is_some() after var was moved
-    let is_some_pattern = format!("{}.is_some()", var);
+    let is_some_pattern = format!("{var}.is_some()");
 
     if !ctx.source.contains(&is_some_pattern) {
         return false;
@@ -279,14 +279,14 @@ fn fix_pre_compute_is_some(ctx: &mut FixContext) -> bool {
     let mut new_lines = Vec::new();
     let mut inserted = false;
 
-    for line in lines.iter() {
+    for line in &lines {
         // Look for a line that uses the var (this is where it gets moved)
         // Insert the pre-computation BEFORE this line
         if !inserted && line.contains(&var) {
             // Insert pre-computation before this line
             let indent = line.len() - line.trim_start().len();
             let indent_str: String = " ".repeat(indent);
-            new_lines.push(format!("{}let {} = {};", indent_str, fix_var, is_some_pattern));
+            new_lines.push(format!("{indent_str}let {fix_var} = {is_some_pattern};"));
             inserted = true;
         }
         new_lines.push(line.to_string());
@@ -300,14 +300,14 @@ fn fix_pre_compute_is_some(ctx: &mut FixContext) -> bool {
     true
 }
 
-/// Fix: Pre-compute .is_none() before value is moved.
+/// Fix: Pre-compute .`is_none()` before value is moved.
 fn fix_pre_compute_is_none(ctx: &mut FixContext) -> bool {
     let var = match &ctx.var_name {
         Some(v) => v.clone(),
         None => return false,
     };
 
-    let is_none_pattern = format!("{}.is_none()", var);
+    let is_none_pattern = format!("{var}.is_none()");
 
     if !ctx.source.contains(&is_none_pattern) {
         return false;
@@ -318,15 +318,15 @@ fn fix_pre_compute_is_none(ctx: &mut FixContext) -> bool {
     let mut new_lines = Vec::new();
     let mut inserted = false;
 
-    for line in lines.iter() {
+    for line in &lines {
         if !inserted
             && line.contains(&var)
             && !line.contains(".is_none()")
-            && (line.contains(&format!("({}", var)) || line.contains(&format!(", {}", var)))
+            && (line.contains(&format!("({var}")) || line.contains(&format!(", {var}")))
         {
             let indent = line.len() - line.trim_start().len();
             let indent_str: String = " ".repeat(indent);
-            new_lines.push(format!("{}let {} = {}.is_none();", indent_str, fix_var, var));
+            new_lines.push(format!("{indent_str}let {fix_var} = {var}.is_none();"));
             inserted = true;
         }
         new_lines.push(line.to_string());
@@ -350,8 +350,8 @@ fn fix_clone_before_move(ctx: &mut FixContext) -> bool {
 
     // Simple approach: add .clone() to the moved value
     // This is a conservative fix that always works for Clone types
-    let pattern = format!("({})", var);
-    let replacement = format!("({}.clone())", var);
+    let pattern = format!("({var})");
+    let replacement = format!("({var}.clone())");
 
     if ctx.source.contains(&pattern) {
         *ctx.source = ctx.source.replace(&pattern, &replacement);
@@ -361,7 +361,7 @@ fn fix_clone_before_move(ctx: &mut FixContext) -> bool {
     false
 }
 
-/// Fix: Regex::new expects &str, not String - remove .to_string()
+/// Fix: `Regex::new` expects &str, not String - remove .`to_string()`
 fn fix_regex_new_str(ctx: &mut FixContext) -> bool {
     // Pattern: Regex::new("...".to_string())
     // Fix: Regex::new("...")
@@ -382,7 +382,7 @@ fn fix_string_to_str(_ctx: &mut FixContext) -> bool {
     false // Conservative: don't auto-fix without more context
 }
 
-/// Fix: parser.print_help() -> Args::command().print_help()
+/// Fix: `parser.print_help()` -> `Args::command().print_help()`
 fn fix_add_command_factory(ctx: &mut FixContext) -> bool {
     if ctx.source.contains("parser.print_help()") {
         // Need to add CommandFactory import

@@ -10,7 +10,7 @@
 //! Academic Foundation:
 //! - Jia & Harman (2011): Mutation testing for quality assessment
 //! - Pierce (2002): Type systems and Hindley-Milner inference
-//! - Leroy (2009): CompCert formal verification
+//! - Leroy (2009): `CompCert` formal verification
 //! - Chidamber & Kemerer (1994): CK metrics suite
 //! - Sculley et al. (2015): ML feedback loops
 
@@ -114,7 +114,7 @@ pub enum TranspilerDecision {
     MethodTranslation { python_method: String, rust_method: String },
     /// Import mapping decision
     ImportMapping { python_import: String, rust_import: String },
-    /// Fallback to serde_json::Value
+    /// Fallback to `serde_json::Value`
     ValueFallback { context: String },
     /// Other decision
     Other(String),
@@ -402,68 +402,68 @@ impl ScoreCalculator {
         let n = results.len() as f32;
 
         // Calculate averages
-        let aggregate_score: f32 = results.iter().map(|r| r.score.total as f32).sum::<f32>() / n;
+        let aggregate_score: f32 = results.iter().map(|r| f32::from(r.score.total)).sum::<f32>() / n;
 
         let category_averages = CategoryBreakdown {
-            a1_parse: (results.iter().map(|r| r.category_breakdown.a1_parse as f32).sum::<f32>()
+            a1_parse: (results.iter().map(|r| f32::from(r.category_breakdown.a1_parse)).sum::<f32>()
                 / n) as u8,
             a2_type_check: (results
                 .iter()
-                .map(|r| r.category_breakdown.a2_type_check as f32)
+                .map(|r| f32::from(r.category_breakdown.a2_type_check))
                 .sum::<f32>()
                 / n) as u8,
             a3_cargo_build: (results
                 .iter()
-                .map(|r| r.category_breakdown.a3_cargo_build as f32)
+                .map(|r| f32::from(r.category_breakdown.a3_cargo_build))
                 .sum::<f32>()
                 / n) as u8,
             b1_no_e0308: (results
                 .iter()
-                .map(|r| r.category_breakdown.b1_no_e0308 as f32)
+                .map(|r| f32::from(r.category_breakdown.b1_no_e0308))
                 .sum::<f32>()
                 / n) as u8,
             b2_no_e0599: (results
                 .iter()
-                .map(|r| r.category_breakdown.b2_no_e0599 as f32)
+                .map(|r| f32::from(r.category_breakdown.b2_no_e0599))
                 .sum::<f32>()
                 / n) as u8,
             b3_no_e0425: (results
                 .iter()
-                .map(|r| r.category_breakdown.b3_no_e0425 as f32)
+                .map(|r| f32::from(r.category_breakdown.b3_no_e0425))
                 .sum::<f32>()
                 / n) as u8,
             c1_doctest: (results
                 .iter()
-                .map(|r| r.category_breakdown.c1_doctest as f32)
+                .map(|r| f32::from(r.category_breakdown.c1_doctest))
                 .sum::<f32>()
                 / n) as u8,
             c2_unit_test: (results
                 .iter()
-                .map(|r| r.category_breakdown.c2_unit_test as f32)
+                .map(|r| f32::from(r.category_breakdown.c2_unit_test))
                 .sum::<f32>()
                 / n) as u8,
             c3_property_test: (results
                 .iter()
-                .map(|r| r.category_breakdown.c3_property_test as f32)
+                .map(|r| f32::from(r.category_breakdown.c3_property_test))
                 .sum::<f32>()
                 / n) as u8,
-            d1_clippy: (results.iter().map(|r| r.category_breakdown.d1_clippy as f32).sum::<f32>()
+            d1_clippy: (results.iter().map(|r| f32::from(r.category_breakdown.d1_clippy)).sum::<f32>()
                 / n) as u8,
-            d2_tdg: (results.iter().map(|r| r.category_breakdown.d2_tdg as f32).sum::<f32>() / n)
+            d2_tdg: (results.iter().map(|r| f32::from(r.category_breakdown.d2_tdg)).sum::<f32>() / n)
                 as u8,
             d3_complexity: (results
                 .iter()
-                .map(|r| r.category_breakdown.d3_complexity as f32)
+                .map(|r| f32::from(r.category_breakdown.d3_complexity))
                 .sum::<f32>()
                 / n) as u8,
             e1_trace_match: (results
                 .iter()
-                .map(|r| r.category_breakdown.e1_trace_match as f32)
+                .map(|r| f32::from(r.category_breakdown.e1_trace_match))
                 .sum::<f32>()
                 / n) as u8,
             e2_output_equiv: (results
                 .iter()
-                .map(|r| r.category_breakdown.e2_output_equiv as f32)
+                .map(|r| f32::from(r.category_breakdown.e2_output_equiv))
                 .sum::<f32>()
                 / n) as u8,
         };
@@ -474,7 +474,7 @@ impl ScoreCalculator {
             for error in &result.error_details {
                 let entry = error_counts.entry(error.code.clone()).or_insert((0, 0.0));
                 entry.0 += 1;
-                entry.1 += 100.0 - result.score.total as f32;
+                entry.1 += 100.0 - f32::from(result.score.total);
             }
         }
 

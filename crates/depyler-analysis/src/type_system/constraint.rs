@@ -89,7 +89,7 @@ impl std::fmt::Display for ConstraintKind {
             ConstraintKind::Subtype => write!(f, "<:"),
             ConstraintKind::Supertype => write!(f, ":>"),
             ConstraintKind::Callable => write!(f, "callable"),
-            ConstraintKind::HasField(field) => write!(f, "has field {}", field),
+            ConstraintKind::HasField(field) => write!(f, "has field {field}"),
             ConstraintKind::Arithmetic => write!(f, "arithmetic"),
         }
     }

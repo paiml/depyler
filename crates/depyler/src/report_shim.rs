@@ -1,6 +1,6 @@
 //! Report Command Shim - pure logic separated from I/O
 //!
-//! Extracts testable logic from report_cmd/mod.rs
+//! Extracts testable logic from `report_cmd/mod.rs`
 
 use std::collections::HashMap;
 
@@ -359,7 +359,7 @@ impl SemanticTag {
                 content.contains("dict") || content.contains("Dict") || content.contains("{:")
             }
             Self::List => {
-                content.contains("list") || content.contains("List") || content.contains("[")
+                content.contains("list") || content.contains("List") || content.contains('[')
             }
             Self::Tuple => content.contains("tuple") || content.contains("Tuple"),
             Self::Set => content.contains("set") || content.contains("Set"),

@@ -150,7 +150,7 @@ where
     }
 }
 
-/// Convert anyhow errors to TranspileError
+/// Convert anyhow errors to `TranspileError`
 impl From<anyhow::Error> for TranspileError {
     fn from(err: anyhow::Error) -> Self {
         TranspileError::new(ErrorKind::InternalError(err.to_string()))

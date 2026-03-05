@@ -29,7 +29,7 @@ impl WhyStep {
     pub fn new(depth: u8, description: &str) -> Self {
         Self {
             depth,
-            question: format!("Why #{}?", depth),
+            question: format!("Why #{depth}?"),
             description: description.to_string(),
             is_root_cause: false,
             preventive_measure: String::new(),
@@ -98,7 +98,7 @@ impl RootCauseChain {
                     why.preventive_measure
                 ));
             } else if let Some(ref deeper) = why.deeper_cause {
-                md.push_str(&format!("*Leads to:* {}\n\n", deeper));
+                md.push_str(&format!("*Leads to:* {deeper}\n\n"));
             }
         }
 
@@ -304,7 +304,7 @@ impl FiveWhysAnalyzer {
         let mut chain = RootCauseChain::new();
 
         chain.add_why(
-            WhyStep::new(1, &format!("Compilation error {}: {}", error_code, error_message))
+            WhyStep::new(1, &format!("Compilation error {error_code}: {error_message}"))
                 .with_deeper_cause("Generated Rust code invalid"),
         );
 

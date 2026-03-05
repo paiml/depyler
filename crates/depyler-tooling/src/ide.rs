@@ -262,7 +262,7 @@ pub fn generate_hover_info(symbol: &Symbol) -> String {
 
     // Add symbol type and signature
     if let Some(detail) = &symbol.detail {
-        hover.push_str(&format!("```rust\n{}\n```\n\n", detail));
+        hover.push_str(&format!("```rust\n{detail}\n```\n\n"));
     }
 
     // Add documentation if available

@@ -5,10 +5,10 @@
 //!
 //! ## Components
 //!
-//! 1. **FaultLocalizer** (Tarantula algorithm) - Identify suspicious codegen decisions
-//! 2. **PatternStore** (HNSW search) - Store and retrieve successful transpilation patterns
-//! 3. **CurriculumScheduler** - Process errors EASY→HARD for optimal convergence
-//! 4. **KnowledgeDistiller** - Graduate high-confidence patterns to hardcoded rules
+//! 1. **`FaultLocalizer`** (Tarantula algorithm) - Identify suspicious codegen decisions
+//! 2. **`PatternStore`** (HNSW search) - Store and retrieve successful transpilation patterns
+//! 3. **`CurriculumScheduler`** - Process errors EASY→HARD for optimal convergence
+//! 4. **`KnowledgeDistiller`** - Graduate high-confidence patterns to hardcoded rules
 //!
 //! ## Toyota Way Principles
 //!

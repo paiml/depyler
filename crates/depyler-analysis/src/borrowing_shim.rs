@@ -139,7 +139,7 @@ pub fn type_to_rust_string(ty: &Type) -> String {
             format!("fn({}) -> {}", param_strs.join(", "), type_to_rust_string(ret))
         }
         Type::TypeVar(name) => name.clone(),
-        Type::UnificationVar(id) => format!("?T{}", id),
+        Type::UnificationVar(id) => format!("?T{id}"),
         Type::Generic { base, params } => {
             let param_strs: Vec<_> = params.iter().map(type_to_rust_string).collect();
             format!("{}<{}>", base, param_strs.join(", "))
@@ -165,9 +165,9 @@ pub fn type_to_rust_string(ty: &Type) -> String {
 pub fn generate_param_signature(name: &str, ty: &Type, pattern: &BorrowingPattern) -> String {
     let type_str = type_to_rust_string(ty);
     match pattern {
-        BorrowingPattern::Owned => format!("{}: {}", name, type_str),
-        BorrowingPattern::Borrowed => format!("{}: &{}", name, type_str),
-        BorrowingPattern::MutableBorrow => format!("{}: &mut {}", name, type_str),
+        BorrowingPattern::Owned => format!("{name}: {type_str}"),
+        BorrowingPattern::Borrowed => format!("{name}: &{type_str}"),
+        BorrowingPattern::MutableBorrow => format!("{name}: &mut {type_str}"),
     }
 }
 

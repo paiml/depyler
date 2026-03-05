@@ -253,9 +253,9 @@ impl TypeHintProvider {
 
     fn format_target(&self, target: &HintTarget) -> String {
         match target {
-            HintTarget::Parameter(name) => format!("parameter '{}'", name),
+            HintTarget::Parameter(name) => format!("parameter '{name}'"),
             HintTarget::Return => "return type".to_string(),
-            HintTarget::Variable(name) => format!("variable '{}'", name),
+            HintTarget::Variable(name) => format!("variable '{name}'"),
         }
     }
 
@@ -327,10 +327,10 @@ impl TypeHintProvider {
             // Add multiple constraints for higher confidence (need 4+ for High confidence)
             self.context
                 .constraints
-                .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::Bool });
+                .push(TypeConstraint::Compatible { var: var.clone(), ty: Type::Bool });
             self.context
                 .constraints
-                .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::Bool });
+                .push(TypeConstraint::Compatible { var: var.clone(), ty: Type::Bool });
         }
     }
 
@@ -467,14 +467,14 @@ impl TypeHintProvider {
                 if let HirExpr::Var(module_name) = object.as_ref() {
                     let module_method_type = match (module_name.as_str(), method.as_str()) {
                         // Regex methods that return lists
-                        ("re", "findall") | ("regex", "findall") => {
+                        ("re" | "regex", "findall") => {
                             Some(Type::List(Box::new(Type::String)))
                         }
-                        ("re", "split") | ("regex", "split") => {
+                        ("re" | "regex", "split") => {
                             Some(Type::List(Box::new(Type::String)))
                         }
                         // JSON methods
-                        ("json", "loads") | ("json", "load") => {
+                        ("json", "loads" | "load") => {
                             Some(Type::Custom("serde_json::Value".to_string()))
                         }
                         ("json", "dumps") => Some(Type::String),
@@ -793,7 +793,7 @@ impl TypeHintProvider {
             // open(filepath) means filepath is a file path (String/&str)
             self.context
                 .constraints
-                .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::String });
+                .push(TypeConstraint::Compatible { var: var.clone(), ty: Type::String });
             // Record string-like pattern for stronger evidence
             self.record_usage_pattern(var, UsagePattern::StringLike);
         }
@@ -813,7 +813,7 @@ impl TypeHintProvider {
                 // Add evidence that this variable is a String (will map to &str)
                 self.context
                     .constraints
-                    .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::String });
+                    .push(TypeConstraint::Compatible { var: var.clone(), ty: Type::String });
                 // Also record string-like usage pattern for stronger evidence
                 self.record_usage_pattern(var, UsagePattern::StringLike);
             } else {
@@ -862,7 +862,7 @@ impl TypeHintProvider {
                     // subprocess.run(cmd) -> cmd should be Vec<String>
                     // Use ArgumentConstraint for high-confidence stdlib signature
                     self.context.constraints.push(TypeConstraint::ArgumentConstraint {
-                        var: cmd_var.to_string(),
+                        var: cmd_var.clone(),
                         func: "subprocess.run".to_string(),
                         _param_idx: 0,
                         expected: Type::List(Box::new(Type::String)),
@@ -878,7 +878,7 @@ impl TypeHintProvider {
                 self.record_usage_pattern(var, UsagePattern::StringLike);
                 self.context
                     .constraints
-                    .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::String });
+                    .push(TypeConstraint::Compatible { var: var.clone(), ty: Type::String });
             }
 
             // List methods
@@ -1008,11 +1008,11 @@ impl TypeHintProvider {
     ) {
         let (count, reasons) = type_votes.entry(required.clone()).or_default();
         *count += 1;
-        reasons.push(format!("used with {} operator", op));
+        reasons.push(format!("used with {op} operator"));
     }
 
     /// DEPYLER-0492: High-confidence evidence from stdlib function signatures
-    /// Score of 5 gives Confidence::High, ensuring parameter types are inferred
+    /// Score of 5 gives `Confidence::High`, ensuring parameter types are inferred
     fn add_argument_evidence(
         &self,
         func: &str,
@@ -1021,7 +1021,7 @@ impl TypeHintProvider {
     ) {
         let (count, reasons) = type_votes.entry(expected.clone()).or_default();
         *count += 5; // High confidence (score ≥ 4)
-        reasons.push(format!("stdlib function {} signature", func));
+        reasons.push(format!("stdlib function {func} signature"));
     }
 
     fn collect_pattern_evidence(
@@ -1181,7 +1181,7 @@ impl TypeHintProvider {
             UsagePattern::StringLike => *type_score.entry(Type::String).or_insert(0) += 2,
             // DEPYLER-0492: Integer indexing/slicing strongly implies list type (High confidence)
             UsagePattern::Container => {
-                *type_score.entry(Type::List(Box::new(Type::Unknown))).or_insert(0) += 4
+                *type_score.entry(Type::List(Box::new(Type::Unknown))).or_insert(0) += 4;
                 // High confidence (was 1)
             }
             // DEPYLER-0552: String-keyed access strongly implies dict type (Higher confidence)
@@ -1191,7 +1191,7 @@ impl TypeHintProvider {
                         Box::new(Type::String),
                         Box::new(Type::Custom("serde_json::Value".to_string())),
                     ))
-                    .or_insert(0) += 5 // Higher confidence than list
+                    .or_insert(0) += 5; // Higher confidence than list
             }
             _ => {}
         }

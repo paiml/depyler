@@ -1,3 +1,23 @@
+#![allow(clippy::assigning_clones)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::disallowed_methods)]
+#![allow(clippy::format_push_string)]
+#![allow(clippy::items_after_statements)]
+#![allow(clippy::manual_let_else)]
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::missing_fields_in_debug)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::self_only_used_in_recursion)]
+#![allow(clippy::similar_names)]
+#![allow(clippy::struct_field_names)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::unused_self)]
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::used_underscore_binding)]
+
 //! ML-powered compile error classification and auto-fixing.
 //!
 //! Uses aprender models (Decision Tree, N-gram, Random Forest) to:
@@ -265,7 +285,7 @@ impl Default for OracleConfig {
 }
 
 pub struct Oracle {
-    /// Random Forest classifier (replaces DecisionTree per GH-106)
+    /// Random Forest classifier (replaces `DecisionTree` per GH-106)
     classifier: RandomForestClassifier,
     /// Configuration used to create the classifier (kept for model introspection)
     #[allow(dead_code)]
@@ -275,7 +295,7 @@ pub struct Oracle {
     /// Fix templates per category
     fix_templates: HashMap<ErrorCategory, Vec<String>>,
     /// ADWIN drift detector for retraining triggers (Issue #213)
-    /// Replaces manual performance_history tracking with adaptive windowing
+    /// Replaces manual `performance_history` tracking with adaptive windowing
     adwin_detector: ADWIN,
 }
 
@@ -845,7 +865,7 @@ pub fn print_drift_status(stats: &DriftStats, status: &DriftStatus) {
     println!("╭─────────────────────────────────────────────────────╮");
     println!("│            Drift Detection Status                   │");
     println!("├─────────────────────────────────────────────────────┤");
-    println!("│  Status: {:^40} │", status_indicator);
+    println!("│  Status: {status_indicator:^40} │");
     println!("│  Samples: {:>8}                                 │", stats.n_samples);
     println!("│  Error Rate: {:>6.2}%                               │", stats.error_rate * 100.0);
     println!(
@@ -965,7 +985,7 @@ pub fn print_oracle_status(trigger: &RetrainTrigger, lineage: &OracleLineage) {
 // Issue #213: RetrainOrchestrator-style Integration
 // ============================================================
 
-/// Result of observing a prediction (mirrors aprender::online::orchestrator::ObserveResult).
+/// Result of observing a prediction (mirrors `aprender::online::orchestrator::ObserveResult`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObserveResult {
     /// Model is performing well
@@ -976,7 +996,7 @@ pub enum ObserveResult {
     DriftDetected,
 }
 
-/// Configuration for retrain trigger (mirrors aprender::online::orchestrator::RetrainConfig).
+/// Configuration for retrain trigger (mirrors `aprender::online::orchestrator::RetrainConfig`).
 #[derive(Debug, Clone)]
 pub struct RetrainConfig {
     /// Minimum predictions before drift detection is reliable
@@ -1000,7 +1020,7 @@ impl Default for RetrainConfig {
     }
 }
 
-/// Statistics from the retrain trigger (mirrors aprender::online::orchestrator::OrchestratorStats).
+/// Statistics from the retrain trigger (mirrors `aprender::online::orchestrator::OrchestratorStats`).
 #[derive(Debug, Clone, Default)]
 pub struct RetrainStats {
     /// Total predictions observed
@@ -1035,7 +1055,7 @@ impl RetrainStats {
     }
 }
 
-/// Retrain trigger for Oracle (adapted from aprender::online::orchestrator::RetrainOrchestrator).
+/// Retrain trigger for Oracle (adapted from `aprender::online::orchestrator::RetrainOrchestrator`).
 ///
 /// Monitors prediction outcomes and determines when retraining is needed.
 /// Integrates ADWIN drift detection with Oracle predictions.
