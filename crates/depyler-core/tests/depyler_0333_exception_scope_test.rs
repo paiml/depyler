@@ -455,10 +455,10 @@ def test_function(x: int) -> int:
 
     // Property 3: Caught exceptions never generate ? operator
     proptest! {
-                #[test]
-                #[ignore = "DEPYLER-0333: Not implemented yet - RED phase"]
-                fn prop_caught_exceptions_no_question_mark(operation in "[+\\-*/]") {
-                    let python = format!(r"
+                    #[test]
+                    #[ignore = "DEPYLER-0333: Not implemented yet - RED phase"]
+                    fn prop_caught_exceptions_no_question_mark(operation in "[+\\-*/]") {
+                        let python = format!(r"
 def test_function(a: int, b: int) -> int:
     try:
         return a {operation} b
@@ -466,17 +466,17 @@ def test_function(a: int, b: int) -> int:
         return 0
 ");
 
-                    let pipeline = DepylerPipeline::new();
-                    let result = pipeline.transpile(&python);
+                        let pipeline = DepylerPipeline::new();
+                        let result = pipeline.transpile(&python);
 
-                    if let Ok(rust_code) = result {
-                        // Should NOT contain ? operator in caught try block
-                        prop_assert!(
-                            !rust_code.contains('?'),
-                            "Caught exception should not use ? operator:\n{}",
-                            rust_code
-                        );
+                        if let Ok(rust_code) = result {
+                            // Should NOT contain ? operator in caught try block
+                            prop_assert!(
+                                !rust_code.contains('?'),
+                                "Caught exception should not use ? operator:\n{}",
+                                rust_code
+                            );
+                        }
                     }
                 }
-            }
 }

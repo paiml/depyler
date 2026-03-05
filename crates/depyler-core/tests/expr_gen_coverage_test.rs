@@ -197,70 +197,70 @@ mod property_tests {
     use proptest::prelude::*;
 
     proptest! {
-                #![proptest_config(ProptestConfig::with_cases(10))]
+                    #![proptest_config(ProptestConfig::with_cases(10))]
 
-                #[test]
-                fn prop_integer_binary_operations_transpile(a in -100i32..100i32, b in 1i32..100i32) {
-                    // Property: All basic binary operations should transpile without error
-                    let pipeline = DepylerPipeline::new();
-                    let python_code = format!(r"
+                    #[test]
+                    fn prop_integer_binary_operations_transpile(a in -100i32..100i32, b in 1i32..100i32) {
+                        // Property: All basic binary operations should transpile without error
+                        let pipeline = DepylerPipeline::new();
+                        let python_code = format!(r"
 def binary_ops():
     return {a} + {b}
 ");
 
-                    let result = pipeline.transpile(&python_code);
-                    prop_assert!(result.is_ok(), "Binary operation transpilation failed: {:?}", result.err());
-                }
+                        let result = pipeline.transpile(&python_code);
+                        prop_assert!(result.is_ok(), "Binary operation transpilation failed: {:?}", result.err());
+                    }
 
-                #[test]
-                fn prop_list_operations_always_generate_vec(size in 1usize..10) {
-                    // Property: List creation should always generate vec! macro (non-empty lists)
-                    // Note: Empty lists may be optimized differently
-                    let pipeline = DepylerPipeline::new();
-                    let elements = (0..size).map(|i| i.to_string()).collect::<Vec<_>>().join(", ");
-                    let python_code = format!(r"
+                    #[test]
+                    fn prop_list_operations_always_generate_vec(size in 1usize..10) {
+                        // Property: List creation should always generate vec! macro (non-empty lists)
+                        // Note: Empty lists may be optimized differently
+                        let pipeline = DepylerPipeline::new();
+                        let elements = (0..size).map(|i| i.to_string()).collect::<Vec<_>>().join(", ");
+                        let python_code = format!(r"
 def make_list():
     return [{elements}]
 ");
 
-                    let result = pipeline.transpile(&python_code);
-                    prop_assert!(result.is_ok(), "List transpilation failed");
+                        let result = pipeline.transpile(&python_code);
+                        prop_assert!(result.is_ok(), "List transpilation failed");
 
-                    let rust_code = result.unwrap();
-                    prop_assert!(
-                        rust_code.contains("vec!") || rust_code.contains("vec !"),
-                        "List should generate vec! macro"
-                    );
-                }
+                        let rust_code = result.unwrap();
+                        prop_assert!(
+                            rust_code.contains("vec!") || rust_code.contains("vec !"),
+                            "List should generate vec! macro"
+                        );
+                    }
 
-                #[test]
-                fn prop_dict_operations_require_hashmap(pairs in 0usize..5) {
-                    // Property: Dict creation should always require HashMap import
-                    let pipeline = DepylerPipeline::new();
-                    let items = (0..pairs)
-                        .map(|i| format!(r#""key{i}": {i}"#))
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    let python_code = format!(r"
+                    #[test]
+                    fn prop_dict_operations_require_hashmap(pairs in 0usize..5) {
+                        // Property: Dict creation should always require HashMap import
+                        let pipeline = DepylerPipeline::new();
+                        let items = (0..pairs)
+                            .map(|i| format!(r#""key{i}": {i}"#))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        let python_code = format!(r"
 def make_dict():
     return {{{items}}}
 ");
 
-                    let result = pipeline.transpile(&python_code);
-                    prop_assert!(result.is_ok(), "Dict transpilation failed");
+                        let result = pipeline.transpile(&python_code);
+                        prop_assert!(result.is_ok(), "Dict transpilation failed");
 
-                    let rust_code = result.unwrap();
-                    prop_assert!(
-                        rust_code.contains("HashMap"),
-                        "Dict should require HashMap"
-                    );
-                }
+                        let rust_code = result.unwrap();
+                        prop_assert!(
+                            rust_code.contains("HashMap"),
+                            "Dict should require HashMap"
+                        );
+                    }
 
-                #[test]
-                fn prop_range_calls_generate_valid_ranges(n in 1usize..20) {
-                    // Property: range(n) should generate valid Rust ranges
-                    let pipeline = DepylerPipeline::new();
-                    let python_code = format!(r"
+                    #[test]
+                    fn prop_range_calls_generate_valid_ranges(n in 1usize..20) {
+                        // Property: range(n) should generate valid Rust ranges
+                        let pipeline = DepylerPipeline::new();
+                        let python_code = format!(r"
 def use_range():
     total = 0
     for i in range({n}):
@@ -268,16 +268,16 @@ def use_range():
     return total
 ");
 
-                    let result = pipeline.transpile(&python_code);
-                    prop_assert!(result.is_ok(), "range() transpilation failed");
+                        let result = pipeline.transpile(&python_code);
+                        prop_assert!(result.is_ok(), "range() transpilation failed");
 
-                    let rust_code = result.unwrap();
-                    prop_assert!(
-                        rust_code.contains("..") || rust_code.contains("range"),
-                        "range() should generate Rust range syntax"
-                    );
+                        let rust_code = result.unwrap();
+                        prop_assert!(
+                            rust_code.contains("..") || rust_code.contains("range"),
+                            "range() should generate Rust range syntax"
+                        );
+                    }
                 }
-            }
 }
 
 // ============================================================================
