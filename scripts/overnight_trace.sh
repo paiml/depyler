@@ -5,7 +5,7 @@
 set -euo pipefail
 
 readonly TRACE_DIR="${DEPYLER_TRACE_DIR:-/tmp/depyler_traces}"
-readonly DEPYLER_BIN="${DEPYLER_BIN:-/home/noah/src/depyler/target/release/depyler}"
+readonly DEPYLER_BIN="${DEPYLER_BIN:-${DEPYLER_DIR:-.}/target/release/depyler}"
 
 mkdir -p "$TRACE_DIR"
 

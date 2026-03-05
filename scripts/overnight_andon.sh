@@ -69,7 +69,7 @@ check_tests() {
 # Check for clippy warnings
 check_clippy() {
     local clippy_out
-    local depyler_dir="${DEPYLER_DIR:-/home/noah/src/depyler}"
+    local depyler_dir="${DEPYLER_DIR:-${DEPYLER_DIR:-.}}"
 
     if clippy_out="$(cd "$depyler_dir" && cargo clippy --package depyler-core -- -D warnings 2>&1)"; then
         alert "info" "Clippy clean"

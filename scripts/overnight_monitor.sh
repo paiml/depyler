@@ -8,7 +8,7 @@ set -euo pipefail
 readonly STATUS_FILE="${DEPYLER_STATUS_FILE:-/tmp/depyler_overnight_status.json}"
 readonly LOG_FILE="${DEPYLER_LOG_FILE:-/tmp/depyler_overnight.log}"
 readonly TEST_CACHE="${DEPYLER_TEST_CACHE:-/tmp/depyler_test_status}"
-readonly DEPYLER_DIR="${DEPYLER_DIR:-/home/noah/src/depyler}"
+readonly DEPYLER_DIR="${DEPYLER_DIR:-${DEPYLER_DIR:-.}}"
 
 # Read JSON from stdin
 INPUT="$(cat)"

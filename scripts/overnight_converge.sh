@@ -5,7 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPYLER_DIR="$(dirname "$SCRIPT_DIR")"
-CORPUS_DIR="${DEPYLER_CORPUS_DIR:-/home/noah/src/reprorusted-python-cli/examples}"
+CORPUS_DIR="${DEPYLER_CORPUS_DIR:-${REPRORUSTED_DIR:-reprorusted-python-cli}/examples}"
 CHECKPOINT_DIR="${DEPYLER_DIR}/nightly_checkpoints"
 LOG_DIR="${DEPYLER_DIR}/logs"
 TIMESTAMP="${DEPYLER_TIMESTAMP:-$(date +%Y%m%d_%H%M%S)}"

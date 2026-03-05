@@ -2,7 +2,7 @@
 # Real-time training monitor for depyler oracle improve
 # Usage: ./monitor-training.sh [monitor.json path]
 
-MONITOR_FILE="${1:-/home/noah/src/reprorusted-python-cli/examples/.depyler-improve/monitor.json}"
+MONITOR_FILE="${1:-${REPRORUSTED_DIR:-reprorusted-python-cli}/examples/.depyler-improve/monitor.json}"
 
 echo "Monitoring: $MONITOR_FILE"
 echo "Press Ctrl+C to stop"

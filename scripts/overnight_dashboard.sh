@@ -8,7 +8,7 @@ readonly STATUS_FILE="${DEPYLER_STATUS_FILE:-/tmp/depyler_overnight_status.json}
 readonly ALERT_FILE="${DEPYLER_ALERT_FILE:-/tmp/depyler_andon_alerts.jsonl}"
 readonly LOG_FILE="${DEPYLER_LOG_FILE:-/tmp/depyler_overnight.log}"
 readonly COMMIT_FILE="${DEPYLER_COMMIT_FILE:-/tmp/depyler_commits.log}"
-readonly DEPYLER_DIR="${DEPYLER_DIR:-/home/noah/src/depyler}"
+readonly DEPYLER_DIR="${DEPYLER_DIR:-${DEPYLER_DIR:-.}}"
 
 clear
 echo "╔══════════════════════════════════════════════════════════════╗"
