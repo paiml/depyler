@@ -3,7 +3,7 @@
 //! Extracted from `generate_rust_file_internal` in `rust_gen.rs` (lines 1058-1285).
 //! Assembles all generated code fragments into the final ordered `Vec<TokenStream>`:
 //! imports, type aliases, interned strings, constants, conditional imports,
-//! error types, CompletedProcess struct, union enums, DepylerValue, runtime types,
+//! error types, `CompletedProcess` struct, union enums, `DepylerValue`, runtime types,
 //! phantom bindings, module alias stubs, classes, argparse structs, stub functions,
 //! functions, main generation, and test generation.
 
@@ -14,7 +14,7 @@ use quote::quote;
 use super::binding_gen;
 use super::context::{CodeGenContext, RustCodeGen};
 use super::{constant_gen, depyler_value_gen, import_gen, module_gen, runtime_types_gen};
-use crate::hir::*;
+use crate::hir::{HirModule, HirStmt};
 
 /// Assemble all module-level items into a final ordered token stream vector.
 ///
@@ -24,7 +24,7 @@ use crate::hir::*;
 ///
 /// # Arguments
 /// * `module` - The HIR module being transpiled
-/// * `ctx` - Mutable code generation context (tracks needs_completed_process, etc.)
+/// * `ctx` - Mutable code generation context (tracks `needs_completed_process`, etc.)
 /// * `classes` - Pre-converted class token streams from `class_gen`
 /// * `functions` - Pre-converted function token streams from `convert_functions_to_rust`
 /// * `unresolved_imports` - Imports that could not be resolved to known modules
@@ -111,7 +111,7 @@ fn append_conditional_imports(items: &mut Vec<proc_macro2::TokenStream>, ctx: &C
 }
 
 /// DEPYLER-0335 FIX #1: Deduplicate imports across all sources.
-/// Both generate_import_tokens and generate_conditional_imports can add HashMap.
+/// Both `generate_import_tokens` and `generate_conditional_imports` can add `HashMap`.
 fn deduplicate_imports(items: &mut Vec<proc_macro2::TokenStream>) {
     let deduped = module_gen::deduplicate_use_statements(std::mem::take(items));
     *items = deduped;
@@ -122,7 +122,7 @@ fn append_error_types(items: &mut Vec<proc_macro2::TokenStream>, ctx: &CodeGenCo
     items.extend(super::error_gen::generate_error_type_definitions(ctx));
 }
 
-/// DEPYLER-0627: Add CompletedProcess struct if subprocess.run is used.
+/// DEPYLER-0627: Add `CompletedProcess` struct if subprocess.run is used.
 /// DEPYLER-0931: Added Default derive for hoisting support in try/except blocks.
 fn append_completed_process(items: &mut Vec<proc_macro2::TokenStream>, ctx: &CodeGenContext) {
     if ctx.needs_completed_process {
@@ -144,8 +144,8 @@ fn append_union_enums(items: &mut Vec<proc_macro2::TokenStream>, ctx: &CodeGenCo
     items.extend(ctx.generated_enums.clone());
 }
 
-/// DEPYLER-FIX-RC2: Inject DepylerValue enum if heterogeneous dicts were detected
-/// OR if we are in NASA mode (since TypeMapper now defaults 'Any' to DepylerValue).
+/// DEPYLER-FIX-RC2: Inject `DepylerValue` enum if heterogeneous dicts were detected
+/// OR if we are in NASA mode (since `TypeMapper` now defaults 'Any' to `DepylerValue`).
 /// DEPYLER-1043: Added trait implementations for Display, len, chars, insert, Index.
 /// DEPYLER-1040b/1051: Added Hash/Eq for dict keys (Point 14 falsification fix).
 fn append_depyler_value(
@@ -159,7 +159,7 @@ fn append_depyler_value(
     }
 }
 
-/// DEPYLER-DECOMPOSE: Inject runtime type items (PythonIntOps, date/time, regex)
+/// DEPYLER-DECOMPOSE: Inject runtime type items (`PythonIntOps`, date/time, regex)
 /// via extracted module.
 fn append_runtime_types(items: &mut Vec<proc_macro2::TokenStream>, ctx: &CodeGenContext) {
     items.extend(runtime_types_gen::generate_runtime_type_items(ctx));
@@ -187,7 +187,7 @@ fn append_phantom_bindings(
 }
 
 /// DEPYLER-1136: Generate module alias stubs.
-/// DEPYLER-1137: Use DepylerValue for semantic proxy types (not serde_json::Value).
+/// DEPYLER-1137: Use `DepylerValue` for semantic proxy types (not `serde_json::Value`).
 /// DEPYLER-1139: Use minimal required args - accept anything via impl traits.
 /// For `import xml.etree.ElementTree as ET`, generate `mod ET { ... }` stubs.
 fn append_module_alias_stubs(items: &mut Vec<proc_macro2::TokenStream>, ctx: &CodeGenContext) {
@@ -197,8 +197,7 @@ fn append_module_alias_stubs(items: &mut Vec<proc_macro2::TokenStream>, ctx: &Co
             /// DEPYLER-1136: Module alias stub for external library
             /// DEPYLER-1137: Uses DepylerValue for dynamic dispatch compatibility
             /// DEPYLER-1139: Minimal required args to avoid E0061
-            #[allow(non_snake_case)]
-            #[allow(unused_variables)]
+            #[allow(non_snake_case, unused_variables)]
             pub mod #alias_ident {
                 use super::DepylerValue;
 
@@ -275,9 +274,10 @@ fn append_stub_functions(
     items.extend(super::generate_stub_functions(unresolved_imports));
 }
 
-/// DEPYLER-1216: Generate main() for scripts without an explicit entry point.
-/// A Rust binary MUST have fn main(). If the Python script has no main() or
+/// DEPYLER-1216: Generate `main()` for scripts without an explicit entry point.
+/// A Rust binary MUST have fn `main()`. If the Python script has no `main()` or
 /// `if __name__ == "__main__":` block, we generate one that wraps top-level statements.
+#[allow(clippy::unnecessary_wraps)]
 fn append_main_function(
     items: &mut Vec<proc_macro2::TokenStream>,
     module: &HirModule,
@@ -288,16 +288,16 @@ fn append_main_function(
         return Ok(());
     }
 
-    if !module.top_level_stmts.is_empty() {
+    if module.top_level_stmts.is_empty() {
+        items.push(generate_stub_main());
+    } else {
         let main_tokens = generate_semantic_main(&module.top_level_stmts, ctx);
         items.push(main_tokens);
-    } else {
-        items.push(generate_stub_main());
     }
     Ok(())
 }
 
-/// Generate a semantic main() that wraps top-level script statements.
+/// Generate a semantic `main()` that wraps top-level script statements.
 fn generate_semantic_main(stmts: &[HirStmt], ctx: &mut CodeGenContext) -> proc_macro2::TokenStream {
     let mut main_body_tokens = Vec::new();
     for stmt in stmts {
@@ -305,7 +305,7 @@ fn generate_semantic_main(stmts: &[HirStmt], ctx: &mut CodeGenContext) -> proc_m
             Ok(tokens) => main_body_tokens.push(tokens),
             Err(e) => {
                 // Log warning but continue - fallback to stub behavior for failed conversion
-                eprintln!("DEPYLER-1216: Warning - failed to convert top-level statement: {}", e);
+                eprintln!("DEPYLER-1216: Warning - failed to convert top-level statement: {e}");
             }
         }
     }
@@ -322,7 +322,7 @@ fn generate_semantic_main(stmts: &[HirStmt], ctx: &mut CodeGenContext) -> proc_m
     }
 }
 
-/// Generate a stub main() for standalone compilation.
+/// Generate a stub `main()` for standalone compilation.
 fn generate_stub_main() -> proc_macro2::TokenStream {
     quote! {
         /// DEPYLER-1216: Auto-generated entry point for standalone compilation
@@ -335,8 +335,9 @@ fn generate_stub_main() -> proc_macro2::TokenStream {
 }
 
 /// Generate tests for all functions in a single test module.
-/// DEPYLER-0280 FIX: Use generate_tests_module() to create a single `mod tests {}` block
+/// DEPYLER-0280 FIX: Use `generate_tests_module()` to create a single `mod tests {}` block
 /// instead of one per function, which caused "the name `tests` is defined multiple times" errors.
+#[allow(clippy::default_trait_access)]
 fn append_test_module(items: &mut Vec<proc_macro2::TokenStream>, module: &HirModule) -> Result<()> {
     let test_gen = crate::test_generation::TestGenerator::new(Default::default());
     if let Some(test_module) = test_gen.generate_tests_module(&module.functions)? {

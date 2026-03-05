@@ -1,22 +1,23 @@
 //! Fix application pipeline — applies all text-level fixes in sequence.
 //!
-//! Extracted from `generate_rust_file_internal()` in rust_gen.rs.
+//! Extracted from `generate_rust_file_internal()` in `rust_gen.rs`.
 //! Each fix targets a specific rustc error pattern.
 
-use super::collections::*;
-use super::depyler_value::*;
-use super::enums::*;
-use super::misc::*;
-use super::numeric::*;
-use super::options_results::*;
-use super::ownership::*;
-use super::strings::*;
-use super::truthiness::*;
+use super::collections::{fix_hashmap_empty_value_type, fix_hashmap_contains, fix_sorted_vec_reference, fix_vec_contains_deref, fix_vec_get_membership, fix_vec_char_join, fix_hashmap_key_type_mismatch, fix_vec_to_string_debug, fix_hashmap_keys_iter_clone, fix_collect_type_annotation_mismatch, fix_empty_vec_in_assert, fix_hashmap_contains_to_contains_key, fix_nested_vec_type_in_assert, fix_vec_arg_type_in_assert, fix_unit_vec_to_tuple_type};
+use super::depyler_value::{fix_heterogeneous_dict_inserts, fix_depyler_value_inserts_generalized, fix_depyler_value_str_match_arm, fix_depyler_value_vec_join, fix_string_to_depyler_value_insert, fix_depyler_value_str_clone, fix_depyler_value_from_enum, fix_depyler_value_hashmap_keys, fix_depyler_value_to_typed_assignment, fix_return_depyler_value_param, fix_unwrap_or_depyler_value, fix_depyler_value_str_literal, fix_pyindex_depyler_value_wrapper, fix_vec_depyler_value_param_from_callsite};
+use super::enums::{fix_enum_path_separator, fix_enum_dot_to_path_separator, fix_lazylock_static_as_type, fix_broken_lazylock_initializers, fix_literal_clone_pattern, fix_enum_display, fix_orphaned_lazylock_bodies, fix_enum_new_constructor, fix_enum_new_call_args, fix_add_enum_from_impls};
+use super::misc::{fix_docstring_in_main, fix_generator_yield_scope, fix_bufreader_deserialize, fix_power_sqrt_types, fix_datetime_subtraction, fix_hasher_digest_methods, fix_path_or_string_union_coercion, fix_function_stub_as_type, fix_inline_block_expression_parens, fix_orphaned_semicolon_paren, fix_raw_identifier_booleans, fix_validate_not_none_args, fix_tuple_to_vec_when_len_called, fix_as_bool_on_bool, fix_range_type_annotation, fix_closure_to_dyn_fn_ref, fix_pyrange_iteration, fix_unclosed_vec_macro, fix_missing_inherited_fields, fix_remove_async_for_standalone, fix_ambiguous_into_on_chain, fix_ambiguous_into_type_annotation, fix_dict_get_return, fix_iter_on_impl_iterator, fix_void_fn_with_return_value, fix_let_unit_type_annotation, fix_let_type_from_fn_return, fix_assert_vec_type_from_fn_return};
+use super::numeric::{fix_float_int_comparison, fix_cse_py_mul_type_annotation, fix_cse_int_float_comparison, fix_mixed_numeric_min_max, fix_spurious_i64_conversion, fix_trailing_comma_in_arith_parens, fix_spurious_to_string_in_numeric_call, fix_usize_to_string_in_constructor, fix_negative_literal_type_annotation, fix_floor_div_type_annotation, fix_i32_as_i64_cast};
+use super::options_results::{fix_is_none_on_non_option, fix_result_double_wrap, fix_negate_result_fn_call, fix_option_as_cast, fix_option_dequeue_unwrap, fix_option_hashmap_contains_key, fix_option_push_after_is_some, fix_option_field_assignment, fix_option_to_string_in_is_some_guard, fix_return_option_param_in_is_some, fix_let_discard_ok_return, fix_bare_return_in_result_fn};
+use super::ownership::{fix_borrow_into_iter_chain, fix_borrowed_alias_in_new_calls, fix_deref_string_comparison, fix_deref_unwrap_result, fix_ref_option_in_new, fix_deref_ref_option_unwrap, fix_immutable_ref_to_mut, fix_deref_expect_on_primitive, fix_ref_arg_to_fn_string_param, fix_double_expect_on_option_ref, fix_ref_string_to_owned_in_call, fix_missing_mut_for_method_calls, fix_deref_on_unwrap_or};
+use super::strings::{fix_str_params_in_new_calls, fix_string_array_contains, fix_regex_match_string_arg, fix_format_expect, fix_str_param_return_as_string, fix_from_utf8_lossy_string_arg, fix_format_debug_in_int_vec, fix_str_clone_to_string, fix_string_as_ref_ambiguity, fix_char_as_str, fix_format_vec_display};
+use super::truthiness::{fix_python_truthiness, fix_negation_on_non_bool, fix_field_access_truthiness, fix_not_string_truthiness, fix_bitwise_and_truthiness};
 
 /// Apply all text-level fixes to generated Rust code.
 ///
 /// This is the main entry point for the fix pipeline. It takes the formatted
 /// Rust code from codegen and applies ~130 text-level fixes in sequence.
+#[allow(clippy::too_many_lines)]
 pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) -> String {
     // DEPYLER-CONVERGE-MULTI: Strip `if TYPE_CHECKING {}` that leaks through codegen.
     // The ast_bridge skips top-level TYPE_CHECKING blocks, but they can appear in
@@ -124,12 +125,12 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
 
     // DEPYLER-CONVERGE-MULTI-ITER5b: Inject missing std imports detected by usage.
     if formatted_code.contains(".write_all(") && !formatted_code.contains("use std::io::Write") {
-        formatted_code = format!("use std::io::Write;\n{}", formatted_code);
+        formatted_code = format!("use std::io::Write;\n{formatted_code}");
     }
     if formatted_code.contains("HashMap")
         && !formatted_code.contains("use std::collections::HashMap")
     {
-        formatted_code = format!("use std::collections::HashMap;\n{}", formatted_code);
+        formatted_code = format!("use std::collections::HashMap;\n{formatted_code}");
     }
     formatted_code = formatted_code.replace(".py_sub(", " - (");
     // DEPYLER-1404: Fix py_div on PathBuf — Python `/` operator for path joining.
@@ -146,7 +147,7 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
         formatted_code = formatted_code.replace("r#type(", "py_type_name(&");
         let helper = "fn py_type_name<T: ?Sized>(_: &T) -> &'static str { \
                        std::any::type_name::<T>() }\n";
-        formatted_code = format!("{}{}", helper, formatted_code);
+        formatted_code = format!("{helper}{formatted_code}");
     }
 
     // DEPYLER-CONVERGE-MULTI-ITER6: Fix `.into_iter()` on borrowed vecs (E0308).
@@ -176,7 +177,7 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
         formatted_code = formatted_code.replace("hex::encode(", "hex_encode(");
         let helper = "fn hex_encode(bytes: impl AsRef<[u8]>) -> String { \
                        bytes.as_ref().iter().map(|b| format!(\"{:02x}\", b)).collect() }\n";
-        formatted_code = format!("{}{}", helper, formatted_code);
+        formatted_code = format!("{helper}{formatted_code}");
     }
 
     // DEPYLER-CONVERGE-MULTI-ITER7: Fix generator yield scope (E0425 on `items`).
@@ -580,7 +581,7 @@ fn fix_stub_arities(code: &str) -> String {
     for name in &stub_names {
         // DEPYLER-1404: Names used with `::` syntax are class imports.
         // Replace function stub with a stub struct that supports field/method access.
-        let type_path = format!("{}::", name);
+        let type_path = format!("{name}::");
         if result.contains(&type_path) {
             if let Some(cleaned) = remove_stub_function(&result, name) {
                 result = cleaned;
@@ -589,8 +590,8 @@ fn fix_stub_arities(code: &str) -> String {
                 if let Some(mac) = ctor_macro {
                     macros_to_prepend.push(mac);
                     // Rewrite Name::new( to Name_new!( directly
-                    let new_call = format!("{}::new(", name);
-                    let macro_call = format!("{}_new!(", name);
+                    let new_call = format!("{name}::new(");
+                    let macro_call = format!("{name}_new!(");
                     result = result.replace(&new_call, &macro_call);
                 }
             }
@@ -607,7 +608,7 @@ fn fix_stub_arities(code: &str) -> String {
         let mut prefix_parts = macros_to_prepend;
         prefix_parts.extend(struct_stubs_to_prepend);
         let prefix = prefix_parts.join("\n");
-        result = format!("{}\n{}", prefix, result);
+        result = format!("{prefix}\n{result}");
     }
 
     result
@@ -643,10 +644,9 @@ fn extract_fn_name(line: &str) -> Option<String> {
 /// Remove a stub function and return the cleaned code + macro definition.
 fn replace_stub_with_macro(code: &str, name: &str) -> Option<(String, String)> {
     let fn_dv = format!(
-        "pub fn {}(_args: impl std::any::Any) -> DepylerValue {{\n    DepylerValue::default()\n}}",
-        name
+        "pub fn {name}(_args: impl std::any::Any) -> DepylerValue {{\n    DepylerValue::default()\n}}"
     );
-    let fn_unit = format!("pub fn {}(_args: impl std::any::Any) -> () {{\n}}", name);
+    let fn_unit = format!("pub fn {name}(_args: impl std::any::Any) -> () {{\n}}");
 
     let is_unit = code.contains(&fn_unit);
     let is_dv = code.contains(&fn_dv);
@@ -659,11 +659,10 @@ fn replace_stub_with_macro(code: &str, name: &str) -> Option<(String, String)> {
     result = result.replace("#[allow(dead_code, unused_variables)]", "");
 
     let macro_def = if is_unit {
-        format!("macro_rules! {} {{ ($($args:expr),* $(,)?) => {{ () }}; }}", name)
+        format!("macro_rules! {name} {{ ($($args:expr),* $(,)?) => {{ () }}; }}")
     } else {
         format!(
-            "macro_rules! {} {{ ($($args:expr),* $(,)?) => {{ DepylerValue::default() }}; }}",
-            name
+            "macro_rules! {name} {{ ($($args:expr),* $(,)?) => {{ DepylerValue::default() }}; }}"
         )
     };
 
@@ -676,7 +675,7 @@ fn replace_stub_with_macro(code: &str, name: &str) -> Option<(String, String)> {
 /// an alphanumeric char or underscore), to avoid mangling identifiers like
 /// `test_basic_product(` when the stub name is `product`.
 fn rewrite_call_sites(code: &str, name: &str) -> String {
-    let macro_def_marker = format!("macro_rules! {}", name);
+    let macro_def_marker = format!("macro_rules! {name}");
 
     code.lines()
         .map(|line| {
@@ -691,7 +690,7 @@ fn rewrite_call_sites(code: &str, name: &str) -> String {
 
 /// Replace `name(` with `name!(` in a single line, respecting word boundaries.
 fn rewrite_line_call_sites(line: &str, name: &str) -> String {
-    let pattern = format!("{}(", name);
+    let pattern = format!("{name}(");
     let mut result = String::with_capacity(line.len());
     let mut remaining = line;
 
@@ -722,10 +721,9 @@ fn rewrite_line_call_sites(line: &str, name: &str) -> String {
 /// Remove a stub function declaration (for class-type stubs that will become structs).
 fn remove_stub_function(code: &str, name: &str) -> Option<String> {
     let fn_dv = format!(
-        "pub fn {}(_args: impl std::any::Any) -> DepylerValue {{\n    DepylerValue::default()\n}}",
-        name
+        "pub fn {name}(_args: impl std::any::Any) -> DepylerValue {{\n    DepylerValue::default()\n}}"
     );
-    let fn_unit = format!("pub fn {}(_args: impl std::any::Any) -> () {{\n}}", name);
+    let fn_unit = format!("pub fn {name}(_args: impl std::any::Any) -> () {{\n}}");
 
     let mut result = if code.contains(&fn_dv) {
         code.replace(&fn_dv, "")
@@ -753,8 +751,8 @@ fn generate_stub_struct(name: &str, code: &str) -> (String, Option<String>) {
         if method == "value" {
             continue;
         }
-        let method_call = format!(".{}(", method);
-        let field_assign = format!(".{} =", method);
+        let method_call = format!(".{method}(");
+        let field_assign = format!(".{method} =");
         let is_method_call = code.contains(&method_call);
         let is_field_assign = code.contains(&field_assign);
         if is_field_assign || !is_method_call {
@@ -765,7 +763,7 @@ fn generate_stub_struct(name: &str, code: &str) -> (String, Option<String>) {
     let mut parts = Vec::new();
     let mut struct_fields = vec!["pub value: DepylerValue".to_string()];
     for field in &fields {
-        struct_fields.push(format!("pub {}: DepylerValue", field));
+        struct_fields.push(format!("pub {field}: DepylerValue"));
     }
     parts.push(format!(
         "#[derive(Debug, Clone, PartialEq)] pub struct {} {{ {} }}",
@@ -776,8 +774,7 @@ fn generate_stub_struct(name: &str, code: &str) -> (String, Option<String>) {
     let impl_items = build_struct_impl_items(name, code, &members, &instance_methods);
     parts.push(format!("impl {} {{ {} }}", name, impl_items.join("\n")));
     parts.push(format!(
-        "impl std::ops::Deref for {} {{ type Target = DepylerValue; fn deref(&self) -> &Self::Target {{ &self.value }} }}",
-        name
+        "impl std::ops::Deref for {name} {{ type Target = DepylerValue; fn deref(&self) -> &Self::Target {{ &self.value }} }}"
     ));
 
     // If `new` is used, generate a constructor macro for variadic args
@@ -789,12 +786,11 @@ fn generate_stub_struct(name: &str, code: &str) -> (String, Option<String>) {
         let field_inits: String = field_names
             .iter()
             .zip(field_defaults.iter())
-            .map(|(n, d)| format!("{}: {}", n, d))
+            .map(|(n, d)| format!("{n}: {d}"))
             .collect::<Vec<_>>()
             .join(", ");
         Some(format!(
-            "macro_rules! {}_new {{ ($($args:expr),* $(,)?) => {{ {} {{ {} }} }}; }}",
-            name, name, field_inits
+            "macro_rules! {name}_new {{ ($($args:expr),* $(,)?) => {{ {name} {{ {field_inits} }} }}; }}"
         ))
     } else {
         None
@@ -805,8 +801,8 @@ fn generate_stub_struct(name: &str, code: &str) -> (String, Option<String>) {
 
 /// Scan code for `Name::MEMBER` patterns, instance methods, and field accesses.
 fn scan_class_usage(name: &str, code: &str) -> (Vec<String>, Vec<String>) {
-    let prefix = format!("{}::", name);
-    let ctor_macro = format!("{}_new!(", name);
+    let prefix = format!("{name}::");
+    let ctor_macro = format!("{name}_new!(");
     let mut members: Vec<String> = Vec::new();
     let mut instance_methods: Vec<String> = Vec::new();
     let mut instance_vars: Vec<String> = Vec::new();
@@ -859,7 +855,7 @@ fn scan_constructor_vars(
     instance_vars: &mut Vec<String>,
 ) {
     let trimmed = line.trim();
-    let ctor_call = format!("{}::new(", name);
+    let ctor_call = format!("{name}::new(");
     let rest = trimmed.strip_prefix("let mut ").or_else(|| trimmed.strip_prefix("let "));
     if let Some(rest) = rest {
         if rest.contains(ctor_macro) || rest.contains(&ctor_call) {
@@ -879,7 +875,7 @@ fn scan_instance_var_methods(
 ) {
     for line in code.lines() {
         for var in instance_vars {
-            let dot_prefix = format!("{}.", var);
+            let dot_prefix = format!("{var}.");
             let mut search = line;
             while let Some(pos) = search.find(&dot_prefix) {
                 let after = &search[pos + dot_prefix.len()..];
@@ -923,28 +919,27 @@ fn build_struct_impl_items(
 /// Build a single associated constant or static method for a member.
 ///
 /// Returns `None` for `new` (handled via constructor macro).
+#[allow(clippy::unnecessary_wraps)]
 fn build_associated_member_item(name: &str, code: &str, member: &str) -> Option<String> {
-    let call_pattern = format!("{}::{}(", name, member);
+    let call_pattern = format!("{name}::{member}(");
     let is_method = code.contains(&call_pattern);
     if !is_method {
         return Some(format!(
-            "pub const {}: {} = {} {{ value: DepylerValue::None }};",
-            member, name, name
+            "pub const {member}: {name} = {name} {{ value: DepylerValue::None }};"
         ));
     }
-    let no_arg_pattern = format!("{}::{}()", name, member);
+    let no_arg_pattern = format!("{name}::{member}()");
     let has_no_args = code.contains(&no_arg_pattern);
     if !has_no_args {
         return Some(format!(
-            "pub fn {}(_args: impl std::any::Any) -> DepylerValue {{ DepylerValue::default() }}",
-            member
+            "pub fn {member}(_args: impl std::any::Any) -> DepylerValue {{ DepylerValue::default() }}"
         ));
     }
-    let cast_pattern = format!("{}::{}() as ", name, member);
+    let cast_pattern = format!("{name}::{member}() as ");
     let is_cast_to_numeric = code.contains(&cast_pattern);
     let ret_type = if is_cast_to_numeric { "usize" } else { "DepylerValue" };
     let ret_val = if is_cast_to_numeric { "0" } else { "DepylerValue::default()" };
-    Some(format!("pub fn {}() -> {} {{ {} }}", member, ret_type, ret_val))
+    Some(format!("pub fn {member}() -> {ret_type} {{ {ret_val} }}"))
 }
 
 /// Build a single instance method item for a method name.
@@ -954,22 +949,21 @@ fn build_instance_method_item(code: &str, method: &str) -> Option<String> {
     if method == "value" {
         return None;
     }
-    let method_call = format!(".{}(", method);
+    let method_call = format!(".{method}(");
     let is_method_call = code.contains(&method_call);
-    let field_assign = format!(".{} =", method);
+    let field_assign = format!(".{method} =");
     let is_field_assign = code.contains(&field_assign);
 
     if is_field_assign || !is_method_call {
         return None;
     }
-    let zero_arg_call = format!(".{}()", method);
+    let zero_arg_call = format!(".{method}()");
     let has_zero_args = code.contains(&zero_arg_call);
     if has_zero_args {
-        Some(format!("pub fn {}(&self) -> DepylerValue {{ DepylerValue::default() }}", method))
+        Some(format!("pub fn {method}(&self) -> DepylerValue {{ DepylerValue::default() }}"))
     } else {
         Some(format!(
-            "pub fn {}(&self, _args: impl std::any::Any) -> DepylerValue {{ DepylerValue::default() }}",
-            method
+            "pub fn {method}(&self, _args: impl std::any::Any) -> DepylerValue {{ DepylerValue::default() }}"
         ))
     }
 }
@@ -1008,14 +1002,14 @@ fn try_wrap_insert_integer(original_line: &str) -> Option<String> {
     if val.parse::<i64>().is_ok() && !val.contains("DepylerValue") {
         Some(
             original_line
-                .replace(&format!(", {});", val), &format!(", DepylerValue::Int({}));", val)),
+                .replace(&format!(", {val});"), &format!(", DepylerValue::Int({val}));")),
         )
     } else {
         None
     }
 }
 
-/// Process a single inner line of a nested HashMap block.
+/// Process a single inner line of a nested `HashMap` block.
 ///
 /// Wraps bare integer inserts with `DepylerValue::Int` and wraps the final
 /// bare `map` return with `DepylerValue::Dict(...)`.
@@ -1036,7 +1030,7 @@ fn process_inner_hashmap_line(original_line: &str, line_idx: usize, close_idx: u
     original_line.to_string()
 }
 
-/// Detect a nested HashMap insert pattern starting at line `i`.
+/// Detect a nested `HashMap` insert pattern starting at line `i`.
 ///
 /// Looks for `.insert("key", {` followed by `HashMap::new()` and returns the
 /// index of the closing brace if found.
@@ -1051,10 +1045,10 @@ fn detect_nested_hashmap_insert(lines: &[&str], i: usize) -> Option<usize> {
     find_closing_brace(lines, i + 2, 1)
 }
 
-/// Wrap nested HashMap block expressions as DepylerValue::Dict.
+/// Wrap nested `HashMap` block expressions as `DepylerValue::Dict`.
 ///
-/// When an outer HashMap<String, DepylerValue> inserts a value that's a block
-/// expression building another HashMap, wrap the block result in DepylerValue::Dict.
+/// When an outer `HashMap`<String, `DepylerValue`> inserts a value that's a block
+/// expression building another `HashMap`, wrap the block result in `DepylerValue::Dict`.
 fn fix_nested_hashmap_to_depyler_value(code: &str) -> String {
     if !code.contains("HashMap<String, DepylerValue>") {
         return code.to_string();
@@ -1120,6 +1114,7 @@ fn extract_method_and_arg(after_dot: &str) -> Option<(&str, String, &str)> {
 /// Handles two cases:
 /// - Same variable as receiver and argument: `a.method(a)` -> `a.method(a.clone())`
 /// - Argument reused later on the line: `a.f(b) == b.f(a)` -> `a.f(b.clone()) == b.f(a)`
+#[allow(clippy::manual_let_else)]
 fn apply_clone_to_method_call(line: &str, trimmed: &str) -> String {
     let dot_pos = match trimmed.find('.') {
         Some(p) => p,
@@ -1139,14 +1134,14 @@ fn apply_clone_to_method_call(line: &str, trimmed: &str) -> String {
 
     // Case 1: same variable as receiver and arg
     if arg == receiver && after_arg.starts_with(')') {
-        let old = format!("{}.{}({})", receiver, method, arg);
-        let new = format!("{}.{}({}.clone())", receiver, method, arg);
+        let old = format!("{receiver}.{method}({arg})");
+        let new = format!("{receiver}.{method}({arg}.clone())");
         return line.replace(&old, &new);
     }
     // Case 2: arg is used again on the same line (e.g., a.f(b) == b.f(a))
-    if after_arg.contains(&format!("{}.{}", arg, method)) {
-        let old = format!(".{}({})", method, arg);
-        let new = format!(".{}({}.clone())", method, arg);
+    if after_arg.contains(&format!("{arg}.{method}")) {
+        let old = format!(".{method}({arg})");
+        let new = format!(".{method}({arg}.clone())");
         return line.replacen(&old, &new, 1);
     }
 
@@ -1243,7 +1238,7 @@ fn try_hoist_with_block(lines: &[&str], i: usize, result: &mut Vec<String>) -> O
 
     // Hoist: emit `let mut VAR = EXPR;` before `{`
     let let_indent = " ".repeat(indent + 4);
-    result.push(format!("{}{}", let_indent, next_trimmed));
+    result.push(format!("{let_indent}{next_trimmed}"));
     result.push(lines[i].to_string()); // the `{`
     Some(i + 2)
 }
@@ -1270,7 +1265,7 @@ fn fix_with_block_scope(code: &str) -> String {
     result.join("\n")
 }
 
-/// Fix struct field assignments where a raw literal is assigned to a DepylerValue field.
+/// Fix struct field assignments where a raw literal is assigned to a `DepylerValue` field.
 ///
 /// Wraps `p.field = 5.0;` → `p.field = DepylerValue::Float(5.0);` for stub struct fields.
 fn fix_struct_field_literal_assignment(code: &str) -> String {
@@ -1286,7 +1281,7 @@ fn fix_struct_field_literal_assignment(code: &str) -> String {
     result
 }
 
-/// Try to wrap a raw literal in a field assignment with the appropriate DepylerValue variant.
+/// Try to wrap a raw literal in a field assignment with the appropriate `DepylerValue` variant.
 ///
 /// Returns `Some(new_line)` if the line matches `ident.field = LITERAL;` and was wrapped,
 /// `None` if the line does not match or no wrapping is needed.
@@ -1303,30 +1298,30 @@ fn try_wrap_field_literal(line: &str) -> Option<String> {
     // Float literal (e.g., 5.0, -3.14)
     if rhs.parse::<f64>().is_ok() && rhs.contains('.') {
         return Some(
-            line.replace(&format!("= {};", rhs), &format!("= DepylerValue::Float({});", rhs)),
+            line.replace(&format!("= {rhs};"), &format!("= DepylerValue::Float({rhs});")),
         );
     }
     // Integer literal
     if rhs.parse::<i64>().is_ok() {
         return Some(
-            line.replace(&format!("= {};", rhs), &format!("= DepylerValue::Int({});", rhs)),
+            line.replace(&format!("= {rhs};"), &format!("= DepylerValue::Int({rhs});")),
         );
     }
 
     None
 }
 
-/// Fix `(expr as f64)` and `(expr as i32)` patterns involving DepylerValue.
+/// Fix `(expr as f64)` and `(expr as i32)` patterns involving `DepylerValue`.
 ///
-/// Rewrites `(expr as f64) == literal` → `expr == literal` since DepylerValue
-/// already implements PartialEq for numeric types.
+/// Rewrites `(expr as f64) == literal` → `expr == literal` since `DepylerValue`
+/// already implements `PartialEq` for numeric types.
 fn fix_depyler_value_casts(code: &str) -> String {
     // Pattern: `(EXPR as f64)` or `(EXPR as i32)` in assert contexts
     // We can't know which exprs are DepylerValue, so only fix patterns where
     // the cast appears in a comparison with a literal.
     let mut result = code.to_string();
     for cast_type in &["f64", "i32", "i64", "usize"] {
-        let cast_suffix = format!(" as {})", cast_type);
+        let cast_suffix = format!(" as {cast_type})");
         // Only fix casts that are followed by == or != with a literal
         let lines: Vec<&str> = result.lines().collect();
         let mut new_lines: Vec<String> = Vec::with_capacity(lines.len());

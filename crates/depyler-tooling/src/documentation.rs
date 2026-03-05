@@ -9,6 +9,7 @@ use std::fmt::Write;
 
 /// Documentation generator configuration
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct DocConfig {
     /// Include Python source as reference
     pub include_python_source: bool,
@@ -45,6 +46,7 @@ impl DocGenerator {
         Self { config, python_source: None }
     }
 
+    #[must_use]
     pub fn with_python_source(mut self, source: String) -> Self {
         self.python_source = Some(source);
         self
@@ -59,7 +61,7 @@ impl DocGenerator {
 
         // Module-level documentation
         if self.config.generate_module_docs {
-            self.write_module_docs(&mut doc, module);
+            Self::write_module_docs(&mut doc, module);
         }
 
         // Function documentation
@@ -74,14 +76,14 @@ impl DocGenerator {
         if !module.classes.is_empty() {
             doc.push_str("\n## Classes\n\n");
             for class in &module.classes {
-                self.write_class_docs(&mut doc, class);
+                Self::write_class_docs(&mut doc, class);
             }
         }
 
         // Migration notes
         if self.config.include_migration_notes && !module.functions.is_empty() {
             doc.push_str("\n## Migration Notes\n\n");
-            self.write_migration_notes(&mut doc, module);
+            Self::write_migration_notes(&mut doc, module);
         }
 
         doc
@@ -104,16 +106,16 @@ impl DocGenerator {
         }
     }
 
-    fn write_module_docs(&self, doc: &mut String, module: &HirModule) {
+    fn write_module_docs(doc: &mut String, module: &HirModule) {
         doc.push_str("## Module Overview\n\n");
 
         let func_count = module.functions.len();
         let class_count = module.classes.len();
         let import_count = module.imports.len();
 
-        writeln!(doc, "- **Functions**: {}", func_count).expect("write to String");
-        writeln!(doc, "- **Classes**: {}", class_count).expect("write to String");
-        writeln!(doc, "- **Imports**: {}", import_count).expect("write to String");
+        writeln!(doc, "- **Functions**: {func_count}").expect("write to String");
+        writeln!(doc, "- **Classes**: {class_count}").expect("write to String");
+        writeln!(doc, "- **Imports**: {import_count}").expect("write to String");
         doc.push('\n');
 
         if !module.imports.is_empty() {
@@ -130,7 +132,7 @@ impl DocGenerator {
 
         // Function signature
         doc.push_str("```rust\n");
-        doc.push_str(&self.format_function_signature(func));
+        doc.push_str(&Self::format_function_signature(func));
         doc.push_str("\n```\n\n");
 
         // Docstring
@@ -143,7 +145,7 @@ impl DocGenerator {
         if !func.params.is_empty() {
             doc.push_str("**Parameters:**\n");
             for param in &func.params {
-                writeln!(doc, "- `{}`: {}", param.name, self.format_type(&param.ty))
+                writeln!(doc, "- `{}`: {}", param.name, Self::format_type(&param.ty))
                     .expect("write to String");
             }
             doc.push('\n');
@@ -151,7 +153,7 @@ impl DocGenerator {
 
         // Return type
         if !matches!(func.ret_type, Type::None) {
-            writeln!(doc, "**Returns:** {}\n", self.format_type(&func.ret_type))
+            writeln!(doc, "**Returns:** {}\n", Self::format_type(&func.ret_type))
                 .expect("write to String");
         }
 
@@ -173,18 +175,18 @@ impl DocGenerator {
 
         // Usage example
         if self.config.generate_examples {
-            self.write_function_example(doc, func);
+            Self::write_function_example(doc, func);
         }
 
         // Performance notes
         if self.config.include_performance_notes {
-            self.write_performance_notes(doc, func);
+            Self::write_performance_notes(doc, func);
         }
 
         doc.push_str("---\n\n");
     }
 
-    fn write_class_docs(&self, doc: &mut String, class: &HirClass) {
+    fn write_class_docs(doc: &mut String, class: &HirClass) {
         writeln!(doc, "### `{}`\n", class.name).expect("write to String");
 
         // Class docstring
@@ -197,7 +199,7 @@ impl DocGenerator {
         if !class.fields.is_empty() {
             doc.push_str("**Fields:**\n");
             for field in &class.fields {
-                writeln!(doc, "- `{}`: {}", field.name, self.format_type(&field.field_type))
+                writeln!(doc, "- `{}`: {}", field.name, Self::format_type(&field.field_type))
                     .expect("write to String");
             }
             doc.push('\n');
@@ -207,19 +209,19 @@ impl DocGenerator {
         if !class.methods.is_empty() {
             doc.push_str("**Methods:**\n\n");
             for method in &class.methods {
-                self.write_method_docs(doc, method);
+                Self::write_method_docs(doc, method);
             }
         }
 
         doc.push_str("---\n\n");
     }
 
-    fn write_method_docs(&self, doc: &mut String, method: &HirMethod) {
+    fn write_method_docs(doc: &mut String, method: &HirMethod) {
         writeln!(doc, "#### `{}`", method.name).expect("write to String");
 
         // Method signature
         doc.push_str("```rust\n");
-        doc.push_str(&self.format_method_signature(method));
+        doc.push_str(&Self::format_method_signature(method));
         doc.push_str("\n```\n");
 
         // Docstring
@@ -240,7 +242,7 @@ impl DocGenerator {
         doc.push('\n');
     }
 
-    fn write_migration_notes(&self, doc: &mut String, module: &HirModule) {
+    fn write_migration_notes(doc: &mut String, module: &HirModule) {
         doc.push_str("### Python to Rust Migration\n\n");
 
         doc.push_str("When migrating from Python to the generated Rust code, note:\n\n");
@@ -272,14 +274,14 @@ impl DocGenerator {
         }
     }
 
-    fn write_function_example(&self, doc: &mut String, func: &HirFunction) {
+    fn write_function_example(doc: &mut String, func: &HirFunction) {
         doc.push_str("**Example:**\n\n```rust\n");
 
         // Generate a simple example
         let args: Vec<String> = func
             .params
             .iter()
-            .map(|param| self.example_value_for_type(&param.name, &param.ty))
+            .map(|param| Self::example_value_for_type(&param.name, &param.ty))
             .collect();
 
         if matches!(func.ret_type, Type::None) {
@@ -292,7 +294,7 @@ impl DocGenerator {
         doc.push_str("```\n\n");
     }
 
-    fn write_performance_notes(&self, doc: &mut String, func: &HirFunction) {
+    fn write_performance_notes(doc: &mut String, func: &HirFunction) {
         doc.push_str("**Performance Notes:**\n");
 
         if func.properties.max_stack_depth.is_some() {
@@ -306,11 +308,11 @@ impl DocGenerator {
         doc.push('\n');
     }
 
-    fn format_function_signature(&self, func: &HirFunction) -> String {
+    fn format_function_signature(func: &HirFunction) -> String {
         let params: Vec<String> = func
             .params
             .iter()
-            .map(|param| format!("{}: {}", param.name, self.format_type(&param.ty)))
+            .map(|param| format!("{}: {}", param.name, Self::format_type(&param.ty)))
             .collect();
 
         if matches!(func.ret_type, Type::None) {
@@ -320,18 +322,18 @@ impl DocGenerator {
                 "fn {}({}) -> {}",
                 func.name,
                 params.join(", "),
-                self.format_type(&func.ret_type)
+                Self::format_type(&func.ret_type)
             )
         }
     }
 
-    fn format_method_signature(&self, method: &HirMethod) -> String {
+    fn format_method_signature(method: &HirMethod) -> String {
         let self_param = if method.is_static { "" } else { "&self, " };
 
         let params: Vec<String> = method
             .params
             .iter()
-            .map(|param| format!("{}: {}", param.name, self.format_type(&param.ty)))
+            .map(|param| format!("{}: {}", param.name, Self::format_type(&param.ty)))
             .collect();
 
         let all_params = if params.is_empty() {
@@ -343,15 +345,16 @@ impl DocGenerator {
         if matches!(method.ret_type, Type::None) {
             format!("fn {}({})", method.name, all_params)
         } else {
-            format!("fn {}({}) -> {}", method.name, all_params, self.format_type(&method.ret_type))
+            format!("fn {}({}) -> {}", method.name, all_params, Self::format_type(&method.ret_type))
         }
     }
 
-    fn format_type(&self, ty: &Type) -> String {
+    fn format_type(ty: &Type) -> String {
         format_type_inner(ty)
     }
 }
 
+#[allow(clippy::match_same_arms)]
 fn format_type_inner(ty: &Type) -> String {
     match ty {
         Type::Unknown => "?".to_string(),
@@ -392,13 +395,13 @@ fn format_type_inner(ty: &Type) -> String {
         Type::Array { element_type, size: _ } => format!("&[{}]", format_type_inner(element_type)),
         Type::UnificationVar(id) => {
             // UnificationVar should never appear in documentation generation
-            panic!("BUG: UnificationVar({}) encountered during documentation. Type inference incomplete.", id)
+            panic!("BUG: UnificationVar({id}) encountered during documentation. Type inference incomplete.")
         }
     }
 }
 
 impl DocGenerator {
-    fn example_value_for_type(&self, name: &str, ty: &Type) -> String {
+    fn example_value_for_type(name: &str, ty: &Type) -> String {
         match ty {
             Type::Bool => "true".to_string(),
             Type::Int => "42".to_string(),
@@ -462,7 +465,7 @@ impl DocGenerator {
             let args: Vec<String> = func
                 .params
                 .iter()
-                .map(|param| self.example_value_for_type(&param.name, &param.ty))
+                .map(|param| Self::example_value_for_type(&param.name, &param.ty))
                 .collect();
 
             writeln!(doc, "// Using {}", func.name).expect("write to String");

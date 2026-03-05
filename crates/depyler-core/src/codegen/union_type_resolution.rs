@@ -45,9 +45,8 @@ pub fn resolve_union_type(
         let has_float = non_none_types.iter().any(|&t| is_float_type(t));
         if has_float {
             return quote! { f64 };
-        } else {
-            return quote! { i64 };
         }
+        return quote! { i64 };
     }
 
     // Case 4: All string types → String
@@ -132,7 +131,7 @@ pub enum UnionClassification {
     NumericUnion,
     /// All string types
     StringUnion,
-    /// Mixed types requiring serde_json::Value
+    /// Mixed types requiring `serde_json::Value`
     Heterogeneous,
 }
 

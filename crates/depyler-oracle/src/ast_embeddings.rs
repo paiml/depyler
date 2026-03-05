@@ -50,7 +50,7 @@ impl Default for AstEmbeddingConfig {
     }
 }
 
-/// A path context in Code2Vec style: (start_terminal, path, end_terminal)
+/// A path context in `Code2Vec` style: (`start_terminal`, path, `end_terminal`)
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PathContext {
     /// Starting terminal node (e.g., variable name, literal)
@@ -133,8 +133,9 @@ impl PythonPathVisitor {
     }
 
     /// Visit a parsed Python module
+    #[allow(clippy::match_same_arms)]
     fn visit_module(&mut self, module: &rustpython_parser::ast::Mod) {
-        use rustpython_parser::ast::*;
+        use rustpython_parser::ast::{Mod, ModModule, ModInteractive, ModExpression};
 
         match module {
             Mod::Module(ModModule { body, .. }) => {
@@ -154,8 +155,9 @@ impl PythonPathVisitor {
         }
     }
 
+    #[allow(clippy::match_same_arms, clippy::too_many_lines)]
     fn visit_stmt(&mut self, stmt: &rustpython_parser::ast::Stmt) {
-        use rustpython_parser::ast::*;
+        use rustpython_parser::ast::{Stmt, StmtFunctionDef, StmtAsyncFunctionDef, StmtClassDef, StmtAssign, Expr, ExprName, StmtAnnAssign, StmtReturn, StmtFor, StmtIf, StmtWhile, StmtWith, StmtExpr};
 
         match stmt {
             Stmt::FunctionDef(StmtFunctionDef { name, args, body, .. }) => {
@@ -315,7 +317,7 @@ impl PythonPathVisitor {
     }
 
     fn visit_expr(&mut self, expr: &rustpython_parser::ast::Expr) {
-        use rustpython_parser::ast::*;
+        use rustpython_parser::ast::{Expr, ExprCall, ExprBinOp, ExprCompare, ExprAttribute, ExprSubscript, ExprList, ExprTuple, ExprDict};
 
         // Limit path depth
         if self.current_path.len() >= self.max_path_length {
@@ -336,10 +338,10 @@ impl PythonPathVisitor {
                 }
             }
             Expr::BinOp(ExprBinOp { left, op, right, .. }) => {
-                let op_str = format!("{:?}", op);
+                let op_str = format!("{op:?}");
                 self.paths.push(PathContext {
                     start_terminal: self.expr_type_name(left),
-                    path: format!("BinOp|{}", op_str),
+                    path: format!("BinOp|{op_str}"),
                     end_terminal: self.expr_type_name(right),
                 });
             }
@@ -348,7 +350,7 @@ impl PythonPathVisitor {
                     let op_str = format!("{:?}", ops[0]);
                     self.paths.push(PathContext {
                         start_terminal: self.expr_type_name(left),
-                        path: format!("Compare|{}", op_str),
+                        path: format!("Compare|{op_str}"),
                         end_terminal: self.expr_type_name(&comparators[0]),
                     });
                 }
@@ -388,8 +390,9 @@ impl PythonPathVisitor {
     }
 
     /// Get a type name for an expression (for terminal nodes)
+    #[allow(clippy::self_only_used_in_recursion)]
     fn expr_type_name(&self, expr: &rustpython_parser::ast::Expr) -> String {
-        use rustpython_parser::ast::*;
+        use rustpython_parser::ast::{Expr, ExprName, ExprConstant, Constant, ExprCall, ExprAttribute};
 
         match expr {
             Expr::Name(ExprName { id, .. }) => id.to_string(),
@@ -569,7 +572,7 @@ impl<'ast> Visit<'ast> for RustPathVisitor {
             self.paths.push(PathContext {
                 start_terminal: "let".to_string(),
                 path: "Local".to_string(),
-                end_terminal: format!("{}{}", mutability, var_name),
+                end_terminal: format!("{mutability}{var_name}"),
             });
         }
 
@@ -640,6 +643,7 @@ impl AstEmbedder {
     }
 
     /// Extract path contexts from Python source using rustpython-parser (GH-210 Phase 2)
+    #[allow(clippy::manual_let_else)]
     fn extract_python_paths(&self, source: &str) -> Vec<PathContext> {
         let mut paths = Vec::new();
 
@@ -699,6 +703,7 @@ impl AstEmbedder {
     }
 
     /// Extract path contexts from Rust source using syn (GH-210 Phase 2)
+    #[allow(clippy::manual_let_else)]
     fn extract_rust_paths(&self, source: &str) -> Vec<PathContext> {
         let mut paths = Vec::new();
 
@@ -757,6 +762,7 @@ impl AstEmbedder {
     }
 
     /// Convert path contexts to embedding vector
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn paths_to_embedding(&self, paths: &[PathContext], source: &str) -> AstEmbedding {
         let dim = self.config.embedding_dim;
         let mut embedding = vec![0.0f32; dim];
@@ -789,6 +795,7 @@ impl AstEmbedder {
     }
 
     /// Simple string hash for feature indexing
+    #[allow(clippy::unused_self)]
     fn hash_string(&self, s: &str) -> u64 {
         use std::hash::{Hash, Hasher};
         let mut hasher = std::collections::hash_map::DefaultHasher::new();

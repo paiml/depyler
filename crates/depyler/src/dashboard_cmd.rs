@@ -72,6 +72,7 @@ pub struct DashboardReport {
 }
 
 /// Get the sklearn → aprender coverage data
+#[allow(clippy::cast_precision_loss)]
 pub fn get_sklearn_coverage() -> ComponentCoverage {
     let mappings = vec![
         FunctionMapping {
@@ -154,6 +155,7 @@ pub fn get_sklearn_coverage() -> ComponentCoverage {
 }
 
 /// Get the numpy → trueno coverage data
+#[allow(clippy::cast_precision_loss)]
 pub fn get_numpy_coverage() -> ComponentCoverage {
     let mappings = vec![
         FunctionMapping {
@@ -236,6 +238,7 @@ pub fn get_numpy_coverage() -> ComponentCoverage {
 }
 
 /// Get the pandas → trueno/realizar coverage data
+#[allow(clippy::cast_precision_loss)]
 pub fn get_pandas_coverage() -> ComponentCoverage {
     let mappings = vec![
         FunctionMapping {
@@ -320,6 +323,7 @@ pub fn get_pandas_coverage() -> ComponentCoverage {
 }
 
 /// Get scipy → trueno coverage data
+#[allow(clippy::cast_precision_loss)]
 pub fn get_scipy_coverage() -> ComponentCoverage {
     let mappings = vec![
         FunctionMapping {
@@ -402,6 +406,7 @@ pub fn get_scipy_coverage() -> ComponentCoverage {
 }
 
 /// Generate the full dashboard report
+#[allow(clippy::cast_precision_loss)]
 pub fn generate_dashboard() -> DashboardReport {
     let sklearn = get_sklearn_coverage();
     let numpy = get_numpy_coverage();
@@ -432,7 +437,8 @@ pub fn generate_dashboard() -> DashboardReport {
     }
 }
 
-/// Load corpus metrics from oracle_roi_metrics.json if available
+/// Load corpus metrics from `oracle_roi_metrics.json` if available
+#[allow(clippy::cast_possible_truncation)]
 fn load_corpus_metrics() -> (Option<f64>, Option<usize>) {
     let metrics_path = std::path::Path::new("docs/oracle_roi_metrics.json");
     if !metrics_path.exists() {
@@ -469,15 +475,15 @@ pub fn display_text(report: &DashboardReport) {
     // Compile rate if available
     if let Some(rate) = report.compile_rate {
         let rate_color = if rate >= 80.0 {
-            format!("{:.1}%", rate).green()
+            format!("{rate:.1}%").green()
         } else if rate >= 50.0 {
-            format!("{:.1}%", rate).yellow()
+            format!("{rate:.1}%").yellow()
         } else {
-            format!("{:.1}%", rate).red()
+            format!("{rate:.1}%").red()
         };
         print!("{} {}", "Compile Rate:".bold(), rate_color);
         if let Some(files) = report.corpus_files {
-            print!(" ({} files)", files);
+            print!(" ({files} files)");
         }
         println!();
         println!();
@@ -570,6 +576,7 @@ pub fn display_text(report: &DashboardReport) {
 }
 
 /// Create a text progress bar
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
 fn create_progress_bar(percent: f64, width: usize) -> String {
     let filled = ((percent / 100.0) * width as f64).round() as usize;
     let empty = width.saturating_sub(filled);
@@ -598,7 +605,7 @@ pub fn dashboard_command(format: &str, component: Option<&str>) -> Result<()> {
             } else {
                 serde_json::to_string_pretty(&report)?
             };
-            println!("{}", json);
+            println!("{json}");
         }
         _ => {
             display_text(&report);

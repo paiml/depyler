@@ -1,6 +1,6 @@
 //! Stdlib cryptography and encoding method converters
 //!
-//! DEPYLER-REFACTOR: Extracted from expr_gen/mod.rs
+//! DEPYLER-REFACTOR: Extracted from `expr_gen/mod.rs`
 //!
 //! Contains converters for Python standard library modules related to
 //! cryptography, encoding, and platform information:
@@ -12,19 +12,19 @@
 //! - `platform` — System/platform information
 
 use super::ExpressionConverter;
-use crate::hir::*;
+use crate::hir::{HirExpr, Literal};
 use crate::rust_gen::context::ToRustExpr;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     /// Try to convert base64 module method calls
     /// DEPYLER-STDLIB-BASE64: Base64 and variants encoding/decoding
     ///
     /// Maps Python base64 module to Rust base64 crate:
-    /// - base64.b64encode() → base64::encode()
-    /// - base64.b64decode() → base64::decode()
-    /// - base64.urlsafe_b64encode() → URL-safe encoding
+    /// - `base64.b64encode()` → `base64::encode()`
+    /// - `base64.b64decode()` → `base64::decode()`
+    /// - `base64.urlsafe_b64encode()` → URL-safe encoding
     ///
     /// # Complexity
     /// 10 (match with 10 branches for different encodings)
@@ -97,7 +97,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Base32 (note: base64 crate doesn't support base32, would need data-encoding crate)
             "b32encode" | "b32decode" => {
                 // Simplified: note that full implementation needs data-encoding crate
-                bail!("base64.{} requires data-encoding crate (not yet integrated)", method);
+                bail!("base64.{method} requires data-encoding crate (not yet integrated)");
             }
 
             // Base16 (Hex)
@@ -128,11 +128,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Base85 (also needs additional crate)
             "b85encode" | "b85decode" => {
                 // Simplified: note that full implementation needs additional crate
-                bail!("base64.{} requires base85 encoding crate (not yet integrated)", method);
+                bail!("base64.{method} requires base85 encoding crate (not yet integrated)");
             }
 
             _ => {
-                bail!("base64.{} not implemented yet", method);
+                bail!("base64.{method} not implemented yet");
             }
         };
 
@@ -143,8 +143,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-STDLIB-SECRETS: Cryptographically strong random operations
     ///
     /// Maps Python secrets module to Rust rand crate (cryptographic RNG):
-    /// - secrets.randbelow() → rand::thread_rng().gen_range()
-    /// - secrets.token_bytes() → Cryptographically secure random bytes
+    /// - `secrets.randbelow()` → `rand::thread_rng().gen_range()`
+    /// - `secrets.token_bytes()` → Cryptographically secure random bytes
     ///
     /// # Complexity
     /// 5 (match with 5 branches)
@@ -249,7 +249,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("secrets.{} not implemented yet", method);
+                bail!("secrets.{method} not implemented yet");
             }
         };
 
@@ -265,6 +265,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// # Complexity
     /// Cyclomatic: 9 (match with 8 algorithms + default)
     #[inline]
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn try_convert_hashlib_method(
         &mut self,
         method: &str,
@@ -561,7 +562,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("hashlib.{} not implemented yet (try: md5, sha1, sha224, sha256, sha384, sha512, blake2b, blake2s, new)", method);
+                bail!("hashlib.{method} not implemented yet (try: md5, sha1, sha224, sha256, sha384, sha512, blake2b, blake2s, new)");
             }
         };
 
@@ -624,7 +625,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("uuid.{} not implemented yet (try: uuid1, uuid4)", method);
+                bail!("uuid.{method} not implemented yet (try: uuid1, uuid4)");
             }
         };
 
@@ -634,7 +635,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Try to convert hmac module method calls
     /// DEPYLER-STDLIB-HMAC: HMAC authentication
     ///
-    /// Supports: new() with SHA256, compare_digest()
+    /// Supports: `new()` with SHA256, `compare_digest()`
     /// Returns hex digest for one-shot HMAC
     ///
     /// # Complexity
@@ -698,7 +699,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("hmac.{} not implemented yet (try: new, compare_digest)", method);
+                bail!("hmac.{method} not implemented yet (try: new, compare_digest)");
             }
         };
 
@@ -708,14 +709,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Try to convert platform module method calls
     /// DEPYLER-0430: platform module - system information
     ///
-    /// Maps Python platform module to Rust std::env::consts:
-    /// - platform.system() → std::env::consts::OS
-    /// - platform.machine() → std::env::consts::ARCH
-    /// - platform.python_version() → "3.11.0" (hardcoded constant)
+    /// Maps Python platform module to Rust `std::env::consts`:
+    /// - `platform.system()` → `std::env::consts::OS`
+    /// - `platform.machine()` → `std::env::consts::ARCH`
+    /// - `platform.python_version()` → "3.11.0" (hardcoded constant)
     ///
     /// # Complexity
     /// ≤10 (simple match with few branches)
     #[inline]
+    #[allow(clippy::unused_self)]
     pub(crate) fn try_convert_platform_method(
         &mut self,
         method: &str,
@@ -748,8 +750,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             _ => {
                 bail!(
-                    "platform.{} not implemented yet (try: system, machine, python_version, release)",
-                    method
+                    "platform.{method} not implemented yet (try: system, machine, python_version, release)"
                 );
             }
         };

@@ -152,6 +152,7 @@ impl QualityAnalyzer {
         Self { gates, annotation_validator: AnnotationValidator::new() }
     }
 
+    #[allow(clippy::similar_names)]
     pub fn analyze_quality(
         &self,
         functions: &[HirFunction],
@@ -198,6 +199,7 @@ impl QualityAnalyzer {
         })
     }
 
+    #[allow(clippy::unused_self, clippy::unnecessary_wraps, clippy::cast_precision_loss)]
     fn calculate_pmat_metrics(
         &self,
         functions: &[HirFunction],
@@ -206,7 +208,7 @@ impl QualityAnalyzer {
         let avg_complexity = if functions.is_empty() {
             0.0
         } else {
-            functions.iter().map(|f| calculate_cyclomatic(&f.body) as f64).sum::<f64>()
+            functions.iter().map(|f| f64::from(calculate_cyclomatic(&f.body))).sum::<f64>()
                 / functions.len() as f64
         };
 
@@ -217,7 +219,7 @@ impl QualityAnalyzer {
         let avg_cognitive = if functions.is_empty() {
             0.0
         } else {
-            functions.iter().map(|f| calculate_cognitive(&f.body) as f64).sum::<f64>()
+            functions.iter().map(|f| f64::from(calculate_cognitive(&f.body))).sum::<f64>()
                 / functions.len() as f64
         };
         let maintainability_score = (100.0_f64 / (avg_cognitive + 1.0)).min(100.0);
@@ -243,6 +245,7 @@ impl QualityAnalyzer {
         })
     }
 
+    #[allow(clippy::unused_self)]
     fn calculate_complexity_metrics(&self, functions: &[HirFunction]) -> ComplexityMetrics {
         let cyclomatic_complexity =
             functions.iter().map(|f| calculate_cyclomatic(&f.body)).max().unwrap_or(0);
@@ -266,6 +269,7 @@ impl QualityAnalyzer {
         }
     }
 
+    #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     fn calculate_coverage_metrics(&self) -> Result<CoverageMetrics, QualityError> {
         // Updated coverage metrics based on improved test suite
         // We now have comprehensive playground tests added
@@ -277,6 +281,7 @@ impl QualityAnalyzer {
         })
     }
 
+    #[allow(clippy::unused_self)]
     fn evaluate_gate(
         &self,
         gate: &QualityGate,
@@ -482,6 +487,7 @@ edition = "2021"
         }
     }
 
+    #[must_use]
     pub fn with_custom_gates(mut self, gates: Vec<QualityGate>) -> Self {
         self.gates.extend(gates);
         self

@@ -1,28 +1,29 @@
 //! Stdlib os.path method converters
 //!
-//! DEPYLER-REFACTOR: Extracted from expr_gen/mod.rs
+//! DEPYLER-REFACTOR: Extracted from `expr_gen/mod.rs`
 //!
 //! Contains converters for Python os.path module:
-//! - `try_convert_os_path_method` — Maps os.path calls to std::path + std::fs
+//! - `try_convert_os_path_method` — Maps os.path calls to `std::path` + `std::fs`
 
 use super::ExpressionConverter;
-use crate::hir::*;
+use crate::hir::HirExpr;
 use crate::rust_gen::context::ToRustExpr;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     /// Try to convert os.path module method calls
     /// DEPYLER-STDLIB-OSPATH: Path manipulation and file system operations
     ///
-    /// Maps Python os.path module to Rust std::path + std::fs:
-    /// - os.path.join() → PathBuf::new().join()
-    /// - os.path.basename() → Path::file_name()
-    /// - os.path.exists() → Path::exists()
+    /// Maps Python os.path module to Rust `std::path` + `std::fs`:
+    /// - `os.path.join()` → `PathBuf::new().join()`
+    /// - `os.path.basename()` → `Path::file_name()`
+    /// - `os.path.exists()` → `Path::exists()`
     ///
     /// # Complexity
     /// 10 (match with 10 primary branches - split into helper methods as needed)
     #[inline]
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn try_convert_os_path_method(
         &mut self,
         method: &str,

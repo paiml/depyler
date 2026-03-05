@@ -14,7 +14,7 @@ use std::collections::HashMap;
 pub struct StdlibApiMapping {
     /// Python module (e.g., "csv", "os", "json")
     pub module: &'static str,
-    /// Python class/type (e.g., "DictReader", "Path")
+    /// Python class/type (e.g., "`DictReader`", "Path")
     pub class: &'static str,
     /// Python attribute/method (e.g., "fieldnames", "__iter__")
     pub python_attr: &'static str,
@@ -34,7 +34,7 @@ pub enum RustPattern {
         propagate_error: bool,
     },
 
-    /// Property access becomes method call: obj.property → obj.method()
+    /// Property access becomes method call: obj.property → `obj.method()`
     PropertyToMethod { method: &'static str, propagate_error: bool },
 
     /// Custom iteration pattern
@@ -88,7 +88,7 @@ pub trait StdlibPlugin {
     fn name(&self) -> &str;
 
     /// Optional: Plugin version
-    fn version(&self) -> &str {
+    fn version(&self) -> &'static str {
         "0.1.0"
     }
 }
@@ -248,25 +248,25 @@ impl RustPattern {
         match self {
             RustPattern::MethodCall { method, extra_args, propagate_error } => {
                 let mut all_args = original_args.to_vec();
-                all_args.extend(extra_args.iter().map(|s| s.to_string()));
+                all_args.extend(extra_args.iter().map(std::string::ToString::to_string));
                 let args_str = all_args.join(", ");
                 let call = if args_str.is_empty() {
-                    format!("{}.{}()", base_expr, method)
+                    format!("{base_expr}.{method}()")
                 } else {
-                    format!("{}.{}({})", base_expr, method, args_str)
+                    format!("{base_expr}.{method}({args_str})")
                 };
 
                 if *propagate_error {
-                    format!("{}?", call)
+                    format!("{call}?")
                 } else {
                     call
                 }
             }
 
             RustPattern::PropertyToMethod { method, propagate_error } => {
-                let call = format!("{}.{}()", base_expr, method);
+                let call = format!("{base_expr}.{method}()");
                 if *propagate_error {
-                    format!("{}?", call)
+                    format!("{call}?")
                 } else {
                     call
                 }
@@ -274,9 +274,9 @@ impl RustPattern {
 
             RustPattern::IterationPattern { iter_method, element_type, yields_results: _ } => {
                 if let Some(elem_type) = element_type {
-                    format!("{}.{}::<{}>()", base_expr, iter_method, elem_type)
+                    format!("{base_expr}.{iter_method}::<{elem_type}>()")
                 } else {
-                    format!("{}.{}()", base_expr, iter_method)
+                    format!("{base_expr}.{iter_method}()")
                 }
             }
 

@@ -64,11 +64,13 @@ impl PropertyVerifier {
         Self::default()
     }
 
+    #[must_use]
     pub fn with_iterations(mut self, iterations: usize) -> Self {
         self.test_iterations = iterations;
         self
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     pub fn verify_function(&self, func: &HirFunction) -> Vec<VerificationResult> {
         let mut results = vec![];
 
@@ -169,6 +171,8 @@ impl PropertyVerifier {
         results
     }
 
+    #[allow(clippy::unused_self)]
+    #[allow(clippy::unnecessary_wraps)]
     fn verify_type_preservation(&self, func: &HirFunction) -> Option<VerificationResult> {
         // Check if all types are properly annotated
         let all_typed =
@@ -220,6 +224,7 @@ impl PropertyVerifier {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn detect_shared_state(&self, func: &HirFunction) -> bool {
         // Simplified check - in reality would analyze data flow
         func.annotations.ownership_model == depyler_annotations::OwnershipModel::Shared

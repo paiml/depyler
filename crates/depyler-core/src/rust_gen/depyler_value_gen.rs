@@ -1,21 +1,22 @@
-//! DepylerValue enum generation - heterogeneous Python dict support
-//! DEPYLER-DECOMPOSE: Extracted from rust_gen.rs
+//! `DepylerValue` enum generation - heterogeneous Python dict support
+//! DEPYLER-DECOMPOSE: Extracted from `rust_gen.rs`
 //!
-//! Contains the DepylerValue sum type and all its trait implementations:
-//! - Display, Hash, Eq, PartialEq, PartialOrd, Ord
+//! Contains the `DepylerValue` sum type and all its trait implementations:
+//! - Display, Hash, Eq, `PartialEq`, `PartialOrd`, Ord
 //! - From<T> for various types
-//! - Index<usize>, Index<i64>, IndexMut
+//! - Index<usize>, Index<i64>, `IndexMut`
 //! - Iterator support
 //! - Arithmetic operators (Add, Sub, Mul, Div, Rem, Neg)
-//! - String methods (len, chars, contains, starts_with, etc.)
+//! - String methods (len, chars, contains, `starts_with`, etc.)
 
 use quote::quote;
 
-/// Generate the DepylerValue enum and all its trait implementations.
+/// Generate the `DepylerValue` enum and all its trait implementations.
 ///
-/// Returns a TokenStream containing the complete DepylerValue type definition
+/// Returns a `TokenStream` containing the complete `DepylerValue` type definition
 /// with all necessary trait implementations for Python-compatible heterogeneous
 /// dictionary values.
+#[allow(clippy::too_many_lines)]
 pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
     quote! {
             /// Sum type for heterogeneous dictionary values (Python fidelity)

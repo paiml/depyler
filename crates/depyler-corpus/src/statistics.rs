@@ -34,6 +34,7 @@ pub struct StatisticalAnalysis {
 
 impl StatisticalAnalysis {
     /// Compute statistics from compilation results and taxonomy.
+    #[allow(clippy::cast_precision_loss)]
     pub fn compute(results: &[CompilationResult], taxonomy: &ErrorTaxonomy) -> Self {
         let total_files = results.len();
         let passed_files = results.iter().filter(|r| r.success).count();
@@ -53,10 +54,10 @@ impl StatisticalAnalysis {
         let total_errors = taxonomy.errors.len();
         let errors_per_file = Self::compute_errors_per_file(results, taxonomy);
 
-        let mean_errors_per_file = if !errors_per_file.is_empty() {
-            errors_per_file.iter().sum::<f64>() / errors_per_file.len() as f64
-        } else {
+        let mean_errors_per_file = if errors_per_file.is_empty() {
             0.0
+        } else {
+            errors_per_file.iter().sum::<f64>() / errors_per_file.len() as f64
         };
 
         let std_deviation = Self::standard_deviation(&errors_per_file, mean_errors_per_file);
@@ -78,6 +79,7 @@ impl StatisticalAnalysis {
 
     /// Wilson score interval for binomial proportion.
     /// More accurate than normal approximation for small samples.
+    #[allow(clippy::cast_precision_loss)]
     fn wilson_score_interval(successes: usize, total: usize, z: f64) -> (f64, f64) {
         if total == 0 {
             return (0.0, 0.0);
@@ -98,6 +100,7 @@ impl StatisticalAnalysis {
     }
 
     /// Compute errors per file for failed compilations.
+    #[allow(clippy::cast_precision_loss)]
     fn compute_errors_per_file(
         results: &[CompilationResult],
         taxonomy: &ErrorTaxonomy,
@@ -121,6 +124,7 @@ impl StatisticalAnalysis {
     }
 
     /// Calculate standard deviation.
+    #[allow(clippy::cast_precision_loss)]
     fn standard_deviation(values: &[f64], mean: f64) -> f64 {
         if values.is_empty() {
             return 0.0;
@@ -143,7 +147,7 @@ impl StatisticalAnalysis {
 
         let mid = sorted.len() / 2;
         if sorted.len().is_multiple_of(2) {
-            (sorted[mid - 1] + sorted[mid]) / 2.0
+            f64::midpoint(sorted[mid - 1], sorted[mid])
         } else {
             sorted[mid]
         }

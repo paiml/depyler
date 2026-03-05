@@ -14,7 +14,7 @@ use super::compiler::CompilationError;
 pub enum RootCause {
     /// Gap in transpiler implementation
     TranspilerGap {
-        /// Type of gap (missing_method, type_inference, etc.)
+        /// Type of gap (`missing_method`, `type_inference`, etc.)
         gap_type: String,
         /// Location in transpiler code
         location: String,
@@ -74,6 +74,7 @@ pub struct SuggestedFix {
 
 impl SuggestedFix {
     /// Apply the suggested fix
+    #[allow(clippy::unnecessary_wraps)]
     pub fn apply(&self) -> anyhow::Result<super::state::AppliedFix> {
         // Stub implementation - will be implemented in GREEN phase
         Ok(super::state::AppliedFix {
@@ -106,6 +107,7 @@ pub struct ErrorCluster {
 
 impl ErrorCluster {
     /// Calculate impact score: number of examples * confidence
+    #[allow(clippy::cast_precision_loss)]
     pub fn impact_score(&self) -> f64 {
         self.examples_blocked.len() as f64 * self.fix_confidence
     }
@@ -123,6 +125,7 @@ impl ErrorClusterer {
     }
 
     /// Cluster errors by error code and subcategory
+    #[allow(clippy::cast_precision_loss)]
     pub fn cluster(&self, classifications: &[ErrorClassification]) -> Vec<ErrorCluster> {
         // Group by error code
         let mut groups: HashMap<String, Vec<&ErrorClassification>> = HashMap::new();

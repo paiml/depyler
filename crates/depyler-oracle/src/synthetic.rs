@@ -118,17 +118,16 @@ impl SyntheticGenerator {
             let context = contexts[(idx / (type_pairs.len() * error_codes.len())) % contexts.len()];
 
             let msg = format!(
-                "error[{}]: mismatched types\n  expected `{}`, found `{}`\n  {}",
-                code, expected, found, context
+                "error[{code}]: mismatched types\n  expected `{expected}`, found `{found}`\n  {context}"
             );
 
             let fix = match (expected, found) {
                 ("String", "&str") => "Use .to_string() to convert",
                 ("&str", "String") => "Use & or .as_str() to borrow",
-                (e, f) if e.starts_with("i") && f.starts_with("i") => {
+                (e, f) if e.starts_with('i') && f.starts_with('i') => {
                     "Use as cast for integer conversion"
                 }
-                (e, f) if e.starts_with("u") && f.starts_with("u") => {
+                (e, f) if e.starts_with('u') && f.starts_with('u') => {
                     "Use as cast for unsigned conversion"
                 }
                 ("Option<T>", "T") => "Wrap with Some(value)",
@@ -217,8 +216,7 @@ impl SyntheticGenerator {
                 patterns[(idx / (lifetimes.len() * error_codes.len())) % patterns.len()];
 
             let msg = format!(
-                "error[{}]: {}\n  expected named lifetime parameter `{}`",
-                code, pattern, lt
+                "error[{code}]: {pattern}\n  expected named lifetime parameter `{lt}`"
             );
 
             samples.push(TrainingSample::with_fix(&msg, ErrorCategory::LifetimeError, fix));
@@ -264,20 +262,19 @@ impl SyntheticGenerator {
             let type_name = types[(idx / traits.len()) % types.len()];
 
             let msg = format!(
-                "error[E0277]: the trait bound `{}: {}` is not satisfied\n  required by this bound",
-                type_name, trait_name
+                "error[E0277]: the trait bound `{type_name}: {trait_name}` is not satisfied\n  required by this bound"
             );
 
             let fix = match trait_name {
                 "Clone" | "Copy" | "Debug" | "Default" | "Eq" | "PartialEq" | "Ord"
                 | "PartialOrd" | "Hash" => {
-                    format!("Add #[derive({})] to type definition", trait_name)
+                    format!("Add #[derive({trait_name})] to type definition")
                 }
                 "Send" | "Sync" => "Ensure all fields are thread-safe".to_string(),
                 "Serialize" | "Deserialize" => {
                     "Add #[derive(Serialize, Deserialize)] with serde".to_string()
                 }
-                _ => format!("Implement {} for the type", trait_name),
+                _ => format!("Implement {trait_name} for the type"),
             };
 
             samples.push(TrainingSample::with_fix(&msg, ErrorCategory::TraitBound, &fix));
@@ -323,24 +320,23 @@ impl SyntheticGenerator {
 
             let msg = match code {
                 "E0433" => format!(
-                    "error[{}]: failed to resolve: use of undeclared crate or module `{}`",
-                    code, item
+                    "error[{code}]: failed to resolve: use of undeclared crate or module `{item}`"
                 ),
-                "E0412" => format!("error[{}]: cannot find type `{}` in this scope", code, item),
+                "E0412" => format!("error[{code}]: cannot find type `{item}` in this scope"),
                 "E0425" => format!(
                     "error[{}]: cannot find value `{}` in this scope",
                     code,
                     item.to_lowercase()
                 ),
-                "E0432" => format!("error[{}]: unresolved import `{}`", code, module),
+                "E0432" => format!("error[{code}]: unresolved import `{module}`"),
                 "E0603" => format!("error[{}]: module `{}` is private", code, item.to_lowercase()),
                 "E0599" => {
                     format!("error[{}]: no method named `{}` found", code, item.to_lowercase())
                 }
-                _ => format!("error[{}]: import error for `{}`", code, module),
+                _ => format!("error[{code}]: import error for `{module}`"),
             };
 
-            let fix = format!("Add: use {};", module);
+            let fix = format!("Add: use {module};");
 
             samples.push(TrainingSample::with_fix(&msg, ErrorCategory::MissingImport, &fix));
             idx += 1;

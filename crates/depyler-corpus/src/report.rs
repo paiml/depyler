@@ -11,6 +11,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::path::Path;
+use std::fmt::Write as _;
 
 /// Output format for reports.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -144,12 +145,13 @@ pub struct ToyotaWayMetrics {
 
 impl CorpusReport {
     /// Create a new corpus report from analysis results.
+    #[allow(clippy::cast_precision_loss)]
     pub fn new(
         config: &CorpusConfig,
-        transpile_results: Vec<TranspilationResult>,
-        compile_results: Vec<CompilationResult>,
-        taxonomy: ErrorTaxonomy,
-        statistics: StatisticalAnalysis,
+        transpile_results: &[TranspilationResult],
+        compile_results: &[CompilationResult],
+        taxonomy: &ErrorTaxonomy,
+        statistics: &StatisticalAnalysis,
     ) -> Self {
         let transpile_success = transpile_results.iter().filter(|r| r.success).count();
         let compile_success = compile_results.iter().filter(|r| r.success).count();
@@ -167,10 +169,10 @@ impl CorpusReport {
                 transpilation: TranspilationSummary {
                     success: transpile_success,
                     failure: transpile_results.len() - transpile_success,
-                    rate: if !transpile_results.is_empty() {
-                        (transpile_success as f64 / transpile_results.len() as f64) * 100.0
-                    } else {
+                    rate: if transpile_results.is_empty() {
                         0.0
+                    } else {
+                        (transpile_success as f64 / transpile_results.len() as f64) * 100.0
                     },
                 },
                 compilation: CompilationSummary {
@@ -181,17 +183,18 @@ impl CorpusReport {
                 single_shot_rate: statistics.single_shot_rate,
                 confidence_interval_95: (statistics.ci_95_lower, statistics.ci_95_upper),
             },
-            error_distribution: Self::build_error_distribution(&taxonomy),
-            blocker_analysis: Self::build_blocker_analysis(&taxonomy),
+            error_distribution: Self::build_error_distribution(taxonomy),
+            blocker_analysis: Self::build_blocker_analysis(taxonomy),
             statistical_analysis: statistics.clone(),
             toyota_way_metrics: Self::build_toyota_metrics(
-                &statistics,
-                &taxonomy,
+                statistics,
+                taxonomy,
                 config.target_rate,
             ),
         }
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn build_error_distribution(taxonomy: &ErrorTaxonomy) -> ErrorDistribution {
         let total_errors: usize = taxonomy.by_category.values().sum();
 
@@ -260,7 +263,7 @@ impl CorpusReport {
                 .iter()
                 .filter(|b| b.priority == BlockerPriority::P0Critical)
                 .count(),
-            andon_triggers: if andon_status == AndonStatus::Red { 1 } else { 0 },
+            andon_triggers: usize::from(andon_status == AndonStatus::Red),
             kaizen_opportunities: taxonomy
                 .blockers
                 .iter()
@@ -313,30 +316,28 @@ impl CorpusReport {
     pub fn to_markdown(&self) -> String {
         let mut md = String::new();
 
-        md.push_str(&format!("# Corpus Analysis Report: {}\n\n", self.metadata.corpus_name));
-        md.push_str(&format!("**Generated**: {}\n", self.metadata.generated_at));
-        md.push_str(&format!("**Depyler Version**: {}\n\n", self.metadata.depyler_version));
+        writeln!(md, "# Corpus Analysis Report: {}\n", self.metadata.corpus_name).expect("write to String");
+        writeln!(md, "**Generated**: {}", self.metadata.generated_at).expect("write to String");
+        writeln!(md, "**Depyler Version**: {}\n", self.metadata.depyler_version).expect("write to String");
 
         md.push_str("## Executive Summary\n\n");
         md.push_str("| Metric | Value |\n");
         md.push_str("|--------|-------|\n");
-        md.push_str(&format!("| Single-Shot Rate | {:.1}% |\n", self.summary.single_shot_rate));
-        md.push_str(&format!(
-            "| 95% CI | [{:.1}%, {:.1}%] |\n",
+        writeln!(md, "| Single-Shot Rate | {:.1}% |", self.summary.single_shot_rate).expect("write to String");
+        writeln!(md, "| 95% CI | [{:.1}%, {:.1}%] |",
             self.summary.confidence_interval_95.0, self.summary.confidence_interval_95.1
-        ));
-        md.push_str(&format!("| Total Files | {} |\n", self.summary.total_python_files));
-        md.push_str(&format!("| Compiled Successfully | {} |\n", self.summary.compilation.success));
-        md.push_str(&format!(
-            "| Compilation Failures | {} |\n\n",
+        ).expect("write to String");
+        writeln!(md, "| Total Files | {} |", self.summary.total_python_files).expect("write to String");
+        writeln!(md, "| Compiled Successfully | {} |", self.summary.compilation.success).expect("write to String");
+        writeln!(md, "| Compilation Failures | {} |\n",
             self.summary.compilation.failure
-        ));
+        ).expect("write to String");
 
         md.push_str("## Error Distribution\n\n");
         md.push_str("| Error Code | Count | Description |\n");
         md.push_str("|------------|-------|-------------|\n");
         for err in &self.error_distribution.by_error_code {
-            md.push_str(&format!("| {} | {} | {} |\n", err.code, err.count, err.description));
+            writeln!(md, "| {} | {} | {} |", err.code, err.count, err.description).expect("write to String");
         }
         md.push('\n');
 
@@ -344,36 +345,33 @@ impl CorpusReport {
         if !self.blocker_analysis.p0_critical.is_empty() {
             md.push_str("### P0 Critical\n\n");
             for b in &self.blocker_analysis.p0_critical {
-                md.push_str(&format!(
-                    "- **{}** ({} occurrences): {}\n",
+                writeln!(md, "- **{}** ({} occurrences): {}",
                     b.error_code, b.count, b.root_cause
-                ));
+                    ).expect("write to String");
             }
             md.push('\n');
         }
         if !self.blocker_analysis.p1_high.is_empty() {
             md.push_str("### P1 High\n\n");
             for b in &self.blocker_analysis.p1_high {
-                md.push_str(&format!(
-                    "- **{}** ({} occurrences): {}\n",
+                writeln!(md, "- **{}** ({} occurrences): {}",
                     b.error_code, b.count, b.root_cause
-                ));
+                    ).expect("write to String");
             }
             md.push('\n');
         }
 
         md.push_str("## Toyota Way Metrics\n\n");
-        md.push_str(&format!("- Jidoka Alerts: {}\n", self.toyota_way_metrics.jidoka_alerts));
-        md.push_str(&format!("- Andon Triggers: {}\n", self.toyota_way_metrics.andon_triggers));
-        md.push_str(&format!(
-            "- Kaizen Opportunities: {}\n\n",
+        writeln!(md, "- Jidoka Alerts: {}", self.toyota_way_metrics.jidoka_alerts).expect("write to String");
+        writeln!(md, "- Andon Triggers: {}", self.toyota_way_metrics.andon_triggers).expect("write to String");
+        writeln!(md, "- Kaizen Opportunities: {}\n",
             self.toyota_way_metrics.kaizen_opportunities
-        ));
+        ).expect("write to String");
 
         if !self.toyota_way_metrics.hansei_items.is_empty() {
             md.push_str("### Hansei (反省) - Lessons Learned\n\n");
             for item in &self.toyota_way_metrics.hansei_items {
-                md.push_str(&format!("- {item}\n"));
+                writeln!(md, "- {item}").expect("write to String");
             }
         }
 
@@ -385,28 +383,23 @@ impl CorpusReport {
         let mut out = String::new();
 
         out.push_str("╔══════════════════════════════════════════════════════════════╗\n");
-        out.push_str(&format!("║  CORPUS ANALYSIS: {:<42} ║\n", self.metadata.corpus_name));
+        writeln!(out, "║  CORPUS ANALYSIS: {:<42} ║", self.metadata.corpus_name).expect("write to String");
         out.push_str("╠══════════════════════════════════════════════════════════════╣\n");
-        out.push_str(&format!(
-            "║  Single-Shot Rate:        {:>5.1}%                             ║\n",
+        writeln!(out, "║  Single-Shot Rate:        {:>5.1}%                             ║",
             self.summary.single_shot_rate
-        ));
-        out.push_str(&format!(
-            "║  95% CI:                  [{:>4.1}%, {:>4.1}%]                       ║\n",
+        ).expect("write to String");
+        writeln!(out, "║  95% CI:                  [{:>4.1}%, {:>4.1}%]                       ║",
             self.summary.confidence_interval_95.0, self.summary.confidence_interval_95.1
-        ));
-        out.push_str(&format!(
-            "║  Total Files:             {:>5}                              ║\n",
+        ).expect("write to String");
+        writeln!(out, "║  Total Files:             {:>5}                              ║",
             self.summary.total_python_files
-        ));
-        out.push_str(&format!(
-            "║  ✓ Compiled OK:           {:>5}                              ║\n",
+        ).expect("write to String");
+        writeln!(out, "║  ✓ Compiled OK:           {:>5}                              ║",
             self.summary.compilation.success
-        ));
-        out.push_str(&format!(
-            "║  ✗ Compilation Failed:    {:>5}                              ║\n",
+        ).expect("write to String");
+        writeln!(out, "║  ✗ Compilation Failed:    {:>5}                              ║",
             self.summary.compilation.failure
-        ));
+        ).expect("write to String");
         out.push_str("╚══════════════════════════════════════════════════════════════╝\n");
 
         out
@@ -472,7 +465,7 @@ mod tests {
             total_errors: 0,
         };
 
-        CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics)
+        CorpusReport::new(&config, &transpile_results, &compile_results, &taxonomy, &statistics)
     }
 
     #[test]
@@ -536,7 +529,7 @@ mod tests {
         };
 
         let report =
-            CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics);
+            CorpusReport::new(&config, &transpile_results, &compile_results, &taxonomy, &statistics);
         assert_eq!(report.summary.transpilation.failure, 1);
         assert_eq!(report.summary.compilation.failure, 1);
         assert!(!report.error_distribution.by_category.is_empty());
@@ -567,7 +560,7 @@ mod tests {
         };
 
         let report =
-            CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics);
+            CorpusReport::new(&config, &transpile_results, &compile_results, &taxonomy, &statistics);
         assert_eq!(report.summary.transpilation.rate, 0.0);
     }
 
@@ -634,7 +627,7 @@ mod tests {
         };
 
         let report =
-            CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics);
+            CorpusReport::new(&config, &transpile_results, &compile_results, &taxonomy, &statistics);
         let md = report.to_markdown();
 
         assert!(md.contains("P0 Critical"));

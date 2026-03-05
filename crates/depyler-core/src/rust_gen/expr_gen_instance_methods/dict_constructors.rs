@@ -1,4 +1,4 @@
-//! Dict constructor handlers for ExpressionConverter
+//! Dict constructor handlers for `ExpressionConverter`
 //!
 //! Extracted from mod.rs to reduce file size and improve maintainability.
 //! Contains handlers for: dict literal conversion and related helpers.
@@ -6,7 +6,7 @@
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
 use crate::direct_rules::type_to_rust_type;
-use crate::hir::*;
+use crate::hir::{HirExpr, Type, Literal};
 use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use crate::trace_decision;
@@ -14,7 +14,8 @@ use anyhow::{bail, Result};
 use quote::quote;
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
+    #[allow(clippy::match_same_arms, clippy::too_many_lines)]
     pub(crate) fn convert_dict(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
         // CITL: Trace dict construction decision
         trace_decision!(
@@ -562,7 +563,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // HashMap<K, V> expects V, not Result<V, E>, so we need to unwrap
             if let HirExpr::Call { func, .. } = value {
                 if self.ctx.result_returning_functions.contains(func) {
-                    let error_msg = format!("{} failed", func);
+                    let error_msg = format!("{func} failed");
                     val_expr = parse_quote! { #val_expr.expect(#error_msg) };
                 }
             }
@@ -591,7 +592,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if value is a numeric type that can be coerced
                 let value_is_numeric = matches!(
                     value,
-                    HirExpr::Literal(Literal::Int(_)) | HirExpr::Literal(Literal::Float(_))
+                    HirExpr::Literal(Literal::Int(_) | Literal::Float(_))
                 ) || {
                     if let HirExpr::Var(name) = value {
                         matches!(self.ctx.var_types.get(name), Some(Type::Int | Type::Float))
@@ -707,12 +708,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     // DEPYLER-COVERAGE-95: return_type_is_dict_list_union moved to stdlib_method_gen::json
 
-    /// DEPYLER-0560: Check if function return type requires serde_json::Value for dicts
+    /// DEPYLER-0560: Check if function return type requires `serde_json::Value` for dicts
     /// DEPYLER-0727: Also check assignment target type for inline dict literals
     ///
     /// Returns true if current function returns Dict[str, Any] or Dict[str, Unknown],
     /// OR if assigning to a variable with Dict[str, Any] type annotation,
-    /// which maps to HashMap<String, serde_json::Value>. In these cases, dict literals
+    /// which maps to `HashMap`<String, `serde_json::Value`>. In these cases, dict literals
     /// should use json!() to ensure type compatibility.
     pub(crate) fn return_type_needs_json_dict(&self) -> bool {
         // DEPYLER-0727: Check assignment target type first (e.g., d: Dict[str, Any] = {...})
@@ -742,9 +743,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// Helper: Check if a type should use serde_json::Value
-    /// DEPYLER-0726: Also check for Type::Custom("Any") after DEPYLER-0725 fix
+    /// Helper: Check if a type should use `serde_json::Value`
+    /// DEPYLER-0726: Also check for `Type::Custom("Any`") after DEPYLER-0725 fix
     /// DEPYLER-0773: Also check for "object" which is Python's top-level type
+    #[allow(clippy::too_many_lines, clippy::unnecessary_wraps)]
     pub(crate) fn is_json_value_type(ty: &Type) -> bool {
         matches!(ty, Type::Unknown)
             || matches!(ty, Type::Custom(s) if s == "serde_json::Value" || s == "Value" || s == "Any" || s == "object")
@@ -752,7 +754,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0376: Check if dict has heterogeneous value types
     /// DEPYLER-0270 FIX: Only flag as heterogeneous when we have strong evidence
-    /// DEPYLER-0461: Also detect nested dicts which require serde_json::Value
+    /// DEPYLER-0461: Also detect nested dicts which require `serde_json::Value`
+    #[allow(clippy::match_same_arms, clippy::too_many_lines, clippy::unnecessary_wraps)]
     pub(crate) fn dict_has_mixed_types(&self, items: &[(HirExpr, HirExpr)]) -> Result<bool> {
         // DEPYLER-1166: Check for nested dicts FIRST (before item count check)
         // A single-item dict like {"key": {...}} should still trigger DepylerValue
@@ -854,7 +857,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         match type_str.as_str() {
                             "bool" => has_bool_literal = true,
                             "i32" | "i64" | "isize" | "u8" | "u32" | "u64" => {
-                                has_int_literal = true
+                                has_int_literal = true;
                             }
                             "f32" | "f64" => has_float_literal = true,
                             "String" => has_string_literal = true,
@@ -911,7 +914,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0461: Recursively check if dict contains any nested dicts
     /// Returns true if any value is a Dict. When this is true, ALL nested dicts
-    /// in the tree must use json!() for consistency (json!() doesn't accept HashMap blocks)
+    /// in the tree must use json!() for consistency (json!() doesn't accept `HashMap` blocks)
     pub(crate) fn dict_contains_nested_dict(&self, items: &[(HirExpr, HirExpr)]) -> bool {
         for (_key, value) in items {
             if self.expr_is_or_contains_dict(value) {
@@ -922,6 +925,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0461: Check if expression is a dict or recursively contains a dict
+    #[allow(clippy::self_only_used_in_recursion)]
     pub(crate) fn expr_is_or_contains_dict(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Dict(_) => true,

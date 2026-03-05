@@ -11,6 +11,7 @@ pub fn calculate_cyclomatic(body: &[HirStmt]) -> u32 {
     complexity
 }
 
+#[allow(clippy::match_same_arms)]
 fn cyclomatic_stmt(stmt: &HirStmt) -> u32 {
     match stmt {
         HirStmt::If { then_body, else_body, .. } => {

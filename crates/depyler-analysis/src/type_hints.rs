@@ -3,6 +3,7 @@ use anyhow::Result;
 use colored::Colorize;
 use depyler_hir::hir::{HirExpr, HirFunction, HirStmt, Type};
 use std::collections::HashMap;
+use std::fmt::Write as _;
 
 /// Type inference hints provider
 pub struct TypeHintProvider {
@@ -144,7 +145,7 @@ impl TypeHintProvider {
         for param in &func.params {
             if matches!(param.ty, Type::Unknown) {
                 // DEPYLER-0492: Infer type from default value first (highest confidence)
-                if let Some(hint) = self.infer_from_default(&param.name, &param.default) {
+                if let Some(hint) = Self::infer_from_default(&param.name, &param.default) {
                     hints.push(hint.clone());
                     self.parameter_hints.entry(func.name.clone()).or_default().push(hint);
                 } else if let Some(hint) = self.infer_parameter_type(&param.name) {
@@ -166,7 +167,7 @@ impl TypeHintProvider {
 
     fn collect_variable_hints(&mut self, hints: &mut Vec<TypeHint>) {
         for (var_name, patterns) in &self.context.usage_patterns {
-            if let Some(hint) = self.infer_variable_type(var_name, patterns) {
+            if let Some(hint) = Self::infer_variable_type(var_name, patterns) {
                 hints.push(hint.clone());
                 self.variable_types.insert(var_name.clone(), hint);
             }
@@ -182,24 +183,24 @@ impl TypeHintProvider {
     fn add_variable_hint_to_error(&self, error: &mut EnhancedError, context: &str) {
         if let Some(var_match) = extract_variable_from_error(context) {
             if let Some(hint) = self.variable_types.get(&var_match) {
-                self.add_type_suggestion(error, &var_match, hint);
-                self.add_type_note(error, hint);
+                Self::add_type_suggestion(error, &var_match, hint);
+                Self::add_type_note(error, hint);
             }
         }
     }
 
-    fn add_type_suggestion(&self, error: &mut EnhancedError, var_name: &str, hint: &TypeHint) {
+    fn add_type_suggestion(error: &mut EnhancedError, var_name: &str, hint: &TypeHint) {
         error.suggestion = Some(format!(
             "Consider adding type annotation: {}: {}",
             var_name,
-            self.type_to_annotation(&hint.suggested_type)
+            Self::type_to_annotation(&hint.suggested_type)
         ));
     }
 
-    fn add_type_note(&self, error: &mut EnhancedError, hint: &TypeHint) {
+    fn add_type_note(error: &mut EnhancedError, hint: &TypeHint) {
         error.notes.push(format!(
             "Type inference suggests '{}' based on {} (confidence: {:?})",
-            self.type_to_annotation(&hint.suggested_type),
+            Self::type_to_annotation(&hint.suggested_type),
             hint.reason,
             hint.confidence
         ));
@@ -211,7 +212,7 @@ impl TypeHintProvider {
                 for hint in param_hints {
                     error.notes.push(format!(
                         "Parameter type hint: {} ({})",
-                        self.type_to_annotation(&hint.suggested_type),
+                        Self::type_to_annotation(&hint.suggested_type),
                         hint.reason
                     ));
                 }
@@ -221,28 +222,27 @@ impl TypeHintProvider {
 
     /// Format type hints for display
     pub fn format_hints(&self, hints: &[TypeHint]) -> String {
-        hints.iter().map(|hint| self.format_single_hint(hint)).collect()
+        hints.iter().map(Self::format_single_hint).collect()
     }
 
-    fn format_single_hint(&self, hint: &TypeHint) -> String {
+    fn format_single_hint(hint: &TypeHint) -> String {
         let mut output = String::new();
-        let confidence_color = self.get_confidence_color(hint.confidence);
-        let target_str = self.format_target(&hint.target);
+        let confidence_color = Self::get_confidence_color(hint.confidence);
+        let target_str = Self::format_target(&hint.target);
 
-        output.push_str(&format!(
-            "{} {} for {} {} ({})\n",
+        let _ = writeln!(output, "{} {} for {} {} ({})",
             "Hint:".bright_blue(),
-            self.type_to_annotation(&hint.suggested_type).color(confidence_color),
+            Self::type_to_annotation(&hint.suggested_type).color(confidence_color),
             target_str,
             format!("[{:?}]", hint.confidence).dimmed(),
             hint.reason.italic()
-        ));
+        );
 
-        self.append_location_if_present(&mut output, hint.source_location);
+        Self::append_location_if_present(&mut output, hint.source_location);
         output
     }
 
-    fn get_confidence_color(&self, confidence: Confidence) -> &'static str {
+    fn get_confidence_color(confidence: Confidence) -> &'static str {
         match confidence {
             Confidence::Certain => "green",
             Confidence::High => "bright green",
@@ -251,17 +251,17 @@ impl TypeHintProvider {
         }
     }
 
-    fn format_target(&self, target: &HintTarget) -> String {
+    fn format_target(target: &HintTarget) -> String {
         match target {
-            HintTarget::Parameter(name) => format!("parameter '{}'", name),
+            HintTarget::Parameter(name) => format!("parameter '{name}'"),
             HintTarget::Return => "return type".to_string(),
-            HintTarget::Variable(name) => format!("variable '{}'", name),
+            HintTarget::Variable(name) => format!("variable '{name}'"),
         }
     }
 
-    fn append_location_if_present(&self, output: &mut String, location: Option<(usize, usize)>) {
+    fn append_location_if_present(output: &mut String, location: Option<(usize, usize)>) {
         if let Some((line, col)) = location {
-            output.push_str(&format!("     {} line {}, column {}\n", "at".dimmed(), line, col));
+            let _ = writeln!(output, "     {} line {}, column {}", "at".dimmed(), line, col);
         }
     }
 
@@ -272,6 +272,7 @@ impl TypeHintProvider {
         Ok(())
     }
 
+    #[allow(clippy::match_same_arms)]
     fn analyze_stmt(&mut self, stmt: &HirStmt) -> Result<()> {
         match stmt {
             HirStmt::Assign {
@@ -297,6 +298,7 @@ impl TypeHintProvider {
         }
     }
 
+    #[allow(clippy::ref_option)]
     fn analyze_if_stmt(
         &mut self,
         condition: &HirExpr,
@@ -327,10 +329,10 @@ impl TypeHintProvider {
             // Add multiple constraints for higher confidence (need 4+ for High confidence)
             self.context
                 .constraints
-                .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::Bool });
+                .push(TypeConstraint::Compatible { var: var.clone(), ty: Type::Bool });
             self.context
                 .constraints
-                .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::Bool });
+                .push(TypeConstraint::Compatible { var: var.clone(), ty: Type::Bool });
         }
     }
 
@@ -364,6 +366,7 @@ impl TypeHintProvider {
         Ok(())
     }
 
+    #[allow(clippy::ref_option)]
     fn analyze_try_stmt(
         &mut self,
         body: &[HirStmt],
@@ -430,6 +433,7 @@ impl TypeHintProvider {
         Ok(())
     }
 
+    #[allow(clippy::match_same_arms)]
     fn analyze_assignment(&mut self, var_name: &str, value: &HirExpr) -> Result<()> {
         self.infer_from_literal(var_name, value);
         self.infer_from_collection(var_name, value);
@@ -448,7 +452,7 @@ impl TypeHintProvider {
                 // If base is a variable, try to get its type and extract element type
                 if let HirExpr::Var(base_name) = base.as_ref() {
                     let base_type = self.infer_var_type(base_name);
-                    if let Some(elem_type) = self.extract_element_type(&base_type) {
+                    if let Some(elem_type) = Self::extract_element_type(&base_type) {
                         self.add_compatible_constraint(var_name, elem_type);
                     }
                 }
@@ -467,14 +471,14 @@ impl TypeHintProvider {
                 if let HirExpr::Var(module_name) = object.as_ref() {
                     let module_method_type = match (module_name.as_str(), method.as_str()) {
                         // Regex methods that return lists
-                        ("re", "findall") | ("regex", "findall") => {
+                        ("re" | "regex", "findall") => {
                             Some(Type::List(Box::new(Type::String)))
                         }
-                        ("re", "split") | ("regex", "split") => {
+                        ("re" | "regex", "split") => {
                             Some(Type::List(Box::new(Type::String)))
                         }
                         // JSON methods
-                        ("json", "loads") | ("json", "load") => {
+                        ("json", "loads" | "load") => {
                             Some(Type::Custom("serde_json::Value".to_string()))
                         }
                         ("json", "dumps") => Some(Type::String),
@@ -493,12 +497,12 @@ impl TypeHintProvider {
 
     fn infer_from_literal(&mut self, var_name: &str, value: &HirExpr) {
         if let HirExpr::Literal(lit) = value {
-            let ty = self.literal_to_type(lit);
+            let ty = Self::literal_to_type(lit);
             self.add_compatible_constraint(var_name, ty);
         }
     }
 
-    fn literal_to_type(&self, lit: &depyler_hir::hir::Literal) -> Type {
+    fn literal_to_type(lit: &depyler_hir::hir::Literal) -> Type {
         match lit {
             depyler_hir::hir::Literal::Int(_) => Type::Int,
             depyler_hir::hir::Literal::Float(_) => Type::Float,
@@ -669,6 +673,7 @@ impl TypeHintProvider {
     /// Example: `for item in items: total += item`
     /// - `item` gets Int constraint from arithmetic
     /// - Back-propagate: `items` should be &[Int]
+    #[allow(clippy::unnecessary_wraps)]
     fn back_propagate_element_constraints(&mut self, loop_var: &str) -> Result<()> {
         // Find the source collection for this loop variable
         let source_collection = match self.context.loop_var_sources.get(loop_var) {
@@ -793,7 +798,7 @@ impl TypeHintProvider {
             // open(filepath) means filepath is a file path (String/&str)
             self.context
                 .constraints
-                .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::String });
+                .push(TypeConstraint::Compatible { var: var.clone(), ty: Type::String });
             // Record string-like pattern for stronger evidence
             self.record_usage_pattern(var, UsagePattern::StringLike);
         }
@@ -813,17 +818,17 @@ impl TypeHintProvider {
                 // Add evidence that this variable is a String (will map to &str)
                 self.context
                     .constraints
-                    .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::String });
+                    .push(TypeConstraint::Compatible { var: var.clone(), ty: Type::String });
                 // Also record string-like usage pattern for stronger evidence
                 self.record_usage_pattern(var, UsagePattern::StringLike);
             } else {
-                let target_type = self.conversion_target_type(func);
+                let target_type = Self::conversion_target_type(func);
                 self.add_argument_constraint(var, func, target_type);
             }
         }
     }
 
-    fn conversion_target_type(&self, func: &str) -> Type {
+    fn conversion_target_type(func: &str) -> Type {
         match func {
             "str" => Type::String,
             "int" => Type::Int,
@@ -862,7 +867,7 @@ impl TypeHintProvider {
                     // subprocess.run(cmd) -> cmd should be Vec<String>
                     // Use ArgumentConstraint for high-confidence stdlib signature
                     self.context.constraints.push(TypeConstraint::ArgumentConstraint {
-                        var: cmd_var.to_string(),
+                        var: cmd_var.clone(),
                         func: "subprocess.run".to_string(),
                         _param_idx: 0,
                         expected: Type::List(Box::new(Type::String)),
@@ -878,7 +883,7 @@ impl TypeHintProvider {
                 self.record_usage_pattern(var, UsagePattern::StringLike);
                 self.context
                     .constraints
-                    .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::String });
+                    .push(TypeConstraint::Compatible { var: var.clone(), ty: Type::String });
             }
 
             // List methods
@@ -933,7 +938,9 @@ impl TypeHintProvider {
     }
 
     /// DEPYLER-0492: Infer parameter type from default value (Certain confidence)
-    fn infer_from_default(&self, param_name: &str, default: &Option<HirExpr>) -> Option<TypeHint> {
+    #[allow(clippy::ref_option)]
+    #[allow(clippy::match_same_arms)]
+    fn infer_from_default(param_name: &str, default: &Option<HirExpr>) -> Option<TypeHint> {
         let default_expr = default.as_ref()?;
 
         let inferred_type = match default_expr {
@@ -943,7 +950,7 @@ impl TypeHintProvider {
                 depyler_hir::hir::Literal::Float(_) => Type::Float,
                 depyler_hir::hir::Literal::String(_) => Type::String,
                 depyler_hir::hir::Literal::None => return None, // None doesn't give type info
-                _ => return None,                               // Other literals not yet supported
+                depyler_hir::hir::Literal::Bytes(_) => return None, // Other literals not yet supported
             },
             _ => return None, // Complex defaults not yet supported
         };
@@ -963,7 +970,7 @@ impl TypeHintProvider {
         self.collect_constraint_evidence(param_name, &mut type_votes);
         self.collect_pattern_evidence(param_name, &mut type_votes);
 
-        self.build_type_hint_from_votes(param_name, type_votes)
+        Self::build_type_hint_from_votes(param_name, type_votes)
     }
 
     fn collect_constraint_evidence(
@@ -974,16 +981,16 @@ impl TypeHintProvider {
         for constraint in &self.context.constraints {
             match constraint {
                 TypeConstraint::Compatible { var, ty } if var == param_name => {
-                    self.add_compatible_evidence(ty, type_votes);
+                    Self::add_compatible_evidence(ty, type_votes);
                 }
                 TypeConstraint::OperatorConstraint { var, op, required } if var == param_name => {
-                    self.add_operator_evidence(op, required, type_votes);
+                    Self::add_operator_evidence(op, required, type_votes);
                 }
                 // DEPYLER-0492: High-confidence stdlib function signatures
                 TypeConstraint::ArgumentConstraint { var, func, expected, .. }
                     if var == param_name =>
                 {
-                    self.add_argument_evidence(func, expected, type_votes);
+                    Self::add_argument_evidence(func, expected, type_votes);
                 }
                 _ => {}
             }
@@ -991,8 +998,7 @@ impl TypeHintProvider {
     }
 
     fn add_compatible_evidence(
-        &self,
-        ty: &Type,
+                ty: &Type,
         type_votes: &mut HashMap<Type, (u32, Vec<String>)>,
     ) {
         let (count, reasons) = type_votes.entry(ty.clone()).or_default();
@@ -1001,27 +1007,25 @@ impl TypeHintProvider {
     }
 
     fn add_operator_evidence(
-        &self,
-        op: &str,
+                op: &str,
         required: &Type,
         type_votes: &mut HashMap<Type, (u32, Vec<String>)>,
     ) {
         let (count, reasons) = type_votes.entry(required.clone()).or_default();
         *count += 1;
-        reasons.push(format!("used with {} operator", op));
+        reasons.push(format!("used with {op} operator"));
     }
 
     /// DEPYLER-0492: High-confidence evidence from stdlib function signatures
-    /// Score of 5 gives Confidence::High, ensuring parameter types are inferred
+    /// Score of 5 gives `Confidence::High`, ensuring parameter types are inferred
     fn add_argument_evidence(
-        &self,
-        func: &str,
+                func: &str,
         expected: &Type,
         type_votes: &mut HashMap<Type, (u32, Vec<String>)>,
     ) {
         let (count, reasons) = type_votes.entry(expected.clone()).or_default();
         *count += 5; // High confidence (score ≥ 4)
-        reasons.push(format!("stdlib function {} signature", func));
+        reasons.push(format!("stdlib function {func} signature"));
     }
 
     fn collect_pattern_evidence(
@@ -1031,55 +1035,54 @@ impl TypeHintProvider {
     ) {
         if let Some(patterns) = self.context.usage_patterns.get(param_name) {
             for pattern in patterns {
-                self.add_pattern_evidence(pattern, type_votes);
+                Self::add_pattern_evidence(pattern, type_votes);
             }
         }
     }
 
     fn add_pattern_evidence(
-        &self,
-        pattern: &UsagePattern,
+                pattern: &UsagePattern,
         type_votes: &mut HashMap<Type, (u32, Vec<String>)>,
     ) {
         match pattern {
-            UsagePattern::Numeric => self.add_numeric_evidence(type_votes),
-            UsagePattern::StringLike => self.add_string_evidence(type_votes),
-            UsagePattern::Iterator => self.add_iterator_evidence(type_votes),
+            UsagePattern::Numeric => Self::add_numeric_evidence(type_votes),
+            UsagePattern::StringLike => Self::add_string_evidence(type_votes),
+            UsagePattern::Iterator => Self::add_iterator_evidence(type_votes),
             // DEPYLER-0492: Container pattern from integer indexing/slicing
-            UsagePattern::Container => self.add_container_evidence(type_votes),
+            UsagePattern::Container => Self::add_container_evidence(type_votes),
             // DEPYLER-0552: Dict pattern from string-keyed access
-            UsagePattern::DictAccess => self.add_dict_access_evidence(type_votes),
-            _ => {}
+            UsagePattern::DictAccess => Self::add_dict_access_evidence(type_votes),
+            UsagePattern::Callable => {}
         }
     }
 
-    fn add_numeric_evidence(&self, type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
+    fn add_numeric_evidence(type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
         let (count, reasons) = type_votes.entry(Type::Int).or_default();
         *count += 1;
         reasons.push("numeric operations".to_string());
     }
 
-    fn add_string_evidence(&self, type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
+    fn add_string_evidence(type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
         let (count, reasons) = type_votes.entry(Type::String).or_default();
         *count += 2;
         reasons.push("string methods".to_string());
     }
 
-    fn add_iterator_evidence(&self, type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
+    fn add_iterator_evidence(type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
         let (count, reasons) = type_votes.entry(Type::List(Box::new(Type::Unknown))).or_default();
         *count += 1;
         reasons.push("used as iterator".to_string());
     }
 
     /// DEPYLER-0492: High-confidence evidence from integer indexing/slicing operations
-    fn add_container_evidence(&self, type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
+    fn add_container_evidence(type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
         let (count, reasons) = type_votes.entry(Type::List(Box::new(Type::Unknown))).or_default();
         *count += 4; // High confidence - indexing strongly implies list type
         reasons.push("indexing/slicing operation".to_string());
     }
 
     /// DEPYLER-0552: High-confidence evidence from string-keyed access (dict access)
-    fn add_dict_access_evidence(&self, type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
+    fn add_dict_access_evidence(type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
         let (count, reasons) = type_votes
             .entry(Type::Dict(
                 Box::new(Type::String),
@@ -1091,14 +1094,13 @@ impl TypeHintProvider {
     }
 
     fn build_type_hint_from_votes(
-        &self,
-        param_name: &str,
+                param_name: &str,
         type_votes: HashMap<Type, (u32, Vec<String>)>,
     ) -> Option<TypeHint> {
         let (suggested_type, (score, reasons)) =
             type_votes.into_iter().max_by_key(|(_, (count, _))| *count)?;
 
-        let confidence = self.score_to_confidence(score);
+        let confidence = Self::score_to_confidence(score);
 
         Some(TypeHint {
             suggested_type,
@@ -1109,7 +1111,7 @@ impl TypeHintProvider {
         })
     }
 
-    fn score_to_confidence(&self, score: u32) -> Confidence {
+    fn score_to_confidence(score: u32) -> Confidence {
         match score {
             0..=1 => Confidence::Low,
             2..=3 => Confidence::Medium,
@@ -1120,7 +1122,7 @@ impl TypeHintProvider {
 
     fn infer_return_type(&self, func_name: &str) -> Option<TypeHint> {
         let return_types = self.collect_return_types(func_name);
-        self.build_return_type_hint(return_types)
+        Self::build_return_type_hint(return_types)
     }
 
     fn collect_return_types(&self, func_name: &str) -> HashMap<Type, Vec<String>> {
@@ -1137,11 +1139,11 @@ impl TypeHintProvider {
         return_types
     }
 
-    fn build_return_type_hint(&self, return_types: HashMap<Type, Vec<String>>) -> Option<TypeHint> {
+    fn build_return_type_hint(return_types: HashMap<Type, Vec<String>>) -> Option<TypeHint> {
         let (suggested_type, reasons) =
             return_types.into_iter().max_by_key(|(_, reasons)| reasons.len())?;
 
-        let confidence = self.return_confidence(&reasons);
+        let confidence = Self::return_confidence(&reasons);
 
         Some(TypeHint {
             suggested_type,
@@ -1152,7 +1154,7 @@ impl TypeHintProvider {
         })
     }
 
-    fn return_confidence(&self, reasons: &[String]) -> Confidence {
+    fn return_confidence(reasons: &[String]) -> Confidence {
         if reasons.len() > 1 {
             Confidence::High
         } else {
@@ -1160,28 +1162,28 @@ impl TypeHintProvider {
         }
     }
 
-    fn infer_variable_type(&self, var_name: &str, patterns: &[UsagePattern]) -> Option<TypeHint> {
-        let type_score = self.score_variable_patterns(patterns);
-        self.build_variable_hint(var_name, type_score)
+    fn infer_variable_type(var_name: &str, patterns: &[UsagePattern]) -> Option<TypeHint> {
+        let type_score = Self::score_variable_patterns(patterns);
+        Self::build_variable_hint(var_name, type_score)
     }
 
-    fn score_variable_patterns(&self, patterns: &[UsagePattern]) -> HashMap<Type, u32> {
+    fn score_variable_patterns(patterns: &[UsagePattern]) -> HashMap<Type, u32> {
         let mut type_score = HashMap::new();
 
         for pattern in patterns {
-            self.update_type_score(pattern, &mut type_score);
+            Self::update_type_score(pattern, &mut type_score);
         }
 
         type_score
     }
 
-    fn update_type_score(&self, pattern: &UsagePattern, type_score: &mut HashMap<Type, u32>) {
+    fn update_type_score(pattern: &UsagePattern, type_score: &mut HashMap<Type, u32>) {
         match pattern {
             UsagePattern::Numeric => *type_score.entry(Type::Int).or_insert(0) += 1,
             UsagePattern::StringLike => *type_score.entry(Type::String).or_insert(0) += 2,
             // DEPYLER-0492: Integer indexing/slicing strongly implies list type (High confidence)
             UsagePattern::Container => {
-                *type_score.entry(Type::List(Box::new(Type::Unknown))).or_insert(0) += 4
+                *type_score.entry(Type::List(Box::new(Type::Unknown))).or_insert(0) += 4;
                 // High confidence (was 1)
             }
             // DEPYLER-0552: String-keyed access strongly implies dict type (Higher confidence)
@@ -1191,20 +1193,19 @@ impl TypeHintProvider {
                         Box::new(Type::String),
                         Box::new(Type::Custom("serde_json::Value".to_string())),
                     ))
-                    .or_insert(0) += 5 // Higher confidence than list
+                    .or_insert(0) += 5; // Higher confidence than list
             }
             _ => {}
         }
     }
 
     fn build_variable_hint(
-        &self,
-        var_name: &str,
+                var_name: &str,
         type_score: HashMap<Type, u32>,
     ) -> Option<TypeHint> {
         let (suggested_type, score) = type_score.into_iter().max_by_key(|(_, score)| *score)?;
 
-        let confidence = self.variable_confidence(score);
+        let confidence = Self::variable_confidence(score);
 
         Some(TypeHint {
             suggested_type,
@@ -1215,7 +1216,7 @@ impl TypeHintProvider {
         })
     }
 
-    fn variable_confidence(&self, score: u32) -> Confidence {
+    fn variable_confidence(score: u32) -> Confidence {
         if score > 2 {
             Confidence::High
         } else {
@@ -1259,7 +1260,7 @@ impl TypeHintProvider {
             // Find a dict with a non-None value to determine the real value type
             let real_value_type = elems
                 .iter()
-                .filter_map(|e| {
+                .find_map(|e| {
                     if let HirExpr::Dict(items) = e {
                         items
                             .iter()
@@ -1271,20 +1272,18 @@ impl TypeHintProvider {
                     } else {
                         None
                     }
-                })
-                .next();
+                });
 
             // Get key type from first dict
             let key_type = elems
                 .iter()
-                .filter_map(|e| {
+                .find_map(|e| {
                     if let HirExpr::Dict(items) = e {
                         items.first().map(|(k, _)| self.infer_expr_type(k))
                     } else {
                         None
                     }
                 })
-                .next()
                 .unwrap_or(Type::Unknown);
 
             if let Some(val_type) = real_value_type {
@@ -1313,7 +1312,7 @@ impl TypeHintProvider {
 
     fn infer_expr_type(&self, expr: &HirExpr) -> Type {
         match expr {
-            HirExpr::Literal(lit) => self.literal_to_type(lit),
+            HirExpr::Literal(lit) => Self::literal_to_type(lit),
             HirExpr::List(elems) => self.infer_list_expr_type(elems),
             HirExpr::Dict(items) => self.infer_dict_expr_type(items),
             HirExpr::Set(elems) => self.infer_set_expr_type(elems),
@@ -1478,7 +1477,7 @@ impl TypeHintProvider {
         for constraint in &self.context.constraints {
             if let TypeConstraint::Compatible { var, ty } = constraint {
                 if var == var_name {
-                    if let Some(elem_type) = self.extract_element_type(ty) {
+                    if let Some(elem_type) = Self::extract_element_type(ty) {
                         return elem_type;
                     }
                 }
@@ -1487,7 +1486,7 @@ impl TypeHintProvider {
         Type::Unknown
     }
 
-    fn extract_element_type(&self, ty: &Type) -> Option<Type> {
+    fn extract_element_type(ty: &Type) -> Option<Type> {
         match ty {
             Type::List(elem) => Some((**elem).clone()),
             Type::String => Some(Type::String),
@@ -1495,7 +1494,7 @@ impl TypeHintProvider {
         }
     }
 
-    fn type_to_annotation(&self, ty: &Type) -> String {
+    fn type_to_annotation(ty: &Type) -> String {
         type_to_annotation_inner(ty)
     }
 }

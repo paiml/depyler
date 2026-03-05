@@ -40,6 +40,7 @@ pub struct TuningResult {
 }
 
 /// Run leave-one-out cross-validation with given config.
+#[allow(clippy::cast_precision_loss)]
 pub fn evaluate_config(config: &TuningConfig, samples: &[TrainingSample]) -> TuningResult {
     let n = samples.len();
     let mut correct = 0;
@@ -76,20 +77,22 @@ pub fn evaluate_config(config: &TuningConfig, samples: &[TrainingSample]) -> Tun
 }
 
 /// Weight error codes by repeating them in the message.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn weight_error_codes(message: &str, weight: f32) -> String {
     // Extract error code if present
     if let Some(code_start) = message.find("error[E") {
         if let Some(code_end) = message[code_start..].find(']') {
-            let code = &message[code_start..code_start + code_end + 1];
+            let code = &message[code_start..=(code_start + code_end)];
             let repeat_count = weight.round() as usize;
             let repeated = std::iter::repeat_n(code, repeat_count).collect::<Vec<_>>().join(" ");
-            return format!("{} {}", repeated, message);
+            return format!("{repeated} {message}");
         }
     }
     message.to_string()
 }
 
 /// Grid search over hyperparameter space.
+#[allow(clippy::disallowed_methods, clippy::unwrap_used)]
 pub fn grid_search() -> Vec<TuningResult> {
     let corpus = build_combined_corpus();
     let samples: Vec<_> = corpus.samples().to_vec();
@@ -133,6 +136,7 @@ pub fn find_best_config() -> TuningResult {
 }
 
 /// Quick tuning with reduced search space.
+#[allow(clippy::disallowed_methods, clippy::unwrap_used)]
 pub fn quick_tune() -> TuningResult {
     let corpus = build_combined_corpus();
     let samples: Vec<_> = corpus.samples().to_vec();

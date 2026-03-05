@@ -140,7 +140,7 @@ pub(super) fn fix_truthiness_line(line: &str, bool_vars: &[String]) -> String {
         if let Some(ident) = rest.strip_suffix(" {") {
             if is_likely_non_boolean_ident(ident, bool_vars) {
                 let indent = &line[..line.len() - line.trim_start().len()];
-                return format!("{}if {}.is_empty() {{", indent, ident);
+                return format!("{indent}if {ident}.is_empty() {{");
             }
         }
     }
@@ -197,7 +197,7 @@ pub(super) fn is_likely_non_boolean_ident(ident: &str, bool_vars: &[String]) -> 
 }
 
 pub(super) fn fix_negation_on_non_bool(code: &str) -> String {
-    if !code.contains("!") {
+    if !code.contains('!') {
         return code.to_string();
     }
     let string_typed_vars = extract_string_typed_vars(code);
@@ -226,10 +226,11 @@ pub(super) fn fix_negation_on_non_bool(code: &str) -> String {
 }
 
 /// Replace `!var` with `var.is_empty()` for string-typed variables in a single line.
+#[allow(clippy::manual_let_else, clippy::unnecessary_map_or)]
 fn replace_negation_with_is_empty(line: &str, sorted_vars: &[String]) -> String {
     let mut fixed = line.to_string();
     for var in sorted_vars {
-        let neg_pattern = format!("!{}", var);
+        let neg_pattern = format!("!{var}");
         // Check that the char AFTER the var name is not alphanumeric (word boundary)
         let Some(pos) = fixed.find(&neg_pattern) else {
             continue;
@@ -239,9 +240,9 @@ fn replace_negation_with_is_empty(line: &str, sorted_vars: &[String]) -> String 
         // DEPYLER-99MODE-S9: Don't replace `!var.method()` - that's boolean negation
         // of the method result, NOT truthiness of the variable.
         let is_word_boundary =
-            next_char.map(|c| !c.is_alphanumeric() && c != '_' && c != '.').unwrap_or(true);
+            next_char.map_or(true, |c| !c.is_alphanumeric() && c != '_' && c != '.');
         if is_word_boundary {
-            let empty_check = format!("{}.is_empty()", var);
+            let empty_check = format!("{var}.is_empty()");
             fixed = format!("{}{}{}", &fixed[..pos], empty_check, &fixed[after_pos..]);
         }
     }
@@ -370,7 +371,7 @@ fn parse_field_name<'a>(
     Some((&line[start..j], j))
 }
 
-/// DEPYLER-CONVERGE-MULTI-ITER9: Generalize DepylerValue insert wrapping.
+/// DEPYLER-CONVERGE-MULTI-ITER9: Generalize `DepylerValue` insert wrapping.
 ///
 /// Extends beyond just `map.insert()` to handle `kwargs.insert()`,
 /// `config.insert()`, `params.insert()`, and other common variable names.
@@ -401,7 +402,7 @@ pub(super) fn is_likely_bool_field(field: &str) -> bool {
 
     BOOL_PREFIXES.iter().any(|p| field.starts_with(p))
         || BOOL_SUFFIXES.iter().any(|s| field.ends_with(s))
-        || BOOL_EXACT.iter().any(|e| field == *e)
+        || BOOL_EXACT.contains(&field)
 }
 
 pub(super) fn fix_not_string_truthiness(code: &str) -> String {
@@ -424,7 +425,7 @@ pub(super) fn fix_not_trim_to_string(code: &str) -> String {
             // Only fix if expr looks like a variable/field access
             if expr.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
                 let old = format!("(!{}{})", expr, ".trim().to_string()");
-                let new = format!("{}.trim().is_empty()", expr);
+                let new = format!("{expr}.trim().is_empty()");
                 result = result.replacen(&old, &new, 1);
                 continue;
             }
@@ -448,9 +449,9 @@ pub(super) fn fix_not_to_string(code: &str) -> String {
         if let Some(start) = before.rfind("(!") {
             let expr = &result[start + 2..end_pos];
             if expr.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
-                let old = format!("(!{}.to_string())", expr);
+                let old = format!("(!{expr}.to_string())");
                 if result[start..].starts_with(&old) {
-                    let new = format!("{}.is_empty()", expr);
+                    let new = format!("{expr}.is_empty()");
                     result = format!("{}{}{}", &result[..start], new, &result[start + old.len()..]);
                     search_from = start + new.len();
                     continue;
@@ -498,7 +499,7 @@ fn fix_bitwise_and_line(line: &str) -> String {
     }
     let indent = line.len() - line.trim_start().len();
     let pad: String = " ".repeat(indent);
-    format!("{}if ({}) != 0 {{", pad, expr)
+    format!("{pad}if ({expr}) != 0 {{")
 }
 
 /// Check if a trimmed line is a candidate for bitwise AND truthiness fix.

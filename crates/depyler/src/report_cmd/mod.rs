@@ -211,6 +211,7 @@ pub fn fix_recommendation(code: &str) -> &'static str {
 }
 
 /// Generate ASCII bar chart
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
 pub fn ascii_bar(ratio: f64, width: usize) -> String {
     let filled = (ratio.clamp(0.0, 1.0) * width as f64).round() as usize;
     let empty = width.saturating_sub(filled);
@@ -218,6 +219,7 @@ pub fn ascii_bar(ratio: f64, width: usize) -> String {
 }
 
 /// Print terminal report
+#[allow(clippy::implicit_hasher)]
 pub fn print_terminal_report(
     total: usize,
     pass: usize,
@@ -228,10 +230,10 @@ pub fn print_terminal_report(
 ) {
     println!();
     println!("{}", "Summary".bold().underline());
-    println!("  Total: {}", total);
+    println!("  Total: {total}");
     println!("  Pass:  {}", pass.to_string().green());
     println!("  Fail:  {}", fail.to_string().red());
-    println!("  Rate:  {}", format!("{:.1}%", rate).cyan().bold());
+    println!("  Rate:  {}", format!("{rate:.1}%").cyan().bold());
 
     let andon = if rate >= 80.0 {
         "GREEN".green().bold()
@@ -240,7 +242,7 @@ pub fn print_terminal_report(
     } else {
         "RED".red().bold()
     };
-    println!("  Status: {}", andon);
+    println!("  Status: {andon}");
 
     if !taxonomy.is_empty() {
         println!();
@@ -257,6 +259,7 @@ pub fn print_terminal_report(
 }
 
 /// Print JSON report
+#[allow(clippy::disallowed_methods, clippy::implicit_hasher)]
 pub fn print_json_report(
     total: usize,
     pass: usize,

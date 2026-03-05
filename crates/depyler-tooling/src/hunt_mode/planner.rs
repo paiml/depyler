@@ -34,7 +34,7 @@ pub struct FailurePattern {
     pub error_code: String,
     /// Description of the pattern
     pub description: String,
-    /// Category (e.g., "type_inference", "external_deps", "borrowing")
+    /// Category (e.g., "`type_inference`", "`external_deps`", "borrowing")
     pub category: PatternCategory,
     /// How many files exhibit this pattern
     pub affected_count: u32,
@@ -133,8 +133,8 @@ impl HuntPlanner {
     /// Heijunka: Sort by frequency × severity / complexity for maximum impact
     pub fn build_priority_queue(&mut self) {
         for cluster in &self.error_clusters {
-            let pattern = self.cluster_to_pattern(cluster);
-            let priority = self.calculate_priority(&pattern);
+            let pattern = Self::cluster_to_pattern(cluster);
+            let priority = Self::calculate_priority(&pattern);
 
             self.priority_queue.push(PrioritizedPattern { pattern, priority });
         }
@@ -163,9 +163,9 @@ impl HuntPlanner {
     ///
     /// Formula: (frequency × severity) / complexity
     /// Higher score = higher priority
-    fn calculate_priority(&self, pattern: &FailurePattern) -> f64 {
-        let frequency = pattern.affected_count as f64;
-        let complexity = pattern.fix_complexity as f64;
+    fn calculate_priority(pattern: &FailurePattern) -> f64 {
+        let frequency = f64::from(pattern.affected_count);
+        let complexity = f64::from(pattern.fix_complexity);
 
         // Avoid division by zero
         let complexity = complexity.max(1.0);
@@ -174,8 +174,8 @@ impl HuntPlanner {
     }
 
     /// Convert error cluster to failure pattern
-    fn cluster_to_pattern(&self, cluster: &ErrorCluster) -> FailurePattern {
-        let category = self.categorize_error(&cluster.error_code);
+    fn cluster_to_pattern(cluster: &ErrorCluster) -> FailurePattern {
+        let category = Self::categorize_error(&cluster.error_code);
 
         FailurePattern {
             id: format!("pattern_{}", cluster.id),
@@ -183,13 +183,14 @@ impl HuntPlanner {
             description: cluster.description.clone(),
             category,
             affected_count: cluster.frequency,
-            fix_complexity: self.estimate_complexity(&cluster.error_code),
+            fix_complexity: Self::estimate_complexity(&cluster.error_code),
             trigger_example: cluster.examples.first().cloned().unwrap_or_default(),
         }
     }
 
     /// Categorize error code into pattern category
-    fn categorize_error(&self, error_code: &str) -> PatternCategory {
+    #[allow(clippy::match_same_arms)]
+    fn categorize_error(error_code: &str) -> PatternCategory {
         match error_code {
             // Type mismatch errors
             "E0308" | "E0277" | "E0282" => PatternCategory::TypeInference,
@@ -209,7 +210,8 @@ impl HuntPlanner {
     }
 
     /// Estimate fix complexity based on error code
-    fn estimate_complexity(&self, error_code: &str) -> u8 {
+    #[allow(clippy::match_same_arms)]
+    fn estimate_complexity(error_code: &str) -> u8 {
         match error_code {
             // Easy: just add imports
             "E0432" | "E0433" => 2,

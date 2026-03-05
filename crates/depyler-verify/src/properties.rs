@@ -37,10 +37,12 @@ fn has_numeric_types(params: &[depyler_core::hir::HirParam]) -> bool {
     params.iter().any(|param| matches!(param.ty, Type::Int | Type::Float))
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn has_container_params(params: &[depyler_core::hir::HirParam]) -> bool {
     params.iter().any(|param| param.ty.is_container())
 }
 
+#[allow(clippy::format_push_string, clippy::match_same_arms, clippy::unnecessary_wraps)]
 fn generate_numeric_property_test(func: &HirFunction) -> Result<String> {
     let func_name = &func.name;
     let mut test = String::new();
@@ -103,6 +105,7 @@ fn generate_numeric_property_test(func: &HirFunction) -> Result<String> {
     Ok(test)
 }
 
+#[allow(clippy::format_push_string, clippy::unnecessary_wraps)]
 fn generate_bounds_property_test(func: &HirFunction) -> Result<String> {
     let func_name = &func.name;
     let mut test = String::new();
@@ -161,6 +164,8 @@ fn generate_bounds_property_test(func: &HirFunction) -> Result<String> {
     Ok(test)
 }
 
+#[allow(clippy::format_push_string)]
+#[allow(clippy::unnecessary_wraps)]
 fn generate_termination_test(func: &HirFunction) -> Result<String> {
     let func_name = &func.name;
     let mut test = String::new();
@@ -184,7 +189,7 @@ fn generate_termination_test(func: &HirFunction) -> Result<String> {
             Type::List(_) => "&vec![1, 2, 3]",
             _ => "Default::default()",
         })
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .collect();
     test.push_str(&args.join(", "));
     test.push_str(");\n");
@@ -195,6 +200,7 @@ fn generate_termination_test(func: &HirFunction) -> Result<String> {
     Ok(test)
 }
 
+#[allow(clippy::match_same_arms)]
 fn type_to_rust_string(ty: &Type) -> String {
     match ty {
         Type::Int => "i32".to_string(),

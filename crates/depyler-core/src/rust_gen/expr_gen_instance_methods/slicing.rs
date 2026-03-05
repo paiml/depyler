@@ -1,15 +1,16 @@
-//! Slicing handlers for ExpressionConverter
+//! Slicing handlers for `ExpressionConverter`
 //!
 //! Extracted from mod.rs to reduce file size. Contains `convert_slice`
 //! and `convert_string_slice` for Vec/List and String slicing operations.
 
-use crate::hir::*;
+use crate::hir::HirExpr;
 use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use anyhow::Result;
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
+    #[allow(clippy::too_many_lines, clippy::unnecessary_wraps, clippy::similar_names, clippy::ref_option)]
     pub(crate) fn convert_slice(
         &mut self,
         base: &HirExpr,
@@ -272,6 +273,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0302 Phase 3: String-specific slice code generation
     /// Handles string slicing with proper char boundaries and negative indices
+    #[allow(clippy::similar_names, clippy::needless_pass_by_value, clippy::unused_self, clippy::too_many_lines, clippy::unnecessary_wraps)]
     pub(super) fn convert_string_slice(
         &mut self,
         base_expr: syn::Expr,

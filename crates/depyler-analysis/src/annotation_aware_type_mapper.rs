@@ -31,7 +31,7 @@ impl AnnotationAwareTypeMapper {
         annotations: &TranspilationAnnotations,
     ) -> RustType {
         match py_type {
-            PythonType::String => self.map_string_type(annotations),
+            PythonType::String => Self::map_string_type(annotations),
             PythonType::List(inner) => self.map_list_type(inner, annotations),
             PythonType::Dict(key, value) => self.map_dict_type(key, value, annotations),
             PythonType::Optional(inner) => self.map_optional_type(inner, annotations),
@@ -40,7 +40,7 @@ impl AnnotationAwareTypeMapper {
     }
 
     /// Maps string types based on annotations
-    fn map_string_type(&self, annotations: &TranspilationAnnotations) -> RustType {
+    fn map_string_type(annotations: &TranspilationAnnotations) -> RustType {
         match annotations.string_strategy {
             AnnotationStringStrategy::AlwaysOwned => RustType::String,
             AnnotationStringStrategy::ZeroCopy => match annotations.ownership_model {
@@ -177,6 +177,7 @@ impl AnnotationAwareTypeMapper {
     }
 
     /// Determines if a type should be passed by reference based on annotations
+    #[allow(clippy::match_same_arms)]
     pub fn needs_reference_with_annotations(
         &self,
         rust_type: &RustType,

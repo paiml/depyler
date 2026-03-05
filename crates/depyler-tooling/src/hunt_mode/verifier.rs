@@ -132,12 +132,12 @@ impl AndonVerifier {
         self.total_verified += 1;
 
         // Step 1: Compile the fixed output
-        let compile_result = self.try_compile(&fix.rust_output);
+        let compile_result = Self::try_compile(&fix.rust_output);
 
         match compile_result {
             Ok(()) => {
                 // Step 2: Run property tests (if applicable)
-                if let Err(prop_failure) = self.run_property_tests(fix) {
+                if let Err(prop_failure) = Self::run_property_tests(fix) {
                     self.update_status(AndonStatus::Yellow {
                         warnings: vec![format!("Property test failed: {}", prop_failure)],
                         needs_attention: true,
@@ -145,12 +145,12 @@ impl AndonVerifier {
                     return Ok(VerifyResult::NeedsReview {
                         fix: fix.clone(),
                         confidence: fix.confidence * 0.8, // Reduce confidence
-                        reason: format!("Property test failed: {}", prop_failure),
+                        reason: format!("Property test failed: {prop_failure}"),
                     });
                 }
 
                 // Step 3: Check for regressions
-                if let Err(regression) = self.check_regressions(fix) {
+                if let Err(regression) = Self::check_regressions(fix) {
                     self.update_status(AndonStatus::Red {
                         error: regression.clone(),
                         cycle_halted: true,
@@ -168,7 +168,7 @@ impl AndonVerifier {
                 });
 
                 // Commit the fix (in real impl, would update config or patch code)
-                self.commit_fix(fix)?;
+                Self::commit_fix(fix)?;
 
                 Ok(VerifyResult::Success)
             }
@@ -188,7 +188,7 @@ impl AndonVerifier {
     /// DEPYLER-CARGO-FIRST: Uses ephemeral Cargo workspace for accurate
     /// verification with proper dependency resolution. This eliminates
     /// false-positive "missing crate" errors that plagued bare rustc.
-    fn try_compile(&self, rust_code: &str) -> Result<(), String> {
+    fn try_compile(rust_code: &str) -> Result<(), String> {
         if rust_code.is_empty() {
             return Ok(());
         }
@@ -211,7 +211,8 @@ impl AndonVerifier {
     }
 
     /// Run property tests
-    fn run_property_tests(&self, _fix: &Fix) -> Result<(), String> {
+    #[allow(clippy::unnecessary_wraps)]
+    fn run_property_tests(_fix: &Fix) -> Result<(), String> {
         // In real implementation:
         // 1. Generate proptest tests
         // 2. Run cargo test
@@ -221,7 +222,8 @@ impl AndonVerifier {
     }
 
     /// Check for regressions in existing examples
-    fn check_regressions(&self, _fix: &Fix) -> Result<(), String> {
+    #[allow(clippy::unnecessary_wraps)]
+    fn check_regressions(_fix: &Fix) -> Result<(), String> {
         // In real implementation:
         // 1. Re-transpile all examples
         // 2. Verify previously passing code still passes
@@ -237,11 +239,12 @@ impl AndonVerifier {
         if self.total_verified == 0 {
             return 0.0;
         }
-        self.successful_verifications as f64 / self.total_verified as f64
+        f64::from(self.successful_verifications) / f64::from(self.total_verified)
     }
 
     /// Commit a verified fix
-    fn commit_fix(&self, fix: &Fix) -> anyhow::Result<()> {
+    #[allow(clippy::unnecessary_wraps)]
+    fn commit_fix(fix: &Fix) -> anyhow::Result<()> {
         // In real implementation:
         // 1. Update .depyler/config.toml with new rule
         // 2. Or patch depyler-core source code

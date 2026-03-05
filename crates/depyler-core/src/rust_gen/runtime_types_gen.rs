@@ -3,15 +3,15 @@
 //! This module generates runtime support types that are injected into transpiled output
 //! based on what the Python source code requires:
 //!
-//! - **PythonIntOps** trait (DEPYLER-1202): Provides Python integer method names
+//! - **`PythonIntOps`** trait (DEPYLER-1202): Provides Python integer method names
 //!   (`bit_length`, `bit_count`) on Rust integer types.
-//! - **DepylerDate** struct (DEPYLER-1066): Wrapper for Python `datetime.date` with
+//! - **`DepylerDate`** struct (DEPYLER-1066): Wrapper for Python `datetime.date` with
 //!   `.day()`, `.month()`, `.year()` methods.
-//! - **DepylerDateTime** struct (DEPYLER-1067): Wrapper for Python `datetime.datetime`
+//! - **`DepylerDateTime`** struct (DEPYLER-1067): Wrapper for Python `datetime.datetime`
 //!   with full date/time component accessors.
-//! - **DepylerTimeDelta** struct (DEPYLER-1068): Wrapper for Python `datetime.timedelta`
+//! - **`DepylerTimeDelta`** struct (DEPYLER-1068): Wrapper for Python `datetime.timedelta`
 //!   with normalized components and arithmetic operators.
-//! - **DepylerRegexMatch** struct (DEPYLER-1070): Wrapper for Python `re.Match` object
+//! - **`DepylerRegexMatch`** struct (DEPYLER-1070): Wrapper for Python `re.Match` object
 //!   with `.group()`, `.groups()`, `.start()`, `.end()`, `.span()` methods.
 
 use quote::quote;
@@ -20,11 +20,12 @@ use super::context::CodeGenContext;
 
 /// Generate runtime support type tokens based on what the transpiled code needs.
 /// Returns token streams for:
-/// - PythonIntOps trait (if ctx.needs_python_int_ops || nasa_mode)
-/// - DepylerDate struct (if ctx.needs_depyler_date || nasa_mode)
-/// - DepylerDateTime struct (if ctx.needs_depyler_datetime || nasa_mode)
-/// - DepylerTimeDelta struct (if ctx.needs_depyler_timedelta || nasa_mode)
-/// - DepylerRegexMatch struct (if ctx.needs_depyler_regex_match || nasa_mode)
+/// - `PythonIntOps` trait (if `ctx.needs_python_int_ops` || `nasa_mode`)
+/// - `DepylerDate` struct (if `ctx.needs_depyler_date` || `nasa_mode`)
+/// - `DepylerDateTime` struct (if `ctx.needs_depyler_datetime` || `nasa_mode`)
+/// - `DepylerTimeDelta` struct (if `ctx.needs_depyler_timedelta` || `nasa_mode`)
+/// - `DepylerRegexMatch` struct (if `ctx.needs_depyler_regex_match` || `nasa_mode`)
+#[allow(clippy::too_many_lines)]
 pub(super) fn generate_runtime_type_items(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenStream> {
     let nasa_mode = ctx.type_mapper.nasa_mode;
     let mut items = Vec::new();

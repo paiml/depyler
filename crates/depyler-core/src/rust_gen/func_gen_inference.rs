@@ -1,9 +1,9 @@
 //! Advanced function codegen: nested functions, type inference helpers
 //!
-//! DEPYLER-COVERAGE-95: Extracted from func_gen.rs to reduce file size
+//! DEPYLER-COVERAGE-95: Extracted from `func_gen.rs` to reduce file size
 //! and improve testability. Contains return type inference and nested function detection.
 
-use crate::hir::*;
+use crate::hir::{HirFunction, HirParam, Type, HirStmt, HirExpr, AssignTarget, Literal};
 use crate::lifetime_analysis::LifetimeInference;
 use crate::rust_gen::context::{CodeGenContext, RustCodeGen};
 use crate::rust_gen::control_flow_analysis::stmt_always_returns;
@@ -25,8 +25,8 @@ use quote::quote;
 use syn::parse_quote;
 
 /// GH-70: Detect if function returns a nested function/closure
-/// Returns Some((nested_fn_name, params, ret_type)) if detected
-/// Stores inferred params in ctx.nested_function_params for use during code generation
+/// Returns `Some((nested_fn_name`, params, `ret_type`)) if detected
+/// Stores inferred params in `ctx.nested_function_params` for use during code generation
 pub(crate) fn detect_returns_nested_function(
     func: &HirFunction,
     ctx: &mut CodeGenContext,
@@ -159,7 +159,7 @@ pub(crate) fn collect_io_return_types(
     }
 }
 
-/// DEPYLER-0626: Check if expression creates a File (open() or File::create())
+/// DEPYLER-0626: Check if expression creates a File (`open()` or <File::create()>)
 pub(crate) fn is_file_creating_return_expr(expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Call { func, .. } => func == "open",
@@ -192,9 +192,10 @@ pub(crate) fn is_stdio_return_expr(expr: &HirExpr) -> bool {
 
 /// Generate return type with Result wrapper and lifetime handling
 ///
-/// DEPYLER-0310: Now returns ErrorType (4th tuple element) for raise statement wrapping
+/// DEPYLER-0310: Now returns `ErrorType` (4th tuple element) for raise statement wrapping
 /// GH-70: Now detects when function returns nested function and uses Box<dyn Fn>
 #[inline]
+#[allow(clippy::too_many_lines)]
 pub(crate) fn codegen_return_type(
     func: &HirFunction,
     lifetime_result: &crate::lifetime_analysis::LifetimeResult,
@@ -292,13 +293,13 @@ pub(crate) fn codegen_return_type(
 
     // DEPYLER-0716: Apply type substitutions to return type
     // When generic parameters are substituted (e.g., T -> String), apply to return type too
-    let effective_ret_type = if !ctx.type_substitutions.is_empty() {
+    let effective_ret_type = if ctx.type_substitutions.is_empty() {
+        effective_ret_type
+    } else {
         crate::generic_inference::TypeVarRegistry::apply_substitutions(
             &effective_ret_type,
             &ctx.type_substitutions,
         )
-    } else {
-        effective_ret_type
     };
 
     // DEPYLER-0936: Rewrite ADT child types to parent enum types
@@ -582,15 +583,15 @@ pub(crate) fn codegen_return_type(
 // ========== Phase 3c: Generator Implementation ==========
 // (Moved to generator_gen.rs in v3.18.0 Phase 4)
 
-/// DEPYLER-1181: Preload type annotations from HIR statements into var_types context
+/// DEPYLER-1181: Preload type annotations from HIR statements into `var_types` context
 /// This ensures that inferred types from the constraint solver are available during
 /// expression code generation. Without this, the "Neural Link" (DEPYLER-1180) propagation
 /// of types to HIR annotations is ignored by the code generator.
 ///
 /// The flow is:
 /// 1. Constraint solver infers types (DEPYLER-1173)
-/// 2. apply_substitutions writes types to HIR type_annotation fields (DEPYLER-1180)
-/// 3. THIS function reads those annotations into ctx.var_types (DEPYLER-1181)
+/// 2. `apply_substitutions` writes types to HIR `type_annotation` fields (DEPYLER-1180)
+/// 3. THIS function reads those annotations into `ctx.var_types` (DEPYLER-1181)
 /// 4. Expression codegen can now access inferred types
 pub(crate) fn preload_hir_type_annotations(body: &[HirStmt], ctx: &mut CodeGenContext) {
     for stmt in body {
@@ -599,6 +600,7 @@ pub(crate) fn preload_hir_type_annotations(body: &[HirStmt], ctx: &mut CodeGenCo
 }
 
 /// DEPYLER-1181: Recursively extract type annotations from a single statement
+#[allow(clippy::match_same_arms)]
 fn preload_stmt_type_annotations(stmt: &HirStmt, ctx: &mut CodeGenContext) {
     match stmt {
         HirStmt::Assign {
@@ -684,6 +686,7 @@ fn preload_stmt_type_annotations(stmt: &HirStmt, ctx: &mut CodeGenContext) {
 }
 
 impl RustCodeGen for HirFunction {
+    #[allow(clippy::too_many_lines)]
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         // DEPYLER-0717: Clear var_types at the start of each function to prevent type leaking
         // Without this, parameter types from one function can leak to the next function
@@ -807,8 +810,7 @@ impl RustCodeGen for HirFunction {
                 lifetime_result
                     .param_lifetimes
                     .get(&p.name)
-                    .map(|inf| inf.should_borrow)
-                    .unwrap_or(false)
+                    .is_some_and(|inf| inf.should_borrow)
             })
             .collect();
 
@@ -833,8 +835,7 @@ impl RustCodeGen for HirFunction {
                 let should_borrow = lifetime_result
                     .param_lifetimes
                     .get(&p.name)
-                    .map(|inf| inf.should_borrow)
-                    .unwrap_or(false);
+                    .is_some_and(|inf| inf.should_borrow);
                 // needs_mut = mutated in body AND borrowed (not owned)
                 is_mutated && should_borrow
             })
@@ -900,8 +901,7 @@ impl RustCodeGen for HirFunction {
             let inferred_needs_mut = lifetime_result
                 .param_lifetimes
                 .get(&param.name)
-                .map(|ip| ip.needs_mut)
-                .unwrap_or(false);
+                .is_some_and(|ip| ip.needs_mut);
 
             // DEPYLER-99MODE-E0308: Track Option params that are mutated
             if (is_optional || has_none_default) && inferred_needs_mut {
@@ -929,8 +929,7 @@ impl RustCodeGen for HirFunction {
                     let has_ref_params = ctx
                         .function_param_borrows
                         .get(&self.name)
-                        .map(|borrows| borrows.iter().any(|&b| b))
-                        .unwrap_or(false);
+                        .is_some_and(|borrows| borrows.iter().any(|&b| b));
                     if has_ref_params {
                         // DEPYLER-1080: Use single lifetime 'a for all reference params
                         // When returning impl Iterator, all captured refs must share the same lifetime
@@ -1035,7 +1034,7 @@ impl RustCodeGen for HirFunction {
             if let Some(parser_info) = ctx.argparser_tracker.get_first_parser() {
                 for arg in &parser_info.arguments {
                     if arg.rust_type().starts_with("Option<") {
-                        ctx.precomputed_option_fields.insert(arg.rust_field_name().to_string());
+                        ctx.precomputed_option_fields.insert(arg.rust_field_name().clone());
                     }
                 }
             }
@@ -1072,7 +1071,7 @@ impl RustCodeGen for HirFunction {
         // This handles Python's @abstractmethod pattern where body is just `pass`.
         {
             use quote::quote;
-            let body_is_empty = body_stmts.iter().all(|stmt| stmt.is_empty());
+            let body_is_empty = body_stmts.iter().all(proc_macro2::TokenStream::is_empty);
             let is_non_unit_return = !matches!(rust_ret_type, crate::type_mapper::RustType::Unit);
             if body_is_empty && is_non_unit_return {
                 body_stmts.push(quote! { unimplemented!() });
@@ -1157,7 +1156,7 @@ impl RustCodeGen for HirFunction {
                         .arguments
                         .iter()
                         .filter(|arg| arg.rust_type().starts_with("Option<"))
-                        .map(|arg| arg.rust_field_name().to_string())
+                        .map(|arg| arg.rust_field_name().clone())
                         .collect();
 
                     if !option_fields.is_empty() {
@@ -1167,12 +1166,12 @@ impl RustCodeGen for HirFunction {
                                 let mut stmt_str = stmt.to_string();
                                 for field in &option_fields {
                                     // Replace "args . <field> . is_some ()" with "has_<field>"
-                                    let pattern = format!("args . {} . is_some ()", field);
-                                    let replacement = format!("has_{}", field);
+                                    let pattern = format!("args . {field} . is_some ()");
+                                    let replacement = format!("has_{field}");
                                     stmt_str = stmt_str.replace(&pattern, &replacement);
                                     // Also handle is_none
-                                    let pattern_none = format!("args . {} . is_none ()", field);
-                                    let replacement_none = format!("! has_{}", field);
+                                    let pattern_none = format!("args . {field} . is_none ()");
+                                    let replacement_none = format!("! has_{field}");
                                     stmt_str = stmt_str.replace(&pattern_none, &replacement_none);
                                 }
                                 syn::parse_str(&stmt_str).unwrap_or(stmt)
@@ -1186,8 +1185,7 @@ impl RustCodeGen for HirFunction {
                     let insert_idx = body_stmts
                         .iter()
                         .position(|s| s.to_string().contains("Args :: parse"))
-                        .map(|i| i + 1)
-                        .unwrap_or(0);
+                        .map_or(0, |i| i + 1);
                     for (offset, stmt) in precompute_stmts.into_iter().enumerate() {
                         body_stmts.insert(insert_idx + offset, stmt);
                     }

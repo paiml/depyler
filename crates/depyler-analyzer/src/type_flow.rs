@@ -229,6 +229,7 @@ impl TypeInferencer {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn infer_literal(&self, lit: &depyler_core::hir::Literal) -> Type {
         match lit {
             depyler_core::hir::Literal::Int(_) => Type::Int,
@@ -244,6 +245,7 @@ impl TypeInferencer {
         self.env.get_var_type(name).cloned().unwrap_or(Type::Unknown)
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn infer_binary(
         &mut self,
         op: &depyler_core::hir::BinOp,
@@ -252,9 +254,10 @@ impl TypeInferencer {
     ) -> Result<Type> {
         let left_type = self.infer_expr(left)?;
         let right_type = self.infer_expr(right)?;
-        Ok(self.infer_binary_op(*op, &left_type, &right_type))
+        Ok(Self::infer_binary_op(*op, &left_type, &right_type))
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn infer_unary(&mut self, op: &depyler_core::hir::UnaryOp, operand: &HirExpr) -> Result<Type> {
         let operand_type = self.infer_expr(operand)?;
         Ok(self.infer_unary_op(*op, &operand_type))
@@ -300,13 +303,15 @@ impl TypeInferencer {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn infer_tuple(&mut self, elts: &[HirExpr]) -> Result<Type> {
         let types: Vec<Type> =
             elts.iter().map(|e| self.infer_expr(e)).collect::<Result<Vec<_>>>()?;
         Ok(Type::Tuple(types))
     }
 
-    fn infer_binary_op(&self, op: depyler_core::hir::BinOp, left: &Type, right: &Type) -> Type {
+    #[allow(clippy::match_same_arms, clippy::match_wildcard_for_single_variants)]
+    fn infer_binary_op(op: depyler_core::hir::BinOp, left: &Type, right: &Type) -> Type {
         use depyler_core::hir::BinOp;
 
         match op {
@@ -340,6 +345,7 @@ impl TypeInferencer {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn infer_unary_op(&self, op: depyler_core::hir::UnaryOp, operand: &Type) -> Type {
         use depyler_core::hir::UnaryOp;
 
@@ -356,6 +362,7 @@ impl TypeInferencer {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn get_element_type(&self, container: &Type) -> Type {
         match container {
             Type::List(elem) => (**elem).clone(),

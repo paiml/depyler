@@ -297,8 +297,7 @@ impl ConstGenericInferencer {
     }
 
     /// Scan expression for list mutations
-    #[allow(clippy::only_used_in_recursion)]
-    #[allow(dead_code)] // Currently unused due to disabled transform_function_types
+    #[allow(clippy::only_used_in_recursion, dead_code)]
     fn scan_expr_for_mutations(&self, expr: &HirExpr, mutated: &mut HashSet<String>) {
         match expr {
             HirExpr::MethodCall {

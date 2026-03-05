@@ -210,6 +210,7 @@ fn add_borrow_patterns(dataset: &mut TrainingDataset) {
 }
 
 /// Additional synthetic patterns for edge cases.
+#[allow(clippy::too_many_lines)]
 fn add_extended_patterns(dataset: &mut TrainingDataset) {
     // More type mismatch variants
     dataset.add_many(vec![

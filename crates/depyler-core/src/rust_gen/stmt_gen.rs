@@ -1,11 +1,11 @@
 //! Statement code generation
 //!
 //! This module handles converting HIR statements to Rust token streams.
-//! It includes all statement conversion helpers and the HirStmt RustCodeGen trait implementation.
+//! It includes all statement conversion helpers and the `HirStmt` `RustCodeGen` trait implementation.
 
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
-use crate::hir::*;
+use crate::hir::{Type, HirExpr, Literal, BinOp, HirStmt, UnaryOp, AssignTarget, ExceptHandler};
 use crate::rust_gen::context::{CodeGenContext, RustCodeGen, ToRustExpr};
 use crate::rust_gen::exception_helpers::extract_exception_type;
 use crate::rust_gen::expr_analysis::{
@@ -67,8 +67,8 @@ fn type_to_rust_string(ty: &Type) -> String {
 }
 
 /// DEPYLER-1149: Infer element type from set/list literal elements
-/// Returns the HIR Type of elements if homogeneous, or Type::Unknown if mixed/empty.
-/// This enables proper type inference for set literals to avoid HashSet<DepylerValue>.
+/// Returns the HIR Type of elements if homogeneous, or `Type::Unknown` if mixed/empty.
+/// This enables proper type inference for set literals to avoid `HashSet`<DepylerValue>.
 fn infer_collection_element_type(elems: &[HirExpr]) -> Type {
     infer_collection_element_type_with_ctx(elems, &HashMap::new())
 }
@@ -77,6 +77,7 @@ fn infer_collection_element_type(elems: &[HirExpr]) -> Type {
 /// This fixes the Vec<DepylerValue> vs Vec<i32> bug by looking up variable types
 /// when the collection contains variables (e.g., `[a, b, c]` where a,b,c are i32).
 /// DEPYLER-1313: Extended to handle nested lists/tuples/dicts for proper Vec<Vec<T>> inference.
+#[allow(clippy::manual_let_else)]
 fn infer_collection_element_type_with_ctx(
     elems: &[HirExpr],
     var_types: &HashMap<String, Type>,
@@ -87,6 +88,7 @@ fn infer_collection_element_type_with_ctx(
     }
 
     // Helper to get element type from expression (literal, variable, or nested collection)
+    #[allow(clippy::items_after_statements, clippy::manual_let_else)]
     fn get_elem_type_recursive(e: &HirExpr, var_types: &HashMap<String, Type>) -> Option<Type> {
         match e {
             HirExpr::Literal(Literal::Int(_)) => Some(Type::Int),
@@ -161,7 +163,7 @@ fn infer_collection_element_type_with_ctx(
 }
 
 /// DEPYLER-1313: Convert a Type to a simple token stream for type annotations.
-/// Handles primitives, lists, tuples, and falls back to DepylerValue for unknown types.
+/// Handles primitives, lists, tuples, and falls back to `DepylerValue` for unknown types.
 fn type_to_simple_token(t: &Type) -> proc_macro2::TokenStream {
     match t {
         Type::Int => quote! { i32 },
@@ -191,7 +193,7 @@ fn type_to_simple_token(t: &Type) -> proc_macro2::TokenStream {
 }
 
 /// DEPYLER-1313: Convert a Type to a Vec inner type annotation.
-/// Returns Some(tokens) if the type is concrete, None if it should fall back to DepylerValue.
+/// Returns Some(tokens) if the type is concrete, None if it should fall back to `DepylerValue`.
 fn type_to_vec_annotation(t: &Type) -> Option<proc_macro2::TokenStream> {
     match t {
         Type::Int => Some(quote! { Vec<i32> }),
@@ -212,7 +214,7 @@ fn type_to_vec_annotation(t: &Type) -> Option<proc_macro2::TokenStream> {
 }
 
 /// Helper to build nested dictionary access for assignment
-/// Returns (base_expr, access_chain) where access_chain is a vec of index expressions
+/// Returns (`base_expr`, `access_chain`) where `access_chain` is a vec of index expressions
 fn extract_nested_indices_tokens(
     expr: &HirExpr,
     ctx: &mut CodeGenContext,
@@ -222,18 +224,15 @@ fn extract_nested_indices_tokens(
 
     // Walk up the chain collecting indices
     loop {
-        match current {
-            HirExpr::Index { base, index } => {
-                let index_expr = index.to_rust_expr(ctx)?;
-                indices.push(index_expr);
-                current = base;
-            }
-            _ => {
-                // We've reached the base
-                let base_expr = current.to_rust_expr(ctx)?;
-                indices.reverse(); // We collected from inner to outer, need outer to inner
-                return Ok((base_expr, indices));
-            }
+        if let HirExpr::Index { base, index } = current {
+            let index_expr = index.to_rust_expr(ctx)?;
+            indices.push(index_expr);
+            current = base;
+        } else {
+            // We've reached the base
+            let base_expr = current.to_rust_expr(ctx)?;
+            indices.reverse(); // We collected from inner to outer, need outer to inner
+            return Ok((base_expr, indices));
         }
     }
 }
@@ -254,6 +253,7 @@ fn extract_nested_indices_tokens(
 /// Generate code for Assert statement
 /// DEPYLER-1005: Handle binary comparison expressions specially to avoid = = tokenization issue
 #[inline]
+#[allow(clippy::ref_option)]
 pub(crate) fn codegen_assert_stmt(
     test: &HirExpr,
     msg: &Option<HirExpr>,
@@ -269,9 +269,8 @@ pub(crate) fn codegen_assert_stmt(
                 if let Some(message_expr) = msg {
                     let msg_tokens = message_expr.to_rust_expr(ctx)?;
                     return Ok(quote! { assert_eq!(#left_expr, #right_expr, "{}", #msg_tokens); });
-                } else {
-                    return Ok(quote! { assert_eq!(#left_expr, #right_expr); });
                 }
+                return Ok(quote! { assert_eq!(#left_expr, #right_expr); });
             }
             BinOp::NotEq => {
                 let left_expr = unwrap_result_in_assert(left, ctx)?;
@@ -279,9 +278,8 @@ pub(crate) fn codegen_assert_stmt(
                 if let Some(message_expr) = msg {
                     let msg_tokens = message_expr.to_rust_expr(ctx)?;
                     return Ok(quote! { assert_ne!(#left_expr, #right_expr, "{}", #msg_tokens); });
-                } else {
-                    return Ok(quote! { assert_ne!(#left_expr, #right_expr); });
                 }
+                return Ok(quote! { assert_ne!(#left_expr, #right_expr); });
             }
             _ => {} // Fall through to default handling
         }
@@ -297,9 +295,10 @@ pub(crate) fn codegen_assert_stmt(
     }
 }
 
-/// DEPYLER-99MODE-S9: Unwrap Result-returning function calls in assert_eq!/assert_ne!.
+/// DEPYLER-99MODE-S9: Unwrap Result-returning function calls in `assert_eq!/assert_ne`!.
 /// If `expr` is a call to a function known to return Result, generate `func(args).unwrap()`
-/// instead of bare `func(args)` so assert_eq! can compare inner values.
+/// instead of bare `func(args)` so `assert_eq`! can compare inner values.
+#[allow(clippy::too_many_lines)]
 fn unwrap_result_in_assert(expr: &HirExpr, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     let rust_expr = expr.to_rust_expr(ctx)?;
     if is_call_to_result_returning_fn(expr, ctx) {
@@ -311,6 +310,7 @@ fn unwrap_result_in_assert(expr: &HirExpr, ctx: &mut CodeGenContext) -> Result<s
 
 /// Generate code for expression statement
 #[inline]
+#[allow(clippy::too_many_lines, clippy::ref_option, clippy::used_underscore_binding, clippy::items_after_statements)]
 pub(crate) fn codegen_expr_stmt(
     expr: &HirExpr,
     ctx: &mut CodeGenContext,
@@ -399,7 +399,7 @@ pub(crate) fn codegen_expr_stmt(
                                             "Path" => {
                                                 arg.arg_type = Some(crate::hir::Type::Custom(
                                                     "PathBuf".to_string(),
-                                                ))
+                                                ));
                                             }
                                             _ => {
                                                 // DEPYLER-0447: Track custom validator functions
@@ -554,13 +554,13 @@ pub(crate) fn codegen_expr_stmt(
                                                 match type_name.as_str() {
                                                     "str" => {
                                                         arg.arg_type =
-                                                            Some(crate::hir::Type::String)
+                                                            Some(crate::hir::Type::String);
                                                     }
                                                     "int" => {
-                                                        arg.arg_type = Some(crate::hir::Type::Int)
+                                                        arg.arg_type = Some(crate::hir::Type::Int);
                                                     }
                                                     "float" => {
-                                                        arg.arg_type = Some(crate::hir::Type::Float)
+                                                        arg.arg_type = Some(crate::hir::Type::Float);
                                                     }
                                                     "Path" => {
                                                         // Path needs to map to PathBuf
@@ -675,7 +675,6 @@ pub(crate) fn codegen_expr_stmt(
                                 let command_name = extract_string_literal(&args[0]);
                                 let help = extract_kwarg_string(kwargs, "help");
 
-                                // Register subcommand without a variable name (since it's not assigned)
                                 use crate::rust_gen::argparse_transform::SubcommandInfo;
                                 let subcommand_info = SubcommandInfo {
                                     name: command_name.clone(),
@@ -719,6 +718,7 @@ pub(crate) fn codegen_expr_stmt(
 
 /// Generate code for Return statement with optional expression
 #[inline]
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss, clippy::similar_names, clippy::too_many_lines, clippy::ref_option)]
 pub(crate) fn codegen_return_stmt(
     expr: &Option<HirExpr>,
     ctx: &mut CodeGenContext,
@@ -778,8 +778,7 @@ pub(crate) fn codegen_return_stmt(
                                         // Check if var is known to be a list type
                                         ctx.var_types
                                             .get(name)
-                                            .map(|t| matches!(t, Type::List(_)))
-                                            .unwrap_or(false)
+                                            .is_some_and(|t| matches!(t, Type::List(_)))
                                     }
                                     HirExpr::MethodCall { method, .. } => {
                                         // Methods like map, filter, collect return lists
@@ -902,7 +901,7 @@ pub(crate) fn codegen_return_stmt(
             let is_slice_param = ctx.slice_params.contains(var_name);
             let is_vec_return = matches!(
                 ctx.current_return_type.as_ref(),
-                Some(Type::List(_)) | Some(Type::Tuple(_))
+                Some(Type::List(_) | Type::Tuple(_))
             );
             if is_slice_param && is_vec_return {
                 expr_tokens = parse_quote! { #expr_tokens.to_vec() };
@@ -1005,7 +1004,7 @@ pub(crate) fn codegen_return_stmt(
         // DEPYLER-0951: Extended to check method calls that return Option
         // Don't wrap in Some() if the expression is already Option<T>
         let is_already_optional = if let HirExpr::Var(var_name) = e {
-            ctx.var_types.get(var_name).map(|ty| matches!(ty, Type::Optional(_))).unwrap_or(false)
+            ctx.var_types.get(var_name).is_some_and(|ty| matches!(ty, Type::Optional(_)))
         } else if let HirExpr::MethodCall { method, args, .. } = e {
             // DEPYLER-0951: These methods return Option<T>, don't wrap in Some()
             // - dict.get(key) -> Option<&V>
@@ -1112,7 +1111,7 @@ pub(crate) fn codegen_return_stmt(
 
                         if is_option && body_uses_option_var(body, var_name) {
                             let var_ident = crate::rust_gen::keywords::safe_ident(var_name);
-                            let val_name = format!("{}_val", var_name);
+                            let val_name = format!("{var_name}_val");
                             let val_ident = crate::rust_gen::keywords::safe_ident(&val_name);
 
                             // Substitute variable in body
@@ -1123,11 +1122,10 @@ pub(crate) fn codegen_return_stmt(
                                 return Ok(
                                     quote! { return Ok(#var_ident.as_ref().map(|#val_ident| #body_tokens)); },
                                 );
-                            } else {
-                                return Ok(
-                                    quote! { Ok(#var_ident.as_ref().map(|#val_ident| #body_tokens)) },
-                                );
                             }
+                            return Ok(
+                                quote! { Ok(#var_ident.as_ref().map(|#val_ident| #body_tokens)) },
+                            );
                         }
                     }
 
@@ -1170,7 +1168,7 @@ pub(crate) fn codegen_return_stmt(
                 // If main() returns other types like f64, treat it as a normal function.
                 let is_main_entry_point_return = matches!(
                     ctx.current_return_type.as_ref(),
-                    None | Some(Type::Int) | Some(Type::None)
+                    None | Some(Type::Int | Type::None)
                 );
                 if !is_main_entry_point_return {
                     // main() with non-int/non-void return type (e.g., `def main() -> float`)
@@ -1259,7 +1257,7 @@ pub(crate) fn codegen_return_stmt(
 
                     if is_option && body_uses_option_var(body, var_name) {
                         let var_ident = crate::rust_gen::keywords::safe_ident(var_name);
-                        let val_name = format!("{}_val", var_name);
+                        let val_name = format!("{var_name}_val");
                         let val_ident = crate::rust_gen::keywords::safe_ident(&val_name);
 
                         // Substitute variable in body
@@ -1270,11 +1268,10 @@ pub(crate) fn codegen_return_stmt(
                             return Ok(
                                 quote! { return #var_ident.as_ref().map(|#val_ident| #body_tokens); },
                             );
-                        } else {
-                            return Ok(
-                                quote! { #var_ident.as_ref().map(|#val_ident| #body_tokens) },
-                            );
                         }
+                        return Ok(
+                            quote! { #var_ident.as_ref().map(|#val_ident| #body_tokens) },
+                        );
                     }
                 }
 
@@ -1308,7 +1305,7 @@ pub(crate) fn codegen_return_stmt(
             // If main() returns other types like f64, treat it as a normal function.
             let is_main_entry_point_return = matches!(
                 ctx.current_return_type.as_ref(),
-                None | Some(Type::Int) | Some(Type::None)
+                None | Some(Type::Int | Type::None)
             );
             if !is_main_entry_point_return {
                 // main() with non-int/non-void return type (e.g., `def main() -> float`)
@@ -1426,9 +1423,10 @@ pub(crate) fn codegen_while_stmt(
 
 /// Generate code for Raise (exception) statement
 ///
-/// DEPYLER-0310: Wraps exceptions with Box::new() when error type is Box<dyn Error>
+/// DEPYLER-0310: Wraps exceptions with `Box::new()` when error type is Box<dyn Error>
 /// DEPYLER-0333: Uses scope tracking to determine error handling strategy
 #[inline]
+#[allow(clippy::ref_option)]
 pub(crate) fn codegen_raise_stmt(
     exception: &Option<HirExpr>,
     ctx: &mut CodeGenContext,
@@ -1564,8 +1562,9 @@ pub(crate) fn codegen_raise_stmt(
 // Note: extract_exception_type is imported from crate::rust_gen::exception_helpers
 
 /// Generate code for With (context manager) statement
-/// DEPYLER-0188: Now supports async with statements (is_async flag)
+/// DEPYLER-0188: Now supports async with statements (`is_async` flag)
 #[inline]
+#[allow(clippy::ref_option)]
 pub(crate) fn codegen_with_stmt(
     context: &HirExpr,
     target: &Option<String>,
@@ -1669,6 +1668,7 @@ pub(crate) fn codegen_with_stmt(
 /// - `not number` → `number == 0` (not `number != 0`)
 ///
 /// This prevents double-negation and generates cleaner Rust code.
+#[allow(clippy::too_many_lines, clippy::match_same_arms)]
 fn apply_negated_truthiness(
     operand: &HirExpr,
     cond_expr: syn::Expr,
@@ -1758,15 +1758,16 @@ fn apply_negated_truthiness(
 ///
 /// In Python, any value can be used in a boolean context. This function
 /// converts non-boolean expressions to boolean using Python semantics:
-/// - String: !expr.is_empty()
-/// - List/Dict/Set: !expr.is_empty()
-/// - Optional: expr.is_some()
+/// - String: !`expr.is_empty()`
+/// - List/Dict/Set: !`expr.is_empty()`
+/// - Optional: `expr.is_some()`
 /// - Int: expr != 0
 /// - Float: expr != 0.0
 /// - Bool: expr (no conversion)
 ///
 /// # DEPYLER-0339
 /// Fixes: `if val` where `val: String` failing to compile
+#[allow(clippy::match_same_arms, clippy::too_many_lines)]
 fn apply_truthiness_conversion(
     condition: &HirExpr,
     cond_expr: syn::Expr,
@@ -1984,7 +1985,7 @@ fn apply_truthiness_conversion(
                     }
 
                     // Argument is NOT an Option if it has action="store_true" or "store_false"
-                    if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+                    if matches!(arg.action.as_deref(), Some("store_true" | "store_false")) {
                         return false;
                     }
 
@@ -1994,7 +1995,7 @@ fn apply_truthiness_conversion(
                     !arg.is_positional
                         && !arg.required.unwrap_or(false)
                         && arg.default.is_none()
-                        && !matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
+                        && !matches!(arg.nargs.as_deref(), Some("+" | "*"))
                 };
 
                 // Check main parsers
@@ -2016,7 +2017,7 @@ fn apply_truthiness_conversion(
                     // DEPYLER-0108: Check if this field has been precomputed
                     // to avoid borrow-after-move when Option is passed then checked
                     if ctx.precomputed_option_fields.contains(attr) {
-                        let has_var_name = format!("has_{}", attr);
+                        let has_var_name = format!("has_{attr}");
                         let has_ident =
                             syn::Ident::new(&has_var_name, proc_macro2::Span::call_site());
                         return parse_quote! { #has_ident };
@@ -2035,7 +2036,7 @@ fn apply_truthiness_conversion(
                             return false;
                         }
                         // nargs='+' or nargs='*' creates Vec<T>
-                        matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
+                        matches!(arg.nargs.as_deref(), Some("+" | "*"))
                     })
                 });
 
@@ -2063,7 +2064,7 @@ fn apply_truthiness_conversion(
                                 && arg.arg_type.is_none()
                                 && !matches!(
                                     arg.action.as_deref(),
-                                    Some("store_true") | Some("store_false")
+                                    Some("store_true" | "store_false")
                                 )
                         })
                     });
@@ -2172,6 +2173,7 @@ fn body_uses_option_var(body: &HirExpr, var_name: &str) -> bool {
 }
 
 /// DEPYLER-1071: Substitute a variable name in a HIR expression
+#[allow(clippy::ref_option)]
 fn substitute_var_in_hir(expr: &HirExpr, old_name: &str, new_name: &str) -> HirExpr {
     match expr {
         HirExpr::Var(name) if name == old_name => HirExpr::Var(new_name.to_string()),
@@ -2216,6 +2218,7 @@ fn substitute_var_in_hir(expr: &HirExpr, old_name: &str, new_name: &str) -> HirE
 /// Variables assigned in BOTH if and else branches are hoisted before the if statement.
 /// DEPYLER-0476: Only hoist top-level assignments, not variables inside nested for/while loops.
 #[inline]
+#[allow(clippy::too_many_lines, clippy::ref_option)]
 pub(crate) fn codegen_if_stmt(
     condition: &HirExpr,
     then_body: &[HirStmt],
@@ -2479,7 +2482,7 @@ pub(crate) fn codegen_if_stmt(
 }
 
 /// DEPYLER-1151: Detect if a condition is a None check on a variable
-/// Returns Some(var_name) if condition is `x.is_none()` or `not x` (for Optional)
+/// Returns `Some(var_name)` if condition is `x.is_none()` or `not x` (for Optional)
 /// Note: `x is None` is already converted to `x.is_none()` by the AST bridge
 fn detect_none_check_variable(condition: &HirExpr) -> Option<String> {
     match condition {
@@ -2530,6 +2533,7 @@ fn is_early_exit_body(body: &[HirStmt]) -> bool {
 ///
 /// # Complexity
 /// 3 (body processing with scope management)
+#[allow(clippy::ref_option)]
 fn codegen_option_if_let(
     var_name: &str,
     then_body: &[HirStmt],
@@ -2539,7 +2543,7 @@ fn codegen_option_if_let(
     // Generate the variable identifier (handle Rust keywords)
     let var_ident = safe_ident(var_name);
     // Generate the unwrapped variable name
-    let unwrapped_name = format!("{}_val", var_name);
+    let unwrapped_name = format!("{var_name}_val");
     let unwrapped_ident = safe_ident(&unwrapped_name);
 
     // DEPYLER-0645: Inside generators, state variables need self. prefix
@@ -2686,9 +2690,9 @@ pub(crate) fn find_variable_type(var_name: &str, stmts: &[HirStmt]) -> Option<Ty
 // DEPYLER-0023: Variable analysis functions (is_var_used_as_dict_key_in_expr, is_var_direct_or_simple_in_expr,
 // is_var_used_as_dict_key_in_stmt, is_var_reassigned_in_stmt, is_var_used_in_stmt) imported from var_analysis module
 
-/// DEPYLER-0607: Check if a method chain leads back to a dict.get() on HashMap<_, serde_json::Value>
-/// This handles patterns like: data.get("key").cloned().unwrap_or_default()
-/// Includes fallback for untracked local variables when serde_json is in use.
+/// DEPYLER-0607: Check if a method chain leads back to a `dict.get()` on `HashMap`<_, `serde_json::Value`>
+/// This handles patterns like: `data.get("key").cloned().unwrap_or_default()`
+/// Includes fallback for untracked local variables when `serde_json` is in use.
 fn is_json_value_method_chain_or_fallback(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
     match expr {
         // Reached the base: check if it's a dict.get() on Value-containing HashMap
@@ -2752,9 +2756,10 @@ fn track_range_loop_var(target: &AssignTarget, iter: &HirExpr, ctx: &mut CodeGen
 }
 
 /// Track loop variable type when iterating over a collection with known element type (DEPYLER-99MODE-S9)
-/// For `for x in some_list` where some_list is List(Int), track x as Int.
+/// For `for x in some_list` where `some_list` is List(Int), track x as Int.
 /// Also handles Index expressions like `for neighbor in adj[node]` where adj is Dict(_, List(Int)).
 #[inline]
+#[allow(clippy::if_not_else, clippy::match_same_arms)]
 fn track_collection_loop_var(
     target: &AssignTarget,
     iter: &HirExpr,
@@ -2828,7 +2833,7 @@ fn track_char_counter_iter(target: &AssignTarget, iter: &HirExpr, ctx: &mut Code
 #[inline]
 fn generate_symbol_pattern(name: &str, body: &[HirStmt]) -> syn::Pat {
     let var_name =
-        if is_loop_var_used(name, body) { name.to_string() } else { format!("_{}", name) };
+        if is_loop_var_used(name, body) { name.to_string() } else { format!("_{name}") };
     let ident = safe_ident(&var_name);
     if is_loop_var_reassigned(name, body) {
         parse_quote! { mut #ident }
@@ -2896,12 +2901,14 @@ fn is_csv_reader_iteration(iter: &HirExpr) -> bool {
 
 /// Apply stdin iteration transformation (DEPYLER-0388)
 #[inline]
+#[allow(clippy::needless_pass_by_value)]
 fn apply_stdin_iteration(iter_expr: syn::Expr) -> syn::Expr {
     parse_quote! { #iter_expr.lines().map(|l| l.unwrap_or_default()) }
 }
 
 /// Apply file iteration transformation (DEPYLER-0388, DEPYLER-0522)
 #[inline]
+#[allow(clippy::needless_pass_by_value)]
 fn apply_file_iteration(iter_expr: syn::Expr, ctx: &mut CodeGenContext) -> syn::Expr {
     ctx.needs_bufread = true;
     parse_quote! {
@@ -2911,6 +2918,7 @@ fn apply_file_iteration(iter_expr: syn::Expr, ctx: &mut CodeGenContext) -> syn::
 }
 
 /// Extract element type from simple variable iteration (DEPYLER-0339)
+#[allow(clippy::match_same_arms)]
 fn extract_var_element_type(var_name: &str, ctx: &CodeGenContext) -> Option<Type> {
     ctx.var_types.get(var_name).and_then(|t| match t {
         Type::List(elem_t) => Some(*elem_t.clone()),
@@ -2921,6 +2929,7 @@ fn extract_var_element_type(var_name: &str, ctx: &CodeGenContext) -> Option<Type
 }
 
 /// Extract element type from self.field iteration (DEPYLER-1051)
+#[allow(clippy::match_same_arms)]
 fn extract_self_field_element_type(attr: &str, ctx: &CodeGenContext) -> Option<Type> {
     ctx.class_field_types.get(attr).and_then(|t| match t {
         Type::List(elem_t) => Some(*elem_t.clone()),
@@ -2930,7 +2939,8 @@ fn extract_self_field_element_type(attr: &str, ctx: &CodeGenContext) -> Option<T
     })
 }
 
-/// Extract element type from enumerate() call
+/// Extract element type from `enumerate()` call
+#[allow(clippy::match_same_arms)]
 fn extract_enumerate_element_type(arg: &HirExpr, ctx: &CodeGenContext) -> Option<Type> {
     match arg {
         HirExpr::Var(var_name) => ctx.var_types.get(var_name).and_then(|t| match t {
@@ -2953,14 +2963,13 @@ fn extract_enumerate_element_type(arg: &HirExpr, ctx: &CodeGenContext) -> Option
     }
 }
 
-/// Extract element type from Path.glob() method (DEPYLER-0930)
+/// Extract element type from `Path.glob()` method (DEPYLER-0930)
 fn extract_glob_element_type(object: &HirExpr, ctx: &CodeGenContext) -> Option<Type> {
     if let HirExpr::Var(var_name) = object {
         let is_path = ctx
             .var_types
             .get(var_name)
-            .map(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
-            .unwrap_or(false);
+            .is_some_and(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"));
         if is_path {
             return Some(Type::Custom("PathBuf".to_string()));
         }
@@ -2969,6 +2978,7 @@ fn extract_glob_element_type(object: &HirExpr, ctx: &CodeGenContext) -> Option<T
 }
 
 /// Extract element type from an iterator expression (DEPYLER-0339)
+#[allow(clippy::match_same_arms)]
 fn extract_iterator_element_type(iter: &HirExpr, ctx: &CodeGenContext) -> Option<Type> {
     match iter {
         HirExpr::Var(var_name) => extract_var_element_type(var_name, ctx),
@@ -3127,7 +3137,7 @@ fn generate_char_to_string_loop(
 ) -> proc_macro2::TokenStream {
     if let AssignTarget::Symbol(var_name) = target {
         let var_ident = safe_ident(var_name);
-        let temp_ident = safe_ident(&format!("_{}", var_name));
+        let temp_ident = safe_ident(&format!("_{var_name}"));
         quote! {
             for #temp_ident in #iter_expr {
                 let #var_ident = #temp_ident.to_string();
@@ -3170,6 +3180,7 @@ fn generate_csv_result_loop(
 
 /// Generate code for For loop statement
 #[inline]
+#[allow(clippy::too_many_lines)]
 pub(crate) fn codegen_for_stmt(
     target: &AssignTarget,
     iter: &HirExpr,
@@ -3737,6 +3748,7 @@ fn is_os_environ_attr(expr: &HirExpr) -> bool {
 
 /// Track deque/Queue constructor types (DEPYLER-0969, DEPYLER-1185)
 #[inline]
+#[allow(clippy::ref_option)]
 fn track_deque_constructor(
     var_name: &str,
     func: &str,
@@ -3747,7 +3759,7 @@ fn track_deque_constructor(
         let elem_type_str = get_deque_elem_type(type_annotation);
         ctx.var_types.insert(
             var_name.to_string(),
-            Type::Custom(format!("std::collections::VecDeque<{}>", elem_type_str)),
+            Type::Custom(format!("std::collections::VecDeque<{elem_type_str}>")),
         );
     } else if func == "Queue" || func == "LifoQueue" || func == "PriorityQueue" {
         ctx.var_types.insert(
@@ -3764,6 +3776,7 @@ fn track_deque_constructor(
 
 /// Get element type string for deque (DEPYLER-1185)
 #[inline]
+#[allow(clippy::ref_option)]
 fn get_deque_elem_type(type_annotation: &Option<Type>) -> String {
     if let Some(Type::Generic { base, params }) = type_annotation {
         if (base == "deque" || base == "collections.deque" || base == "Deque") && !params.is_empty()
@@ -3814,7 +3827,7 @@ fn track_value_index_type(var_name: &str, base: &HirExpr, ctx: &mut CodeGenConte
     }
 }
 
-/// Handle ArgumentParser patterns for clap transformation (DEPYLER-0363)
+/// Handle `ArgumentParser` patterns for clap transformation (DEPYLER-0363)
 /// Returns Some(TokenStream) if pattern was handled, None otherwise
 #[inline]
 fn handle_argparser_method_call(
@@ -3854,7 +3867,7 @@ fn handle_argparser_method_call(
     None
 }
 
-/// Handle ArgumentParser(...) constructor
+/// Handle `ArgumentParser`(...) constructor
 #[inline]
 fn handle_argumentparser_constructor(
     var_name: &str,
@@ -3884,7 +3897,7 @@ fn handle_argumentparser_constructor(
     None
 }
 
-/// Handle parser.parse_args() call
+/// Handle `parser.parse_args()` call
 #[inline]
 fn handle_parse_args_call(
     var_name: &str,
@@ -3901,7 +3914,7 @@ fn handle_parse_args_call(
     None
 }
 
-/// Handle argument group methods (add_argument_group, add_mutually_exclusive_group, set_defaults)
+/// Handle argument group methods (`add_argument_group`, `add_mutually_exclusive_group`, `set_defaults`)
 #[inline]
 fn handle_argument_group_method(
     target: &AssignTarget,
@@ -3925,7 +3938,7 @@ fn handle_argument_group_method(
     None
 }
 
-/// Handle parser.add_subparsers(...) call
+/// Handle `parser.add_subparsers`(...) call
 #[inline]
 fn handle_add_subparsers_call(
     target: &AssignTarget,
@@ -3952,8 +3965,9 @@ fn handle_add_subparsers_call(
     None
 }
 
-/// Handle subparsers.add_parser(...) call
+/// Handle `subparsers.add_parser`(...) call
 #[inline]
+#[allow(clippy::too_many_lines, clippy::ref_option)]
 fn handle_add_parser_call(
     target: &AssignTarget,
     object: &HirExpr,
@@ -3995,6 +4009,7 @@ fn handle_add_parser_call(
 
 /// Generate code for Assign statement (variable/index/attribute/tuple assignment)
 #[inline]
+#[allow(clippy::unnecessary_wraps, clippy::unwrap_used, clippy::disallowed_methods, clippy::assigning_clones, clippy::match_same_arms, clippy::too_many_lines, clippy::ref_option)]
 pub(crate) fn codegen_assign_stmt(
     target: &AssignTarget,
     value: &HirExpr,
@@ -4022,9 +4037,7 @@ pub(crate) fn codegen_assign_stmt(
             .argparser_tracker
             .subparsers
             .values()
-            .next()
-            .map(|sp| sp.dest_field.clone())
-            .unwrap_or_else(|| "command".to_string());
+            .next().map_or_else(|| "command".to_string(), |sp| sp.dest_field.clone());
 
         if let Some(cmd_name) = is_subcommand_check(value, &dest_field, ctx) {
             // DEPYLER-0940: Skip if cmd_name is empty to prevent panic in format_ident!()
@@ -4501,10 +4514,9 @@ pub(crate) fn codegen_assign_stmt(
                 let should_preserve_value_type = ctx
                     .var_types
                     .get(var_name)
-                    .map(|t| {
+                    .is_some_and(|t| {
                         matches!(t, Type::Custom(name) if name == "serde_json::Value" || name == "Value")
-                    })
-                    .unwrap_or(false);
+                    });
 
                 if !should_preserve_value_type {
                     // Use infer_expr_type_simple for all unhandled expressions
@@ -5597,6 +5609,7 @@ pub(crate) fn codegen_assign_stmt(
 
 /// Generate code for symbol (variable) assignment
 #[inline]
+#[allow(clippy::too_many_lines, clippy::unnecessary_wraps)]
 pub(crate) fn codegen_assign_symbol(
     symbol: &str,
     value_expr: syn::Expr,
@@ -5659,10 +5672,9 @@ pub(crate) fn codegen_assign_symbol(
             if value_str.starts_with("Some") || value_str == "None" {
                 // Already wrapped, just dereference
                 return Ok(quote! { *#target_ident = #value_expr; });
-            } else {
-                // Wrap in Some and dereference
-                return Ok(quote! { *#target_ident = Some(#value_expr); });
             }
+            // Wrap in Some and dereference
+            return Ok(quote! { *#target_ident = Some(#value_expr); });
         }
 
         // DEPYLER-1126: Handle &mut Option<T> parameter assignments (any T, not just Dict)
@@ -5675,10 +5687,9 @@ pub(crate) fn codegen_assign_symbol(
             if value_str.starts_with("Some") || value_str == "None" {
                 // Already wrapped, just dereference
                 return Ok(quote! { *#target_ident = #value_expr; });
-            } else {
-                // Wrap in Some and dereference
-                return Ok(quote! { *#target_ident = Some(#value_expr); });
             }
+            // Wrap in Some and dereference
+            return Ok(quote! { *#target_ident = Some(#value_expr); });
         }
 
         // DEPYLER-0604: Check if variable has Optional type and wrap value in Some()
@@ -5695,8 +5706,7 @@ pub(crate) fn codegen_assign_symbol(
                     let source_var = path.path.segments[0].ident.to_string();
                     ctx.var_types
                         .get(&source_var)
-                        .map(|ty| matches!(ty, Type::Optional(_)))
-                        .unwrap_or(false)
+                        .is_some_and(|ty| matches!(ty, Type::Optional(_)))
                 } else {
                     false
                 }
@@ -5839,6 +5849,7 @@ fn find_root_var_in_chain(expr: &HirExpr) -> Option<String> {
 /// DEPYLER-99MODE-S9: Build per-level type chain for nested subscript assignments.
 /// Returns Vec<bool> where `true` = list (numeric index), `false` = dict (key-based).
 /// E.g., Dict[int, List[int]] with depth 2 → [false, true]
+#[allow(clippy::too_many_lines)]
 fn build_nested_type_chain(ctx: &CodeGenContext, root_var: &str, depth: usize) -> Vec<bool> {
     let mut chain = Vec::with_capacity(depth);
     let root_type = match ctx.var_types.get(root_var) {
@@ -5866,8 +5877,9 @@ fn build_nested_type_chain(ctx: &CodeGenContext, root_var: &str, depth: usize) -
 }
 
 /// Generate code for index (dictionary/list subscript) assignment
-/// DEPYLER-1203: Added hir_value parameter for type-based DepylerValue wrapping
+/// DEPYLER-1203: Added `hir_value` parameter for type-based `DepylerValue` wrapping
 #[inline]
+#[allow(clippy::match_same_arms, clippy::too_many_lines)]
 pub(crate) fn codegen_assign_index(
     base: &HirExpr,
     index: &HirExpr,
@@ -5889,11 +5901,10 @@ pub(crate) fn codegen_assign_index(
                 return Ok(quote! {
                     #base_ident.as_mut().expect("optional dict parameter was None").insert(#key_expr.clone(), #value_expr);
                 });
-            } else {
-                return Ok(quote! {
-                    #base_ident.as_mut().expect("optional dict parameter was None").insert(#key_expr, #value_expr);
-                });
             }
+            return Ok(quote! {
+                #base_ident.as_mut().expect("optional dict parameter was None").insert(#key_expr, #value_expr);
+            });
         }
     }
 
@@ -6042,7 +6053,9 @@ pub(crate) fn codegen_assign_index(
     // DEPYLER-0403/DEPYLER-1027: Convert string literals to String for Dict values
     // In NASA mode (single-shot compile), always use HashMap<String, String> for dicts
     // so string literal values ALWAYS need .to_string() for type consistency
-    let value_expr = if !is_numeric_index {
+    let value_expr = if is_numeric_index {
+        value_expr
+    } else {
         // Check if value_expr is a string literal
         let is_string_literal =
             matches!(&value_expr, syn::Expr::Lit(lit) if matches!(&lit.lit, syn::Lit::Str(_)));
@@ -6060,8 +6073,6 @@ pub(crate) fn codegen_assign_index(
         } else {
             value_expr
         }
-    } else {
-        value_expr
     };
 
     // DEPYLER-0449: Detect if base is serde_json::Value (needs .as_object_mut())
@@ -6070,7 +6081,9 @@ pub(crate) fn codegen_assign_index(
     let (needs_as_object_mut, needs_json_value_wrap) = if ctx.type_mapper.nasa_mode {
         (false, false)
     } else if let HirExpr::Var(base_name) = base {
-        if !is_numeric_index {
+        if is_numeric_index {
+            (false, false)
+        } else {
             // DEPYLER-0449: Helper function to check if name looks like JSON value
             let check_json_name_heuristic = |name_str: &str| {
                 let is_value_name = name_str == "config"
@@ -6115,8 +6128,6 @@ pub(crate) fn codegen_assign_index(
                 // Fallback heuristic: check variable name patterns
                 check_json_name_heuristic(base_name.as_str())
             }
-        } else {
-            (false, false)
         }
     } else {
         (false, false)
@@ -6382,6 +6393,7 @@ pub(crate) fn codegen_assign_index(
 
 /// Generate code for attribute (struct field) assignment
 #[inline]
+#[allow(clippy::needless_pass_by_value)]
 pub(crate) fn codegen_assign_attribute(
     base: &HirExpr,
     attr: &str,
@@ -6399,13 +6411,13 @@ pub(crate) fn codegen_assign_attribute(
 /// When inside a generator, state variables must be assigned via self.field
 /// instead of local variable destructuring.
 ///
-/// DEPYLER-1064: Handle DepylerValue tuple unpacking
-/// When the value expression produces a DepylerValue (e.g., from dict access),
-/// inject get_tuple_elem() calls with type coercion for each target.
+/// DEPYLER-1064: Handle `DepylerValue` tuple unpacking
+/// When the value expression produces a `DepylerValue` (e.g., from dict access),
+/// inject `get_tuple_elem()` calls with type coercion for each target.
 ///
 /// # Complexity: 9 (within ≤10 target)
 #[inline]
-#[allow(clippy::unnecessary_to_owned)] // HashSet<String> requires owned String for contains()
+#[allow(clippy::unnecessary_to_owned, clippy::match_same_arms, clippy::needless_for_each, clippy::single_match, clippy::single_match_else, clippy::needless_pass_by_value, clippy::too_many_lines)]
 pub(crate) fn codegen_assign_tuple(
     targets: &[AssignTarget],
     value: &HirExpr,
@@ -6517,7 +6529,7 @@ pub(crate) fn codegen_assign_tuple(
                 .collect();
 
             // Declare all variables
-            for s in symbols.iter() {
+            for s in symbols {
                 if !ctx.is_declared(s) {
                     ctx.declare_var(s);
                 }
@@ -6585,43 +6597,7 @@ pub(crate) fn codegen_assign_tuple(
                 vec![]
             };
 
-            if !generator_state_vars.is_empty() {
-                // At least one variable is a generator state variable
-                // Destructure into temporary, then assign each field
-                let temp_var = syn::Ident::new("_tuple_temp", proc_macro2::Span::call_site());
-                let assignments: Vec<_> = symbols
-                    .iter()
-                    .enumerate()
-                    .map(|(idx, s)| {
-                        let ident = safe_ident(s);
-                        let index = syn::Index::from(idx);
-
-                        if ctx.generator_state_vars.contains(&s.to_string()) {
-                            // State variable: self.field = temp.N;
-                            quote! { self.#ident = #temp_var.#index; }
-                        } else {
-                            // Local variable: ident = temp.N; (if already declared)
-                            // or: let ident = temp.N; (if first declaration)
-                            if ctx.is_declared(s) {
-                                quote! { #ident = #temp_var.#index; }
-                            } else {
-                                ctx.declare_var(s);
-                                let mut_token = if ctx.mutable_vars.contains(*s) {
-                                    quote! { mut }
-                                } else {
-                                    quote! {}
-                                };
-                                quote! { let #mut_token #ident = #temp_var.#index; }
-                            }
-                        }
-                    })
-                    .collect();
-
-                Ok(quote! {
-                    let #temp_var = #value_expr;
-                    #(#assignments)*
-                })
-            } else {
+            if generator_state_vars.is_empty() {
                 // No generator state variables - original logic
                 let all_declared = symbols.iter().all(|s| ctx.is_declared(s));
 
@@ -6686,6 +6662,42 @@ pub(crate) fn codegen_assign_tuple(
                         .collect();
                     Ok(quote! { let (#(#idents_with_mut),*) = #value_expr; })
                 }
+            } else {
+                // At least one variable is a generator state variable
+                // Destructure into temporary, then assign each field
+                let temp_var = syn::Ident::new("_tuple_temp", proc_macro2::Span::call_site());
+                let assignments: Vec<_> = symbols
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, s)| {
+                        let ident = safe_ident(s);
+                        let index = syn::Index::from(idx);
+
+                        if ctx.generator_state_vars.contains(&s.to_string()) {
+                            // State variable: self.field = temp.N;
+                            quote! { self.#ident = #temp_var.#index; }
+                        } else {
+                            // Local variable: ident = temp.N; (if already declared)
+                            // or: let ident = temp.N; (if first declaration)
+                            if ctx.is_declared(s) {
+                                quote! { #ident = #temp_var.#index; }
+                            } else {
+                                ctx.declare_var(s);
+                                let mut_token = if ctx.mutable_vars.contains(*s) {
+                                    quote! { mut }
+                                } else {
+                                    quote! {}
+                                };
+                                quote! { let #mut_token #ident = #temp_var.#index; }
+                            }
+                        }
+                    })
+                    .collect();
+
+                Ok(quote! {
+                    let #temp_var = #value_expr;
+                    #(#assignments)*
+                })
             }
         }
         None => {
@@ -6722,8 +6734,7 @@ pub(crate) fn codegen_assign_tuple(
                             // Check if variable has Int type
                             ctx.var_types
                                 .get(name)
-                                .map(|ty| matches!(ty, Type::Int))
-                                .unwrap_or(false)
+                                .is_some_and(|ty| matches!(ty, Type::Int))
                         }
                         // Binary ops on ints are still ints (e.g., i + 1)
                         HirExpr::Binary { .. } => true, // Assume arithmetic for now
@@ -6754,9 +6765,9 @@ pub(crate) fn codegen_assign_tuple(
     }
 }
 
-/// DEPYLER-0562: Generate code for tuple unpacking from regex match.groups()
+/// DEPYLER-0562: Generate code for tuple unpacking from regex `match.groups()`
 ///
-/// Python: timestamp, level, message = match.groups()
+/// Python: timestamp, level, message = `match.groups()`
 /// Rust: Extract capture groups from Option<Captures<'_>>
 ///
 /// NOTE: Currently unused - requires DEPYLER-0563 (regex type tracking) to be activated.
@@ -6764,13 +6775,12 @@ pub(crate) fn codegen_assign_tuple(
 ///
 /// # Arguments
 /// * `targets` - The tuple target variables (e.g., [timestamp, level, message])
-/// * `match_obj` - The HirExpr representing the match object (source of .groups())
+/// * `match_obj` - The `HirExpr` representing the match object (source of .`groups()`)
 /// * `ctx` - Code generation context
 ///
 /// # Complexity: 8 (within ≤10 target)
 #[inline]
-#[allow(dead_code)] // Waiting for DEPYLER-0563
-#[allow(clippy::unnecessary_to_owned)]
+#[allow(clippy::unnecessary_to_owned, dead_code)]
 pub(crate) fn codegen_assign_tuple_groups(
     targets: &[AssignTarget],
     match_obj: &HirExpr,
@@ -6893,6 +6903,7 @@ pub(crate) fn infer_try_body_return_type(body: &[HirStmt], ctx: &CodeGenContext)
 
 /// DEPYLER-0565: Infer the type of an expression for try/except closure return type
 #[inline]
+#[allow(clippy::if_not_else)]
 fn infer_expr_return_type(expr: &HirExpr, ctx: &CodeGenContext) -> Type {
     match expr {
         HirExpr::Var(name) => {
@@ -6949,6 +6960,7 @@ fn infer_expr_return_type(expr: &HirExpr, ctx: &CodeGenContext) -> Type {
 
 /// DEPYLER-0565: Convert HIR Type to closure return type tokens
 #[inline]
+#[allow(clippy::match_same_arms)]
 pub(crate) fn try_return_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
     // Delegate to the main type mapper to support all types (Option, Vec, etc.)
     // Create a temporary context since type mapping shouldn't depend on it for basic types
@@ -7010,12 +7022,13 @@ pub(crate) fn try_return_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
 // DEPYLER-COVERAGE-95: handler_ends_with_exit and handler_contains_raise moved to expr_analysis module
 
 /// DEPYLER-0578: Try to detect and generate json.load(sys.stdin) pattern
-/// Pattern: try { data = json.load(sys.stdin) } except JSONDecodeError as e: { print; exit }
-/// Returns: let data = match serde_json::from_reader(...) { Ok(d) => d, Err(e) => { ... } };
+/// Pattern: try { data = json.load(sys.stdin) } except `JSONDecodeError` as e: { print; exit }
+/// Returns: let data = match `serde_json::from_reader`(...) { Ok(d) => d, Err(e) => { ... } };
 ///
 /// # Complexity
 /// 8 (pattern matching + code generation)
 #[inline]
+#[allow(clippy::ref_option)]
 pub(crate) fn try_generate_json_stdin_match(
     body: &[HirStmt],
     handlers: &[ExceptHandler],

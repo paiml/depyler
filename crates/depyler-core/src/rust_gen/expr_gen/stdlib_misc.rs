@@ -1,6 +1,6 @@
 //! Stdlib miscellaneous method converters
 //!
-//! DEPYLER-REFACTOR: Extracted from expr_gen/mod.rs
+//! DEPYLER-REFACTOR: Extracted from `expr_gen/mod.rs`
 //!
 //! Contains converters for miscellaneous Python standard library modules:
 //! - `bisect` — Binary search for sorted sequences
@@ -14,16 +14,16 @@
 //! - `statistics` — Statistical functions
 
 use super::ExpressionConverter;
-use crate::hir::*;
+use crate::hir::HirExpr;
 use crate::rust_gen::context::ToRustExpr;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     /// Try to convert bisect module method calls
     /// DEPYLER-STDLIB-BISECT: Binary search for sorted sequences
     ///
-    /// Supports: bisect_left, bisect_right, insort_left, insort_right
+    /// Supports: `bisect_left`, `bisect_right`, `insort_left`, `insort_right`
     /// Efficient O(log n) search and insertion
     ///
     /// # Complexity
@@ -67,7 +67,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Find rightmost insertion point
             "bisect_right" | "bisect" => {
                 if arg_exprs.len() < 2 {
-                    bail!("bisect.{}() requires at least 2 arguments", method);
+                    bail!("bisect.{method}() requires at least 2 arguments");
                 }
                 let a = &arg_exprs[0];
                 let x = &arg_exprs[1];
@@ -119,7 +119,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Insert at rightmost position
             "insort_right" | "insort" => {
                 if arg_exprs.len() < 2 {
-                    bail!("bisect.{}() requires at least 2 arguments", method);
+                    bail!("bisect.{method}() requires at least 2 arguments");
                 }
                 let a = &arg_exprs[0];
                 let x = &arg_exprs[1];
@@ -144,7 +144,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("bisect.{} not implemented yet (available: bisect_left, bisect_right, insort_left, insort_right)", method);
+                bail!("bisect.{method} not implemented yet (available: bisect_left, bisect_right, insort_left, insort_right)");
             }
         };
 
@@ -160,6 +160,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// # Complexity
     /// Cyclomatic: 6 (match with 5 functions + default)
     #[inline]
+    #[allow(clippy::too_many_lines)]
     pub(super) fn try_convert_heapq_method(
         &mut self,
         method: &str,
@@ -323,7 +324,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("heapq.{} not implemented yet (available: heapify, heappush, heappop, nlargest, nsmallest)", method);
+                bail!("heapq.{method} not implemented yet (available: heapify, heappush, heappop, nlargest, nsmallest)");
             }
         };
 
@@ -334,7 +335,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-STDLIB-COPY: Shallow and deep copy operations
     ///
     /// Supports: copy, deepcopy
-    /// Maps to Rust's .clone() for both (Rust clone is deep by default)
+    /// Maps to Rust's .`clone()` for both (Rust clone is deep by default)
     ///
     /// # Complexity
     /// Cyclomatic: 3 (match with 2 functions + default)
@@ -374,7 +375,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("copy.{} not implemented yet (available: copy, deepcopy)", method);
+                bail!("copy.{method} not implemented yet (available: copy, deepcopy)");
             }
         };
 
@@ -385,7 +386,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-STDLIB-SYS: System-specific parameters and functions
     ///
     /// Supports: exit
-    /// Maps to Rust's std::process::exit
+    /// Maps to Rust's `std::process::exit`
     ///
     /// # Complexity
     /// Cyclomatic: 2 (match with 1 function + default)
@@ -401,7 +402,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         let result = match method {
             "exit" => {
-                let code = if !arg_exprs.is_empty() { &arg_exprs[0] } else { &parse_quote!(0) };
+                let code = if arg_exprs.is_empty() { &parse_quote!(0) } else { &arg_exprs[0] };
 
                 parse_quote! {
                     std::process::exit(#code)
@@ -409,7 +410,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("sys.{} not implemented yet (available: exit)", method);
+                bail!("sys.{method} not implemented yet (available: exit)");
             }
         };
 
@@ -466,7 +467,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("pickle.{} not implemented yet (available: dumps, loads)", method);
+                bail!("pickle.{method} not implemented yet (available: dumps, loads)");
             }
         };
 
@@ -504,7 +505,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("pprint.{} not implemented yet (available: pprint)", method);
+                bail!("pprint.{method} not implemented yet (available: pprint)");
             }
         };
 
@@ -566,6 +567,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
+    #[allow(clippy::too_many_lines)]
     pub(super) fn try_convert_decimal_method(
         &mut self,
         method: &str,
@@ -716,6 +718,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    #[allow(clippy::too_many_lines)]
     pub(super) fn try_convert_statistics_method(
         &mut self,
         method: &str,
@@ -935,7 +938,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("statistics.{} not implemented yet", method);
+                bail!("statistics.{method} not implemented yet");
             }
         };
 

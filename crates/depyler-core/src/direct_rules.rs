@@ -1,5 +1,5 @@
-use crate::direct_rules_convert::*; // DEPYLER-COVERAGE-95: Extracted conversion functions
-use crate::hir::*;
+use crate::direct_rules_convert::{convert_expr, convert_method_body_block, convert_body}; // DEPYLER-COVERAGE-95: Extracted conversion functions
+use crate::hir::{Type, HirExpr, HirModule, TypeAlias, Protocol, HirClass, HirMethod, HirStmt, AssignTarget, HirField, Literal, BinOp, UnaryOp, ProtocolMethod, HirFunction};
 use crate::rust_gen::keywords::is_rust_keyword; // DEPYLER-0023: Centralized
 use crate::type_mapper::{RustType, TypeMapper};
 use anyhow::{bail, Result};
@@ -49,16 +49,17 @@ pub fn is_stdlib_shadowing_name(name: &str) -> bool {
 }
 
 /// DEPYLER-0900: Rename class name if it shadows a Rust stdlib type
-/// Appends "Py" suffix to avoid conflicts (e.g., Vec -> PyVec, Option -> PyOption)
+/// Appends "Py" suffix to avoid conflicts (e.g., Vec -> `PyVec`, Option -> `PyOption`)
 pub fn safe_class_name(name: &str) -> String {
     if is_stdlib_shadowing_name(name) {
-        format!("Py{}", name)
+        format!("Py{name}")
     } else {
         name.to_string()
     }
 }
 
-/// DEPYLER-0840: Convert Type to proc_macro2::TokenStream for nested function codegen
+/// DEPYLER-0840: Convert Type to `proc_macro2::TokenStream` for nested function codegen
+#[allow(clippy::used_underscore_binding, clippy::match_same_arms)]
 pub(crate) fn type_to_rust_type(ty: &Type, _type_mapper: &TypeMapper) -> proc_macro2::TokenStream {
     match ty {
         Type::Int => quote! { i32 },
@@ -105,7 +106,7 @@ pub(crate) fn type_to_rust_type(ty: &Type, _type_mapper: &TypeMapper) -> proc_ma
     }
 }
 
-/// DEPYLER-0596: Parse a target pattern string into a syn::Pat
+/// DEPYLER-0596: Parse a target pattern string into a `syn::Pat`
 /// Handles tuple patterns like "(name, t)" and simple identifiers
 pub(crate) fn parse_target_pattern(target: &str) -> syn::Pat {
     if target.starts_with('(') {
@@ -156,7 +157,7 @@ pub(crate) fn make_ident(name: &str) -> syn::Ident {
             return syn::Ident::new(name, proc_macro2::Span::call_site());
         }
         "self" | "super" | "crate" => {
-            let suffixed = format!("{}_", name);
+            let suffixed = format!("{name}_");
             return syn::Ident::new(&suffixed, proc_macro2::Span::call_site());
         }
         _ => {}
@@ -229,7 +230,7 @@ pub(crate) fn sanitize_identifier(name: &str) -> String {
 }
 
 /// Helper to build nested dictionary access for assignment
-/// Returns (base_expr, access_chain) where access_chain is a vec of index expressions
+/// Returns (`base_expr`, `access_chain`) where `access_chain` is a vec of index expressions
 pub(crate) fn extract_nested_indices(
     expr: &HirExpr,
     type_mapper: &TypeMapper,
@@ -239,24 +240,21 @@ pub(crate) fn extract_nested_indices(
 
     // Walk up the chain collecting indices
     loop {
-        match current {
-            HirExpr::Index { base, index } => {
-                indices.push(convert_expr(index, type_mapper)?);
-                current = base;
-            }
-            _ => {
-                // We've reached the base
-                let base_expr = convert_expr(current, type_mapper)?;
-                indices.reverse(); // We collected from inner to outer, need outer to inner
-                return Ok((base_expr, indices));
-            }
+        if let HirExpr::Index { base, index } = current {
+            indices.push(convert_expr(index, type_mapper)?);
+            current = base;
+        } else {
+            // We've reached the base
+            let base_expr = convert_expr(current, type_mapper)?;
+            indices.reverse(); // We collected from inner to outer, need outer to inner
+            return Ok((base_expr, indices));
         }
     }
 }
 
 /// Apply direct transformation rules to convert HIR to Rust AST
 ///
-/// This function transforms a HIR module into a Rust syn::File AST,
+/// This function transforms a HIR module into a Rust `syn::File` AST,
 /// converting Python-like constructs into idiomatic Rust code.
 ///
 /// # Arguments
@@ -345,6 +343,7 @@ pub fn apply_rules(module: &HirModule, type_mapper: &TypeMapper) -> Result<syn::
 
     // Convert classes to structs
     // Use empty vararg_functions for backward compatibility in this code path
+    #[allow(clippy::items_after_statements)]
     static EMPTY_VARARGS: std::sync::OnceLock<std::collections::HashSet<String>> =
         std::sync::OnceLock::new();
     let empty_varargs = EMPTY_VARARGS.get_or_init(std::collections::HashSet::new);
@@ -381,6 +380,7 @@ fn convert_type_alias(type_alias: &TypeAlias, type_mapper: &TypeMapper) -> Resul
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> Result<syn::Item> {
     let trait_name = make_ident(&protocol.name);
 
@@ -491,6 +491,7 @@ fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> R
 /// let items = convert_class_to_struct(&class, &type_mapper, &vararg_functions).unwrap();
 /// assert!(!items.is_empty()); // Should have at least the struct definition
 /// ```
+#[allow(clippy::unnecessary_wraps, clippy::implicit_hasher, clippy::too_many_lines)]
 pub fn convert_class_to_struct(
     class: &HirClass,
     type_mapper: &TypeMapper,
@@ -803,6 +804,7 @@ pub fn convert_class_to_struct(
 ///
 /// Python enum classes like `class Color(enum.Enum)` are converted to Rust enums
 /// with variants for each class constant.
+#[allow(clippy::too_many_lines, clippy::unnecessary_wraps)]
 fn convert_enum_class(
     class: &HirClass,
     _type_mapper: &TypeMapper,
@@ -1026,6 +1028,7 @@ fn generate_dataclass_new(
     })
 }
 
+#[allow(clippy::too_many_lines)]
 fn convert_init_to_new(
     init_method: &HirMethod,
     class: &HirClass,
@@ -1190,6 +1193,7 @@ pub fn method_mutates_self(method: &HirMethod) -> bool {
 }
 
 /// Check if a statement mutates self
+#[allow(clippy::match_same_arms)]
 fn stmt_mutates_self(stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { target, .. } => {
@@ -1293,7 +1297,7 @@ fn collect_type_vars(ty: &Type, vars: &mut std::collections::HashSet<String>) {
 }
 
 /// DEPYLER-0422 Fix #10: Infer return type from method body
-/// Similar to infer_return_type_from_body in func_gen.rs
+/// Similar to `infer_return_type_from_body` in `func_gen.rs`
 /// DEPYLER-0696: Infer method return type with class field context
 fn infer_method_return_type(body: &[HirStmt], fields: &[HirField]) -> Option<Type> {
     let mut return_types = Vec::new();
@@ -1343,7 +1347,8 @@ fn collect_method_return_types(stmts: &[HirStmt], fields: &[HirField], types: &m
 /// DEPYLER-0696: Infer type from expression with class field context
 ///
 /// When class fields are provided, attribute access like `self.field` can be
-/// resolved to the actual field type instead of returning Type::Unknown.
+/// resolved to the actual field type instead of returning `Type::Unknown`.
+#[allow(clippy::if_not_else)]
 fn infer_expr_type_with_fields(expr: &HirExpr, fields: &[HirField]) -> Type {
     match expr {
         HirExpr::Literal(lit) => match lit {
@@ -1418,7 +1423,7 @@ fn infer_expr_type_with_fields(expr: &HirExpr, fields: &[HirField]) -> Type {
                 // Note: We can't know the actual class name here, but Type::Custom("Self")
                 // will be mapped correctly when generating code
                 Some("Self".to_string())
-            } else if func.chars().next().is_some_and(|c| c.is_uppercase()) {
+            } else if func.chars().next().is_some_and(char::is_uppercase) {
                 // Capitalized name like Point, MyClass - likely a constructor
                 // Handle both Point and Point::new patterns
                 let base_name = func.split("::").next().unwrap_or(func);
@@ -1442,13 +1447,14 @@ fn infer_expr_type_with_fields(expr: &HirExpr, fields: &[HirField]) -> Type {
 
 /// DEPYLER-0708: Check if a parameter should be typed as &Self based on usage
 /// If the parameter is used with attribute access that matches class fields,
-/// it's likely to be the same type as self, so we should use &Self instead of serde_json::Value.
+/// it's likely to be the same type as self, so we should use &Self instead of `serde_json::Value`.
 fn should_param_be_self_type(param_name: &str, body: &[HirStmt], fields: &[HirField]) -> bool {
     // Collect all field names
     let field_names: std::collections::HashSet<&str> =
         fields.iter().map(|f| f.name.as_str()).collect();
 
     // Check if the parameter is used with attribute access that matches a class field
+    #[allow(clippy::items_after_statements)]
     fn check_expr(
         param_name: &str,
         expr: &HirExpr,
@@ -1492,6 +1498,7 @@ fn should_param_be_self_type(param_name: &str, body: &[HirStmt], fields: &[HirFi
         }
     }
 
+    #[allow(clippy::items_after_statements, clippy::match_same_arms)]
     fn check_stmt(
         param_name: &str,
         stmt: &HirStmt,
@@ -1523,7 +1530,8 @@ fn should_param_be_self_type(param_name: &str, body: &[HirStmt], fields: &[HirFi
 }
 
 /// DEPYLER-0696: Accept class fields for return type inference
-/// DEPYLER-0740: Accept class type_params to distinguish method-level generics
+/// DEPYLER-0740: Accept class `type_params` to distinguish method-level generics
+#[allow(clippy::too_many_lines)]
 fn convert_method_to_impl_item(
     method: &HirMethod,
     type_mapper: &TypeMapper,
@@ -1612,10 +1620,10 @@ fn convert_method_to_impl_item(
             // This is especially important for __exit__(exc_type, exc_val, exc_tb) where
             // the exception parameters are typically unused and should not create generic T
             // Also prefix parameter name with _ to avoid unused warnings
-            let prefixed_name = if !param.name.starts_with('_') {
-                format!("_{}", param.name)
-            } else {
+            let prefixed_name = if param.name.starts_with('_') {
                 param.name.clone()
+            } else {
+                format!("_{}", param.name)
             };
             let prefixed_ident = make_ident(&prefixed_name);
 
@@ -1865,8 +1873,9 @@ fn convert_protocol_method_to_trait_method(
     }
 }
 
-/// DEPYLER-0765: Resolve UnionType placeholder Enum to a valid Rust type
+/// DEPYLER-0765: Resolve `UnionType` placeholder Enum to a valid Rust type
 /// Analyzes the variant names to determine the best concrete type
+#[allow(clippy::redundant_else, clippy::unnecessary_wraps)]
 fn resolve_union_enum_to_syn(variants: &[(String, RustType)]) -> syn::Type {
     // Helper to check if variant name is numeric
     let is_numeric =
@@ -1888,9 +1897,8 @@ fn resolve_union_enum_to_syn(variants: &[(String, RustType)]) -> syn::Type {
         if is_numeric(inner) {
             if is_float_like(inner) {
                 return parse_quote! { Option<f64> };
-            } else {
-                return parse_quote! { Option<i64> };
             }
+            return parse_quote! { Option<i64> };
         } else if is_string_like(inner) {
             return parse_quote! { Option<String> };
         } else {
@@ -1909,9 +1917,8 @@ fn resolve_union_enum_to_syn(variants: &[(String, RustType)]) -> syn::Type {
     if non_none.iter().all(|v| is_numeric(v)) {
         if non_none.iter().any(|v| is_float_like(v)) {
             return parse_quote! { f64 };
-        } else {
-            return parse_quote! { i64 };
         }
+        return parse_quote! { i64 };
     }
 
     // Case 4: All string → String
@@ -1929,10 +1936,11 @@ fn resolve_union_enum_to_syn(variants: &[(String, RustType)]) -> syn::Type {
     parse_quote! { DepylerValue }
 }
 
-/// Convert simple non-recursive types (Unit, String, Custom, TypeParam, Enum)
+/// Convert simple non-recursive types (Unit, String, Custom, `TypeParam`, Enum)
 #[inline]
+#[allow(clippy::unnecessary_wraps)]
 fn convert_simple_type(rust_type: &RustType) -> Result<syn::Type> {
-    use RustType::*;
+    use RustType::{Unit, String, Custom, TypeParam, Enum};
     Ok(match rust_type {
         Unit => parse_quote! { () },
         String => parse_quote! { String },
@@ -1944,7 +1952,7 @@ fn convert_simple_type(rust_type: &RustType) -> Result<syn::Type> {
                 // DEPYLER-0686: Handle complex type syntax like "Box<dyn Fn()>"
                 // Also handles qualified paths like "serde_json::Value"
                 let ty: syn::Type = syn::parse_str(name)
-                    .unwrap_or_else(|_| panic!("Failed to parse type: {}", name));
+                    .unwrap_or_else(|_| panic!("Failed to parse type: {name}"));
                 parse_quote! { #ty }
             } else {
                 // DEPYLER-0900: Rename type if it shadows stdlib type (e.g., Vec -> PyVec)
@@ -1974,6 +1982,7 @@ fn convert_simple_type(rust_type: &RustType) -> Result<syn::Type> {
 
 /// Convert primitive types (bool, integers, floats)
 #[inline]
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
 fn convert_primitive_type(prim_type: &crate::type_mapper::PrimitiveType) -> Result<syn::Type> {
     use crate::type_mapper::PrimitiveType;
     Ok(match prim_type {
@@ -1997,13 +2006,14 @@ fn convert_primitive_type(prim_type: &crate::type_mapper::PrimitiveType) -> Resu
 
 /// Convert lifetime-parameterized types (Str, Cow)
 #[inline]
+#[allow(clippy::unnecessary_wraps)]
 fn convert_lifetime_type(rust_type: &RustType) -> Result<syn::Type> {
-    use RustType::*;
+    use RustType::{Str, Cow};
     Ok(match rust_type {
         Str { lifetime } => {
             if let Some(lt) = lifetime {
                 let lifetime_token =
-                    syn::Lifetime::new(&format!("'{}", lt), proc_macro2::Span::call_site());
+                    syn::Lifetime::new(&format!("'{lt}"), proc_macro2::Span::call_site());
                 parse_quote! { &#lifetime_token str }
             } else {
                 parse_quote! { &str }
@@ -2011,7 +2021,7 @@ fn convert_lifetime_type(rust_type: &RustType) -> Result<syn::Type> {
         }
         Cow { lifetime } => {
             let lifetime_token =
-                syn::Lifetime::new(&format!("'{}", lifetime), proc_macro2::Span::call_site());
+                syn::Lifetime::new(&format!("'{lifetime}"), proc_macro2::Span::call_site());
             parse_quote! { std::borrow::Cow<#lifetime_token, str> }
         }
         _ => unreachable!("convert_lifetime_type called with non-lifetime type"),
@@ -2020,18 +2030,19 @@ fn convert_lifetime_type(rust_type: &RustType) -> Result<syn::Type> {
 
 /// Convert unsupported types with placeholder names
 #[inline]
+#[allow(clippy::unnecessary_wraps)]
 fn convert_unsupported_type(name: &str) -> Result<syn::Type> {
     let ident = syn::Ident::new(
-        &format!("UnsupportedType_{}", name.replace(" ", "_")),
+        &format!("UnsupportedType_{}", name.replace(' ', "_")),
         proc_macro2::Span::call_site(),
     );
     Ok(parse_quote! { #ident })
 }
 
-/// Convert container types (Vec, HashMap, Option, Result, HashSet)
+/// Convert container types (Vec, `HashMap`, Option, Result, `HashSet`)
 #[inline]
 fn convert_container_type(rust_type: &RustType) -> Result<syn::Type> {
-    use RustType::*;
+    use RustType::{Vec, HashMap, Option, Result, HashSet};
     Ok(match rust_type {
         Vec(inner) => {
             let inner_type = rust_type_to_syn_type(inner)?;
@@ -2064,7 +2075,7 @@ fn convert_container_type(rust_type: &RustType) -> Result<syn::Type> {
 /// Convert complex recursive types (Tuple, Generic, Reference)
 #[inline]
 fn convert_complex_type(rust_type: &RustType) -> Result<syn::Type> {
-    use RustType::*;
+    use RustType::{Tuple, Generic, Reference};
     Ok(match rust_type {
         Tuple(types) => {
             let type_tokens: anyhow::Result<std::vec::Vec<_>> =
@@ -2095,8 +2106,9 @@ fn convert_complex_type(rust_type: &RustType) -> Result<syn::Type> {
 
 /// Convert array types with const generic handling
 #[inline]
+#[allow(clippy::unwrap_used, clippy::disallowed_methods)]
 fn convert_array_type(rust_type: &RustType) -> Result<syn::Type> {
-    use RustType::*;
+    use RustType::Array;
     if let Array { element_type, size } = rust_type {
         let element = rust_type_to_syn_type(element_type)?;
         Ok(match size {
@@ -2121,7 +2133,7 @@ fn convert_array_type(rust_type: &RustType) -> Result<syn::Type> {
 }
 
 pub fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
-    use RustType::*;
+    use RustType::{Unit, String, Custom, TypeParam, Enum, Primitive, Str, Cow, Unsupported, Vec, HashMap, Option, Result, HashSet, Tuple, Generic, Reference, Array};
     Ok(match rust_type {
         // Simple types - delegate to helper
         Unit | String | Custom(_) | TypeParam(_) | Enum { .. } => convert_simple_type(rust_type)?,
@@ -2148,6 +2160,7 @@ pub fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
     })
 }
 
+#[allow(clippy::default_trait_access)]
 fn convert_function(func: &HirFunction, type_mapper: &TypeMapper) -> Result<syn::ItemFn> {
     let name = make_ident(&func.name);
 
@@ -2248,6 +2261,7 @@ fn convert_function(func: &HirFunction, type_mapper: &TypeMapper) -> Result<syn:
     })
 }
 
+#[allow(clippy::unwrap_used, clippy::disallowed_methods)]
 fn rust_type_to_syn(rust_type: &RustType) -> Result<syn::Type> {
     Ok(match rust_type {
         RustType::Primitive(p) => {
@@ -2288,7 +2302,7 @@ fn rust_type_to_syn(rust_type: &RustType) -> Result<syn::Type> {
                 }
             }
         }
-        _ => bail!("Unsupported Rust type: {:?}", rust_type),
+        _ => bail!("Unsupported Rust type: {rust_type:?}"),
     })
 }
 

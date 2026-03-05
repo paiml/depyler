@@ -1,7 +1,7 @@
 //! Pathlib Module Code Generation - EXTREME TDD
 //!
-//! Handles Python `pathlib` module method conversions to Rust std::path.
-//! Extracted from expr_gen.rs for testability and maintainability.
+//! Handles Python `pathlib` module method conversions to Rust `std::path`.
+//! Extracted from `expr_gen.rs` for testability and maintainability.
 //!
 //! Coverage target: 100% line coverage, 100% branch coverage
 
@@ -10,14 +10,14 @@ use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-/// Convert Python pathlib.Path method calls to Rust std::path
+/// Convert Python pathlib.Path method calls to Rust `std::path`
 ///
 /// # Supported Methods
-/// - Path queries: exists, is_file, is_dir, is_absolute
-/// - Transformations: absolute, resolve, with_name, with_suffix
+/// - Path queries: exists, `is_file`, `is_dir`, `is_absolute`
+/// - Transformations: absolute, resolve, `with_name`, `with_suffix`
 /// - Directory ops: mkdir, rmdir, iterdir
-/// - File ops: read_text, read_bytes, write_text, write_bytes, unlink, rename
-/// - Conversions: as_posix
+/// - File ops: `read_text`, `read_bytes`, `write_text`, `write_bytes`, unlink, rename
+/// - Conversions: `as_posix`
 ///
 /// # Complexity: 10 (delegated to match branches)
 pub fn convert_pathlib_method(
@@ -91,7 +91,7 @@ fn convert_is_absolute(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
 
 fn convert_resolve(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
-        bail!("Path.{}() requires exactly 1 argument (self)", method);
+        bail!("Path.{method}() requires exactly 1 argument (self)");
     }
     let path = &arg_exprs[0];
     Ok(parse_quote! { #path.canonicalize().expect("path operation failed") })

@@ -61,13 +61,13 @@ impl std::fmt::Display for TypeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeError::InfiniteType(var, ty) => {
-                write!(f, "Infinite type: variable {} occurs in {:?}", var, ty)
+                write!(f, "Infinite type: variable {var} occurs in {ty:?}")
             }
             TypeError::Mismatch(expected, actual) => {
-                write!(f, "Type mismatch: expected {:?}, got {:?}", expected, actual)
+                write!(f, "Type mismatch: expected {expected:?}, got {actual:?}")
             }
             TypeError::UnificationFailed(msg) => {
-                write!(f, "Unification failed: {}", msg)
+                write!(f, "Unification failed: {msg}")
             }
         }
     }
@@ -115,6 +115,7 @@ impl TypeConstraintSolver {
     /// Returns `TypeError` if:
     /// - Types cannot be unified (mismatch)
     /// - Infinite types are detected (occurs check)
+    #[allow(clippy::needless_pass_by_value)]
     pub fn solve(&mut self) -> Result<HashMap<VarId, Type>, TypeError> {
         // Step 1: Process all constraints
         for constraint in self.constraints.clone() {
@@ -155,6 +156,8 @@ impl TypeConstraintSolver {
     /// 3. Handle type variables with occurs check
     /// 4. Recursively unify compound types
     /// 5. Fail on type mismatch
+    #[allow(clippy::needless_pass_by_value)]
+    #[allow(clippy::match_same_arms)]
     fn unify(&mut self, t1: Type, t2: Type) -> Result<(), TypeError> {
         // Apply current substitutions
         let t1 = self.apply_substitution(&t1);
@@ -235,6 +238,8 @@ impl TypeConstraintSolver {
     /// # Returns
     ///
     /// `true` if `var` occurs in `ty`, `false` otherwise
+    #[allow(clippy::self_only_used_in_recursion)]
+    #[allow(clippy::match_same_arms)]
     fn occurs_check(&self, var: VarId, ty: &Type) -> bool {
         match ty {
             Type::UnificationVar(v) => *v == var,

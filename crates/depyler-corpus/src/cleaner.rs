@@ -99,23 +99,23 @@ impl ArtifactCleaner {
 
     /// Find all .rs files in the corpus.
     pub fn find_rs_files(&self) -> Result<Vec<PathBuf>> {
-        self.find_files_by_extension("rs")
+        Ok(self.find_files_by_extension("rs"))
     }
 
     /// Find all Cargo.toml files in the corpus.
     pub fn find_cargo_tomls(&self) -> Result<Vec<PathBuf>> {
-        self.find_files_by_name("Cargo.toml")
+        Ok(self.find_files_by_name("Cargo.toml"))
     }
 
     /// Find all Cargo.lock files in the corpus.
     pub fn find_cargo_locks(&self) -> Result<Vec<PathBuf>> {
-        self.find_files_by_name("Cargo.lock")
+        Ok(self.find_files_by_name("Cargo.lock"))
     }
 
     /// Find all target directories in the corpus.
     pub fn find_target_dirs(&self) -> Result<Vec<PathBuf>> {
         let mut dirs = Vec::new();
-        for entry in WalkDir::new(&self.corpus_path).into_iter().filter_map(|e| e.ok()) {
+        for entry in WalkDir::new(&self.corpus_path).into_iter().filter_map(std::result::Result::ok) {
             if entry.file_type().is_dir() && entry.file_name() == "target" {
                 dirs.push(entry.path().to_path_buf());
             }
@@ -141,9 +141,9 @@ impl ArtifactCleaner {
         ))
     }
 
-    fn find_files_by_extension(&self, ext: &str) -> Result<Vec<PathBuf>> {
+    fn find_files_by_extension(&self, ext: &str) -> Vec<PathBuf> {
         let mut files = Vec::new();
-        for entry in WalkDir::new(&self.corpus_path).into_iter().filter_map(|e| e.ok()) {
+        for entry in WalkDir::new(&self.corpus_path).into_iter().filter_map(std::result::Result::ok) {
             if entry.file_type().is_file() {
                 if let Some(file_ext) = entry.path().extension() {
                     if file_ext == ext {
@@ -152,17 +152,17 @@ impl ArtifactCleaner {
                 }
             }
         }
-        Ok(files)
+        files
     }
 
-    fn find_files_by_name(&self, name: &str) -> Result<Vec<PathBuf>> {
+    fn find_files_by_name(&self, name: &str) -> Vec<PathBuf> {
         let mut files = Vec::new();
-        for entry in WalkDir::new(&self.corpus_path).into_iter().filter_map(|e| e.ok()) {
+        for entry in WalkDir::new(&self.corpus_path).into_iter().filter_map(std::result::Result::ok) {
             if entry.file_type().is_file() && entry.file_name().to_str() == Some(name) {
                 files.push(entry.path().to_path_buf());
             }
         }
-        Ok(files)
+        files
     }
 }
 

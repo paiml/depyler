@@ -1,11 +1,11 @@
 //! Complex statement codegen: try/except, subcommand handling, nested functions
 //!
-//! DEPYLER-COVERAGE-95: Extracted from stmt_gen.rs to reduce file size
+//! DEPYLER-COVERAGE-95: Extracted from `stmt_gen.rs` to reduce file size
 //! and improve testability. Contains try/except and complex control flow.
 
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
-use crate::hir::*;
+use crate::hir::{HirStmt, ExceptHandler, Type, HirExpr, Literal, AssignTarget, BinOp, HirParam};
 use crate::rust_gen::context::{CodeGenContext, RustCodeGen, ToRustExpr};
 use crate::rust_gen::control_stmt_helpers::{
     codegen_break_stmt, codegen_continue_stmt, codegen_pass_stmt,
@@ -31,6 +31,7 @@ use quote::quote;
 
 /// Generate code for Try/except/finally statement
 #[inline]
+#[allow(clippy::disallowed_methods, clippy::unwrap_used, clippy::implicit_clone, clippy::too_many_lines, clippy::ref_option)]
 pub(crate) fn codegen_try_stmt(
     body: &[HirStmt],
     handlers: &[ExceptHandler],
@@ -137,7 +138,7 @@ pub(crate) fn codegen_try_stmt(
                 (match lit {
                     Literal::Int(n) => n.to_string(),
                     Literal::Float(f) => f.to_string(),
-                    Literal::String(s) => format!("\"{}\"", s),
+                    Literal::String(s) => format!("\"{s}\""),
                     Literal::Bool(b) => b.to_string(),
                     _ => "Default::default()".to_string(),
                 })
@@ -149,10 +150,10 @@ pub(crate) fn codegen_try_stmt(
                 if let HirExpr::Literal(lit) = &**operand {
                     match (op, lit) {
                         (crate::hir::UnaryOp::Neg, Literal::Int(n)) => {
-                            Some((format!("-{}", n), handlers[0].exception_type.clone()))
+                            Some((format!("-{n}"), handlers[0].exception_type.clone()))
                         }
                         (crate::hir::UnaryOp::Neg, Literal::Float(f)) => {
-                            Some((format!("-{}", f), handlers[0].exception_type.clone()))
+                            Some((format!("-{f}"), handlers[0].exception_type.clone()))
                         }
                         _ => None,
                     }
@@ -243,26 +244,25 @@ pub(crate) fn codegen_try_stmt(
                             }
                         })
                     };
-                } else {
-                    // DEPYLER-1161: Wrap floor div result in Ok() when function returns Result
-                    return if ctx.current_function_can_fail {
-                        Ok(quote! {
-                            if #divisor_tokens == 0 {
-                                #(#handler_stmts)*
-                            } else {
-                                return Ok(#floor_div_result);
-                            }
-                        })
-                    } else {
-                        Ok(quote! {
-                            if #divisor_tokens == 0 {
-                                #(#handler_stmts)*
-                            } else {
-                                return #floor_div_result;
-                            }
-                        })
-                    };
                 }
+                // DEPYLER-1161: Wrap floor div result in Ok() when function returns Result
+                return if ctx.current_function_can_fail {
+                    Ok(quote! {
+                        if #divisor_tokens == 0 {
+                            #(#handler_stmts)*
+                        } else {
+                            return Ok(#floor_div_result);
+                        }
+                    })
+                } else {
+                    Ok(quote! {
+                        if #divisor_tokens == 0 {
+                            #(#handler_stmts)*
+                        } else {
+                            return #floor_div_result;
+                        }
+                    })
+                };
             }
         }
     }
@@ -323,7 +323,7 @@ pub(crate) fn codegen_try_stmt(
                     if stmt_str.starts_with("return ") && !stmt_str.starts_with("return Ok (") {
                         if let Some(expr_part) = stmt_str.strip_prefix("return ") {
                             if let Some(expr) = expr_part.strip_suffix(" ;") {
-                                let wrapped = format!("return Ok({}) ;", expr);
+                                let wrapped = format!("return Ok({expr}) ;");
                                 return wrapped.parse().unwrap_or_else(|_| stmt.clone());
                             }
                         }
@@ -411,9 +411,8 @@ pub(crate) fn codegen_try_stmt(
                             #finally_code
                         }
                     });
-                } else {
-                    return Ok(match_expr);
                 }
+                return Ok(match_expr);
             }
         }
 
@@ -433,9 +432,9 @@ pub(crate) fn codegen_try_stmt(
                 let fixed_code = try_str
                     .replace(
                         "unwrap_or_default ()",
-                        &format!("unwrap_or ({})", exception_value_str),
+                        &format!("unwrap_or ({exception_value_str})"),
                     )
-                    .replace("unwrap_or_default()", &format!("unwrap_or({})", exception_value_str));
+                    .replace("unwrap_or_default()", &format!("unwrap_or({exception_value_str})"));
 
                 // Parse back to token stream
                 let fixed_tokens: proc_macro2::TokenStream = fixed_code.parse().unwrap_or(try_code);
@@ -492,13 +491,9 @@ pub(crate) fn codegen_try_stmt(
             // Infer return type from try body
             let try_return_type = infer_try_body_return_type(body, ctx);
             let return_type_tokens = try_return_type
-                .as_ref()
-                .map(try_return_type_to_tokens)
-                .unwrap_or_else(|| quote! { () });
+                .as_ref().map_or_else(|| quote! { () }, try_return_type_to_tokens);
             let ok_value = try_return_type
-                .as_ref()
-                .map(|_| quote! { _result })
-                .unwrap_or_else(|| quote! { () });
+                .as_ref().map_or_else(|| quote! { () }, |_| quote! { _result });
 
             // The Ok arm extracts _result from Result
             // DEPYLER-0819: When handlers contain raise, the function returns Result<T, E>
@@ -532,7 +527,7 @@ pub(crate) fn codegen_try_stmt(
                     if stmt_str.starts_with("return ") && !stmt_str.starts_with("return Ok (") {
                         if let Some(expr_part) = stmt_str.strip_prefix("return ") {
                             if let Some(expr) = expr_part.strip_suffix(" ;") {
-                                let wrapped = format!("return Ok({}) ;", expr);
+                                let wrapped = format!("return Ok({expr}) ;");
                                 return wrapped.parse().unwrap_or_else(|_| stmt.clone());
                             }
                         }
@@ -634,10 +629,10 @@ pub(crate) fn codegen_try_stmt(
     }
 }
 
-/// DEPYLER-0437: Extract .parse() call from generated token stream
+/// DEPYLER-0437: Extract .`parse()` call from generated token stream
 ///
 /// Looks for pattern: `let var = expr.parse::<i32>().unwrap_or_default();`
-/// Returns: (variable_name, parse_expression_without_unwrap_or, remaining_statements)
+/// Returns: (`variable_name`, `parse_expression_without_unwrap_or`, `remaining_statements`)
 // DEPYLER-FIX-RC1: Replaced fragile string matching with syn-based AST analysis
 fn extract_parse_from_tokens(
     try_stmts: &[proc_macro2::TokenStream],
@@ -721,11 +716,11 @@ fn extract_parse_expr(expr: &syn::Expr) -> Option<String> {
 /// DEPYLER-0425: Extract subcommand fields accessed in handler body
 /// Analyzes HIR statements to find args.field attribute accesses
 ///
-/// DEPYLER-0480: Now accepts dest_field parameter to filter dynamically
-/// DEPYLER-0481: Now accepts cmd_name and ctx to filter out top-level args
+/// DEPYLER-0480: Now accepts `dest_field` parameter to filter dynamically
+/// DEPYLER-0481: Now accepts `cmd_name` and ctx to filter out top-level args
 ///
 /// # Complexity
-/// 10 (recursive HIR walk + HashSet operations)
+/// 10 (recursive HIR walk + `HashSet` operations)
 fn extract_accessed_subcommand_fields(
     body: &[HirStmt],
     args_var: &str,
@@ -776,7 +771,7 @@ fn extract_accessed_subcommand_fields(
 
 /// DEPYLER-0425: Recursively extract fields from HIR statements
 ///
-/// DEPYLER-0480: Now accepts dest_field parameter to pass through
+/// DEPYLER-0480: Now accepts `dest_field` parameter to pass through
 ///
 /// # Complexity
 /// 8 (recursive statement traversal)
@@ -790,7 +785,7 @@ pub(crate) fn extract_fields_recursive(
         match stmt {
             HirStmt::Expr(expr) => extract_fields_from_expr(expr, args_var, dest_field, fields),
             HirStmt::Assign { value, .. } => {
-                extract_fields_from_expr(value, args_var, dest_field, fields)
+                extract_fields_from_expr(value, args_var, dest_field, fields);
             }
             HirStmt::If { condition, then_body, else_body } => {
                 // DEPYLER-0518: Also extract fields from condition
@@ -838,10 +833,11 @@ pub(crate) fn extract_fields_recursive(
 /// DEPYLER-0425: Extract fields from HIR expression
 /// Finds patterns like `args.field` and collects field names
 ///
-/// DEPYLER-0480: Now uses dest_field parameter instead of hardcoded "command"/"action"
+/// DEPYLER-0480: Now uses `dest_field` parameter instead of hardcoded "command"/"action"
 ///
 /// # Complexity
 /// 10 (expression traversal + pattern matching)
+#[allow(clippy::too_many_lines, clippy::ref_option, clippy::unnecessary_wraps)]
 pub(crate) fn extract_fields_from_expr(
     expr: &HirExpr,
     args_var: &str,
@@ -934,6 +930,7 @@ pub(crate) fn extract_fields_from_expr(
 ///     }
 /// }
 /// ```
+#[allow(clippy::assigning_clones, clippy::manual_let_else, clippy::too_many_lines, clippy::ref_option, clippy::unnecessary_wraps)]
 pub(crate) fn try_generate_subcommand_match(
     condition: &HirExpr,
     then_body: &[HirStmt],
@@ -948,9 +945,7 @@ pub(crate) fn try_generate_subcommand_match(
         .argparser_tracker
         .subparsers
         .values()
-        .next()
-        .map(|sp| sp.dest_field.clone())
-        .unwrap_or_else(|| "command".to_string()); // Default to "command" for backwards compatibility
+        .next().map_or_else(|| "command".to_string(), |sp| sp.dest_field.clone()); // Default to "command" for backwards compatibility
 
     // Check if condition matches: args.<dest_field> == "string" OR CSE temp variable
     let command_name = match is_subcommand_check(condition, &dest_field, ctx) {
@@ -1099,15 +1094,13 @@ pub(crate) fn try_generate_subcommand_match(
                 {
                     if let Some(arg) = subcommand.arguments.iter().find(|a| {
                         // DEPYLER-0722: Strip dashes from short options (-n → n)
-                        let arg_name = a.long.as_ref()
-                            .map(|s| s.trim_start_matches('-').to_string())
-                            .unwrap_or_else(|| a.name.trim_start_matches('-').to_string());
+                        let arg_name = a.long.as_ref().map_or_else(|| a.name.trim_start_matches('-').to_string(), |s| s.trim_start_matches('-').to_string());
                         &arg_name == field_name
                     }) {
                         // DEPYLER-0722: Determine actual type including Optional wrapper
                         let base_type = if let Some(ref ty) = arg.arg_type {
                             Some(ty.clone())
-                        } else if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+                        } else if matches!(arg.action.as_deref(), Some("store_true" | "store_false")) {
                             Some(Type::Bool)
                         } else {
                             None
@@ -1117,7 +1110,7 @@ pub(crate) fn try_generate_subcommand_match(
                             // DEPYLER-0722: Check if this is actually Option<T> in Clap
                             // An argument is Option<T> if: NOT required AND NO default AND NOT positional
                             // AND NOT a boolean flag (store_true/store_false)
-                            let is_bool_flag = matches!(arg.action.as_deref(), Some("store_true") | Some("store_false"));
+                            let is_bool_flag = matches!(arg.action.as_deref(), Some("store_true" | "store_false"));
                             let is_option_type = !arg.is_positional
                                 && !arg.required.unwrap_or(false)
                                 && arg.default.is_none()
@@ -1211,9 +1204,7 @@ pub(crate) fn try_generate_subcommand_match(
                                     // DEPYLER-0722: Also strip dashes from short options (-n → n)
                                     let arg_field_name = arg
                                         .long
-                                        .as_ref()
-                                        .map(|s| s.trim_start_matches('-').to_string())
-                                        .unwrap_or_else(|| arg.name.trim_start_matches('-').to_string());
+                                        .as_ref().map_or_else(|| arg.name.trim_start_matches('-').to_string(), |s| s.trim_start_matches('-').to_string());
                                     arg_field_name == *field_name
                                 })
                             });
@@ -1228,7 +1219,7 @@ pub(crate) fn try_generate_subcommand_match(
                                     // Rust: Vec<i32> (not i32)
                                     let is_multi = matches!(
                                         arg.nargs.as_deref(),
-                                        Some("+") | Some("*")
+                                        Some("+" | "*")
                                     );
                                     if is_multi {
                                         return Some(Type::List(Box::new(base_type.clone())));
@@ -1238,7 +1229,7 @@ pub(crate) fn try_generate_subcommand_match(
                                 // Check action for bool flags: store_true/store_false → Bool
                                 if matches!(
                                     arg.action.as_deref(),
-                                    Some("store_true") | Some("store_false") | Some("store_const")
+                                    Some("store_true" | "store_false" | "store_const")
                                 ) {
                                     return Some(Type::Bool);
                                 }
@@ -1280,23 +1271,20 @@ pub(crate) fn try_generate_subcommand_match(
                                 // With explicit `ref` pattern, bool is &bool - dereference to get bool
                                 quote! { let #field_ident = *#field_ident; }
                             }
-                            Some(Type::Int) | Some(Type::Float) => {
+                            Some(Type::Int | Type::Float) => {
                                 // DEPYLER-0576: Check if field has a default value (is Option<T>)
                                 // Clap represents optional args with defaults as Option<T>
                                 // ref binding gives &Option<T>, need to unwrap with default
                                 // DEPYLER-0722: Also check for Option<T> without default (NOT required AND NOT positional)
                                 let has_default = maybe_arg
                                     .as_ref()
-                                    .map(|a| a.default.is_some())
-                                    .unwrap_or(false);
+                                    .is_some_and(|a| a.default.is_some());
                                 let is_required = maybe_arg
                                     .as_ref()
-                                    .map(|a| a.required.unwrap_or(false))
-                                    .unwrap_or(false);
+                                    .is_some_and(|a| a.required.unwrap_or(false));
                                 let is_positional = maybe_arg
                                     .as_ref()
-                                    .map(|a| a.is_positional)
-                                    .unwrap_or(false);
+                                    .is_some_and(|a| a.is_positional);
                                 // DEPYLER-0722: An argument is Option<T> if NOT required AND NOT positional AND NO default
                                 let is_option_without_default = !is_required && !is_positional && !has_default;
 
@@ -1333,16 +1321,13 @@ pub(crate) fn try_generate_subcommand_match(
                                 // (NOT required AND NOT positional AND NO default)
                                 let has_default = maybe_arg
                                     .as_ref()
-                                    .map(|a| a.default.is_some())
-                                    .unwrap_or(false);
+                                    .is_some_and(|a| a.default.is_some());
                                 let is_required = maybe_arg
                                     .as_ref()
-                                    .map(|a| a.required.unwrap_or(false))
-                                    .unwrap_or(false);
+                                    .is_some_and(|a| a.required.unwrap_or(false));
                                 let is_positional = maybe_arg
                                     .as_ref()
-                                    .map(|a| a.is_positional)
-                                    .unwrap_or(false);
+                                    .is_some_and(|a| a.is_positional);
                                 let is_option_without_default =
                                     !is_required && !is_positional && !has_default;
 
@@ -1385,9 +1370,7 @@ pub(crate) fn try_generate_subcommand_match(
                                     }
                                 }
                             }
-                            Some(Type::Optional(_))
-                            | Some(Type::List(_))
-                            | Some(Type::Dict(_, _)) => {
+                            Some(Type::Optional(_) | Type::List(_) | Type::Dict(_, _)) => {
                                 // For complex container types, clone the reference
                                 quote! { let #field_ident = #field_ident.clone(); }
                             }
@@ -1395,16 +1378,13 @@ pub(crate) fn try_generate_subcommand_match(
                                 // DEPYLER-0933: Check if this is an Optional field (unknown type)
                                 let has_default = maybe_arg
                                     .as_ref()
-                                    .map(|a| a.default.is_some())
-                                    .unwrap_or(false);
+                                    .is_some_and(|a| a.default.is_some());
                                 let is_required = maybe_arg
                                     .as_ref()
-                                    .map(|a| a.required.unwrap_or(false))
-                                    .unwrap_or(false);
+                                    .is_some_and(|a| a.required.unwrap_or(false));
                                 let is_positional = maybe_arg
                                     .as_ref()
-                                    .map(|a| a.is_positional)
-                                    .unwrap_or(false);
+                                    .is_some_and(|a| a.is_positional);
                                 let is_option_without_default =
                                     !is_required && !is_positional && !has_default;
 
@@ -1537,9 +1517,9 @@ pub(crate) fn try_generate_subcommand_match(
 }
 
 /// DEPYLER-0399: Check if expression is a subcommand check pattern
-/// DEPYLER-0456 Bug #2: Accept dest_field parameter to support custom field names
+/// DEPYLER-0456 Bug #2: Accept `dest_field` parameter to support custom field names
 ///
-/// Returns the command name if pattern matches: args.<dest_field> == "string"
+/// Returns the command name if pattern matches: args.<`dest_field`> == "string"
 pub(crate) fn is_subcommand_check(
     expr: &HirExpr,
     dest_field: &str,
@@ -1622,7 +1602,7 @@ impl RustCodeGen for HirStmt {
 /// Generate Rust code for nested function definitions (inner functions)
 ///
 /// Python nested functions are converted to Rust inner functions.
-/// This enables code like csv_filter.py and log_analyzer.py to transpile.
+/// This enables code like `csv_filter.py` and `log_analyzer.py` to transpile.
 ///
 /// # Examples
 ///
@@ -1643,6 +1623,7 @@ impl RustCodeGen for HirStmt {
 ///     inner(5)
 /// }
 /// ```
+#[allow(clippy::too_many_lines)]
 fn codegen_nested_function_def(
     name: &str,
     params: &[HirParam],
@@ -1871,6 +1852,7 @@ fn codegen_nested_function_def(
 /// Returns true if the function body references any variables that are NOT:
 /// - The function's own parameters
 /// - Local variables defined within the function
+#[allow(clippy::too_many_lines)]
 pub(crate) fn captures_outer_scope(
     params: &[crate::hir::HirParam],
     body: &[HirStmt],
@@ -1883,6 +1865,7 @@ pub(crate) fn captures_outer_scope(
         params.iter().map(|p| p.name.as_str()).collect();
 
     // Collect locally defined variables from assignments
+    #[allow(clippy::items_after_statements, clippy::match_same_arms, clippy::too_many_lines)]
     fn collect_local_vars<'a>(stmt: &'a HirStmt, locals: &mut std::collections::HashSet<&'a str>) {
         match stmt {
             HirStmt::Assign { target: crate::hir::AssignTarget::Symbol(name), .. } => {
@@ -1961,6 +1944,7 @@ pub(crate) fn captures_outer_scope(
     }
 
     // Now check if body references any outer scope variables
+    #[allow(clippy::items_after_statements, clippy::match_same_arms, clippy::match_wildcard_for_single_variants)]
     fn check_expr_for_capture(
         expr: &HirExpr,
         local_vars: &std::collections::HashSet<&str>,
@@ -2078,6 +2062,7 @@ pub(crate) fn captures_outer_scope(
         }
     }
 
+    #[allow(clippy::items_after_statements)]
     fn check_stmt_for_capture(
         stmt: &HirStmt,
         local_vars: &std::collections::HashSet<&str>,

@@ -6,7 +6,7 @@
 use crate::hir::{Import, ImportItem};
 
 /// Result type for processed module imports to reduce type complexity
-pub type ProcessedImports = (
+pub(super) type ProcessedImports = (
     std::collections::HashMap<String, crate::module_mapper::ModuleMapping>,
     std::collections::HashMap<String, String>,
     Vec<UnresolvedImport>,
@@ -15,7 +15,7 @@ pub type ProcessedImports = (
 
 /// Process a whole module import (e.g., `import math`)
 ///
-/// Adds the module mapping to imported_modules if found in the module mapper.
+/// Adds the module mapping to `imported_modules` if found in the module mapper.
 ///
 /// # Complexity
 /// 2 (single if let)
@@ -29,7 +29,7 @@ fn process_whole_module_import(
     }
 }
 
-/// Process a single import item and add to imported_items
+/// Process a single import item and add to `imported_items`
 ///
 /// Handles special case for typing module (no full path needed).
 /// Maps Python names to Rust paths using the module mapper.
@@ -37,7 +37,7 @@ fn process_whole_module_import(
 /// # Arguments
 /// * `import_module` - The Python module being imported from
 /// * `item_name` - The name of the item being imported
-/// * `import_key` - The key to use in imported_items (name or alias)
+/// * `import_key` - The key to use in `imported_items` (name or alias)
 /// * `mapping` - The module mapping for this import
 /// * `imported_items` - Map to populate with import->Rust path mappings
 ///
@@ -67,7 +67,7 @@ fn process_import_item(
 
 /// Process specific items import (e.g., `from typing import List, Dict`)
 ///
-/// Handles both Named and Aliased import items by delegating to process_import_item.
+/// Handles both Named and Aliased import items by delegating to `process_import_item`.
 ///
 /// # Complexity
 /// 5 (if let + loop + match with 2 arms)
@@ -93,7 +93,7 @@ fn process_specific_items_import(
 /// DEPYLER-0615: Track unresolved local imports
 /// These are imports from local modules (no stdlib mapping) that need stub functions
 #[derive(Debug, Clone)]
-pub struct UnresolvedImport {
+pub(crate) struct UnresolvedImport {
     pub module: String,
     pub item_name: String,
 }
@@ -102,21 +102,22 @@ pub struct UnresolvedImport {
 ///
 /// This is the main entry point for import processing. It processes all imports
 /// in a module and returns four maps:
-/// - imported_modules: Full module imports (e.g., `import math`)
-/// - imported_items: Specific item imports (e.g., `from typing import List`)
-/// - unresolved_imports: Local imports that need stub functions (DEPYLER-0615)
-/// - module_aliases: Module-level aliases (DEPYLER-1136)
+/// - `imported_modules`: Full module imports (e.g., `import math`)
+/// - `imported_items`: Specific item imports (e.g., `from typing import List`)
+/// - `unresolved_imports`: Local imports that need stub functions (DEPYLER-0615)
+/// - `module_aliases`: Module-level aliases (DEPYLER-1136)
 ///
 /// # Arguments
 /// * `imports` - List of all imports in the module
 /// * `module_mapper` - Module mapper for Python->Rust mappings
 ///
 /// # Returns
-/// Tuple of (imported_modules, imported_items, unresolved_imports, module_aliases)
+/// Tuple of (`imported_modules`, `imported_items`, `unresolved_imports`, `module_aliases`)
 ///
 /// # Complexity
 /// 4 (loop + if/else + inner loop for unresolved)
-pub fn process_module_imports(
+#[allow(clippy::match_same_arms)]
+pub(super) fn process_module_imports(
     imports: &[Import],
     module_mapper: &crate::module_mapper::ModuleMapper,
 ) -> ProcessedImports {

@@ -84,6 +84,7 @@ fn collect_fn_signature(lines: &[&str], start: usize) -> (String, usize) {
 }
 
 /// Parse parameters from a function signature and insert Option parameter names into the set.
+#[allow(clippy::manual_let_else)]
 fn collect_option_params_from_signature(
     signature: &str,
     option_params: &mut std::collections::HashSet<String>,
@@ -120,8 +121,7 @@ pub(super) fn fix_is_none_in_line(
         let before = &result[..pos];
         let var_start = before
             .rfind(|c: char| !c.is_alphanumeric() && c != '_' && c != '.')
-            .map(|p| p + 1)
-            .unwrap_or(0);
+            .map_or(0, |p| p + 1);
         let var = &result[var_start..pos];
         // Skip if the variable name suggests it IS an Option (from .get(), etc.)
         if var.contains("get(") || var.contains("unwrap") || var.is_empty() {
@@ -133,7 +133,7 @@ pub(super) fn fix_is_none_in_line(
         }
         // Simple variable or field access: replace .is_none() with == false
         // i.e., `config.is_none()` → `false`
-        let old = format!("{}.is_none()", var);
+        let old = format!("{var}.is_none()");
         result = result.replacen(&old, "false", 1);
     }
     result
@@ -195,21 +195,21 @@ fn extract_fn_name_from_sig(trimmed: &str) -> Option<String> {
     }
 }
 
-/// Try to fix a double-wrapped Ok(result_fn(...)) line. Returns Some(fixed) if fixed.
+/// Try to fix a double-wrapped `Ok(result_fn`(...)) line. Returns Some(fixed) if fixed.
 fn try_fix_double_wrap_line(
     line: &str,
     trimmed: &str,
     result_fns: &std::collections::HashSet<String>,
 ) -> Option<String> {
     for fname in result_fns {
-        let already_q = format!("{}(?", fname);
-        for prefix in &[format!("Ok({}(", fname), format!("Ok(!{}(", fname)] {
+        let already_q = format!("{fname}(?");
+        for prefix in &[format!("Ok({fname}("), format!("Ok(!{fname}(")] {
             if !trimmed.contains(prefix.as_str()) || trimmed.contains(&already_q) {
                 continue;
             }
             if let Some(cp) = find_call_close_paren(line, prefix, fname) {
                 let mut fixed = String::with_capacity(line.len() + 1);
-                fixed.push_str(&line[..cp + 1]);
+                fixed.push_str(&line[..=cp]);
                 fixed.push('?');
                 fixed.push_str(&line[cp + 1..]);
                 return Some(fixed);
@@ -248,7 +248,7 @@ fn try_fix_negate_result_line(line: &str, trimmed: &str) -> Option<String> {
     let indent = &line[..line.len() - trimmed.len()];
     let before_ok = &trimmed[..ok_neg_start];
     let after_close = &trimmed[ok_neg_start + 4 + call_end..];
-    Some(format!("{}{}Ok(-{}?{}", indent, before_ok, fn_call, after_close))
+    Some(format!("{indent}{before_ok}Ok(-{fn_call}?{after_close}"))
 }
 
 /// Find the position of the closing paren that matches depth 0 (closes the outer call).
@@ -290,8 +290,8 @@ pub(super) fn fix_option_as_cast(code: &str) -> String {
         else if trimmed.contains("as u32") {
             let mut new_line = line.to_string();
             for var in &option_vars {
-                let pat = format!("({}) as u32", var);
-                let rep = format!("({}.unwrap()) as u32", var);
+                let pat = format!("({var}) as u32");
+                let rep = format!("({var}.unwrap()) as u32");
                 if new_line.contains(&pat) {
                     new_line = new_line.replace(&pat, &rep);
                 }
@@ -324,7 +324,7 @@ pub(super) fn fix_option_dequeue_unwrap(code: &str) -> String {
     result
 }
 
-/// Case 1: `let var: T = expr.dequeue();` → add .unwrap()
+/// Case 1: `let var: T = expr.dequeue();` → add .`unwrap()`
 fn try_fix_dequeue_typed_let(line: &str, trimmed: &str, methods: &[&str]) -> Option<String> {
     if !trimmed.starts_with("let ") || !trimmed.contains(':') || !trimmed.ends_with(';') {
         return None;
@@ -333,9 +333,9 @@ fn try_fix_dequeue_typed_let(line: &str, trimmed: &str, methods: &[&str]) -> Opt
         if !trimmed.contains(method) {
             continue;
         }
-        let target = format!("{};", method);
+        let target = format!("{method};");
         if trimmed.ends_with(&target) {
-            let unwrapped = format!("{}.unwrap();", method);
+            let unwrapped = format!("{method}.unwrap();");
             return Some(line.replace(&target, &unwrapped));
         }
     }
@@ -358,17 +358,17 @@ fn track_dequeue_option_vars(trimmed: &str, methods: &[&str], option_vars: &mut 
     }
 }
 
-/// Fix uses of option vars in push calls: add .unwrap()
+/// Fix uses of option vars in push calls: add .`unwrap()`
 fn fix_option_var_push_unwrap(line: &str, option_vars: &[String]) -> String {
     let mut new_line = line.to_string();
     for var in option_vars {
-        let pat1 = format!(".push({});", var);
-        let rep1 = format!(".push({}.unwrap());", var);
+        let pat1 = format!(".push({var});");
+        let rep1 = format!(".push({var}.unwrap());");
         if new_line.contains(&pat1) {
             new_line = new_line.replace(&pat1, &rep1);
         }
-        let pat2 = format!(".push({})", var);
-        let rep2 = format!(".push({}.unwrap())", var);
+        let pat2 = format!(".push({var})");
+        let rep2 = format!(".push({var}.unwrap())");
         if new_line.contains(&pat2) && !new_line.contains(".unwrap())") {
             new_line = new_line.replace(&pat2, &rep2);
         }
@@ -418,7 +418,7 @@ fn try_extract_option_hashmap_var(trimmed: &str) -> Option<String> {
 fn fix_contains_key_on_option(line: &str, option_hashmap_vars: &[String]) -> String {
     let mut new_line = line.to_string();
     for var in option_hashmap_vars {
-        let pat = format!("{}.contains_key(", var);
+        let pat = format!("{var}.contains_key(");
         if !new_line.contains(&pat) {
             continue;
         }
@@ -427,13 +427,14 @@ fn fix_contains_key_on_option(line: &str, option_hashmap_vars: &[String]) -> Str
         let Some(close) = after.find(')') else { continue };
         let key_arg = &after[..close];
         let replacement =
-            format!("{}.as_ref().map_or(false, |_ohm| _ohm.contains_key({}))", var, key_arg);
+            format!("{var}.as_ref().map_or(false, |_ohm| _ohm.contains_key({key_arg}))");
         let end_pos = start + pat.len() + close + 1;
         new_line = format!("{}{}{}", &new_line[..start], replacement, &new_line[end_pos..]);
     }
     new_line
 }
 
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 pub(super) fn fix_option_push_after_is_some(code: &str) -> String {
     let mut result = String::with_capacity(code.len());
     let mut option_vars: Vec<String> = Vec::new();
@@ -525,7 +526,7 @@ fn try_wrap_field_assignment_in_some(
     option_fields: &[String],
 ) -> Option<String> {
     for field in option_fields {
-        let assign_pat = format!("self.{} = ", field);
+        let assign_pat = format!("self.{field} = ");
         if !trimmed.contains(&assign_pat) {
             continue;
         }
@@ -536,12 +537,12 @@ fn try_wrap_field_assignment_in_some(
             continue;
         }
         let indent = &line[..line.len() - line.trim_start().len()];
-        return Some(format!("{}{}Some({});", indent, assign_pat, rhs));
+        return Some(format!("{indent}{assign_pat}Some({rhs});"));
     }
     None
 }
 
-/// DEPYLER-99MODE-S9: Fix `option_var.clone().to_string()` in is_some() guard → `unwrap().to_string()`.
+/// DEPYLER-99MODE-S9: Fix `option_var.clone().to_string()` in `is_some()` guard → `unwrap().to_string()`.
 ///
 /// When inside an `is_some()` guard, `.clone().to_string()` on an Option var should
 /// be `.unwrap().to_string()` since the value is guaranteed to be Some.
@@ -606,8 +607,8 @@ fn count_brace_delta(trimmed: &str) -> i32 {
 fn replace_clone_with_unwrap(line: &str, is_some_vars: &[String]) -> String {
     let mut new_line = line.to_string();
     for var in is_some_vars {
-        let pat = format!("{}.clone().to_string()", var);
-        let rep = format!("{}.unwrap().to_string()", var);
+        let pat = format!("{var}.clone().to_string()");
+        let rep = format!("{var}.unwrap().to_string()");
         if new_line.contains(&pat) {
             new_line = new_line.replace(&pat, &rep);
         }
@@ -615,7 +616,7 @@ fn replace_clone_with_unwrap(line: &str, is_some_vars: &[String]) -> String {
     new_line
 }
 
-/// DEPYLER-99MODE-S9: Fix `return value;` in is_some() guard when value is `&Option<T>` param.
+/// DEPYLER-99MODE-S9: Fix `return value;` in `is_some()` guard when value is `&Option<T>` param.
 ///
 /// When function takes `value: &Option<T>` and has `if value.is_some() { return value; }`,
 /// the return should be `return *value.as_ref().unwrap();`.
@@ -671,7 +672,7 @@ fn extract_ref_option_param_names(trimmed: &str) -> Vec<String> {
     names
 }
 
-/// Update the is_some guard tracking state for the current line.
+/// Update the `is_some` guard tracking state for the current line.
 fn update_is_some_guard_state(
     trimmed: &str,
     option_params: &[String],
@@ -685,7 +686,7 @@ fn update_is_some_guard_state(
         && trimmed.contains(".is_some()")
     {
         for param in option_params {
-            if trimmed.contains(&format!("{}.is_some()", param)) {
+            if trimmed.contains(&format!("{param}.is_some()")) {
                 *is_some_param = Some(param.clone());
                 *in_guard = true;
                 *guard_depth = count_brace_delta(trimmed);
@@ -702,6 +703,7 @@ fn update_is_some_guard_state(
 }
 
 /// Try to fix `return param;` → `return *param.as_ref().unwrap();` when inside a guard.
+#[allow(clippy::ref_option)]
 fn try_fix_return_in_guard(
     line: &str,
     trimmed: &str,
@@ -712,12 +714,12 @@ fn try_fix_return_in_guard(
         return None;
     }
     let param = is_some_param.as_ref()?;
-    let pat = format!("return {};", param);
+    let pat = format!("return {param};");
     if trimmed != pat {
         return None;
     }
     let indent = &line[..line.len() - line.trim_start().len()];
-    Some(format!("{}return *{}.as_ref().unwrap();", indent, param))
+    Some(format!("{indent}return *{param}.as_ref().unwrap();"))
 }
 
 /// DEPYLER-99MODE-S9: Fix `let _ = Ok(EXPR);` → `Ok(EXPR)` as tail expression.
@@ -750,7 +752,7 @@ fn try_fix_let_discard_ok(line: &str, trimmed: &str, lines: &[&str], idx: usize)
     }
     let indent = &line[..line.len() - line.trim_start().len()];
     let ok_expr = &trimmed[8..trimmed.len() - 1]; // strip "let _ = " and ";"
-    Some(format!("{}{}", indent, ok_expr))
+    Some(format!("{indent}{ok_expr}"))
 }
 
 /// Check if the next non-blank line after `start` is `}`.
@@ -840,11 +842,7 @@ fn update_fn_detection(trimmed: &str, state: &mut BareReturnState) {
             state.in_result_fn = true;
             state.fn_brace_depth = state.brace_depth;
             state.pending_fn = false;
-        } else if !trimmed.contains('{') {
-            state.pending_fn = true;
-        } else {
-            state.pending_fn = false;
-        }
+        } else { state.pending_fn = !trimmed.contains('{'); }
     } else if state.pending_fn && trimmed.contains("-> Result<") {
         state.in_result_fn = true;
         state.fn_brace_depth = state.brace_depth;
@@ -854,7 +852,7 @@ fn update_fn_detection(trimmed: &str, state: &mut BareReturnState) {
     }
 }
 
-/// Detect non-Result closure scopes that should suppress Ok() wrapping.
+/// Detect non-Result closure scopes that should suppress `Ok()` wrapping.
 fn detect_closure_scope(trimmed: &str, state: &mut BareReturnState) {
     if !state.in_result_fn || !trimmed.contains('{') {
         return;
@@ -911,7 +909,7 @@ fn check_fn_scope_end(state: &mut BareReturnState) {
     }
 }
 
-/// Process a line for bare-return wrapping. Returns Some(fixed_line) if handled, None otherwise.
+/// Process a line for bare-return wrapping. Returns `Some(fixed_line)` if handled, None otherwise.
 fn process_bare_return_line(
     line: &str,
     trimmed: &str,
@@ -929,14 +927,14 @@ fn process_bare_return_line(
         .or_else(|| try_start_multiline_return(line, trimmed, state))
 }
 
-/// Handle continuation of a multi-line bare return being wrapped in Ok().
+/// Handle continuation of a multi-line bare return being wrapped in `Ok()`.
 fn handle_multiline_bare_return(line: &str, trimmed: &str, state: &mut BareReturnState) -> String {
     state.return_paren_depth += count_paren_delta(trimmed);
     if state.return_paren_depth <= 0 && trimmed.ends_with(';') {
         let indent = &line[..line.len() - trimmed.len()];
         let content = trimmed.trim_end_matches(';');
         state.in_bare_return = false;
-        format!("{}{});", indent, content)
+        format!("{indent}{content});")
     } else {
         line.to_string()
     }
@@ -959,7 +957,7 @@ fn try_wrap_single_line_return(
         return None;
     }
     let indent = &line[..line.len() - trimmed.len()];
-    Some(format!("{}return Ok({});", indent, expr))
+    Some(format!("{indent}return Ok({expr});"))
 }
 
 /// Try to start a multi-line `return (EXPR\n...);` wrapped in `Ok()`.
@@ -978,7 +976,7 @@ fn try_start_multiline_return(
     state.in_bare_return = true;
     state.return_paren_depth = count_paren_delta(after_return);
     let indent = &line[..line.len() - trimmed.len()];
-    Some(format!("{}return Ok({}", indent, after_return))
+    Some(format!("{indent}return Ok({after_return}"))
 }
 
 /// Check if an expression calls a function that returns Result.

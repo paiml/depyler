@@ -12,6 +12,7 @@ use std::collections::HashSet;
 
 /// Check if a statement always returns (guaranteed termination path)
 /// DEPYLER-0622: Used to determine if code after this statement is unreachable
+#[allow(clippy::manual_let_else, clippy::match_same_arms, clippy::unnecessary_map_or)]
 pub fn stmt_always_returns(stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Return(_) => true,
@@ -25,7 +26,7 @@ pub fn stmt_always_returns(stmt: &HirStmt) -> bool {
             let handlers_return = !handlers.is_empty()
                 && handlers.iter().all(|h| h.body.iter().any(stmt_always_returns));
             let orelse_returns =
-                orelse.as_ref().map(|stmts| stmts.iter().any(stmt_always_returns)).unwrap_or(true);
+                orelse.as_ref().map_or(true, |stmts| stmts.iter().any(stmt_always_returns));
 
             body_returns && handlers_return && orelse_returns
         }
@@ -34,8 +35,7 @@ pub fn stmt_always_returns(stmt: &HirStmt) -> bool {
             let then_returns = then_body.iter().any(stmt_always_returns);
             let else_returns = else_body
                 .as_ref()
-                .map(|stmts| stmts.iter().any(stmt_always_returns))
-                .unwrap_or(false); // No else = might fall through
+                .is_some_and(|stmts| stmts.iter().any(stmt_always_returns)); // No else = might fall through
             then_returns && else_returns
         }
         // For/While loops don't guarantee return (loop might not execute)
@@ -138,6 +138,7 @@ pub fn collect_if_escaping_variables(stmts: &[HirStmt]) -> HashSet<String> {
 }
 
 /// DEPYLER-0762: Collect variables assigned in loops that escape to outer scope
+#[allow(clippy::match_same_arms)]
 pub fn collect_loop_escaping_variables(stmts: &[HirStmt]) -> HashSet<String> {
     let mut escaping_vars = HashSet::new();
 
@@ -233,6 +234,7 @@ pub fn collect_all_assigned_variables(stmts: &[HirStmt]) -> HashSet<String> {
 
 /// Extract variables assigned at the TOP LEVEL only (not in nested loops)
 /// DEPYLER-0476: Used for if-block variable hoisting
+#[allow(clippy::match_same_arms)]
 pub fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> HashSet<String> {
     let mut vars = HashSet::new();
 
@@ -278,6 +280,7 @@ pub fn is_var_used_in_remaining_stmts(var_name: &str, stmts: &[HirStmt]) -> bool
 }
 
 /// Check if a variable is used anywhere in a statement (recursive)
+#[allow(clippy::match_same_arms)]
 pub fn is_var_used_anywhere(var_name: &str, stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { target, value, .. } => {

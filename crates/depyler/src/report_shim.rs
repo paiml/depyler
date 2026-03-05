@@ -1,6 +1,6 @@
 //! Report Command Shim - pure logic separated from I/O
 //!
-//! Extracts testable logic from report_cmd/mod.rs
+//! Extracts testable logic from `report_cmd/mod.rs`
 
 use std::collections::HashMap;
 
@@ -42,6 +42,7 @@ impl CompileResult {
     }
 
     /// Add Python source
+    #[must_use]
     pub fn with_source(mut self, source: impl Into<String>) -> Self {
         self.python_source = Some(source.into());
         self
@@ -69,6 +70,7 @@ impl ErrorTaxonomy {
     }
 
     /// Get percentage of total
+    #[allow(clippy::cast_precision_loss)]
     pub fn percentage(&self, total: usize) -> f64 {
         if total == 0 {
             0.0
@@ -101,6 +103,7 @@ pub fn analyze_results(
 }
 
 /// Calculate compilation rate
+#[allow(clippy::cast_precision_loss)]
 pub fn calculate_rate(pass: usize, fail: usize) -> f64 {
     let total = pass + fail;
     if total == 0 {
@@ -116,6 +119,7 @@ pub fn target_achieved(pass: usize, fail: usize, target_rate: f64) -> bool {
 }
 
 /// Extract error code and message from compiler output
+#[allow(clippy::map_unwrap_or)]
 pub fn extract_error(stderr: &str) -> (String, String) {
     // Look for "error[E0XXX]:" pattern
     let code = stderr
@@ -168,6 +172,7 @@ impl FilterStats {
     }
 
     /// Calculate reduction percentage
+    #[allow(clippy::cast_precision_loss)]
     pub fn reduction_percent(&self) -> f64 {
         if self.total_files == 0 {
             0.0
@@ -195,6 +200,7 @@ pub struct BisectionState {
 }
 
 impl BisectionState {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
     pub fn new(files: Vec<String>) -> Self {
         let len = files.len();
         Self {
@@ -248,6 +254,7 @@ impl BisectionState {
     }
 
     /// Calculate progress percentage
+    #[allow(clippy::cast_precision_loss)]
     pub fn progress_percent(&self) -> f64 {
         if self.files.is_empty() {
             100.0
@@ -301,6 +308,7 @@ impl ReportSummary {
     }
 
     /// Get files needed to fix to reach target
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
     pub fn files_to_fix(&self) -> usize {
         if self.target_achieved {
             0
@@ -359,7 +367,7 @@ impl SemanticTag {
                 content.contains("dict") || content.contains("Dict") || content.contains("{:")
             }
             Self::List => {
-                content.contains("list") || content.contains("List") || content.contains("[")
+                content.contains("list") || content.contains("List") || content.contains('[')
             }
             Self::Tuple => content.contains("tuple") || content.contains("Tuple"),
             Self::Set => content.contains("set") || content.contains("Set"),

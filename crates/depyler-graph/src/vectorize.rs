@@ -69,7 +69,7 @@ pub struct GraphContext {
 pub struct FailureLabels {
     /// Category of the error
     pub category: String,
-    /// Sub-category (e.g., "double_result_wrap")
+    /// Sub-category (e.g., "`double_result_wrap`")
     pub subcategory: String,
     /// Suggested fix type
     pub fix_type: String,
@@ -105,6 +105,7 @@ impl<'a> FailureContext<'a> {
     }
 
     /// Classify error into category and subcategory
+    #[allow(clippy::unused_self)]
     fn classify_error(&self, code: &str, message: &str) -> (String, String, String, f64) {
         // E0308 sub-patterns
         if code == "E0308" {
@@ -184,6 +185,7 @@ impl<'a> FailureContext<'a> {
 }
 
 /// Vectorize failures from overlaid errors
+#[allow(clippy::similar_names)]
 pub fn vectorize_failures(
     graph: &DependencyGraph,
     errors: &[OverlaidError],
@@ -215,7 +217,7 @@ pub fn vectorize_failures(
                 };
 
             VectorizedFailure {
-                id: format!("failure_{}", idx),
+                id: format!("failure_{idx}"),
                 error_code: error.code.clone(),
                 error_message: error.message.clone(),
                 ast_context: AstContext {

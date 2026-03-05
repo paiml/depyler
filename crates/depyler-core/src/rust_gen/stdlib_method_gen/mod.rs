@@ -1,6 +1,6 @@
 //! Standard Library Method Code Generation
 //!
-//! This module contains extracted stdlib method handlers from expr_gen.rs.
+//! This module contains extracted stdlib method handlers from `expr_gen.rs`.
 //! Each Python stdlib module gets its own Rust module for testability.
 //!
 //! ## Architecture
@@ -17,15 +17,15 @@
 //! - `functools` - Higher-order functions (reduce, etc.)
 //! - `hashlib` - Cryptographic hashing (sha2, md5, etc.) [Phase 3]
 //! - `itertools` - Iterator combinatorics (itertools crate)
-//! - `json` - JSON serialization (serde_json)
+//! - `json` - JSON serialization (`serde_json`)
 //! - `math` - Mathematical functions (f64 methods)
-//! - `os` - Operating system interface (std::env, std::fs)
-//! - `pathlib` - Path manipulation (std::path)
+//! - `os` - Operating system interface (`std::env`, `std::fs`)
+//! - `pathlib` - Path manipulation (`std::path`)
 //! - `random` - Random number generation (rand crate)
 //! - `regex_mod` - Regular expressions (regex crate)
-//! - `shutil` - Shell utilities (std::fs)
+//! - `shutil` - Shell utilities (`std::fs`)
 //! - `string` - String utilities (capwords, etc.)
-//! - `time` - Time measurement and manipulation (std::time, chrono)
+//! - `time` - Time measurement and manipulation (`std::time`, chrono)
 //! - `warnings` - Warning control (eprintln!)
 
 pub mod builtin_functions;

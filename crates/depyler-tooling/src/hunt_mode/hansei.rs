@@ -10,11 +10,12 @@ use super::isolator::ReproCase;
 use super::kaizen::KaizenMetrics;
 use super::planner::FailurePattern;
 use super::verifier::VerifyResult;
+use std::fmt::Write as _;
 
 /// A lesson learned from a Hunt Mode cycle
 #[derive(Debug, Clone)]
 pub struct Lesson {
-    /// Category of lesson (e.g., "type_system", "imports", "borrowing")
+    /// Category of lesson (e.g., "`type_system`", "imports", "borrowing")
     pub category: String,
     /// What was observed
     pub observation: String,
@@ -107,13 +108,13 @@ impl HanseiReflector {
         let mut new_lessons = Vec::new();
 
         // Pattern-based lessons
-        new_lessons.extend(self.analyze_pattern_lessons(outcome));
+        new_lessons.extend(Self::analyze_pattern_lessons(outcome));
 
         // Success/failure lessons
         if outcome.was_successful() {
-            new_lessons.extend(self.analyze_success_lessons(outcome));
+            new_lessons.extend(Self::analyze_success_lessons(outcome));
         } else {
-            new_lessons.extend(self.analyze_failure_lessons(outcome));
+            new_lessons.extend(Self::analyze_failure_lessons(outcome));
         }
 
         // Five Whys analysis for failures
@@ -135,7 +136,7 @@ impl HanseiReflector {
     }
 
     /// Analyze pattern-specific lessons
-    fn analyze_pattern_lessons(&self, outcome: &CycleOutcome) -> Vec<Lesson> {
+    fn analyze_pattern_lessons(outcome: &CycleOutcome) -> Vec<Lesson> {
         let mut lessons = Vec::new();
         let category = outcome.fix_category();
 
@@ -171,7 +172,7 @@ impl HanseiReflector {
     }
 
     /// Analyze lessons from successful fixes
-    fn analyze_success_lessons(&self, outcome: &CycleOutcome) -> Vec<Lesson> {
+    fn analyze_success_lessons(outcome: &CycleOutcome) -> Vec<Lesson> {
         vec![Lesson::new(
             "success_pattern",
             &format!("Successfully fixed {} pattern", outcome.fix_category()),
@@ -180,7 +181,7 @@ impl HanseiReflector {
     }
 
     /// Analyze lessons from failures
-    fn analyze_failure_lessons(&self, outcome: &CycleOutcome) -> Vec<Lesson> {
+    fn analyze_failure_lessons(outcome: &CycleOutcome) -> Vec<Lesson> {
         let reason = match &outcome.verify_result {
             VerifyResult::FixFailed(e) => e.clone(),
             VerifyResult::NeedsReview { reason, .. } => reason.clone(),
@@ -189,7 +190,7 @@ impl HanseiReflector {
 
         vec![Lesson::new(
             "failure_analysis",
-            &format!("Fix attempt failed: {}", reason),
+            &format!("Fix attempt failed: {reason}"),
             "Review fix strategy; may need different approach or manual intervention",
         )]
     }
@@ -244,20 +245,19 @@ impl HanseiReflector {
         }
 
         for (category, lessons) in categories {
-            md.push_str(&format!("## {}\n\n", category));
+            let _ = writeln!(md, "## {category}\n");
 
             for lesson in lessons {
-                md.push_str(&format!(
-                    "### Observation (confidence: {:.0}%, occurrences: {})\n",
+                let _ = writeln!(md, "### Observation (confidence: {:.0}%, occurrences: {})",
                     lesson.confidence * 100.0,
                     lesson.occurrences
-                ));
-                md.push_str(&format!("{}\n\n", lesson.observation));
-                md.push_str(&format!("**Recommended Action:** {}\n\n", lesson.action));
+                );
+                let _ = writeln!(md, "{}\n", lesson.observation);
+                let _ = writeln!(md, "**Recommended Action:** {}\n", lesson.action);
             }
         }
 
-        md.push_str(&format!("\n---\n*Generated from {} cycles*\n", self.cycle_history.len()));
+        let _ = writeln!(md, "\n---\n*Generated from {} cycles*", self.cycle_history.len());
 
         md
     }
@@ -268,6 +268,7 @@ impl HanseiReflector {
     }
 
     /// Calculate overall success rate
+    #[allow(clippy::cast_precision_loss)]
     pub fn success_rate(&self) -> f64 {
         if self.cycle_history.is_empty() {
             return 0.0;

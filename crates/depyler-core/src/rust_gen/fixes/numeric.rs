@@ -22,6 +22,7 @@ pub(super) fn fix_float_int_comparison(code: &str) -> String {
     result
 }
 
+#[allow(clippy::too_many_lines)]
 pub(super) fn fix_float_int_in_line(line: &str) -> String {
     let mut result = line.to_string();
     // Pattern: `field_name <= 0;` or `field_name <= 0 {` where field_name is a known float field
@@ -89,9 +90,9 @@ pub(super) fn fix_float_int_in_line(line: &str) -> String {
     for op in &["<= 0", ">= 0", "< 0", "> 0", "== 0", "!= 0"] {
         let float_op = op.replace(" 0", " 0.0");
         for field in &float_fields {
-            let pattern = format!(".{} {}", field, op);
+            let pattern = format!(".{field} {op}");
             if result.contains(&pattern) {
-                let replacement = format!(".{} {}", field, float_op);
+                let replacement = format!(".{field} {float_op}");
                 result = result.replace(&pattern, &replacement);
             }
         }
@@ -119,9 +120,9 @@ pub(super) fn fix_float_int_in_line(line: &str) -> String {
             "overlap",
             "tolerance",
         ] {
-            let pattern = format!(".{} {}", field, op);
+            let pattern = format!(".{field} {op}");
             if result.contains(&pattern) {
-                let replacement = format!(".{} {}", field, float_op);
+                let replacement = format!(".{field} {float_op}");
                 result = result.replace(&pattern, &replacement);
             }
         }
@@ -145,7 +146,7 @@ pub(super) fn fix_cse_py_mul_type_annotation(code: &str) -> String {
                 if fixed_block != block {
                     let before = &result[..paren_start];
                     let after = &result[paren_start + rel_close..];
-                    result = format!("{}{}{}", before, fixed_block, after);
+                    result = format!("{before}{fixed_block}{after}");
                 }
             }
             search_from = abs_pos + py_op.len();
@@ -349,7 +350,7 @@ fn collect_min_max_typed_var(
         &[(&["i32", "i64", "isize", "usize"], true), (&["f64", "f32"], false)];
     for &(type_names, is_int) in types_and_sets {
         for type_name in type_names {
-            let pat = format!(": {} ", type_name);
+            let pat = format!(": {type_name} ");
             if !t.contains(&pat) {
                 continue;
             }
@@ -373,7 +374,7 @@ fn fix_all_min_max_calls_for_func(
     int_vars: &std::collections::HashSet<String>,
     float_vars: &std::collections::HashSet<String>,
 ) -> String {
-    let pattern = format!("{}(", func);
+    let pattern = format!("{func}(");
     let mut result = code.to_string();
     let mut search_from = 0;
     while let Some(pos) = result[search_from..].find(&pattern) {
@@ -408,13 +409,13 @@ fn try_cast_min_max_args(
     let a2_is_int = int_vars.contains(a2_base.trim());
     let a2_is_float = float_vars.contains(a2_base.trim());
     if a1_is_int && a2_is_float {
-        let old_call = format!("{}({}, {})", func, arg1, arg2);
-        let new_call = format!("{}({} as f64, {})", func, arg1, arg2);
+        let old_call = format!("{func}({arg1}, {arg2})");
+        let new_call = format!("{func}({arg1} as f64, {arg2})");
         return code.replacen(&old_call, &new_call, 1);
     }
     if a1_is_float && a2_is_int {
-        let old_call = format!("{}({}, {})", func, arg1, arg2);
-        let new_call = format!("{}({}, {} as f64)", func, arg1, arg2);
+        let old_call = format!("{func}({arg1}, {arg2})");
+        let new_call = format!("{func}({arg1}, {arg2} as f64)");
         return code.replacen(&old_call, &new_call, 1);
     }
     code.to_string()
@@ -475,7 +476,7 @@ pub(super) fn find_call_close_paren(line: &str, prefix: &str, fname: &str) -> Op
 /// The trailing comma before the closing `)` must be removed.
 pub(super) fn fix_trailing_comma_in_arith_parens(code: &str) -> String {
     let lines: Vec<&str> = code.lines().collect();
-    let mut output: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
+    let mut output: Vec<String> = lines.iter().map(std::string::ToString::to_string).collect();
     let mut lines_to_fix: Vec<usize> = Vec::new();
 
     for start in 0..lines.len() {
@@ -585,7 +586,7 @@ pub(super) fn fix_spurious_to_string_in_numeric_call(code: &str) -> String {
     result
 }
 
-/// Remove .to_string() from self.field in ::new() calls where the field is numeric.
+/// Remove .`to_string()` from self.field in `::new()` calls where the field is numeric.
 pub(super) fn fix_numeric_field_to_string(line: &str) -> String {
     // Common numeric field names in struct constructors
     let numeric_fields = [
@@ -615,7 +616,7 @@ pub(super) fn fix_numeric_field_to_string(line: &str) -> String {
     ];
     let mut result = line.to_string();
     for field in &numeric_fields {
-        let pattern = format!("{}.to_string()", field);
+        let pattern = format!("{field}.to_string()");
         if result.contains(&pattern) {
             result = result.replace(&pattern, field);
         }
@@ -637,15 +638,15 @@ pub(super) fn fix_usize_to_string_in_constructor(code: &str) -> String {
         let mut new_line = line.to_string();
         for var in &usize_vars {
             // Replace `VAR.to_string()` with just `VAR` when inside a constructor/function call
-            let pattern = format!("{}.to_string()", var);
+            let pattern = format!("{var}.to_string()");
             if trimmed.contains(&pattern) {
                 // Only replace when this appears as a function argument (preceded by comma or open paren)
-                let safe_pattern_comma = format!(", {}", pattern);
-                let safe_pattern_paren = format!("({}", pattern);
+                let safe_pattern_comma = format!(", {pattern}");
+                let safe_pattern_paren = format!("({pattern}");
                 if new_line.contains(&safe_pattern_comma) {
-                    new_line = new_line.replace(&safe_pattern_comma, &format!(", {}", var));
+                    new_line = new_line.replace(&safe_pattern_comma, &format!(", {var}"));
                 } else if new_line.contains(&safe_pattern_paren) {
-                    new_line = new_line.replace(&safe_pattern_paren, &format!("({}", var));
+                    new_line = new_line.replace(&safe_pattern_paren, &format!("({var}"));
                 }
             }
         }
@@ -684,7 +685,7 @@ fn try_annotate_negative_literal(line: &str) -> Option<String> {
         return None;
     }
     let indent = &line[..line.len() - trimmed.len()];
-    Some(format!("{}{}{}: i32 = {}", indent, pfx, var_part, rhs))
+    Some(format!("{indent}{pfx}{var_part}: i32 = {rhs}"))
 }
 
 /// Detect the `let ` or `let mut ` prefix of a line.
@@ -707,6 +708,7 @@ fn is_negative_integer_literal(rhs: &str) -> bool {
     !digits_part.is_empty() && digits_part.chars().all(|c| c.is_ascii_digit())
 }
 
+#[allow(clippy::format_push_string)]
 pub(super) fn fix_floor_div_type_annotation(code: &str) -> String {
     let mut result = String::with_capacity(code.len());
     for line in code.lines() {
@@ -720,7 +722,7 @@ pub(super) fn fix_floor_div_type_annotation(code: &str) -> String {
             let indent = &line[..line.len() - trimmed.len()];
             let new_line = trimmed.replacen("let q = ", "let q: i32 = ", 1);
             let new_line = new_line.replacen("let r = ", "let r: i32 = ", 1);
-            result.push_str(&format!("{}{}", indent, new_line));
+            result.push_str(&format!("{indent}{new_line}"));
         } else {
             result.push_str(line);
         }

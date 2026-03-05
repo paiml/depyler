@@ -95,7 +95,7 @@ impl ConstraintCollector {
             let var = self.fresh_var();
             param_vars.push(var);
             self.param_type_vars.insert(format!("{}::{}", func.name, param.name), var);
-            self.var_to_type_var.insert(param.name.to_string(), var);
+            self.var_to_type_var.insert(param.name.clone(), var);
 
             // If param already has a known type, constrain it
             if !matches!(param.ty, Type::Unknown) {
@@ -110,7 +110,7 @@ impl ConstraintCollector {
             self.constraints.push(Constraint::Instance(ret_var, func.ret_type.clone()));
         }
 
-        self.function_signatures.insert(func.name.to_string(), (param_vars, ret_var));
+        self.function_signatures.insert(func.name.clone(), (param_vars, ret_var));
     }
 
     /// Collect constraints from a function
@@ -242,6 +242,8 @@ impl ConstraintCollector {
     }
 
     /// Collect constraints from an expression, returning its type variable
+    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::match_same_arms)]
     fn collect_expr(&mut self, expr: &HirExpr) -> VarId {
         match expr {
             HirExpr::Literal(lit) => {
@@ -596,7 +598,7 @@ impl ConstraintCollector {
         result
     }
 
-    /// Apply solved substitutions back to HirModule
+    /// Apply solved substitutions back to `HirModule`
     pub fn apply_substitutions(
         &self,
         module: &mut HirModule,
@@ -642,6 +644,7 @@ impl ConstraintCollector {
     }
 
     /// DEPYLER-1180: Apply inferred types to local variable declarations in statements
+    #[allow(clippy::match_same_arms)]
     fn apply_to_statements(&self, stmts: &mut [HirStmt], solution: &HashMap<VarId, Type>) -> usize {
         let mut applied_count = 0;
 

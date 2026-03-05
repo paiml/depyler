@@ -21,7 +21,7 @@
 //! # References
 //!
 //! - Liker, J.K. (2004). The Toyota Way: 14 Management Principles
-//! - entrenar `monitor/report.rs` - HanseiAnalyzer pattern
+//! - entrenar `monitor/report.rs` - `HanseiAnalyzer` pattern
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -79,7 +79,7 @@ impl std::fmt::Display for Trend {
 pub struct TranspileIssue {
     /// Severity level
     pub severity: IssueSeverity,
-    /// Issue category (e.g., "async_await", "type_inference")
+    /// Issue category (e.g., "`async_await`", "`type_inference`")
     pub category: String,
     /// Human-readable description
     pub description: String,
@@ -151,12 +151,14 @@ impl HanseiReport {
 
     /// Get critical and error issues only
     #[must_use]
+    #[allow(clippy::format_push_string)]
     pub fn blocking_issues(&self) -> Vec<&TranspileIssue> {
         self.issues_by_severity(IssueSeverity::Error)
     }
 
     /// Format report as human-readable text
     #[must_use]
+    #[allow(clippy::format_push_string)]
     pub fn to_text(&self) -> String {
         let mut output = String::new();
 
@@ -271,7 +273,8 @@ impl TranspileHanseiAnalyzer {
     ///
     /// # Returns
     ///
-    /// A comprehensive HanseiReport with issues and recommendations.
+    /// A comprehensive `HanseiReport` with issues and recommendations.
+    #[allow(clippy::cast_precision_loss, clippy::unused_self)]
     pub fn analyze(
         &self,
         report_id: &str,
@@ -279,7 +282,7 @@ impl TranspileHanseiAnalyzer {
         suspiciousness_scores: Option<&HashMap<String, f32>>,
     ) -> HanseiReport {
         if outcomes.is_empty() {
-            return self.empty_report(report_id);
+            return Self::empty_report(report_id);
         }
 
         // Count successes and failures per category
@@ -331,7 +334,7 @@ impl TranspileHanseiAnalyzer {
         }
     }
 
-    fn empty_report(&self, report_id: &str) -> HanseiReport {
+    fn empty_report(report_id: &str) -> HanseiReport {
         HanseiReport {
             report_id: report_id.to_string(),
             total_attempts: 0,
@@ -345,6 +348,7 @@ impl TranspileHanseiAnalyzer {
         }
     }
 
+    #[allow(clippy::cast_precision_loss, clippy::unused_self)]
     fn build_category_summaries(
         &self,
         category_stats: &HashMap<String, (usize, usize)>,
@@ -362,7 +366,7 @@ impl TranspileHanseiAnalyzer {
             let suspiciousness = suspiciousness_scores
                 .and_then(|scores| scores.get(category))
                 .copied()
-                .unwrap_or_else(|| self.estimate_suspiciousness(success_rate));
+                .unwrap_or_else(|| Self::estimate_suspiciousness(success_rate));
 
             // Determine trend (simplified - would need historical data for real trend)
             let trend = self.determine_trend(success_rate, suspiciousness);
@@ -382,7 +386,7 @@ impl TranspileHanseiAnalyzer {
         summaries
     }
 
-    fn estimate_suspiciousness(&self, success_rate: f32) -> f32 {
+    fn estimate_suspiciousness(success_rate: f32) -> f32 {
         // Simple heuristic: lower success rate = higher suspiciousness
         1.0 - success_rate
     }
@@ -400,6 +404,7 @@ impl TranspileHanseiAnalyzer {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn pareto_analysis(
         &self,
         summaries: &HashMap<String, CategorySummary>,
@@ -431,6 +436,7 @@ impl TranspileHanseiAnalyzer {
         pareto
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
     fn identify_issues(
         &self,
         summaries: &HashMap<String, CategorySummary>,
@@ -451,7 +457,7 @@ impl TranspileHanseiAnalyzer {
             }
 
             let severity = self.severity_from_suspiciousness(summary.suspiciousness);
-            let recommendation = self.recommendation_for_category(category, summary);
+            let recommendation = Self::recommendation_for_category(category, summary);
 
             issues.push(TranspileIssue {
                 severity,
@@ -481,8 +487,8 @@ impl TranspileHanseiAnalyzer {
             issues.push(TranspileIssue {
                 severity,
                 category: feature.clone(),
-                description: format!("Python feature '{}' appears in {} failures", feature, count),
-                recommendation: format!("Implement or improve support for '{}'", feature),
+                description: format!("Python feature '{feature}' appears in {count} failures"),
+                recommendation: format!("Implement or improve support for '{feature}'"),
                 occurrences: count,
                 suspiciousness,
             });
@@ -500,6 +506,7 @@ impl TranspileHanseiAnalyzer {
         issues
     }
 
+    #[allow(clippy::unused_self)]
     fn severity_from_suspiciousness(&self, suspiciousness: f32) -> IssueSeverity {
         if suspiciousness >= self.config.critical_threshold {
             IssueSeverity::Critical
@@ -512,7 +519,7 @@ impl TranspileHanseiAnalyzer {
         }
     }
 
-    fn recommendation_for_category(&self, category: &str, summary: &CategorySummary) -> String {
+    fn recommendation_for_category(category: &str, summary: &CategorySummary) -> String {
         let lower = category.to_lowercase();
 
         if lower.contains("async") || lower.contains("await") {
@@ -537,10 +544,10 @@ impl TranspileHanseiAnalyzer {
         // Default recommendation based on trend
         match summary.trend {
             Trend::Degrading => {
-                format!("URGENT: {} is regressing. Review recent changes.", category)
+                format!("URGENT: {category} is regressing. Review recent changes.")
             }
             Trend::Oscillating => {
-                format!("Stabilize {} implementation to reduce variance.", category)
+                format!("Stabilize {category} implementation to reduce variance.")
             }
             _ => format!(
                 "Improve {} support (current success rate: {:.1}%)",
@@ -550,6 +557,7 @@ impl TranspileHanseiAnalyzer {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn generate_recommendations(
         &self,
         issues: &[TranspileIssue],
@@ -575,8 +583,7 @@ impl TranspileHanseiAnalyzer {
 
         if critical_count > 0 {
             recommendations.push(format!(
-                "Address {} critical issues before adding new features.",
-                critical_count
+                "Address {critical_count} critical issues before adding new features."
             ));
         }
 

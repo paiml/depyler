@@ -1,6 +1,6 @@
 //! DEPYLER-1303: Graph-aware corpus integration for Oracle training.
 //!
-//! Converts VectorizedFailure from depyler-graph into Oracle training samples,
+//! Converts `VectorizedFailure` from depyler-graph into Oracle training samples,
 //! enabling graph-guided fix suggestions.
 
 use crate::classifier::ErrorCategory;
@@ -32,7 +32,7 @@ pub struct GraphContext {
 pub struct FailureLabels {
     /// Category of the error
     pub category: String,
-    /// Sub-category (e.g., "double_result_wrap")
+    /// Sub-category (e.g., "`double_result_wrap`")
     pub subcategory: String,
     /// Suggested fix type
     pub fix_type: String,
@@ -57,12 +57,12 @@ pub struct VectorizedFailure {
     pub labels: FailureLabels,
 }
 
-/// Convert depyler-graph category string to Oracle ErrorCategory
+/// Convert depyler-graph category string to Oracle `ErrorCategory`
 fn map_category(category: &str, subcategory: &str, error_code: &str) -> ErrorCategory {
     match (category, subcategory, error_code) {
         ("type_mismatch", _, _) | (_, _, "E0308") => ErrorCategory::TypeMismatch,
         ("trait_bound", _, _) | (_, _, "E0277") => ErrorCategory::TraitBound,
-        ("undefined", "missing_import", _) | (_, _, "E0433") | (_, _, "E0425") => {
+        ("undefined", "missing_import", _) | (_, _, "E0433" | "E0425") => {
             ErrorCategory::MissingImport
         }
         ("missing_method", _, _) | (_, _, "E0599") => ErrorCategory::TraitBound,
@@ -87,32 +87,30 @@ fn generate_fix_suggestion(failure: &VectorizedFailure) -> Option<String> {
 
     match fix_type.as_str() {
         "unwrap_result" => {
-            Some(format!("In {}: Remove double Result wrapping - use ? operator directly", node_id))
+            Some(format!("In {node_id}: Remove double Result wrapping - use ? operator directly"))
         }
         "type_annotation" => {
-            Some(format!("In {}: Add explicit type annotation to resolve DepylerValue", node_id))
+            Some(format!("In {node_id}: Add explicit type annotation to resolve DepylerValue"))
         }
-        "to_string" => Some(format!("In {}: Convert &str to String using .to_string()", node_id)),
-        "cast" => Some(format!("In {}: Add numeric type cast (as i64, as f64)", node_id)),
+        "to_string" => Some(format!("In {node_id}: Convert &str to String using .to_string()")),
+        "cast" => Some(format!("In {node_id}: Add numeric type cast (as i64, as f64)")),
         "add_trait_impl" => {
-            Some(format!("In {}: Implement required trait or use trait object", node_id))
+            Some(format!("In {node_id}: Implement required trait or use trait object"))
         }
-        "add_import" => Some(format!("In {}: Add missing use statement or import", node_id)),
+        "add_import" => Some(format!("In {node_id}: Add missing use statement or import")),
         "derive_trait" => {
-            Some(format!("In {}: Add #[derive(Clone, Debug)] or implement trait", node_id))
+            Some(format!("In {node_id}: Add #[derive(Clone, Debug)] or implement trait"))
         }
         "type_inference" => {
             // More specific fix based on error code
             match failure.error_code.as_str() {
                 "E0308" => Some(format!(
-                    "In {}: Type mismatch - check return type or add explicit conversion",
-                    node_id
+                    "In {node_id}: Type mismatch - check return type or add explicit conversion"
                 )),
                 "E0282" => Some(format!(
-                    "In {}: Cannot infer type - add explicit type annotation",
-                    node_id
+                    "In {node_id}: Cannot infer type - add explicit type annotation"
                 )),
-                _ => Some(format!("In {}: Review type inference logic", node_id)),
+                _ => Some(format!("In {node_id}: Review type inference logic")),
             }
         }
         _ => None,
@@ -120,6 +118,7 @@ fn generate_fix_suggestion(failure: &VectorizedFailure) -> Option<String> {
 }
 
 /// Build enhanced error message with graph context
+#[allow(clippy::format_push_string)]
 fn build_graph_enhanced_message(failure: &VectorizedFailure) -> String {
     let base_msg = &failure.error_message;
     let ctx = &failure.graph_context;
@@ -128,7 +127,7 @@ fn build_graph_enhanced_message(failure: &VectorizedFailure) -> String {
     let mut enhanced = format!("[{}] {}", failure.error_code, base_msg);
 
     if let Some(ref node_id) = ctx.node_id {
-        enhanced.push_str(&format!(" [in: {}]", node_id));
+        enhanced.push_str(&format!(" [in: {node_id}]"));
     }
 
     if ctx.in_degree > 0 {
@@ -156,7 +155,7 @@ pub fn load_vectorized_failures(path: &Path) -> anyhow::Result<Vec<VectorizedFai
         match serde_json::from_str::<VectorizedFailure>(&line) {
             Ok(failure) => failures.push(failure),
             Err(e) => {
-                eprintln!("Warning: Failed to parse vectorized failure: {}", e);
+                eprintln!("Warning: Failed to parse vectorized failure: {e}");
             }
         }
     }

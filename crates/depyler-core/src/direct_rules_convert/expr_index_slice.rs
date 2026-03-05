@@ -1,12 +1,13 @@
-//! Index and slice conversion for ExprConverter
+//! Index and slice conversion for `ExprConverter`
 
-use crate::hir::*;
+use crate::hir::{HirExpr, Literal, Type, UnaryOp};
 use anyhow::Result;
 use syn::parse_quote;
 
 use super::ExprConverter;
 
-impl<'a> ExprConverter<'a> {
+impl ExprConverter<'_> {
+    #[allow(clippy::match_same_arms, clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss, clippy::too_many_lines)]
     pub(super) fn convert_index(&self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
         let base_expr = self.convert(base)?;
 
@@ -114,11 +115,10 @@ impl<'a> ExprConverter<'a> {
                     return Ok(parse_quote! {
                         #base_expr.get(#s).cloned().unwrap_or_default().into()
                     });
-                } else {
-                    return Ok(parse_quote! {
-                        #base_expr.get(#s).cloned().unwrap_or_default()
-                    });
                 }
+                return Ok(parse_quote! {
+                    #base_expr.get(#s).cloned().unwrap_or_default()
+                });
             }
 
             // Non-literal index - convert and borrow
@@ -183,20 +183,21 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-1177: Check if expression has a List type (for proper slice codegen)
+    #[allow(clippy::ref_option)]
     pub(super) fn is_list_type(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Var(name) => {
-                matches!(self.param_types.get(name), Some(Type::List(_)) | Some(Type::Set(_)))
+                matches!(self.param_types.get(name), Some(Type::List(_) | Type::Set(_)))
                     || matches!(
                         self.class_field_types.get(name),
-                        Some(Type::List(_)) | Some(Type::Set(_))
+                        Some(Type::List(_) | Type::Set(_))
                     )
             }
             HirExpr::Attribute { value, attr } => {
                 if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
                     matches!(
                         self.class_field_types.get(attr),
-                        Some(Type::List(_)) | Some(Type::Set(_))
+                        Some(Type::List(_) | Type::Set(_))
                     )
                 } else {
                     false
@@ -208,6 +209,7 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-0596: Convert slice expression (e.g., value[1:-1])
+    #[allow(clippy::ref_option, clippy::similar_names)]
     pub(super) fn convert_slice(
         &self,
         base: &HirExpr,
@@ -300,6 +302,7 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-1177: Convert Vec slice expression (e.g., list[start:stop])
+    #[allow(clippy::needless_pass_by_value, clippy::ref_option)]
     pub(super) fn convert_vec_slice(
         &self,
         base_expr: syn::Expr,

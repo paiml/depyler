@@ -2,7 +2,7 @@ use super::{
     convert_aug_op, convert_binop, convert_body, convert_cmpop, convert_unaryop,
     extract_assign_target,
 };
-use crate::hir::*;
+use crate::hir::{HirStmt, AssignTarget, HirExpr, Literal, BinOp, FStringPart, HirParam, Type};
 use anyhow::{bail, Result};
 use rustpython_ast::{self as ast};
 
@@ -25,6 +25,7 @@ mod tests;
 pub struct StmtConverter;
 
 impl StmtConverter {
+    #[allow(clippy::match_same_arms)]
     pub fn convert(stmt: ast::Stmt) -> Result<HirStmt> {
         match stmt {
             ast::Stmt::Assign(a) => Self::convert_assign(a),
@@ -182,6 +183,7 @@ impl StmtConverter {
         Ok(HirStmt::Expr(expr))
     }
 
+    #[allow(clippy::match_wildcard_for_single_variants)]
     fn convert_aug_assign(a: ast::StmtAugAssign) -> Result<HirStmt> {
         let target = extract_assign_target(&a.target)?;
         let op = convert_aug_op(&a.op)?;
@@ -209,12 +211,14 @@ impl StmtConverter {
         Ok(HirStmt::Raise { exception, cause })
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn convert_break(_b: ast::StmtBreak) -> Result<HirStmt> {
         // Python's AST doesn't support labeled break directly
         // Labels are handled at a higher level with loop naming
         Ok(HirStmt::Break { label: None })
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn convert_continue(_c: ast::StmtContinue) -> Result<HirStmt> {
         // Python's AST doesn't support labeled continue directly
         // Labels are handled at a higher level with loop naming
@@ -308,7 +312,7 @@ impl StmtConverter {
                 }
             });
 
-            let name = h.name.as_ref().map(|id| id.to_string());
+            let name = h.name.as_ref().map(std::string::ToString::to_string);
             let handler_body = convert_body(h.body)?;
 
             handlers.push(crate::hir::ExceptHandler { exception_type, name, body: handler_body });
@@ -328,6 +332,7 @@ impl StmtConverter {
         Ok(HirStmt::Assert { test, msg })
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn convert_pass() -> Result<HirStmt> {
         Ok(HirStmt::Pass)
     }
@@ -369,6 +374,7 @@ impl StmtConverter {
 pub struct ExprConverter;
 
 impl ExprConverter {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn convert(expr: ast::Expr) -> Result<HirExpr> {
         match expr {
             ast::Expr::Constant(c) => Self::convert_constant(c),
@@ -403,6 +409,7 @@ impl ExprConverter {
         }
     }
 
+    #[allow(clippy::unnecessary_wraps, clippy::needless_pass_by_value)]
     fn convert_constant(c: ast::ExprConstant) -> Result<HirExpr> {
         let lit = match &c.value {
             ast::Constant::Int(i) => {
@@ -411,7 +418,7 @@ impl ExprConverter {
                 Literal::Int(int_val)
             }
             ast::Constant::Float(f) => Literal::Float(*f),
-            ast::Constant::Str(s) => Literal::String(s.to_string()),
+            ast::Constant::Str(s) => Literal::String(s.clone()),
             ast::Constant::Bytes(b) => Literal::Bytes(b.clone()),
             ast::Constant::Bool(b) => Literal::Bool(*b),
             ast::Constant::None => Literal::None,
@@ -423,6 +430,7 @@ impl ExprConverter {
         Ok(HirExpr::Literal(lit))
     }
 
+    #[allow(clippy::needless_pass_by_value, clippy::unnecessary_wraps)]
     fn convert_name(n: ast::ExprName) -> Result<HirExpr> {
         Ok(HirExpr::Var(n.id.to_string()))
     }
@@ -440,6 +448,7 @@ impl ExprConverter {
         Ok(HirExpr::Unary { op, operand })
     }
 
+    #[allow(clippy::too_many_lines)]
     fn convert_call(c: ast::ExprCall) -> Result<HirExpr> {
         // Special handling for sorted() with key parameter
         if let ast::Expr::Name(n) = &*c.func {
@@ -603,39 +612,37 @@ impl ExprConverter {
         }
     }
 
+    #[allow(clippy::similar_names)]
     fn convert_subscript(s: ast::ExprSubscript) -> Result<HirExpr> {
         let base = Box::new(Self::convert(*s.value)?);
 
         // Check if the slice is actually a slice expression or a simple index
-        match s.slice.as_ref() {
-            ast::Expr::Slice(slice_expr) => {
-                // Convert slice expression
-                let start = slice_expr
-                    .lower
-                    .as_ref()
-                    .map(|e| Self::convert(e.as_ref().clone()))
-                    .transpose()?
-                    .map(Box::new);
-                let stop = slice_expr
-                    .upper
-                    .as_ref()
-                    .map(|e| Self::convert(e.as_ref().clone()))
-                    .transpose()?
-                    .map(Box::new);
-                let step = slice_expr
-                    .step
-                    .as_ref()
-                    .map(|e| Self::convert(e.as_ref().clone()))
-                    .transpose()?
-                    .map(Box::new);
+        if let ast::Expr::Slice(slice_expr) = s.slice.as_ref() {
+            // Convert slice expression
+            let start = slice_expr
+                .lower
+                .as_ref()
+                .map(|e| Self::convert(e.as_ref().clone()))
+                .transpose()?
+                .map(Box::new);
+            let stop = slice_expr
+                .upper
+                .as_ref()
+                .map(|e| Self::convert(e.as_ref().clone()))
+                .transpose()?
+                .map(Box::new);
+            let step = slice_expr
+                .step
+                .as_ref()
+                .map(|e| Self::convert(e.as_ref().clone()))
+                .transpose()?
+                .map(Box::new);
 
-                Ok(HirExpr::Slice { base, start, stop, step })
-            }
-            _ => {
-                // Regular indexing
-                let index = Box::new(Self::convert(*s.slice)?);
-                Ok(HirExpr::Index { base, index })
-            }
+            Ok(HirExpr::Slice { base, start, stop, step })
+        } else {
+            // Regular indexing
+            let index = Box::new(Self::convert(*s.slice)?);
+            Ok(HirExpr::Index { base, index })
         }
     }
 
@@ -663,6 +670,7 @@ impl ExprConverter {
         Ok(HirExpr::Tuple(elts))
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     fn convert_boolop(b: ast::ExprBoolOp) -> Result<HirExpr> {
         // Convert boolean operations (and, or) to binary operations
         if b.values.len() < 2 {
@@ -994,7 +1002,7 @@ impl ExprConverter {
                 // Literal string parts
                 ast::Expr::Constant(c) => {
                     if let ast::Constant::Str(s) = c.value {
-                        parts.push(FStringPart::Literal(s.to_string()));
+                        parts.push(FStringPart::Literal(s.clone()));
                     }
                 }
                 // Formatted values (expressions to interpolate)
@@ -1091,6 +1099,7 @@ fn convert_nested_function_params(args: &ast::Arguments) -> Result<Vec<HirParam>
 }
 
 /// Extract docstring and convert body for nested functions
+#[allow(clippy::needless_pass_by_value)]
 fn extract_nested_function_body(body: Vec<ast::Stmt>) -> Result<(Option<String>, Vec<HirStmt>)> {
     if body.is_empty() {
         return Ok((None, vec![]));
@@ -1100,7 +1109,7 @@ fn extract_nested_function_body(body: Vec<ast::Stmt>) -> Result<(Option<String>,
     let (docstring, remaining_body) = if let ast::Stmt::Expr(expr_stmt) = &body[0] {
         if let ast::Expr::Constant(c) = &*expr_stmt.value {
             if let ast::Constant::Str(s) = &c.value {
-                (Some(s.to_string()), &body[1..])
+                (Some(s.clone()), &body[1..])
             } else {
                 (None, &body[..])
             }

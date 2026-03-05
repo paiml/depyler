@@ -1,7 +1,7 @@
 //! Parameter type inference from usage patterns in function body
 //!
-//! Extracted from rust_gen::func_gen to break cross-crate dependency.
-//! Used by both lifetime_analysis (depyler-analysis) and func_gen (depyler-core).
+//! Extracted from `rust_gen::func_gen` to break cross-crate dependency.
+//! Used by both `lifetime_analysis` (depyler-analysis) and `func_gen` (depyler-core).
 
 use depyler_hir::hir::{
     AssignTarget, BinOp, FStringPart, HirComprehension, HirExpr, HirStmt, Literal, Symbol, Type,
@@ -234,6 +234,7 @@ fn infer_from_object_method(param_name: &str, object: &HirExpr, method: &str) ->
         return None;
     }
 
+    #[allow(clippy::items_after_statements)]
     const FILE_METHODS: &[&str] = &[
         "write",
         "writelines",
@@ -250,6 +251,7 @@ fn infer_from_object_method(param_name: &str, object: &HirExpr, method: &str) ->
         return Some(Type::Custom("File".to_string()));
     }
 
+    #[allow(clippy::items_after_statements)]
     const STRING_METHODS: &[&str] = &[
         "strip",
         "lstrip",
@@ -291,6 +293,7 @@ fn infer_from_object_method(param_name: &str, object: &HirExpr, method: &str) ->
         return Some(Type::String);
     }
 
+    #[allow(clippy::items_after_statements)]
     const DICT_METHODS: &[&str] = &[
         "get",
         "items",
@@ -484,6 +487,7 @@ fn infer_from_slice_expr(param_name: &str, base: &HirExpr) -> Option<Type> {
     infer_type_from_expr_usage(param_name, base)
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn infer_from_binary_expr(
     param_name: &str,
     op: &BinOp,
@@ -506,6 +510,7 @@ fn infer_from_binary_expr(
         .or_else(|| infer_type_from_expr_usage(param_name, right))
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn infer_from_equality_op(
     param_name: &str,
     op: &BinOp,
@@ -528,6 +533,7 @@ fn infer_from_equality_op(
     None
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn infer_from_logical_op(
     param_name: &str,
     op: &BinOp,
@@ -550,6 +556,7 @@ fn infer_from_logical_op(
     None
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn infer_from_membership_op(
     param_name: &str,
     op: &BinOp,
@@ -572,6 +579,7 @@ fn infer_from_membership_op(
     None
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn infer_from_arithmetic_op(
     param_name: &str,
     op: &BinOp,

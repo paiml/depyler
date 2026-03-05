@@ -5,7 +5,7 @@
 //! including detection of Abstract Data Type (ADT) patterns where an ABC parent
 //! with `Generic[T,U,...]` and dataclass children maps to a Rust enum.
 
-use crate::hir::*;
+use crate::hir::HirClass;
 use anyhow::Result;
 use quote::{quote, ToTokens};
 use std::collections::{HashMap, HashSet};
@@ -98,11 +98,10 @@ pub(super) fn detect_adt_patterns(classes: &[HirClass]) -> AdtPatternInfo {
         classes
             .iter()
             .find(|c| c.name == *parent_name)
-            .map(|c| {
+            .is_some_and(|c| {
                 !c.type_params.is_empty()
                     && c.base_classes.iter().any(|b| b.contains("ABC") || b.contains("Generic"))
             })
-            .unwrap_or(false)
     });
 
     // DEPYLER-0936: Build reverse mapping from children to parents
@@ -164,9 +163,7 @@ pub(super) fn generate_adt_enum(
                 .filter(|f| !f.is_class_var && f.name != "_phantom")
                 .map(|f| {
                     let rust_type = type_mapper.map_type(&f.field_type);
-                    crate::direct_rules::rust_type_to_syn_type(&rust_type)
-                        .map(|t| quote! { #t })
-                        .unwrap_or_else(|_| quote! { () })
+                    crate::direct_rules::rust_type_to_syn_type(&rust_type).map_or_else(|_| quote! { () }, |t| quote! { #t })
                 })
                 .collect();
 

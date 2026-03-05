@@ -1,16 +1,17 @@
-//! Method call conversion for ExprConverter
+//! Method call conversion for `ExprConverter`
 //!
 //! Handles Python method calls (obj.method(args)) → Rust equivalents.
 //! This is the largest single conversion function.
 
 use crate::direct_rules::make_ident;
-use crate::hir::*;
+use crate::hir::{HirExpr, Literal, Type};
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
 use super::ExprConverter;
 
-impl<'a> ExprConverter<'a> {
+impl ExprConverter<'_> {
+    #[allow(clippy::too_many_lines)]
     pub(super) fn convert_method_call(
         &self,
         object: &HirExpr,
@@ -156,23 +157,22 @@ impl<'a> ExprConverter<'a> {
                                 arr
                             })
                         });
-                    } else {
-                        return Ok(parse_quote! {
-                            i64::from_le_bytes({
-                                let mut arr = [0u8; 8];
-                                let bytes: &[u8] = #bytes_expr.as_ref();
-                                arr[..bytes.len().min(8)].copy_from_slice(&bytes[..bytes.len().min(8)]);
-                                arr
-                            })
-                        });
                     }
+                    return Ok(parse_quote! {
+                        i64::from_le_bytes({
+                            let mut arr = [0u8; 8];
+                            let bytes: &[u8] = #bytes_expr.as_ref();
+                            arr[..bytes.len().min(8)].copy_from_slice(&bytes[..bytes.len().min(8)]);
+                            arr
+                        })
+                    });
                 }
             }
         }
 
         // Check if this is a static method call on a class
         if let HirExpr::Var(class_name) = object {
-            if class_name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+            if class_name.chars().next().is_some_and(char::is_uppercase) {
                 let class_ident = make_ident(class_name);
                 let method_ident = make_ident(method);
                 let arg_exprs: Vec<syn::Expr> =
@@ -231,9 +231,7 @@ impl<'a> ExprConverter<'a> {
         match method {
             "exit" => {
                 let code = arg_exprs
-                    .first()
-                    .map(|e| quote::quote!(#e))
-                    .unwrap_or_else(|| quote::quote!(0));
+                    .first().map_or_else(|| quote::quote!(0), |e| quote::quote!(#e));
                 Ok(Some(parse_quote! { std::process::exit(#code as i32) }))
             }
             "argv" => Ok(Some(parse_quote! { std::env::args().collect::<Vec<String>>() })),
@@ -629,6 +627,7 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-0912: Handle colorsys module method calls
+    #[allow(clippy::too_many_lines)]
     fn try_convert_colorsys_method(
         &self,
         method: &str,
@@ -887,6 +886,7 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// Helper to build hashlib digest expressions for a given crate/type.
+    #[allow(clippy::unused_self)]
     fn make_hashlib_expr(
         &self,
         crate_name: &str,
@@ -1051,6 +1051,7 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-1049: Handle time module method calls
+    #[allow(clippy::too_many_lines, clippy::match_same_arms)]
     fn try_convert_time_method(&self, method: &str, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
         let arg_exprs: Vec<syn::Expr> =
             args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
@@ -1111,6 +1112,7 @@ impl<'a> ExprConverter<'a> {
     // ---- Instance method handler ----
 
     /// Dispatch instance method calls (list/set/string/dict methods, fallback)
+    #[allow(clippy::needless_pass_by_value, clippy::too_many_lines)]
     fn convert_instance_method(
         &self,
         object: &HirExpr,
@@ -1132,14 +1134,15 @@ impl<'a> ExprConverter<'a> {
                 let is_vec_depyler_value = if let HirExpr::Attribute { attr, .. } = object {
                     self.class_field_types
                         .get(attr)
-                        .map(|t| matches!(t, Type::List(elem) if matches!(**elem, Type::Unknown | Type::UnificationVar(_))))
-                        .unwrap_or(false)
+                        .is_some_and(|t| matches!(t, Type::List(elem) if matches!(**elem, Type::Unknown | Type::UnificationVar(_))))
                 } else {
                     false
                 };
 
                 if is_vec_depyler_value {
-                    let wrapped_arg: syn::Expr = if !args.is_empty() {
+                    let wrapped_arg: syn::Expr = if args.is_empty() {
+                        parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) }
+                    } else {
                         match &args[0] {
                             HirExpr::Literal(Literal::Int(_)) => {
                                 parse_quote! { DepylerValue::Int(#arg as i64) }
@@ -1168,8 +1171,6 @@ impl<'a> ExprConverter<'a> {
                             },
                             _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
                         }
-                    } else {
-                        parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) }
                     };
                     return Ok(parse_quote! { #object_expr.push(#wrapped_arg) });
                 }
@@ -1482,15 +1483,12 @@ impl<'a> ExprConverter<'a> {
                     let key = self.convert(&args[0])?;
                     Ok(parse_quote! { #object_expr.contains_key(&#key) })
                 } else {
-                    let pattern: syn::Expr = match &args[0] {
-                        HirExpr::Literal(Literal::String(s)) => {
-                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                            parse_quote! { #lit }
-                        }
-                        _ => {
-                            let arg = self.convert(&args[0])?;
-                            parse_quote! { &*#arg }
-                        }
+                    let pattern: syn::Expr = if let HirExpr::Literal(Literal::String(s)) = &args[0] {
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        parse_quote! { #lit }
+                    } else {
+                        let arg = self.convert(&args[0])?;
+                        parse_quote! { &*#arg }
                     };
                     Ok(parse_quote! { #object_expr.contains(#pattern) })
                 }
@@ -1549,7 +1547,7 @@ impl<'a> ExprConverter<'a> {
                     .starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
                     && method.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
                 if !is_valid_ident {
-                    bail!("Invalid method name '{}' - not a valid Rust identifier", method);
+                    bail!("Invalid method name '{method}' - not a valid Rust identifier");
                 }
 
                 let safe_object_expr: syn::Expr = if matches!(object_expr, syn::Expr::Cast(_)) {

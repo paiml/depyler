@@ -137,11 +137,11 @@ impl PythonStringOps for String {
     }
 
     fn split_py(&self) -> Vec<String> {
-        self.split_whitespace().map(|s| s.to_string()).collect()
+        self.split_whitespace().map(std::string::ToString::to_string).collect()
     }
 
     fn split_on(&self, sep: &str) -> Vec<String> {
-        self.split(sep).map(|s| s.to_string()).collect()
+        self.split(sep).map(std::string::ToString::to_string).collect()
     }
 
     fn startswith(&self, prefix: &str) -> bool {
@@ -156,8 +156,9 @@ impl PythonStringOps for String {
         self.replace(old, new)
     }
 
+    #[allow(clippy::cast_possible_wrap)]
     fn find(&self, sub: &str) -> i64 {
-        self.as_str().find(sub).map(|i| i as i64).unwrap_or(-1)
+        self.as_str().find(sub).map_or(-1, |i| i as i64)
     }
 
     fn count_py(&self, sub: &str) -> usize {
@@ -165,7 +166,7 @@ impl PythonStringOps for String {
     }
 
     fn isalpha(&self) -> bool {
-        !self.is_empty() && self.chars().all(|c| c.is_alphabetic())
+        !self.is_empty() && self.chars().all(char::is_alphabetic)
     }
 
     fn isdigit(&self) -> bool {
@@ -173,21 +174,21 @@ impl PythonStringOps for String {
     }
 
     fn isalnum(&self) -> bool {
-        !self.is_empty() && self.chars().all(|c| c.is_alphanumeric())
+        !self.is_empty() && self.chars().all(char::is_alphanumeric)
     }
 
     fn isspace(&self) -> bool {
-        !self.is_empty() && self.chars().all(|c| c.is_whitespace())
+        !self.is_empty() && self.chars().all(char::is_whitespace)
     }
 
     fn islower(&self) -> bool {
-        let has_cased = self.chars().any(|c| c.is_alphabetic());
-        has_cased && self.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_lowercase())
+        let has_cased = self.chars().any(char::is_alphabetic);
+        has_cased && self.chars().filter(|c| c.is_alphabetic()).all(char::is_lowercase)
     }
 
     fn isupper(&self) -> bool {
-        let has_cased = self.chars().any(|c| c.is_alphabetic());
-        has_cased && self.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_uppercase())
+        let has_cased = self.chars().any(char::is_alphabetic);
+        has_cased && self.chars().filter(|c| c.is_alphabetic()).all(char::is_uppercase)
     }
 
     fn capitalize(&self) -> String {
@@ -306,11 +307,11 @@ impl PythonStringOps for str {
     }
 
     fn split_py(&self) -> Vec<String> {
-        self.split_whitespace().map(|s| s.to_string()).collect()
+        self.split_whitespace().map(std::string::ToString::to_string).collect()
     }
 
     fn split_on(&self, sep: &str) -> Vec<String> {
-        self.split(sep).map(|s| s.to_string()).collect()
+        self.split(sep).map(std::string::ToString::to_string).collect()
     }
 
     fn startswith(&self, prefix: &str) -> bool {
@@ -325,12 +326,12 @@ impl PythonStringOps for str {
         self.replace(old, new)
     }
 
+    #[allow(clippy::cast_possible_wrap)]
     fn find(&self, sub: &str) -> i64 {
         std::str::from_utf8(self.as_bytes())
             .ok()
             .and_then(|s| s.find(sub))
-            .map(|i| i as i64)
-            .unwrap_or(-1)
+            .map_or(-1, |i| i as i64)
     }
 
     fn count_py(&self, sub: &str) -> usize {
@@ -338,7 +339,7 @@ impl PythonStringOps for str {
     }
 
     fn isalpha(&self) -> bool {
-        !self.is_empty() && self.chars().all(|c| c.is_alphabetic())
+        !self.is_empty() && self.chars().all(char::is_alphabetic)
     }
 
     fn isdigit(&self) -> bool {
@@ -346,21 +347,21 @@ impl PythonStringOps for str {
     }
 
     fn isalnum(&self) -> bool {
-        !self.is_empty() && self.chars().all(|c| c.is_alphanumeric())
+        !self.is_empty() && self.chars().all(char::is_alphanumeric)
     }
 
     fn isspace(&self) -> bool {
-        !self.is_empty() && self.chars().all(|c| c.is_whitespace())
+        !self.is_empty() && self.chars().all(char::is_whitespace)
     }
 
     fn islower(&self) -> bool {
-        let has_cased = self.chars().any(|c| c.is_alphabetic());
-        has_cased && self.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_lowercase())
+        let has_cased = self.chars().any(char::is_alphabetic);
+        has_cased && self.chars().filter(|c| c.is_alphabetic()).all(char::is_lowercase)
     }
 
     fn isupper(&self) -> bool {
-        let has_cased = self.chars().any(|c| c.is_alphabetic());
-        has_cased && self.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_uppercase())
+        let has_cased = self.chars().any(char::is_alphabetic);
+        has_cased && self.chars().filter(|c| c.is_alphabetic()).all(char::is_uppercase)
     }
 
     fn capitalize(&self) -> String {
@@ -475,6 +476,7 @@ macro_rules! impl_python_int_ops_signed {
     ($($t:ty),*) => {
         $(
             impl PythonIntOps for $t {
+                #[allow(clippy::cast_possible_truncation)]
                 fn bit_length(&self) -> u32 {
                     if *self == 0 {
                         0
@@ -524,6 +526,7 @@ macro_rules! impl_python_int_ops_unsigned {
     ($($t:ty),*) => {
         $(
             impl PythonIntOps for $t {
+                #[allow(clippy::cast_possible_truncation)]
                 fn bit_length(&self) -> u32 {
                     if *self == 0 {
                         0
@@ -575,7 +578,7 @@ impl_python_int_ops_unsigned!(u8, u16, u32, u64, u128, usize);
 
 /// Python-style addition for types (DEPYLER-1307).
 /// - For `Vec<T>`: concatenation (`list + list`)
-/// - For numeric `Vec`: element-wise addition (NumPy semantics)
+/// - For numeric `Vec`: element-wise addition (`NumPy` semantics)
 /// - For `HashSet<T>`: union
 pub trait PyAdd<Rhs = Self> {
     type Output;
@@ -583,7 +586,7 @@ pub trait PyAdd<Rhs = Self> {
 }
 
 /// Python-style subtraction for types (DEPYLER-1307).
-/// - For numeric `Vec`: element-wise subtraction (NumPy semantics)
+/// - For numeric `Vec`: element-wise subtraction (`NumPy` semantics)
 /// - For `HashSet<T>`: set difference
 pub trait PySub<Rhs = Self> {
     type Output;
@@ -592,14 +595,14 @@ pub trait PySub<Rhs = Self> {
 
 /// Python-style multiplication for types (DEPYLER-1307).
 /// - For `Vec<T>` with integer: repetition (`list * n`)
-/// - For numeric `Vec`: element-wise multiplication (NumPy semantics)
+/// - For numeric `Vec`: element-wise multiplication (`NumPy` semantics)
 pub trait PyMul<Rhs = Self> {
     type Output;
     fn py_mul(self, rhs: Rhs) -> Self::Output;
 }
 
 /// Python-style division for types (DEPYLER-1307).
-/// - For numeric `Vec`: element-wise division (NumPy semantics)
+/// - For numeric `Vec`: element-wise division (`NumPy` semantics)
 pub trait PyDiv<Rhs = Self> {
     type Output;
     fn py_div(self, rhs: Rhs) -> Self::Output;
@@ -832,6 +835,7 @@ impl<T: Clone> PyMul<usize> for Vec<T> {
 use std::collections::HashSet;
 use std::hash::Hash;
 
+#[allow(clippy::implicit_hasher)]
 impl<T: Eq + Hash + Clone> PyAdd for HashSet<T> {
     type Output = HashSet<T>;
     fn py_add(self, rhs: HashSet<T>) -> HashSet<T> {
@@ -839,6 +843,7 @@ impl<T: Eq + Hash + Clone> PyAdd for HashSet<T> {
     }
 }
 
+#[allow(clippy::implicit_hasher)]
 impl<T: Eq + Hash + Clone> PySub for HashSet<T> {
     type Output = HashSet<T>;
     fn py_sub(self, rhs: HashSet<T>) -> HashSet<T> {
@@ -848,7 +853,7 @@ impl<T: Eq + Hash + Clone> PySub for HashSet<T> {
 
 /// Python list operations for Rust Vec types.
 pub trait PythonListOps<T> {
-    /// Append item (Python's `list.append()`). Named append_py to avoid conflict with Vec::append.
+    /// Append item (Python's `list.append()`). Named `append_py` to avoid conflict with `Vec::append`.
     fn append_py(&mut self, item: T);
 
     /// Extend with iterable (Python's `list.extend()`).

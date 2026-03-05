@@ -53,6 +53,7 @@ impl Default for LambdaTypeMapper {
 }
 
 impl LambdaTypeMapper {
+    #[allow(clippy::too_many_lines)]
     pub fn new() -> Self {
         let mut event_mappings = HashMap::new();
         let mut response_mappings = HashMap::new();
@@ -296,7 +297,7 @@ impl LambdaTypeMapper {
         ]
     }
 
-    /// Generate custom structs for EventBridge events with custom types
+    /// Generate custom structs for `EventBridge` events with custom types
     pub fn generate_custom_eventbridge_types(&self, custom_type: &str) -> Result<String> {
         Ok(format!(
             r#"#[derive(Debug, Deserialize, Serialize)]
@@ -373,7 +374,7 @@ pub enum EventType {{
 }
 
 // Implementation templates
-const APIGW_RESPONSE_IMPL: &str = r#"impl From<HandlerOutput> for ApiGatewayProxyResponse {
+const APIGW_RESPONSE_IMPL: &str = r"impl From<HandlerOutput> for ApiGatewayProxyResponse {
     fn from(output: HandlerOutput) -> Self {
         ApiGatewayProxyResponse {
             status_code: output.status_code,
@@ -383,9 +384,9 @@ const APIGW_RESPONSE_IMPL: &str = r#"impl From<HandlerOutput> for ApiGatewayProx
             is_base64_encoded: false,
         }
     }
-}"#;
+}";
 
-const APIGW_V2_RESPONSE_IMPL: &str = r#"impl From<HandlerOutput> for ApiGatewayV2httpResponse {
+const APIGW_V2_RESPONSE_IMPL: &str = r"impl From<HandlerOutput> for ApiGatewayV2httpResponse {
     fn from(output: HandlerOutput) -> Self {
         ApiGatewayV2httpResponse {
             status_code: output.status_code,
@@ -395,7 +396,7 @@ const APIGW_V2_RESPONSE_IMPL: &str = r#"impl From<HandlerOutput> for ApiGatewayV
             cookies: vec![],
         }
     }
-}"#;
+}";
 
 const APIGW_RESPONSE_BUILDER: &str = r#"pub struct ResponseBuilder {
     status_code: u16,
@@ -481,7 +482,7 @@ impl ResponseBuilderV2 {
     }
 }"#;
 
-const SQS_RESPONSE_BUILDER: &str = r#"pub struct SqsResponseBuilder {
+const SQS_RESPONSE_BUILDER: &str = r"pub struct SqsResponseBuilder {
     batch_item_failures: Vec<SqsBatchItemFailure>,
 }
 
@@ -504,7 +505,7 @@ impl SqsResponseBuilder {
             batch_item_failures: self.batch_item_failures,
         }
     }
-}"#;
+}";
 
 const LAMBDA_ERROR_CONVERSIONS: &str = r#"#[derive(Debug, thiserror::Error)]
 pub enum LambdaError {

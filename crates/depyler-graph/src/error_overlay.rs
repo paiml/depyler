@@ -72,6 +72,7 @@ impl<'a> ErrorOverlay<'a> {
     }
 
     /// Estimate Python line from Rust line
+    #[allow(clippy::unused_self)]
     fn estimate_python_line(&self, rust_line: usize) -> usize {
         // Generated Rust is typically more verbose
         // Rough heuristic: Python line ≈ Rust line / 10
@@ -80,6 +81,9 @@ impl<'a> ErrorOverlay<'a> {
     }
 
     /// Find the node most likely associated with an error
+    #[allow(clippy::unwrap_used, clippy::disallowed_methods)]
+    #[allow(clippy::unwrap_used, clippy::disallowed_methods)]
+    #[allow(clippy::cast_precision_loss)]
     fn find_associated_node(&self, python_line: usize) -> (Option<String>, f64) {
         let mut best_match: Option<(String, usize, f64)> = None;
 

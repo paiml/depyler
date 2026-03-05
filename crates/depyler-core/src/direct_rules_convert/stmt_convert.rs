@@ -1,18 +1,18 @@
 //! Statement and block conversion for direct rules
 //!
-//! Contains convert_stmt, convert_stmt_with_context, convert_block functions.
-//! Each HirStmt variant is handled by a dedicated private helper function
+//! Contains `convert_stmt`, `convert_stmt_with_context`, `convert_block` functions.
+//! Each `HirStmt` variant is handled by a dedicated private helper function
 //! to keep cognitive complexity low.
 
 use crate::direct_rules::{make_ident, type_to_rust_type};
-use crate::hir::*;
+use crate::hir::{Type, HirExpr, HirStmt, AssignTarget, ExceptHandler, HirParam};
 use crate::rust_gen::keywords::safe_ident;
 use crate::type_mapper::TypeMapper;
 use anyhow::{bail, Result};
 use quote::quote;
 use syn::parse_quote;
 
-use super::body_convert::*;
+use super::body_convert::{convert_assign_stmt_with_mutable_vars, convert_assign_stmt_with_expr, is_pure_expression_direct, convert_body_with_context};
 use super::{convert_condition_expr, convert_expr_with_param_types};
 
 /// Bundles the common context parameters threaded through statement conversion.
@@ -23,7 +23,7 @@ struct StmtContext<'a> {
     param_types: &'a std::collections::HashMap<String, Type>,
 }
 
-impl<'a> StmtContext<'a> {
+impl StmtContext<'_> {
     /// Convert an expression using the bundled context parameters.
     fn convert_expr(&self, expr: &HirExpr) -> Result<syn::Expr> {
         convert_expr_with_param_types(
@@ -46,7 +46,7 @@ impl<'a> StmtContext<'a> {
         )
     }
 
-    /// Convert a list of statements into a syn::Block.
+    /// Convert a list of statements into a `syn::Block`.
     fn convert_block(&self, stmts: &[HirStmt]) -> Result<syn::Block> {
         convert_block_with_context(
             stmts,
@@ -106,7 +106,7 @@ pub(crate) fn convert_stmt_with_mutable_vars(
     }
 }
 
-/// DEPYLER-0704: Added param_types parameter for type coercion in binary operations
+/// DEPYLER-0704: Added `param_types` parameter for type coercion in binary operations
 pub(crate) fn convert_stmt_with_context(
     stmt: &HirStmt,
     type_mapper: &TypeMapper,
@@ -140,6 +140,7 @@ pub(crate) fn convert_stmt_with_context(
     }
 }
 
+#[allow(clippy::ref_option)]
 fn convert_assign(
     ctx: &StmtContext<'_>,
     target: &AssignTarget,
@@ -151,6 +152,7 @@ fn convert_assign(
     convert_assign_stmt_with_expr(target, value_expr, ctx.type_mapper)
 }
 
+#[allow(clippy::default_trait_access, clippy::ref_option)]
 fn convert_return(ctx: &StmtContext<'_>, expr: &Option<HirExpr>) -> Result<syn::Stmt> {
     let ret_expr = if let Some(e) = expr {
         // DEPYLER-0704: Pass param_types for type coercion in return expressions
@@ -161,6 +163,7 @@ fn convert_return(ctx: &StmtContext<'_>, expr: &Option<HirExpr>) -> Result<syn::
     Ok(syn::Stmt::Expr(parse_quote! { return #ret_expr }, Some(Default::default())))
 }
 
+#[allow(clippy::default_trait_access, clippy::ref_option)]
 fn convert_if(
     ctx: &StmtContext<'_>,
     condition: &HirExpr,
@@ -185,6 +188,7 @@ fn convert_if(
     Ok(syn::Stmt::Expr(if_expr, Some(Default::default())))
 }
 
+#[allow(clippy::default_trait_access)]
 fn convert_while(
     ctx: &StmtContext<'_>,
     condition: &HirExpr,
@@ -201,6 +205,7 @@ fn convert_while(
     Ok(syn::Stmt::Expr(while_expr, Some(Default::default())))
 }
 
+#[allow(clippy::default_trait_access)]
 fn convert_for(
     ctx: &StmtContext<'_>,
     target: &AssignTarget,
@@ -220,7 +225,7 @@ fn convert_for(
     Ok(syn::Stmt::Expr(for_expr, Some(Default::default())))
 }
 
-/// Generate target pattern based on AssignTarget type for for-loops.
+/// Generate target pattern based on `AssignTarget` type for for-loops.
 fn convert_for_target(target: &AssignTarget) -> Result<syn::Pat> {
     match target {
         AssignTarget::Symbol(name) => {
@@ -258,6 +263,7 @@ fn convert_for_iter(ctx: &StmtContext<'_>, iter: &HirExpr) -> Result<syn::Expr> 
     ctx.convert_expr(iter)
 }
 
+#[allow(clippy::default_trait_access, clippy::ref_option)]
 fn convert_expr_stmt(ctx: &StmtContext<'_>, expr: &HirExpr) -> Result<syn::Stmt> {
     // DEPYLER-0701: Detect expressions without side effects and wrap with `let _ =`
     // to avoid "path statement with no effect" and "unused arithmetic operation" warnings
@@ -283,6 +289,7 @@ fn convert_expr_stmt(ctx: &StmtContext<'_>, expr: &HirExpr) -> Result<syn::Stmt>
     }
 }
 
+#[allow(clippy::default_trait_access, clippy::ref_option, clippy::unnecessary_wraps)]
 fn convert_raise(ctx: &StmtContext<'_>, exception: &Option<HirExpr>) -> Result<syn::Stmt> {
     // Convert to Rust panic for direct rules
     let panic_expr = if let Some(exc) = exception {
@@ -294,10 +301,11 @@ fn convert_raise(ctx: &StmtContext<'_>, exception: &Option<HirExpr>) -> Result<s
     Ok(syn::Stmt::Expr(panic_expr, Some(Default::default())))
 }
 
+#[allow(clippy::default_trait_access, clippy::ref_option, clippy::unnecessary_wraps)]
 fn convert_break(label: &Option<String>) -> Result<syn::Stmt> {
     let break_expr = if let Some(label_name) = label {
         let label_ident =
-            syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
+            syn::Lifetime::new(&format!("'{label_name}"), proc_macro2::Span::call_site());
         parse_quote! { break #label_ident }
     } else {
         parse_quote! { break }
@@ -305,10 +313,11 @@ fn convert_break(label: &Option<String>) -> Result<syn::Stmt> {
     Ok(syn::Stmt::Expr(break_expr, Some(Default::default())))
 }
 
+#[allow(clippy::default_trait_access, clippy::ref_option, clippy::unnecessary_wraps)]
 fn convert_continue(label: &Option<String>) -> Result<syn::Stmt> {
     let continue_expr = if let Some(label_name) = label {
         let label_ident =
-            syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
+            syn::Lifetime::new(&format!("'{label_name}"), proc_macro2::Span::call_site());
         parse_quote! { continue #label_ident }
     } else {
         parse_quote! { continue }
@@ -316,6 +325,7 @@ fn convert_continue(label: &Option<String>) -> Result<syn::Stmt> {
     Ok(syn::Stmt::Expr(continue_expr, Some(Default::default())))
 }
 
+#[allow(clippy::ref_option)]
 fn convert_with(
     ctx: &StmtContext<'_>,
     context: &HirExpr,
@@ -349,6 +359,7 @@ fn convert_with(
     Ok(syn::Stmt::Expr(block_expr, None))
 }
 
+#[allow(clippy::ref_option)]
 fn convert_try(
     ctx: &StmtContext<'_>,
     body: &[HirStmt],
@@ -415,6 +426,7 @@ fn convert_try_with_handler(
     Ok(syn::Stmt::Expr(block_expr, None))
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_try_without_handler(
     try_stmts: &syn::Block,
     finally_block: Option<syn::Block>,
@@ -433,6 +445,7 @@ fn convert_try_without_handler(
     Ok(syn::Stmt::Expr(block_expr, None))
 }
 
+#[allow(clippy::ref_option)]
 fn convert_assert(
     ctx: &StmtContext<'_>,
     test: &HirExpr,
@@ -449,6 +462,7 @@ fn convert_assert(
     Ok(assert_macro)
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_pass() -> Result<syn::Stmt> {
     // Pass statement generates empty statement
     Ok(syn::Stmt::Expr(parse_quote! { {} }, None))
@@ -472,6 +486,7 @@ fn convert_block_stmt(ctx: &StmtContext<'_>, stmts: &[HirStmt]) -> Result<syn::S
 
 /// DEPYLER-0840: Properly generate nested functions as closures
 /// Previously this just returned {} causing E0425 "cannot find value" errors
+#[allow(clippy::unnecessary_wraps)]
 fn convert_function_def(
     ctx: &StmtContext<'_>,
     name: &str,
@@ -541,7 +556,8 @@ pub(crate) fn convert_block(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Resu
     )
 }
 
-/// DEPYLER-0704: Added param_types parameter for type coercion in binary operations
+/// DEPYLER-0704: Added `param_types` parameter for type coercion in binary operations
+#[allow(clippy::default_trait_access)]
 pub(crate) fn convert_block_with_context(
     stmts: &[HirStmt],
     type_mapper: &TypeMapper,

@@ -3,11 +3,11 @@
 //! Converts HIR operators (binary, arithmetic, comparison, logical, bitwise)
 //! to their Rust `syn` equivalents. Also contains literal conversion.
 
-use crate::hir::*;
+use crate::hir::{BinOp, HirExpr, Literal};
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-/// Check if an expression is a len() call
+/// Check if an expression is a `len()` call
 pub(crate) fn is_len_call(expr: &HirExpr) -> bool {
     matches!(expr, HirExpr::Call { func, args , ..} if func == "len" && args.len() == 1)
 }
@@ -25,7 +25,7 @@ pub(crate) fn convert_literal(lit: &Literal) -> syn::Expr {
             let float_str = if s.contains('.') || s.contains('e') || s.contains('E') {
                 s
             } else {
-                format!("{}.0", s)
+                format!("{s}.0")
             };
             let lit = syn::LitFloat::new(&float_str, proc_macro2::Span::call_site());
             parse_quote! { #lit }
@@ -81,7 +81,7 @@ pub(crate) fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
 }
 
 pub(crate) fn convert_arithmetic_op(op: BinOp) -> Result<syn::BinOp> {
-    use BinOp::*;
+    use BinOp::{Add, Sub, Mul, Div, Mod, FloorDiv, Pow};
     match op {
         Add => Ok(parse_quote! { + }),
         Sub => Ok(parse_quote! { - }),
@@ -94,12 +94,12 @@ pub(crate) fn convert_arithmetic_op(op: BinOp) -> Result<syn::BinOp> {
             bail!("Floor division handled in convert_binary with Python semantics")
         }
         Pow => bail!("Power operator handled in convert_binary with type-specific logic"),
-        _ => bail!("Invalid operator {:?} for arithmetic conversion", op),
+        _ => bail!("Invalid operator {op:?} for arithmetic conversion"),
     }
 }
 
 pub(crate) fn convert_comparison_op(op: BinOp) -> Result<syn::BinOp> {
-    use BinOp::*;
+    use BinOp::{Eq, NotEq, Lt, LtEq, Gt, GtEq};
     match op {
         Eq => Ok(parse_quote! { == }),
         NotEq => Ok(parse_quote! { != }),
@@ -107,28 +107,28 @@ pub(crate) fn convert_comparison_op(op: BinOp) -> Result<syn::BinOp> {
         LtEq => Ok(parse_quote! { <= }),
         Gt => Ok(parse_quote! { > }),
         GtEq => Ok(parse_quote! { >= }),
-        _ => bail!("Invalid operator {:?} for comparison conversion", op),
+        _ => bail!("Invalid operator {op:?} for comparison conversion"),
     }
 }
 
 pub(crate) fn convert_logical_op(op: BinOp) -> Result<syn::BinOp> {
-    use BinOp::*;
+    use BinOp::{And, Or};
     match op {
         And => Ok(parse_quote! { && }),
         Or => Ok(parse_quote! { || }),
-        _ => bail!("Invalid operator {:?} for logical conversion", op),
+        _ => bail!("Invalid operator {op:?} for logical conversion"),
     }
 }
 
 pub(crate) fn convert_bitwise_op(op: BinOp) -> Result<syn::BinOp> {
-    use BinOp::*;
+    use BinOp::{BitAnd, BitOr, BitXor, LShift, RShift};
     match op {
         BitAnd => Ok(parse_quote! { & }),
         BitOr => Ok(parse_quote! { | }),
         BitXor => Ok(parse_quote! { ^ }),
         LShift => Ok(parse_quote! { << }),
         RShift => Ok(parse_quote! { >> }),
-        _ => bail!("Invalid operator {:?} for bitwise conversion", op),
+        _ => bail!("Invalid operator {op:?} for bitwise conversion"),
     }
 }
 

@@ -1,6 +1,6 @@
 //! Memory Safety Shim - pure logic separated from I/O
 //!
-//! Extracts testable logic from memory_safety.rs
+//! Extracts testable logic from `memory_safety.rs`
 
 use std::collections::{HashMap, HashSet};
 
@@ -76,6 +76,7 @@ pub enum MemoryViolation {
 }
 
 impl MemoryViolation {
+    #[allow(clippy::match_same_arms)]
     pub fn severity(&self) -> u8 {
         match self {
             Self::UseAfterFree(_) => 5,
@@ -106,18 +107,18 @@ impl MemoryViolation {
 
     pub fn description(&self) -> String {
         match self {
-            Self::UseAfterFree(var) => format!("Use after free of variable '{}'", var),
-            Self::DoubleFree(var) => format!("Double free of variable '{}'", var),
+            Self::UseAfterFree(var) => format!("Use after free of variable '{var}'"),
+            Self::DoubleFree(var) => format!("Double free of variable '{var}'"),
             Self::BufferOverflow { index, size } => {
-                format!("Buffer overflow: index {} >= size {}", index, size)
+                format!("Buffer overflow: index {index} >= size {size}")
             }
             Self::BufferUnderflow { index } => {
-                format!("Buffer underflow: negative index {}", index)
+                format!("Buffer underflow: negative index {index}")
             }
             Self::NullDereference => "Null pointer dereference".to_string(),
-            Self::UninitializedAccess(var) => format!("Access to uninitialized variable '{}'", var),
+            Self::UninitializedAccess(var) => format!("Access to uninitialized variable '{var}'"),
             Self::DataRace { var, op1, op2 } => {
-                format!("Data race on '{}' between {} and {}", var, op1, op2)
+                format!("Data race on '{var}' between {op1} and {op2}")
             }
         }
     }
@@ -138,6 +139,7 @@ impl BoundsChecker {
         self.array_sizes.insert(name.to_string(), size);
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn check_bounds(&self, name: &str, index: i64) -> Option<MemoryViolation> {
         if index < 0 {
             return Some(MemoryViolation::BufferUnderflow { index });
@@ -233,8 +235,7 @@ impl InitializationTracker {
             || self
                 .partially_initialized
                 .get(var)
-                .map(|fields| fields.contains(field))
-                .unwrap_or(false)
+                .is_some_and(|fields| fields.contains(field))
     }
 
     pub fn check_access(&self, var: &str) -> Option<MemoryViolation> {

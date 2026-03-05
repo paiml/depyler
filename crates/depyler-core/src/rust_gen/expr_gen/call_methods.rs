@@ -1,9 +1,9 @@
-//! Class/struct/CSV/OS/module method conversion for ExpressionConverter
+//! Class/struct/CSV/OS/module method conversion for `ExpressionConverter`
 //!
-//! Contains try_convert_classmethod, try_convert_struct_method,
-//! try_convert_csv_method, try_convert_os_environ_method, try_convert_module_method.
+//! Contains `try_convert_classmethod`, `try_convert_struct_method`,
+//! `try_convert_csv_method`, `try_convert_os_environ_method`, `try_convert_module_method`.
 
-use crate::hir::*;
+use crate::hir::{HirExpr, Literal, Type};
 use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::stdlib_method_gen;
 use anyhow::{bail, Result};
@@ -12,7 +12,7 @@ use syn::{self, parse_quote};
 
 use super::ExpressionConverter;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     pub(crate) fn try_convert_classmethod(
         &mut self,
         object: &HirExpr,
@@ -34,6 +34,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0021: Handle struct module methods (pack, unpack, calcsize)
     /// Only supports format codes 'i' (signed 32-bit int) and 'ii' (two ints)
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
     pub(crate) fn try_convert_struct_method(
         &mut self,
         method: &str,
@@ -50,7 +51,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let count = format.chars().filter(|&c| c == 'i').count();
 
                     if count == 0 {
-                        bail!("struct.pack() format '{}' not supported (only 'i' and 'ii' implemented)", format);
+                        bail!("struct.pack() format '{format}' not supported (only 'i' and 'ii' implemented)");
                     }
 
                     if count != args.len() - 1 {
@@ -98,7 +99,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let count = format.chars().filter(|&c| c == 'i').count();
 
                     if count == 0 {
-                        bail!("struct.unpack() format '{}' not supported (only 'i' and 'ii' implemented)", format);
+                        bail!("struct.unpack() format '{format}' not supported (only 'i' and 'ii' implemented)");
                     }
 
                     let bytes_expr = args[1].to_rust_expr(self.ctx)?;
@@ -118,8 +119,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }))
                     } else {
                         bail!(
-                            "struct.unpack() only supports 'i' and 'ii' formats (got {} ints)",
-                            count
+                            "struct.unpack() only supports 'i' and 'ii' formats (got {count} ints)"
                         );
                     }
                 } else {
@@ -136,7 +136,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let count = format.chars().filter(|&c| c == 'i').count();
 
                     if count == 0 {
-                        bail!("struct.calcsize() format '{}' not supported (only 'i' and 'ii' implemented)", format);
+                        bail!("struct.calcsize() format '{format}' not supported (only 'i' and 'ii' implemented)");
                     }
 
                     let size = (count * 4) as i32;
@@ -146,7 +146,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             _ => {
-                bail!("struct.{} not implemented", method);
+                bail!("struct.{method} not implemented");
             }
         }
     }
@@ -165,14 +165,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-STDLIB-CSV: CSV file reading and writing
     ///
     /// Maps Python csv module to Rust csv crate:
-    /// - csv.reader() → csv::Reader::from_reader()
-    /// - csv.writer() → csv::Writer::from_writer()
+    /// - `csv.reader()` → `csv::Reader::from_reader()`
+    /// - `csv.writer()` → `csv::Writer::from_writer()`
     /// - csv.DictReader → csv with headers
     /// - csv.DictWriter → csv with headers
     ///
     /// # Complexity
     /// 4 (match with 4 branches - simplified for core operations)
     #[inline]
+    #[allow(clippy::used_underscore_binding)]
     pub(crate) fn try_convert_csv_method(
         &mut self,
         method: &str,
@@ -260,7 +261,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("csv.{} not implemented yet", method);
+                bail!("csv.{method} not implemented yet");
             }
         };
 
@@ -272,9 +273,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Try to convert os.environ method calls
     /// DEPYLER-0386: os.environ dictionary-like interface for environment variables
     ///
-    /// Maps Python os.environ methods to Rust std::env:
-    /// - os.environ.get(key) → std::env::var(key).ok()
-    /// - os.environ.get(key, default) → std::env::var(key).unwrap_or_else(|_| default.to_string())
+    /// Maps Python os.environ methods to Rust `std::env`:
+    /// - os.environ.get(key) → `std::env::var(key).ok()`
+    /// - os.environ.get(key, default) → `std::env::var(key).unwrap_or_else`(|_| `default.to_string()`)
     ///
     /// # Complexity
     /// ≤10 (match with few branches)
@@ -368,8 +369,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     // DEPYLER-COVERAGE-95: try_convert_math_method moved to stdlib_method_gen::math
 
-    /// Try to convert module method call (e.g., os.getcwd())
+    /// Try to convert module method call (e.g., `os.getcwd()`)
     #[inline]
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn try_convert_module_method(
         &mut self,
         object: &HirExpr,
@@ -597,32 +599,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         } else {
                             parse_quote! { DepylerDate::new(9999, 12, 31) }
                         }));
-                    } else {
-                        self.ctx.needs_chrono = true;
-                        return Ok(Some(if method == "min" {
-                            parse_quote! { chrono::NaiveDate::MIN }
-                        } else {
-                            parse_quote! { chrono::NaiveDate::MAX }
-                        }));
                     }
-                } else {
-                    // datetime.min / datetime.max
-                    if nasa_mode {
-                        self.ctx.needs_depyler_datetime = true;
-                        return Ok(Some(if method == "min" {
-                            parse_quote! { DepylerDateTime::new(1, 1, 1, 0, 0, 0, 0) }
-                        } else {
-                            parse_quote! { DepylerDateTime::new(9999, 12, 31, 23, 59, 59, 999999) }
-                        }));
+                    self.ctx.needs_chrono = true;
+                    return Ok(Some(if method == "min" {
+                        parse_quote! { chrono::NaiveDate::MIN }
                     } else {
-                        self.ctx.needs_chrono = true;
-                        return Ok(Some(if method == "min" {
-                            parse_quote! { chrono::NaiveDateTime::MIN }
-                        } else {
-                            parse_quote! { chrono::NaiveDateTime::MAX }
-                        }));
-                    }
+                        parse_quote! { chrono::NaiveDate::MAX }
+                    }));
                 }
+                // datetime.min / datetime.max
+                if nasa_mode {
+                    self.ctx.needs_depyler_datetime = true;
+                    return Ok(Some(if method == "min" {
+                        parse_quote! { DepylerDateTime::new(1, 1, 1, 0, 0, 0, 0) }
+                    } else {
+                        parse_quote! { DepylerDateTime::new(9999, 12, 31, 23, 59, 59, 999999) }
+                    }));
+                }
+                self.ctx.needs_chrono = true;
+                return Ok(Some(if method == "min" {
+                    parse_quote! { chrono::NaiveDateTime::MIN }
+                } else {
+                    parse_quote! { chrono::NaiveDateTime::MAX }
+                }));
             }
 
             // DEPYLER-1069: Handle date.today() vs datetime.today() separately
@@ -637,20 +636,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     if nasa_mode {
                         self.ctx.needs_depyler_date = true;
                         return Ok(Some(parse_quote! { DepylerDate::today() }));
-                    } else {
-                        self.ctx.needs_chrono = true;
-                        return Ok(Some(parse_quote! { chrono::Local::now().date_naive() }));
                     }
-                } else {
-                    // datetime.today()
-                    if nasa_mode {
-                        self.ctx.needs_depyler_datetime = true;
-                        return Ok(Some(parse_quote! { DepylerDateTime::today() }));
-                    } else {
-                        self.ctx.needs_chrono = true;
-                        return Ok(Some(parse_quote! { chrono::Local::now().naive_local() }));
-                    }
+                    self.ctx.needs_chrono = true;
+                    return Ok(Some(parse_quote! { chrono::Local::now().date_naive() }));
                 }
+                // datetime.today()
+                if nasa_mode {
+                    self.ctx.needs_depyler_datetime = true;
+                    return Ok(Some(parse_quote! { DepylerDateTime::today() }));
+                }
+                self.ctx.needs_chrono = true;
+                return Ok(Some(parse_quote! { chrono::Local::now().naive_local() }));
             }
 
             if is_actually_imported && (module_name == "datetime" || module_name == "date") {
@@ -670,14 +666,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     } else {
                         parse_quote! { (23u32, 59u32, 59u32, 999999u32) }
                     }));
-                } else {
-                    self.ctx.needs_chrono = true;
-                    return Ok(Some(if method == "min" {
-                        parse_quote! { chrono::NaiveTime::MIN }
-                    } else {
-                        parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).expect("invalid time") }
-                    }));
                 }
+                self.ctx.needs_chrono = true;
+                return Ok(Some(if method == "min" {
+                    parse_quote! { chrono::NaiveTime::MIN }
+                } else {
+                    parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).expect("invalid time") }
+                }));
             }
 
             // DEPYLER-0595: Handle bytes class methods

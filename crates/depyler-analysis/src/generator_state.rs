@@ -125,7 +125,7 @@ impl StateAnalyzer {
             HirExpr::List(items) => {
                 // Infer element type from first item
                 let elem_type =
-                    items.first().map(Self::infer_type_from_expression).unwrap_or(Type::Unknown);
+                    items.first().map_or(Type::Unknown, Self::infer_type_from_expression);
                 Type::List(Box::new(elem_type))
             }
             HirExpr::Dict(_) => Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
@@ -137,6 +137,7 @@ impl StateAnalyzer {
 
     /// DEPYLER-0494: Analyze assignment target (handles both Symbol and Tuple)
     /// Complexity: 7 (within ≤10 target)
+    #[allow(clippy::ref_option)]
     fn analyze_assign(
         &mut self,
         target: &depyler_hir::hir::AssignTarget,
@@ -196,6 +197,7 @@ impl StateAnalyzer {
         self.analyze_statements(body);
     }
 
+    #[allow(clippy::ref_option)]
     fn analyze_if_stmt(
         &mut self,
         condition: &HirExpr,
@@ -227,6 +229,7 @@ impl StateAnalyzer {
         }
     }
 
+    #[allow(clippy::ref_option)]
     fn analyze_yield(&mut self, value: &Option<Box<HirExpr>>) {
         self.yield_count += 1;
         if let Some(v) = value {

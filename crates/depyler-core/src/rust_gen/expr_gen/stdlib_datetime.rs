@@ -2,18 +2,19 @@
 //!
 //! Handles conversion of Python datetime module calls to Rust chrono/NASA equivalents.
 
-use crate::hir::*;
+use crate::hir::{HirExpr, Literal};
 use crate::rust_gen::context::ToRustExpr;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
 use super::ExpressionConverter;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     /// DEPYLER-0830/1025: Convert datetime/timedelta methods on variable instances
-    /// This handles cases like `td.total_seconds()` where td is a TimeDelta variable
-    /// Unlike try_convert_datetime_method which handles module calls like datetime.datetime.now()
+    /// This handles cases like `td.total_seconds()` where td is a `TimeDelta` variable
+    /// Unlike `try_convert_datetime_method` which handles module calls like `datetime.datetime.now()`
     #[inline]
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn convert_datetime_instance_method(
         &mut self,
         dt_expr: &syn::Expr,
@@ -159,6 +160,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Try to convert datetime module method calls
     /// DEPYLER-STDLIB-DATETIME/1025: Comprehensive datetime module support with NASA mode
     #[inline]
+    #[allow(clippy::too_many_lines)]
     pub(super) fn try_convert_datetime_method(
         &mut self,
         method: &str,
@@ -248,12 +250,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     parse_quote! { DepylerDateTime::now() }
                 } else {
                     let s = &arg_exprs[0];
-                    let fmt: syn::Expr = match &args[1] {
-                        HirExpr::Literal(Literal::String(fmt_str)) => parse_quote! { #fmt_str },
-                        _ => {
-                            let fmt_expr = &arg_exprs[1];
-                            parse_quote! { &#fmt_expr }
-                        }
+                    let fmt: syn::Expr = if let HirExpr::Literal(Literal::String(fmt_str)) = &args[1] { parse_quote! { #fmt_str } } else {
+                        let fmt_expr = &arg_exprs[1];
+                        parse_quote! { &#fmt_expr }
                     };
                     parse_quote! {
                         chrono::NaiveDateTime::parse_from_str(#s, #fmt).expect("parse failed")

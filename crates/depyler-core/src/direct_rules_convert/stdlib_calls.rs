@@ -1,15 +1,16 @@
-//! Standard library call conversion for ExprConverter
+//! Standard library call conversion for `ExprConverter`
 //!
-//! Handles os.path, date/datetime, open(), and generic function calls.
+//! Handles os.path, date/datetime, `open()`, and generic function calls.
 
 use crate::direct_rules::{make_ident, safe_class_name};
-use crate::hir::*;
+use crate::hir::{HirExpr, Literal};
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
 use super::ExprConverter;
 
-impl<'a> ExprConverter<'a> {
+impl ExprConverter<'_> {
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_splitext_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() != 1 {
             bail!("splitext() requires exactly 1 argument");
@@ -25,7 +26,8 @@ impl<'a> ExprConverter<'a> {
         })
     }
 
-    /// DEPYLER-0721: os.path.basename(path) → Path::file_name
+    /// DEPYLER-0721: os.path.basename(path) → `Path::file_name`
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_basename_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() != 1 {
             bail!("basename() requires exactly 1 argument");
@@ -36,7 +38,8 @@ impl<'a> ExprConverter<'a> {
         })
     }
 
-    /// DEPYLER-0721: os.path.dirname(path) → Path::parent
+    /// DEPYLER-0721: os.path.dirname(path) → `Path::parent`
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_dirname_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() != 1 {
             bail!("dirname() requires exactly 1 argument");
@@ -48,6 +51,7 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-0721: os.path.split(path) → (dirname, basename)
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_path_split_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() != 1 {
             bail!("split() requires exactly 1 argument");
@@ -63,7 +67,8 @@ impl<'a> ExprConverter<'a> {
         })
     }
 
-    /// DEPYLER-0721: os.path.exists(path) → Path::exists
+    /// DEPYLER-0721: os.path.exists(path) → `Path::exists`
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_path_exists_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() != 1 {
             bail!("exists() requires exactly 1 argument");
@@ -72,7 +77,8 @@ impl<'a> ExprConverter<'a> {
         Ok(parse_quote! { std::path::Path::new(&#path).exists() })
     }
 
-    /// DEPYLER-0721: os.path.isfile(path) → Path::is_file
+    /// DEPYLER-0721: os.path.isfile(path) → `Path::is_file`
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_path_isfile_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() != 1 {
             bail!("isfile() requires exactly 1 argument");
@@ -81,7 +87,8 @@ impl<'a> ExprConverter<'a> {
         Ok(parse_quote! { std::path::Path::new(&#path).is_file() })
     }
 
-    /// DEPYLER-0721: os.path.isdir(path) → Path::is_dir
+    /// DEPYLER-0721: os.path.isdir(path) → `Path::is_dir`
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_path_isdir_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() != 1 {
             bail!("isdir() requires exactly 1 argument");
@@ -90,9 +97,10 @@ impl<'a> ExprConverter<'a> {
         Ok(parse_quote! { std::path::Path::new(&#path).is_dir() })
     }
 
-    /// DEPYLER-0200: Convert Python open() to Rust file operations
-    /// open(path) → std::fs::File::open(path) (read mode)
-    /// open(path, "w") → std::fs::File::create(path) (write mode)
+    /// DEPYLER-0200: Convert Python `open()` to Rust file operations
+    /// open(path) → `std::fs::File::open(path)` (read mode)
+    /// open(path, "w") → `std::fs::File::create(path)` (write mode)
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_open_call(
         &self,
         hir_args: &[HirExpr],
@@ -137,7 +145,8 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    /// DEPYLER-0200: Convert Python date(year, month, day) to chrono::NaiveDate
+    /// DEPYLER-0200: Convert Python date(year, month, day) to `chrono::NaiveDate`
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_date_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() != 3 {
             bail!("date() requires exactly 3 arguments (year, month, day)");
@@ -150,7 +159,8 @@ impl<'a> ExprConverter<'a> {
         })
     }
 
-    /// DEPYLER-0200: Convert Python datetime(year, month, day, ...) to chrono::NaiveDateTime
+    /// DEPYLER-0200: Convert Python datetime(year, month, day, ...) to `chrono::NaiveDateTime`
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_datetime_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() < 3 {
             bail!("datetime() requires at least 3 arguments (year, month, day)");
@@ -173,6 +183,7 @@ impl<'a> ExprConverter<'a> {
         })
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     pub(super) fn convert_generic_call(
         &self,
         func: &str,
@@ -269,7 +280,7 @@ impl<'a> ExprConverter<'a> {
         }
 
         // Check if this might be a constructor call (capitalized name)
-        if func.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+        if func.chars().next().is_some_and(char::is_uppercase) {
             // DEPYLER-0900: Rename constructor if it shadows stdlib type (e.g., Box -> PyBox)
             // Treat as constructor call - ClassName::new(args)
             let safe_name = safe_class_name(func);

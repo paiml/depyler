@@ -1,12 +1,12 @@
 //! Expression code generation
 //!
-//! This module handles converting HIR expressions to Rust syn::Expr nodes.
-//! It includes the ExpressionConverter for complex expression transformations
-//! and the ToRustExpr trait implementation for HirExpr.
+//! This module handles converting HIR expressions to Rust `syn::Expr` nodes.
+//! It includes the `ExpressionConverter` for complex expression transformations
+//! and the `ToRustExpr` trait implementation for `HirExpr`.
 
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
-use crate::hir::*;
+use crate::hir::{HirExpr, Type, Literal};
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 #[cfg(test)]
 use crate::rust_gen::expr_analysis;
@@ -93,8 +93,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     // DEPYLER-COVERAGE-95: looks_like_option_expr moved to crate::rust_gen::expr_analysis module
     // Use expr_analysis::looks_like_option_expr instead
 
-    /// DEPYLER-0758: Check if HirExpr is a variable that's a borrowed parameter
-    /// If so, return the dereferenced version of the syn::Expr
+    /// DEPYLER-0758: Check if `HirExpr` is a variable that's a borrowed parameter
+    /// If so, return the dereferenced version of the `syn::Expr`
     /// Used to fix E0369 errors when doing arithmetic with reference types (e.g., date subtraction)
     pub(crate) fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
         // DEPYLER-0934: Handle Python builtin types used as function references
@@ -160,9 +160,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Check for special keywords that cannot be raw identifiers
         if keywords::is_non_raw_keyword(name) {
             bail!(
-                "Python variable '{}' conflicts with a special Rust keyword that cannot be escaped. \
-                 Please rename this variable (e.g., '{}_var' or 'py_{}')",
-                name, name, name
+                "Python variable '{name}' conflicts with a special Rust keyword that cannot be escaped. \
+                 Please rename this variable (e.g., '{name}_var' or 'py_{name}')"
             );
         }
 
@@ -188,6 +187,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 }
 
 impl ToRustExpr for HirExpr {
+    #[allow(clippy::too_many_lines)]
     fn to_rust_expr(&self, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
         let mut converter = ExpressionConverter::new(ctx);
 
@@ -353,6 +353,7 @@ impl ToRustExpr for HirExpr {
     }
 }
 
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 fn int_literal_to_rust_expr(val: i64) -> syn::Expr {
     if val > i64::from(i32::MAX) && val <= i64::from(u32::MAX) {
         let wrapped = val as i32;
@@ -364,7 +365,7 @@ fn int_literal_to_rust_expr(val: i64) -> syn::Expr {
             parse_quote! { -#lit_tok }
         }
     } else if val > i64::from(u32::MAX) || val < i64::from(i32::MIN) {
-        let lit = syn::LitInt::new(&format!("{}i64", val), proc_macro2::Span::call_site());
+        let lit = syn::LitInt::new(&format!("{val}i64"), proc_macro2::Span::call_site());
         parse_quote! { #lit }
     } else {
         let lit = syn::LitInt::new(&val.to_string(), proc_macro2::Span::call_site());
@@ -372,6 +373,7 @@ fn int_literal_to_rust_expr(val: i64) -> syn::Expr {
     }
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn literal_to_rust_expr(
     lit: &Literal,
     string_optimizer: &StringOptimizer,
@@ -388,7 +390,7 @@ fn literal_to_rust_expr(
             let float_str = if s.contains('.') || s.contains('e') || s.contains('E') {
                 s
             } else {
-                format!("{}.0", s)
+                format!("{s}.0")
             };
             let lit = syn::LitFloat::new(&float_str, proc_macro2::Span::call_site());
             parse_quote! { #lit }

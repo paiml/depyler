@@ -48,12 +48,13 @@ pub struct PytestExtractor {
 }
 
 impl PytestExtractor {
-    /// Creates a new PytestExtractor with default settings
+    /// Creates a new `PytestExtractor` with default settings
     pub fn new() -> Self {
         Self { strict_test_files: true }
     }
 
     /// Configure whether to only extract from test_*.py files
+    #[must_use]
     pub fn with_strict_test_files(mut self, strict: bool) -> Self {
         self.strict_test_files = strict;
         self
@@ -81,7 +82,7 @@ impl PytestExtractor {
 
             // Look for simple assert statements
             if trimmed.starts_with("assert ") {
-                if let Some(doctest) = self.parse_assert(trimmed, line_num + 1, &current_function) {
+                if let Some(doctest) = Self::parse_assert(trimmed, line_num + 1, &current_function) {
                     assertions.push(doctest);
                 }
             }
@@ -98,9 +99,9 @@ impl PytestExtractor {
     }
 
     /// Parse an assert statement into a Doctest if it's a simple pattern
+    #[allow(clippy::ref_option)]
     fn parse_assert(
-        &self,
-        line: &str,
+                line: &str,
         line_num: usize,
         _current_function: &Option<String>,
     ) -> Option<Doctest> {
@@ -108,7 +109,7 @@ impl PytestExtractor {
         let assertion = line.strip_prefix("assert ")?.trim();
 
         // Skip complex patterns
-        if self.is_complex_assertion(assertion) {
+        if Self::is_complex_assertion(assertion) {
             return None;
         }
 
@@ -123,16 +124,16 @@ impl PytestExtractor {
         }
 
         // Extract the function being tested (from the call)
-        let func_name = self.extract_called_function(left)?;
+        let func_name = Self::extract_called_function(left)?;
 
         // Clean up right side (remove trailing comments, etc.)
-        let expected = self.clean_expected(right);
+        let expected = Self::clean_expected(right);
 
         Some(Doctest { function: func_name, input: left.to_string(), expected, line: line_num })
     }
 
     /// Check if an assertion is too complex to extract
-    fn is_complex_assertion(&self, assertion: &str) -> bool {
+    fn is_complex_assertion(assertion: &str) -> bool {
         // Skip pytest-specific patterns
         if assertion.contains("pytest.") {
             return true;
@@ -177,7 +178,7 @@ impl PytestExtractor {
     }
 
     /// Extract the function name being called
-    fn extract_called_function(&self, call_expr: &str) -> Option<String> {
+    fn extract_called_function(call_expr: &str) -> Option<String> {
         let paren_idx = call_expr.find('(')?;
         let func_part = &call_expr[..paren_idx];
 
@@ -190,7 +191,7 @@ impl PytestExtractor {
     }
 
     /// Clean up the expected value
-    fn clean_expected(&self, expected: &str) -> String {
+    fn clean_expected(expected: &str) -> String {
         let mut result = expected.to_string();
 
         // Remove trailing comments

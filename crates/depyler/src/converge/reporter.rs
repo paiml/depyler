@@ -38,7 +38,8 @@ pub struct ErrorClusterSummary {
 }
 
 /// Progress bar rendering
-pub fn progress_bar(current: usize, total: usize, width: usize) -> String {
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
+pub(super) fn progress_bar(current: usize, total: usize, width: usize) -> String {
     if total == 0 {
         return "░".repeat(width);
     }
@@ -128,6 +129,7 @@ impl ConvergenceReporter {
     }
 
     /// Report iteration progress
+    #[allow(clippy::cast_precision_loss)]
     pub fn report_iteration(&self, state: &ConvergenceState, top_cluster: &ErrorCluster) {
         if !self.should_output() {
             return;
@@ -167,7 +169,7 @@ impl ConvergenceReporter {
                     // Show root cause
                     let root_cause_str = match &top_cluster.root_cause {
                         super::clusterer::RootCause::TranspilerGap { gap_type, location } => {
-                            format!("{} @ {}", gap_type, location)
+                            format!("{gap_type} @ {location}")
                         }
                         super::clusterer::RootCause::Unknown => "unknown".to_string(),
                     };
@@ -304,7 +306,8 @@ impl ConvergenceReporter {
 
     /// DEPYLER-1321 (Popper): Report escape rate metrics
     /// This implements Popper's falsification criterion for the type system.
-    /// If escape_rate > 20%, the type inference is immunizing against falsification.
+    /// If `escape_rate` > 20%, the type inference is immunizing against falsification.
+    #[allow(clippy::cast_precision_loss)]
     pub fn report_escape_rate(&self, tracker: &EscapeRateTracker) {
         if !self.should_output() {
             return;
@@ -490,6 +493,7 @@ impl ConvergenceReporter {
     }
 
     /// Mini progress bar for frequencies
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
     fn mini_bar(value: usize, max: usize, width: usize) -> String {
         if max == 0 {
             return "░".repeat(width);
@@ -533,7 +537,7 @@ impl ConvergenceReporter {
         if s.len() >= width {
             s[..width].to_string()
         } else {
-            format!("{:width$}", s, width = width)
+            format!("{s:width$}")
         }
     }
 }
@@ -541,7 +545,7 @@ impl ConvergenceReporter {
 /// Truncate a string to max length with ellipsis
 fn truncate(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
-        format!("{:width$}", s, width = max_len)
+        format!("{s:max_len$}")
     } else {
         format!("{}...", &s[..max_len - 3])
     }

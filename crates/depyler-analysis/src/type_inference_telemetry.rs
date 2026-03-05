@@ -38,7 +38,7 @@ static GLOBAL_TELEMETRY: OnceLock<Arc<TypeInferenceTelemetry>> = OnceLock::new()
 /// Event recorded when type inference returns Unknown
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnknownTypeEvent {
-    /// The HIR expression kind (e.g., "Attribute", "MethodCall", "Call")
+    /// The HIR expression kind (e.g., "Attribute", "`MethodCall`", "Call")
     pub expr_kind: String,
     /// String representation of the expression
     pub expr_repr: String,
@@ -72,24 +72,28 @@ impl UnknownTypeEvent {
     }
 
     /// Add context
+    #[must_use]
     pub fn with_context(mut self, context: impl Into<String>) -> Self {
         self.context = Some(context.into());
         self
     }
 
     /// Add source location
+    #[must_use]
     pub fn with_location(mut self, location: impl Into<String>) -> Self {
         self.source_location = Some(location.into());
         self
     }
 
     /// Add parent function
+    #[must_use]
     pub fn with_function(mut self, function: impl Into<String>) -> Self {
         self.parent_function = Some(function.into());
         self
     }
 
     /// Add expected type
+    #[must_use]
     pub fn with_expected(mut self, expected: impl Into<String>) -> Self {
         self.expected_type = Some(expected.into());
         self
@@ -142,12 +146,12 @@ impl TypeInferenceTelemetry {
 
     /// Enable or disable telemetry
     pub fn set_enabled(&self, enabled: bool) {
-        *self.enabled.lock().unwrap_or_else(|e| e.into_inner()) = enabled;
+        *self.enabled.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = enabled;
     }
 
     /// Check if telemetry is enabled
     pub fn is_enabled(&self) -> bool {
-        *self.enabled.lock().unwrap_or_else(|e| e.into_inner())
+        *self.enabled.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// Record an unknown type event
@@ -168,7 +172,7 @@ impl TypeInferenceTelemetry {
 
         // Update stats
         {
-            let mut stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
+            let mut stats = self.stats.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             let entry = stats.entry(event.expr_kind.clone()).or_default();
             entry.count += 1;
 
@@ -185,7 +189,7 @@ impl TypeInferenceTelemetry {
 
         // Store event
         {
-            let mut events = self.events.lock().unwrap_or_else(|e| e.into_inner());
+            let mut events = self.events.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             // Keep last 10000 events
             if events.len() >= 10000 {
                 events.remove(0);
@@ -196,18 +200,18 @@ impl TypeInferenceTelemetry {
 
     /// Get all events
     pub fn events(&self) -> Vec<UnknownTypeEvent> {
-        self.events.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.events.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
     }
 
     /// Get stats by expression kind
     pub fn stats(&self) -> HashMap<String, ExprKindStats> {
-        self.stats.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.stats.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
     }
 
     /// Get summary report
     pub fn summary(&self) -> TelemetrySummary {
-        let stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
-        let events = self.events.lock().unwrap_or_else(|e| e.into_inner());
+        let stats = self.stats.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let events = self.events.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
 
         let mut by_kind: Vec<(String, u64)> =
             stats.iter().map(|(k, v)| (k.clone(), v.count)).collect();
@@ -222,19 +226,19 @@ impl TypeInferenceTelemetry {
 
     /// Clear all recorded data
     pub fn clear(&self) {
-        self.events.lock().unwrap_or_else(|e| e.into_inner()).clear();
-        self.stats.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        self.events.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clear();
+        self.stats.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clear();
     }
 
     /// Export events to JSON for oracle training
     pub fn export_json(&self) -> Result<String, serde_json::Error> {
-        let events = self.events.lock().unwrap_or_else(|e| e.into_inner());
+        let events = self.events.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         serde_json::to_string_pretty(&*events)
     }
 
     /// Export stats to JSON
     pub fn export_stats_json(&self) -> Result<String, serde_json::Error> {
-        let stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
+        let stats = self.stats.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         serde_json::to_string_pretty(&*stats)
     }
 }
@@ -259,7 +263,7 @@ impl std::fmt::Display for TelemetrySummary {
         writeln!(f)?;
         writeln!(f, "Top Unknown Expression Kinds:")?;
         for (kind, count) in &self.top_unknown_kinds {
-            writeln!(f, "  {}: {} occurrences", kind, count)?;
+            writeln!(f, "  {kind}: {count} occurrences")?;
         }
         Ok(())
     }

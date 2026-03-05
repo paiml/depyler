@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 /// Display mode for convergence output (DEPYLER-CONVERGE-RICH)
-/// Mirrors UTOL's DisplayMode for consistency
+/// Mirrors UTOL's `DisplayMode` for consistency
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum DisplayMode {
@@ -26,6 +26,7 @@ pub enum DisplayMode {
 impl std::str::FromStr for DisplayMode {
     type Err = std::convert::Infallible;
 
+    #[allow(clippy::match_same_arms)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s.to_lowercase().as_str() {
             "rich" => Self::Rich,
@@ -46,6 +47,7 @@ impl DisplayMode {
 
 /// Configuration for the convergence loop
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct ConvergenceConfig {
     /// Directory containing Python examples
     pub input_dir: PathBuf,
@@ -189,6 +191,7 @@ impl ConvergenceState {
     }
 
     /// Update compilation rate based on examples
+    #[allow(clippy::cast_precision_loss)]
     pub fn update_compilation_rate(&mut self) {
         if self.examples.is_empty() {
             self.compilation_rate = 0.0;

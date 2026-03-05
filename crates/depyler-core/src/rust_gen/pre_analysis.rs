@@ -27,7 +27,7 @@ use crate::hir::{AssignTarget, HirClass, HirExpr, HirFunction, HirModule, HirStm
 /// 6. Option-returning functions and return types
 /// 7. Function parameter types for literal coercion
 /// 8. Vararg function detection
-/// 9. Function param_muts pre-population
+/// 9. Function `param_muts` pre-population
 /// 10. Optional parameter tracking
 /// 11. Class field types
 /// 12. Class method return types

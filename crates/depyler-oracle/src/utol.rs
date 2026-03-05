@@ -202,6 +202,7 @@ impl LoopState {
     }
 
     /// Calculate progress percentage
+    #[allow(clippy::cast_precision_loss)]
     pub fn progress_pct(&self, max_iterations: usize) -> f64 {
         if max_iterations == 0 {
             return 0.0;
@@ -273,6 +274,7 @@ impl ConvergenceEstimator {
     }
 
     /// Update estimate with new measurement
+    #[allow(clippy::cast_precision_loss)]
     pub fn update(&mut self, compile_rate: f64) -> ConvergenceEstimate {
         self.history.push(compile_rate);
 
@@ -305,6 +307,7 @@ impl ConvergenceEstimator {
     }
 
     /// Calculate linear trend from history
+    #[allow(clippy::cast_precision_loss, clippy::similar_names)]
     fn calculate_trend(&self) -> f64 {
         if self.history.len() < 2 {
             return 0.0;
@@ -332,6 +335,7 @@ impl ConvergenceEstimator {
     }
 
     /// Estimate iterations needed to reach target
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn estimate_iterations_to_target(&self, trend: f64) -> Option<usize> {
         if self.estimate >= self.target {
             return Some(0);
@@ -365,10 +369,11 @@ pub struct ConvergenceEstimate {
 // Andon Display (UTOL-030)
 // ============================================================================
 
-/// Unicode sparkline characters (from entrenar::train::tui)
+/// Unicode sparkline characters (from `entrenar::train::tui`)
 pub const SPARK_CHARS: [char; 8] = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
 /// Generate sparkline from values
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
 pub fn sparkline(values: &[f64], width: usize) -> String {
     if values.is_empty() {
         return " ".repeat(width);
@@ -399,6 +404,7 @@ pub fn sparkline(values: &[f64], width: usize) -> String {
 }
 
 /// Progress bar rendering
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
 pub fn progress_bar(current: usize, total: usize, width: usize) -> String {
     if total == 0 {
         return "░".repeat(width);
@@ -464,6 +470,7 @@ impl AndonDisplay {
     }
 
     /// Format the header line
+    #[allow(clippy::match_same_arms)]
     pub fn format_header(&self, state: &LoopState, config: &ConvergenceConfig) -> String {
         match self.config.mode {
             DisplayMode::Rich => self.format_rich_header(state, config),
@@ -474,6 +481,7 @@ impl AndonDisplay {
     }
 
     /// Format rich TUI header
+    #[allow(clippy::unused_self)]
     fn format_rich_header(&self, state: &LoopState, config: &ConvergenceConfig) -> String {
         let progress = progress_bar(state.iteration, config.max_iterations, 20);
         let pct = state.progress_pct(config.max_iterations);
@@ -500,6 +508,7 @@ impl AndonDisplay {
     }
 
     /// Format minimal single-line output
+    #[allow(clippy::unused_self)]
     fn format_minimal(&self, state: &LoopState, config: &ConvergenceConfig) -> String {
         let status = if state.compile_rate >= config.target_rate {
             "CONVERGED"
@@ -596,10 +605,10 @@ pub fn decide_action(
     }
 
     // Check improvement
-    let delta = if !state.rate_history.is_empty() {
-        compile_rate - state.rate_history.last().copied().unwrap_or(0.0)
-    } else {
+    let delta = if state.rate_history.is_empty() {
         config.min_delta + 0.001 // First iteration, assume improvement
+    } else {
+        compile_rate - state.rate_history.last().copied().unwrap_or(0.0)
     };
 
     if delta < config.min_delta {
@@ -653,6 +662,7 @@ pub struct CompilationMetrics {
 
 impl CompilationMetrics {
     /// Calculate metrics from compilation results
+    #[allow(clippy::cast_precision_loss)]
     pub fn from_results(results: &[CompileResult]) -> Self {
         let total = results.len();
         let successful = results.iter().filter(|r| r.success).count();
@@ -725,7 +735,7 @@ pub fn compile_corpus(config: &CorpusConfig, classifier: &crate::Oracle) -> Vec<
         config.exclude_patterns.iter().filter_map(|p| Pattern::new(p).ok()).collect();
 
     // Walk corpus directory
-    for entry in WalkDir::new(&config.path).follow_links(true).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(&config.path).follow_links(true).into_iter().filter_map(std::result::Result::ok) {
         let path = entry.path();
         if !path.is_file() {
             continue;
@@ -767,7 +777,7 @@ fn compile_single_file(
             return CompileResult {
                 file: path.to_path_buf(),
                 success: false,
-                error: Some(format!("Failed to read file: {}", e)),
+                error: Some(format!("Failed to read file: {e}")),
                 category: Some(ErrorCategory::Other),
                 rust_code: None,
             };
@@ -778,7 +788,7 @@ fn compile_single_file(
     let rust_code = match pipeline.transpile(&python_code) {
         Ok(code) => code,
         Err(e) => {
-            let error_str = format!("{}", e);
+            let error_str = format!("{e}");
             let category = classifier
                 .classify_message(&error_str)
                 .map(|r| r.category)
@@ -827,10 +837,10 @@ fn try_compile_rust(rust_code: &str) -> Result<(), String> {
     // Create temp files for source and output
     let temp_dir = std::env::temp_dir();
     let pid = std::process::id();
-    let temp_file = temp_dir.join(format!("utol_check_{}.rs", pid));
+    let temp_file = temp_dir.join(format!("utol_check_{pid}.rs"));
     // DEPYLER-1119: Use proper temp file for output, not /dev/null
     // Using /dev/null causes rustc to try creating temp dirs in /dev/ which fails
-    let temp_output = temp_dir.join(format!("utol_out_{}", pid));
+    let temp_output = temp_dir.join(format!("utol_out_{pid}"));
 
     // Write Rust code
     let mut file = std::fs::File::create(&temp_file).map_err(|e| e.to_string())?;
@@ -922,12 +932,12 @@ impl TypeConstraintLearner {
                 // Search nearby lines for expected/found
                 for check_line in &lines[i..std::cmp::min(i + 10, lines.len())] {
                     if let Some(caps) = self.e0308_pattern.captures(check_line) {
-                        let expected = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-                        let found = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                        let expected = caps.get(1).map_or("", |m| m.as_str());
+                        let found = caps.get(2).map_or("", |m| m.as_str());
 
                         if !expected.is_empty() && !found.is_empty() {
                             self.constraints.push(TypeConstraint {
-                                location: format!("line_{}", current_line),
+                                location: format!("line_{current_line}"),
                                 expected_type: expected.to_string(),
                                 found_type: found.to_string(),
                                 source_file: source_file.to_path_buf(),
@@ -997,7 +1007,7 @@ impl TypeConstraintLearner {
         pairs.sort_by(|a, b| b.1.cmp(&a.1));
 
         for ((expected, found), count) in pairs.iter().take(10) {
-            lines.push(format!("  {} × expected `{}`, found `{}`", count, expected, found));
+            lines.push(format!("  {count} × expected `{expected}`, found `{found}`"));
         }
 
         lines.join("\n")
@@ -1106,8 +1116,7 @@ pub fn repair_file_types(
                 // If no new constraints learned, we're stuck
                 if new_count == prev_count {
                     eprintln!(
-                        "DEPYLER-1101: No new constraints learned after {} iterations",
-                        iterations
+                        "DEPYLER-1101: No new constraints learned after {iterations} iterations"
                     );
                     break;
                 }
@@ -1144,6 +1153,7 @@ pub fn repair_file_types(
 // ============================================================================
 
 /// Run the UTOL main loop
+#[allow(clippy::too_many_lines)]
 pub fn run_utol(config: &UtolConfig) -> anyhow::Result<UtolResult> {
     use std::time::Instant;
 
@@ -1212,11 +1222,11 @@ pub fn run_utol(config: &UtolConfig) -> anyhow::Result<UtolResult> {
         if !matches!(config.display.mode, DisplayMode::Silent | DisplayMode::Json) {
             let header = display.format_header(&state, &config.convergence);
             if !header.is_empty() {
-                println!("{}", header);
+                println!("{header}");
             }
             let metrics_output = display.format_metrics(&state, drift_status);
             if !metrics_output.is_empty() {
-                println!("{}", metrics_output);
+                println!("{metrics_output}");
             }
             println!();
         }
@@ -1276,7 +1286,7 @@ pub fn run_utol(config: &UtolConfig) -> anyhow::Result<UtolResult> {
         category_rates: state
             .category_rates
             .into_iter()
-            .map(|(k, v)| (format!("{:?}", k), v))
+            .map(|(k, v)| (format!("{k:?}"), v))
             .collect(),
         duration_secs: duration.as_secs_f64(),
     })

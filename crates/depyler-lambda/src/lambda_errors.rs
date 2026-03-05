@@ -96,9 +96,9 @@ pub enum LambdaError {
 impl LambdaError {
     pub fn status_code(&self) -> u16 {
         match self {
-            LambdaError::MissingParameter { .. } => 400,
-            LambdaError::Handler { .. } => 400,
-            LambdaError::InvalidEvent { .. } => 400,
+            LambdaError::MissingParameter { .. }
+            | LambdaError::Handler { .. }
+            | LambdaError::InvalidEvent { .. } => 400,
             LambdaError::Authentication { .. } => 401,
             LambdaError::Authorization { .. } => 403,
             LambdaError::Timeout { .. } => 504,
@@ -110,8 +110,7 @@ impl LambdaError {
 
     pub fn should_retry(&self) -> bool {
         match self {
-            LambdaError::Timeout { .. } => true,
-            LambdaError::ExternalService { .. } => true,
+            LambdaError::Timeout { .. } | LambdaError::ExternalService { .. } => true,
             LambdaError::Http { status, .. } => *status >= 500,
             _ => false,
         }
@@ -235,6 +234,7 @@ impl LambdaErrorHandler {
         Self { error_mappings, error_strategy: ErrorHandlingStrategy::default() }
     }
 
+    #[must_use]
     pub fn with_strategy(mut self, strategy: ErrorHandlingStrategy) -> Self {
         self.error_strategy = strategy;
         self
@@ -242,15 +242,15 @@ impl LambdaErrorHandler {
 
     /// Generate error handling code for Lambda functions
     pub fn generate_error_handling_code(&self) -> Result<ErrorConversionCode> {
-        let conversion_functions = self.generate_conversion_functions();
-        let error_enum = self.generate_error_enum();
-        let helper_traits = self.generate_helper_traits();
+        let conversion_functions = Self::generate_conversion_functions();
+        let error_enum = Self::generate_error_enum();
+        let helper_traits = Self::generate_helper_traits();
 
         Ok(ErrorConversionCode { conversion_functions, error_enum, helper_traits })
     }
 
     /// Generate Rust error enum definition
-    fn generate_error_enum(&self) -> String {
+    fn generate_error_enum() -> String {
         r#"#[derive(Debug, thiserror::Error)]
 pub enum LambdaError {
     #[error("Serialization failed: {message}")]
@@ -323,9 +323,9 @@ pub enum LambdaError {
 impl LambdaError {
     pub fn status_code(&self) -> u16 {
         match self {
-            LambdaError::MissingParameter { .. } => 400,
-            LambdaError::Handler { .. } => 400,
-            LambdaError::InvalidEvent { .. } => 400,
+            LambdaError::MissingParameter { .. }
+            | LambdaError::Handler { .. }
+            | LambdaError::InvalidEvent { .. } => 400,
             LambdaError::Authentication { .. } => 401,
             LambdaError::Authorization { .. } => 403,
             LambdaError::Timeout { .. } => 504,
@@ -337,8 +337,7 @@ impl LambdaError {
     
     pub fn should_retry(&self) -> bool {
         match self {
-            LambdaError::Timeout { .. } => true,
-            LambdaError::ExternalService { .. } => true,
+            LambdaError::Timeout { .. } | LambdaError::ExternalService { .. } => true,
             LambdaError::Http { status, .. } => *status >= 500,
             _ => false,
         }
@@ -349,7 +348,8 @@ impl LambdaError {
     }
 
     /// Generate conversion functions from Python error patterns
-    fn generate_conversion_functions(&self) -> String {
+    #[allow(clippy::too_many_lines)]
+    fn generate_conversion_functions() -> String {
         let mut functions = String::new();
 
         functions.push_str(
@@ -477,8 +477,8 @@ impl From<LambdaError> for aws_lambda_events::apigw::ApiGatewayV2httpResponse {{
     }
 
     /// Generate helper traits for error handling
-    fn generate_helper_traits(&self) -> String {
-        r#"// Helper traits for error handling
+    fn generate_helper_traits() -> String {
+        r"// Helper traits for error handling
 pub trait LambdaErrorExt {
     fn with_context(self, context: &str) -> LambdaError;
     fn with_parameter(self, parameter: &str) -> LambdaError;
@@ -553,7 +553,7 @@ macro_rules! require_param {{
     }};
 }}
 
-"#
+"
         .to_string()
     }
 
@@ -622,7 +622,7 @@ async fn {handler_name}_with_error_handling(
             }
             ErrorHandlingStrategy::CustomHandler(custom_code) => {
                 format!(
-                    r#"// Custom error handling wrapper for {handler_name}
+                    r"// Custom error handling wrapper for {handler_name}
 async fn {handler_name}_with_error_handling(
     event: LambdaEvent<serde_json::Value>
 ) -> Result<serde_json::Value, LambdaError> {{
@@ -633,7 +633,7 @@ async fn {handler_name}_with_error_handling(
         }}
     }}
 }}
-"#
+"
                 )
             }
         }

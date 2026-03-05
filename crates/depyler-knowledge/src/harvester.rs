@@ -35,9 +35,9 @@ impl HarvestResult {
     /// Returns all parseable files (stubs preferred, sources as fallback).
     pub fn all_files(&self) -> Vec<&Path> {
         if self.stub_files.is_empty() {
-            self.source_files.iter().map(|p| p.as_path()).collect()
+            self.source_files.iter().map(std::path::PathBuf::as_path).collect()
         } else {
-            self.stub_files.iter().map(|p| p.as_path()).collect()
+            self.stub_files.iter().map(std::path::PathBuf::as_path).collect()
         }
     }
 
@@ -88,8 +88,8 @@ impl Harvester {
         self.run_uv_install(package)?;
 
         // Find stub and source files
-        let stub_files = self.find_files_by_extension(&self.target_dir, "pyi");
-        let source_files = self.find_files_by_extension(&self.target_dir, "py");
+        let stub_files = Self::find_files_by_extension(&self.target_dir, "pyi");
+        let source_files = Self::find_files_by_extension(&self.target_dir, "py");
 
         debug!(
             package = %package,
@@ -149,8 +149,7 @@ impl Harvester {
             .output()
             .map_err(|e| {
                 KnowledgeError::UvCommandFailed(format!(
-                    "Failed to execute uv: {}. Is uv installed? Try: curl -LsSf https://astral.sh/uv/install.sh | sh",
-                    e
+                    "Failed to execute uv: {e}. Is uv installed? Try: curl -LsSf https://astral.sh/uv/install.sh | sh"
                 ))
             })?;
 
@@ -166,10 +165,10 @@ impl Harvester {
     }
 
     /// Find all files with a given extension in a directory tree.
-    fn find_files_by_extension(&self, root: &Path, ext: &str) -> Vec<PathBuf> {
+    fn find_files_by_extension(root: &Path, ext: &str) -> Vec<PathBuf> {
         WalkDir::new(root)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .filter(|e| e.file_type().is_file())
             .filter(|e| e.path().extension().is_some_and(|x| x == ext))
             .map(|e| e.path().to_path_buf())
@@ -343,13 +342,13 @@ mod tests {
         std::fs::write(root.join("d.txt"), "").unwrap();
 
         let harvester = Harvester::new(root).unwrap();
-        let pyi_files = harvester.find_files_by_extension(root, "pyi");
+        let pyi_files = Harvester::find_files_by_extension(root, "pyi");
         assert_eq!(pyi_files.len(), 2);
 
-        let py_files = harvester.find_files_by_extension(root, "py");
+        let py_files = Harvester::find_files_by_extension(root, "py");
         assert_eq!(py_files.len(), 1);
 
-        let txt_files = harvester.find_files_by_extension(root, "txt");
+        let txt_files = Harvester::find_files_by_extension(root, "txt");
         assert_eq!(txt_files.len(), 1);
     }
 
@@ -364,7 +363,7 @@ mod tests {
         std::fs::write(subdir.join("nested.pyi"), "").unwrap();
 
         let harvester = Harvester::new(root).unwrap();
-        let files = harvester.find_files_by_extension(root, "pyi");
+        let files = Harvester::find_files_by_extension(root, "pyi");
         assert_eq!(files.len(), 2);
     }
 
@@ -428,7 +427,7 @@ mod tests {
         std::fs::write(temp.path().join("file.rs"), "").unwrap();
         std::fs::write(temp.path().join("file.txt"), "").unwrap();
         let harvester = Harvester::new(temp.path()).unwrap();
-        let pyi_files = harvester.find_files_by_extension(temp.path(), "pyi");
+        let pyi_files = Harvester::find_files_by_extension(temp.path(), "pyi");
         assert!(pyi_files.is_empty());
     }
 
@@ -447,7 +446,7 @@ mod tests {
     fn test_harvester_find_files_empty_dir() {
         let temp = TempDir::new().unwrap();
         let harvester = Harvester::new(temp.path()).unwrap();
-        let files = harvester.find_files_by_extension(temp.path(), "pyi");
+        let files = Harvester::find_files_by_extension(temp.path(), "pyi");
         assert!(files.is_empty());
     }
 
@@ -515,11 +514,11 @@ mod tests {
         std::fs::write(temp.path().join("c.py"), "# source").unwrap();
         std::fs::write(temp.path().join("d.txt"), "text").unwrap();
 
-        let pyi_files = harvester.find_files_by_extension(temp.path(), "pyi");
+        let pyi_files = Harvester::find_files_by_extension(temp.path(), "pyi");
         assert_eq!(pyi_files.len(), 2);
-        let py_files = harvester.find_files_by_extension(temp.path(), "py");
+        let py_files = Harvester::find_files_by_extension(temp.path(), "py");
         assert_eq!(py_files.len(), 1);
-        let txt_files = harvester.find_files_by_extension(temp.path(), "txt");
+        let txt_files = Harvester::find_files_by_extension(temp.path(), "txt");
         assert_eq!(txt_files.len(), 1);
     }
 

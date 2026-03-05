@@ -1,6 +1,7 @@
 use colored::Colorize;
 /// Migration suggestions for Python-to-Rust idiom transitions
 use depyler_hir::hir::{HirExpr, HirFunction, HirProgram, HirStmt, Type};
+use std::fmt::Write as _;
 
 /// Migration suggestion analyzer that identifies Python patterns and suggests Rust idioms
 pub struct MigrationAnalyzer {
@@ -11,6 +12,7 @@ pub struct MigrationAnalyzer {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct MigrationConfig {
     /// Enable suggestions for iterator patterns
     pub suggest_iterators: bool,
@@ -139,20 +141,20 @@ impl MigrationAnalyzer {
 
     fn check_function_patterns(&mut self, func: &HirFunction) {
         // Check for list comprehension opportunities
-        if self.has_accumulator_pattern(&func.body) {
+        if Self::has_accumulator_pattern(&func.body) {
             self.add_suggestion(MigrationSuggestion {
                 category: SuggestionCategory::Iterator,
                 severity: Severity::Warning,
                 title: format!("Consider using iterator methods in '{}'", func.name),
                 description: "This function uses an accumulator pattern that could be replaced with iterator methods".to_string(),
-                python_example: r#"result = []
+                python_example: r"result = []
 for item in items:
     if condition(item):
-        result.append(transform(item))"#.to_string(),
-                rust_suggestion: r#"let result: Vec<_> = items.iter()
+        result.append(transform(item))".to_string(),
+                rust_suggestion: r"let result: Vec<_> = items.iter()
     .filter(|item| condition(item))
     .map(|item| transform(item))
-    .collect();"#.to_string(),
+    .collect();".to_string(),
                 notes: vec![
                     "Iterator chains are more idiomatic and often more efficient".to_string(),
                     "They avoid intermediate allocations".to_string(),
@@ -165,7 +167,7 @@ for item in items:
         }
 
         // Check for error handling patterns
-        if self.uses_none_as_error(&func.body, &func.ret_type) {
+        if Self::uses_none_as_error(&func.body, &func.ret_type) {
             self.add_suggestion(MigrationSuggestion {
                 category: SuggestionCategory::ErrorHandling,
                 severity: Severity::Important,
@@ -174,17 +176,17 @@ for item in items:
                     func.name
                 ),
                 description: "Returning None for errors loses error information".to_string(),
-                python_example: r#"def process(data):
+                python_example: r"def process(data):
     if not valid(data):
         return None
-    return result"#
+    return result"
                     .to_string(),
-                rust_suggestion: r#"fn process(data: &Data) -> Result<T, ProcessError> {
+                rust_suggestion: r"fn process(data: &Data) -> Result<T, ProcessError> {
     if !valid(data) {
         return Err(ProcessError::InvalidData);
     }
     Ok(result)
-}"#
+}"
                 .to_string(),
                 notes: vec![
                     "Result provides rich error information".to_string(),
@@ -195,7 +197,7 @@ for item in items:
         }
 
         // Check for mutable parameter patterns
-        if self.has_mutable_parameter_pattern(func) {
+        if Self::has_mutable_parameter_pattern(func) {
             self.add_suggestion(MigrationSuggestion {
                 category: SuggestionCategory::Ownership,
                 severity: Severity::Important,
@@ -204,11 +206,11 @@ for item in items:
                     func.name
                 ),
                 description: "This function appears to modify its parameters".to_string(),
-                python_example: r#"def modify_list(lst):
+                python_example: r"def modify_list(lst):
     lst.append(42)
-    return lst"#
+    return lst"
                     .to_string(),
-                rust_suggestion: r#"// Option 1: Take mutable reference
+                rust_suggestion: r"// Option 1: Take mutable reference
 fn modify_list(lst: &mut Vec<i32>) {
     lst.push(42);
 }
@@ -217,7 +219,7 @@ fn modify_list(lst: &mut Vec<i32>) {
 fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
     lst.push(42);
     lst
-}"#
+}"
                 .to_string(),
                 notes: vec![
                     "Rust's ownership system requires explicit mutability".to_string(),
@@ -272,19 +274,19 @@ fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
         }
 
         // Check for filter + map patterns in loop body
-        if self.has_filter_map_pattern(body) {
+        if Self::has_filter_map_pattern(body) {
             self.add_suggestion(MigrationSuggestion {
                 category: SuggestionCategory::Iterator,
                 severity: Severity::Warning,
                 title: "Consider filter_map() for conditional transformation".to_string(),
                 description: "Combining filter and map operations can be more efficient"
                     .to_string(),
-                python_example: r#"result = []
+                python_example: r"result = []
 for item in items:
     if condition(item):
-        result.append(transform(item))"#
+        result.append(transform(item))"
                     .to_string(),
-                rust_suggestion: r#"let result: Vec<_> = items.iter()
+                rust_suggestion: r"let result: Vec<_> = items.iter()
     .filter_map(|item| {
         if condition(item) {
             Some(transform(item))
@@ -292,7 +294,7 @@ for item in items:
             None
         }
     })
-    .collect();"#
+    .collect();"
                     .to_string(),
                 notes: vec!["filter_map avoids intermediate Option wrapping".to_string()],
                 location: Some(SourceLocation { function: func.name.clone(), line }),
@@ -325,6 +327,7 @@ for item in items:
         }
     }
 
+    #[allow(clippy::ref_option)]
     fn analyze_if_statement(
         &mut self,
         condition: &HirExpr,
@@ -334,19 +337,19 @@ for item in items:
         line: usize,
     ) {
         // Check for type checking patterns
-        if self.is_type_check(condition) {
+        if Self::is_type_check(condition) {
             self.add_suggestion(MigrationSuggestion {
                 category: SuggestionCategory::TypeSystem,
                 severity: Severity::Important,
                 title: "Use Rust's type system instead of runtime type checks".to_string(),
                 description: "Rust's static typing eliminates the need for runtime type checks"
                     .to_string(),
-                python_example: r#"if isinstance(value, str):
+                python_example: r"if isinstance(value, str):
     process_string(value)
 elif isinstance(value, int):
-    process_number(value)"#
+    process_number(value)"
                     .to_string(),
-                rust_suggestion: r#"// Use enums for sum types
+                rust_suggestion: r"// Use enums for sum types
 enum Value {
     String(String),
     Number(i32),
@@ -355,7 +358,7 @@ enum Value {
 match value {
     Value::String(s) => process_string(s),
     Value::Number(n) => process_number(n),
-}"#
+}"
                 .to_string(),
                 notes: vec![
                     "Enums provide compile-time guarantees".to_string(),
@@ -366,18 +369,18 @@ match value {
         }
 
         // Check for None checking patterns
-        if self.is_none_check(condition) && else_body.is_some() {
+        if Self::is_none_check(condition) && else_body.is_some() {
             self.add_suggestion(MigrationSuggestion {
                 category: SuggestionCategory::ErrorHandling,
                 severity: Severity::Warning,
                 title: "Use pattern matching or if-let for Option handling".to_string(),
                 description: "Rust provides ergonomic ways to handle Option values".to_string(),
-                python_example: r#"if value is not None:
+                python_example: r"if value is not None:
     process(value)
 else:
-    handle_none()"#
+    handle_none()"
                     .to_string(),
-                rust_suggestion: r#"// Option 1: if let
+                rust_suggestion: r"// Option 1: if let
 if let Some(v) = value {
     process(v);
 } else {
@@ -388,7 +391,7 @@ if let Some(v) = value {
 match value {
     Some(v) => process(v),
     None => handle_none(),
-}"#
+}"
                 .to_string(),
                 notes: vec!["Pattern matching is more idiomatic and safer".to_string()],
                 location: Some(SourceLocation { function: func.name.clone(), line }),
@@ -421,7 +424,7 @@ match value {
         }
 
         // Check for string concatenation patterns
-        if self.is_string_concatenation(value) {
+        if Self::is_string_concatenation(value) {
             self.add_suggestion(MigrationSuggestion {
                 category: SuggestionCategory::Performance,
                 severity: Severity::Warning,
@@ -451,13 +454,13 @@ for item in items {
 
     // Helper methods for pattern detection
 
-    fn has_accumulator_pattern(&self, body: &[HirStmt]) -> bool {
-        let has_empty_list = self.has_empty_list_initialization(body);
-        let has_append_in_loop = self.has_append_in_for_loop(body);
+    fn has_accumulator_pattern(body: &[HirStmt]) -> bool {
+        let has_empty_list = Self::has_empty_list_initialization(body);
+        let has_append_in_loop = Self::has_append_in_for_loop(body);
         has_empty_list && has_append_in_loop
     }
 
-    fn has_empty_list_initialization(&self, body: &[HirStmt]) -> bool {
+    fn has_empty_list_initialization(body: &[HirStmt]) -> bool {
         body.iter().any(|stmt| {
             matches!(
                 stmt,
@@ -469,17 +472,17 @@ for item in items {
         })
     }
 
-    fn has_append_in_for_loop(&self, body: &[HirStmt]) -> bool {
+    fn has_append_in_for_loop(body: &[HirStmt]) -> bool {
         body.iter().any(|stmt| {
             if let HirStmt::For { body, .. } = stmt {
-                self.contains_append_call(body)
+                Self::contains_append_call(body)
             } else {
                 false
             }
         })
     }
 
-    fn contains_append_call(&self, body: &[HirStmt]) -> bool {
+    fn contains_append_call(body: &[HirStmt]) -> bool {
         body.iter().any(|stmt| {
             matches!(
                 stmt,
@@ -488,7 +491,7 @@ for item in items {
         })
     }
 
-    fn uses_none_as_error(&self, body: &[HirStmt], ret_type: &Type) -> bool {
+    fn uses_none_as_error(body: &[HirStmt], ret_type: &Type) -> bool {
         // Check if function returns Optional and has early None returns
         if !matches!(ret_type, Type::Optional(_)) {
             return false;
@@ -504,37 +507,37 @@ for item in items {
         false
     }
 
-    fn has_mutable_parameter_pattern(&self, func: &HirFunction) -> bool {
-        func.body.iter().any(|stmt| self.is_mutating_method_on_param(stmt, func))
+    fn has_mutable_parameter_pattern(func: &HirFunction) -> bool {
+        func.body.iter().any(|stmt| Self::is_mutating_method_on_param(stmt, func))
     }
 
-    fn is_mutating_method_on_param(&self, stmt: &HirStmt, func: &HirFunction) -> bool {
+    fn is_mutating_method_on_param(stmt: &HirStmt, func: &HirFunction) -> bool {
         if let HirStmt::Expr(HirExpr::MethodCall { object, method, .. }) = stmt {
             if let HirExpr::Var(var) = object.as_ref() {
-                return self.is_param_mutated(var, method, func);
+                return Self::is_param_mutated(var, method, func);
             }
         }
         false
     }
 
-    fn is_param_mutated(&self, var: &str, method: &str, func: &HirFunction) -> bool {
+    fn is_param_mutated(var: &str, method: &str, func: &HirFunction) -> bool {
         let is_parameter = func.params.iter().any(|p| p.name == var);
         let mutating_methods = ["append", "extend", "push", "insert", "remove", "clear"];
         let is_mutating = mutating_methods.contains(&method);
         is_parameter && is_mutating
     }
 
-    fn has_filter_map_pattern(&self, body: &[HirStmt]) -> bool {
+    fn has_filter_map_pattern(body: &[HirStmt]) -> bool {
         body.iter().any(|stmt| {
             if let HirStmt::If { then_body, .. } = stmt {
-                self.contains_append_call(then_body)
+                Self::contains_append_call(then_body)
             } else {
                 false
             }
         })
     }
 
-    fn is_type_check(&self, expr: &HirExpr) -> bool {
+    fn is_type_check(expr: &HirExpr) -> bool {
         // Check for isinstance() calls
         if let HirExpr::Call { func, .. } = expr {
             return func == "isinstance";
@@ -542,7 +545,7 @@ for item in items {
         false
     }
 
-    fn is_none_check(&self, expr: &HirExpr) -> bool {
+    fn is_none_check(expr: &HirExpr) -> bool {
         // Check for "x == None" patterns (Python's is/is not would be transpiled to ==/!=)
         if let HirExpr::Binary { left: _, right, op } = expr {
             if let HirExpr::Literal(depyler_hir::hir::Literal::None) = right.as_ref() {
@@ -552,7 +555,7 @@ for item in items {
         false
     }
 
-    fn is_string_concatenation(&self, expr: &HirExpr) -> bool {
+    fn is_string_concatenation(expr: &HirExpr) -> bool {
         // Check for string + operations
         if let HirExpr::Binary { op: depyler_hir::hir::BinOp::Add, left, right } = expr {
             // Simplified check - would need type info for accuracy
@@ -581,32 +584,32 @@ for item in items {
     /// ```
     pub fn format_suggestions(&self, suggestions: &[MigrationSuggestion]) -> String {
         if suggestions.is_empty() {
-            return self.format_empty_suggestions();
+            return Self::format_empty_suggestions();
         }
 
-        let mut output = self.format_header();
+        let mut output = Self::format_header();
 
         for (idx, suggestion) in suggestions.iter().enumerate() {
             output.push_str(&self.format_single_suggestion(suggestion, idx));
         }
 
-        output.push_str(&self.format_summary(suggestions));
+        output.push_str(&Self::format_summary(suggestions));
         output
     }
 
-    fn format_empty_suggestions(&self) -> String {
+    fn format_empty_suggestions() -> String {
         "✨ No migration suggestions found - code is already idiomatic!\n".green().to_string()
     }
 
-    fn format_header(&self) -> String {
+    fn format_header() -> String {
         format!("\n{}\n{}\n\n", "Migration Suggestions".bold().blue(), "═".repeat(50))
     }
 
     fn format_single_suggestion(&self, suggestion: &MigrationSuggestion, idx: usize) -> String {
         let mut output = String::new();
 
-        output.push_str(&self.format_suggestion_title(suggestion, idx));
-        output.push_str(&self.format_suggestion_metadata(suggestion));
+        output.push_str(&Self::format_suggestion_title(suggestion, idx));
+        output.push_str(&Self::format_suggestion_metadata(suggestion));
         output.push_str(&self.format_suggestion_examples(suggestion));
         output.push_str(&self.format_suggestion_notes(suggestion));
         output.push('\n');
@@ -614,7 +617,7 @@ for item in items {
         output
     }
 
-    fn format_suggestion_title(&self, suggestion: &MigrationSuggestion, idx: usize) -> String {
+    fn format_suggestion_title(suggestion: &MigrationSuggestion, idx: usize) -> String {
         let severity_color = Self::get_severity_color(suggestion.severity);
         format!(
             "{} {} {}\n",
@@ -633,18 +636,17 @@ for item in items {
         }
     }
 
-    fn format_suggestion_metadata(&self, suggestion: &MigrationSuggestion) -> String {
+    fn format_suggestion_metadata(suggestion: &MigrationSuggestion) -> String {
         let mut output = format!("   {} {:?}\n", "Category:".dimmed(), suggestion.category);
 
-        output.push_str(&format!("   {} {}\n", "Why:".dimmed(), suggestion.description));
+        let _ = writeln!(output, "   {} {}", "Why:".dimmed(), suggestion.description);
 
         if let Some(loc) = &suggestion.location {
-            output.push_str(&format!(
-                "   {} {} line {}\n",
+            let _ = writeln!(output, "   {} {} line {}",
                 "Location:".dimmed(),
                 loc.function,
                 loc.line
-            ));
+            );
         }
 
         output
@@ -657,14 +659,14 @@ for item in items {
 
         let mut output = String::new();
 
-        output.push_str(&format!("\n   {}:\n", "Python pattern".yellow()));
+        let _ = writeln!(output, "\n   {}:", "Python pattern".yellow());
         for line in suggestion.python_example.lines() {
-            output.push_str(&format!("   │ {}\n", line));
+            let _ = writeln!(output, "   │ {line}");
         }
 
-        output.push_str(&format!("\n   {}:\n", "Rust idiom".green()));
+        let _ = writeln!(output, "\n   {}:", "Rust idiom".green());
         for line in suggestion.rust_suggestion.lines() {
-            output.push_str(&format!("   │ {}\n", line));
+            let _ = writeln!(output, "   │ {line}");
         }
 
         output
@@ -677,13 +679,13 @@ for item in items {
 
         let mut output = format!("\n   {}:\n", "Notes".dimmed());
         for note in &suggestion.notes {
-            output.push_str(&format!("   • {}\n", note.dimmed()));
+            let _ = writeln!(output, "   • {}", note.dimmed());
         }
 
         output
     }
 
-    fn format_summary(&self, suggestions: &[MigrationSuggestion]) -> String {
+    fn format_summary(suggestions: &[MigrationSuggestion]) -> String {
         let critical_count =
             suggestions.iter().filter(|s| s.severity == Severity::Critical).count();
         let important_count =

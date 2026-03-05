@@ -21,7 +21,7 @@ impl UnionEnumGenerator {
     pub fn generate_union_enum(&mut self, types: &[Type]) -> (String, proc_macro2::TokenStream) {
         // Check if we've already generated an enum for these types
         let mut sorted_types = types.to_vec();
-        sorted_types.sort_by_key(|t| format!("{:?}", t));
+        sorted_types.sort_by_key(|t| format!("{t:?}"));
 
         if let Some(cached_name) = self.enum_cache.get(&sorted_types) {
             return (cached_name.clone(), quote! {});
@@ -47,15 +47,12 @@ impl UnionEnumGenerator {
             .map(|(name, ty)| {
                 let variant_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
                 let rust_type = self.type_to_rust_type(ty);
-                match rust_type {
-                    RustType::Unit => quote! { #variant_ident },
-                    _ => {
-                        let ty_tokens = match crate::rust_gen::rust_type_to_syn(&rust_type) {
-                            Ok(tokens) => tokens,
-                            Err(_) => syn::parse_quote! { () },
-                        };
-                        quote! { #variant_ident(#ty_tokens) }
-                    }
+                if rust_type == RustType::Unit { quote! { #variant_ident } } else {
+                    let ty_tokens = match crate::rust_gen::rust_type_to_syn(&rust_type) {
+                        Ok(tokens) => tokens,
+                        Err(_) => syn::parse_quote! { () },
+                    };
+                    quote! { #variant_ident(#ty_tokens) }
                 }
             })
             .collect();
@@ -115,6 +112,7 @@ impl UnionEnumGenerator {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn type_to_variant_name(&self, ty: &Type, index: usize) -> String {
         match ty {
             Type::Int => "Integer".to_string(),
@@ -125,11 +123,12 @@ impl UnionEnumGenerator {
             Type::List(_) => "List".to_string(),
             Type::Dict(_, _) => "Dict".to_string(),
             Type::Custom(name) => name.clone(),
-            Type::TypeVar(name) => format!("Type{}", name),
-            _ => format!("Variant{}", index),
+            Type::TypeVar(name) => format!("Type{name}"),
+            _ => format!("Variant{index}"),
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn type_to_rust_type(&self, ty: &Type) -> RustType {
         // Convert HIR Type to RustType
         let mapper = crate::type_mapper::TypeMapper::new();

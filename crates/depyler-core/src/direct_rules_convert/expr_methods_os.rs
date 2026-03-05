@@ -1,15 +1,15 @@
-//! OS module method conversion for ExprConverter
+//! OS module method conversion for `ExprConverter`
 //!
 //! Handles os.*, os.path.*, and os.environ.* method calls.
 
-use crate::hir::*;
+use crate::hir::HirExpr;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
 use super::ExprConverter;
 
-impl<'a> ExprConverter<'a> {
-    /// DEPYLER-0200: Convert os module method calls to Rust std::fs and std::env equivalents
+impl ExprConverter<'_> {
+    /// DEPYLER-0200: Convert os module method calls to Rust `std::fs` and `std::env` equivalents
     /// This was missing from class method context, causing 57+ compile errors
     pub(super) fn try_convert_os_method(
         &self,
@@ -37,7 +37,7 @@ impl<'a> ExprConverter<'a> {
             }
             "unlink" | "remove" => {
                 if arg_exprs.len() != 1 {
-                    bail!("os.{}() requires exactly 1 argument", method);
+                    bail!("os.{method}() requires exactly 1 argument");
                 }
                 let path = &arg_exprs[0];
                 // DEPYLER-0956: Use .expect() to not require Result return type
@@ -117,7 +117,7 @@ impl<'a> ExprConverter<'a> {
         Ok(result)
     }
 
-    /// DEPYLER-0200: Convert os.path module method calls to Rust std::path equivalents
+    /// DEPYLER-0200: Convert os.path module method calls to Rust `std::path` equivalents
     pub(super) fn try_convert_os_path_method(
         &self,
         method: &str,
@@ -210,7 +210,8 @@ impl<'a> ExprConverter<'a> {
         Ok(result)
     }
 
-    /// DEPYLER-0200: Convert os.environ method calls to Rust std::env equivalents
+    /// DEPYLER-0200: Convert os.environ method calls to Rust `std::env` equivalents
+    #[allow(clippy::match_same_arms)]
     pub(super) fn try_convert_os_environ_method(
         &self,
         method: &str,

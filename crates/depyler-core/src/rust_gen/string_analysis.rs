@@ -11,14 +11,15 @@ use crate::hir::{BinOp, HirExpr, HirFunction, HirStmt, Literal};
 /// Classification of string method return types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StringMethodReturnType {
-    /// Method returns an owned String (e.g., upper(), replace())
+    /// Method returns an owned String (e.g., `upper()`, `replace()`)
     Owned,
-    /// Method returns a borrowed &str or non-string type (e.g., startswith(), find())
+    /// Method returns a borrowed &str or non-string type (e.g., `startswith()`, `find()`)
     Borrowed,
 }
 
 /// Classify a string method by its return type semantics
 /// DEPYLER-0598: Used for determining if function returns owned String
+#[allow(clippy::match_same_arms)]
 pub fn classify_string_method(method_name: &str) -> StringMethodReturnType {
     match method_name {
         // Transformation methods that return owned String
@@ -39,7 +40,8 @@ pub fn classify_string_method(method_name: &str) -> StringMethodReturnType {
 }
 
 /// Check if an expression contains a string method call that returns owned String
-/// DEPYLER-0598: Also detect string literals (which get .to_string() in codegen)
+/// DEPYLER-0598: Also detect string literals (which get .`to_string()` in codegen)
+#[allow(clippy::match_same_arms)]
 pub fn contains_owned_string_method(expr: &HirExpr) -> bool {
     match expr {
         HirExpr::MethodCall { method, .. } => {
@@ -72,6 +74,7 @@ pub fn stmt_block_returns_owned_string(stmts: &[HirStmt]) -> bool {
 }
 
 /// Check if a single statement returns an owned string (recursively checks nested blocks)
+#[allow(clippy::match_same_arms)]
 pub fn stmt_returns_owned_string(stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Return(Some(expr)) => contains_owned_string_method(expr),
@@ -94,6 +97,7 @@ pub fn stmt_returns_owned_string(stmt: &HirStmt) -> bool {
 
 /// Check if an expression contains string concatenation (which returns owned String)
 /// DEPYLER-0270: Binary Add on strings generates format!() which returns String
+#[allow(clippy::match_same_arms)]
 pub fn contains_string_concatenation(expr: &HirExpr) -> bool {
     match expr {
         // String concatenation: a + b (Add operator generates format!() for strings)
@@ -123,6 +127,7 @@ fn stmt_block_returns_string_concat(stmts: &[HirStmt]) -> bool {
 }
 
 /// Check if a single statement returns string concatenation
+#[allow(clippy::match_same_arms)]
 fn stmt_returns_string_concat(stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Return(Some(expr)) => contains_string_concatenation(expr),

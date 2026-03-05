@@ -7,6 +7,7 @@ use crate::hir::{HirExpr, Literal, Type, UnaryOp};
 use syn::parse_quote;
 
 /// Convert Python unary operator to Rust expression
+#[allow(clippy::match_same_arms)]
 pub fn python_to_rust_unary(op: UnaryOp, operand: syn::Expr) -> syn::Expr {
     match op {
         UnaryOp::Not => parse_quote! { !#operand },
@@ -36,12 +37,12 @@ pub fn is_bitwise_not(op: UnaryOp) -> bool {
     matches!(op, UnaryOp::BitNot)
 }
 
-/// Check if a type requires special NOT handling (collections use .is_empty())
+/// Check if a type requires special NOT handling (collections use .`is_empty()`)
 pub fn type_needs_is_empty_for_not(ty: &Type) -> bool {
     matches!(ty, Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::String)
 }
 
-/// Check if a type requires .is_none() for NOT (Optional types)
+/// Check if a type requires .`is_none()` for NOT (Optional types)
 pub fn type_needs_is_none_for_not(ty: &Type) -> bool {
     matches!(ty, Type::Optional(_))
 }
@@ -119,32 +120,36 @@ pub fn get_negated_float_value(expr: &HirExpr) -> Option<f64> {
     None
 }
 
-/// Check if method name returns Option (needs .is_none() for NOT)
+/// Check if method name returns Option (needs .`is_none()` for NOT)
 pub fn is_option_returning_method(method: &str) -> bool {
     matches!(method, "find" | "search" | "match" | "get" | "ok")
 }
 
-/// Check if function name returns Option (needs .is_none() for NOT)
+/// Check if function name returns Option (needs .`is_none()` for NOT)
 pub fn is_option_returning_function(func: &str) -> bool {
     matches!(func, "match" | "search" | "find")
 }
 
-/// Generate .is_empty() expression for collection NOT
+/// Generate .`is_empty()` expression for collection NOT
+#[allow(clippy::needless_pass_by_value)]
 pub fn generate_is_empty(operand: syn::Expr) -> syn::Expr {
     parse_quote! { #operand.is_empty() }
 }
 
-/// Generate .is_none() expression for Option NOT
+/// Generate .`is_none()` expression for Option NOT
+#[allow(clippy::needless_pass_by_value)]
 pub fn generate_is_none(operand: syn::Expr) -> syn::Expr {
     parse_quote! { #operand.is_none() }
 }
 
-/// Generate .is_some() expression for Option truthiness
+/// Generate .`is_some()` expression for Option truthiness
+#[allow(clippy::needless_pass_by_value)]
 pub fn generate_is_some(operand: syn::Expr) -> syn::Expr {
     parse_quote! { #operand.is_some() }
 }
 
-/// Generate !.is_empty() expression for collection truthiness
+/// Generate !.`is_empty()` expression for collection truthiness
+#[allow(clippy::needless_pass_by_value)]
 pub fn generate_not_is_empty(operand: syn::Expr) -> syn::Expr {
     parse_quote! { !#operand.is_empty() }
 }

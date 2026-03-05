@@ -106,6 +106,7 @@ impl PatternStore {
     /// Update pattern confidence based on compilation result
     ///
     /// Uses exponential moving average: confidence = (1-α)*confidence + α*outcome
+    #[allow(clippy::cast_precision_loss)]
     pub fn update_confidence(&mut self, pattern_id: &str, success: bool) {
         if let Some(pattern) = self.patterns.get_mut(pattern_id) {
             pattern.usage_count += 1;

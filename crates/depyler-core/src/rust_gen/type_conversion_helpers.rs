@@ -1,7 +1,7 @@
 //! Type Conversion Helpers for Code Generation
 //!
 //! This module contains helpers for applying type conversions during
-//! Rust code generation. Extracted from stmt_gen.rs for better testability.
+//! Rust code generation. Extracted from `stmt_gen.rs` for better testability.
 //!
 //! DEPYLER-0455: Type conversion for assignment expressions
 

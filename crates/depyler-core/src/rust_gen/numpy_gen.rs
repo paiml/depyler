@@ -1,10 +1,10 @@
-//! NumPy to Trueno codegen mapping.
+//! `NumPy` to Trueno codegen mapping.
 //!
-//! Maps NumPy API calls to trueno (SIMD-accelerated tensor library).
+//! Maps `NumPy` API calls to trueno (SIMD-accelerated tensor library).
 //!
 //! # Mappings
 //!
-//! | NumPy | trueno |
+//! | `NumPy` | trueno |
 //! |-------|--------|
 //! | `np.array([1.0, 2.0])` | `Vector::from_slice(&[1.0f32, 2.0])` |
 //! | `np.dot(a, b)` | `a.dot(&b)?` |
@@ -66,7 +66,8 @@ pub enum NumpyCall {
 ///
 /// # Returns
 ///
-/// TokenStream containing the trueno equivalent code.
+/// `TokenStream` containing the trueno equivalent code.
+#[allow(clippy::too_many_lines)]
 pub fn generate_trueno_code(call: &NumpyCall) -> TokenStream {
     match call {
         NumpyCall::Array { elements } => {
@@ -181,7 +182,7 @@ pub fn is_numpy_module(module: &str) -> bool {
     module == "numpy" || module == "np"
 }
 
-/// Parse a numpy function name and return the corresponding NumpyCall variant name.
+/// Parse a numpy function name and return the corresponding `NumpyCall` variant name.
 ///
 /// Returns None if not a recognized numpy function.
 pub fn parse_numpy_function(func_name: &str) -> Option<&'static str> {

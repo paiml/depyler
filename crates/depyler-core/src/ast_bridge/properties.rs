@@ -106,6 +106,7 @@ impl FunctionAnalyzer {
         }
     }
 
+    #[allow(clippy::match_same_arms)]
     fn expr_has_panic_risk(expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Index { .. } => true, // Array bounds
@@ -139,6 +140,7 @@ impl FunctionAnalyzer {
         (can_fail, error_types)
     }
 
+    #[allow(clippy::match_same_arms)]
     fn stmt_can_fail(stmt: &HirStmt) -> (bool, Vec<String>) {
         match stmt {
             HirStmt::Raise { exception, .. } => {
@@ -152,8 +154,7 @@ impl FunctionAnalyzer {
                 let (then_fail, mut then_errors) = Self::check_can_fail(then_body);
                 let (else_fail, mut else_errors) = else_body
                     .as_ref()
-                    .map(|b| Self::check_can_fail(b))
-                    .unwrap_or((false, Vec::new()));
+                    .map_or((false, Vec::new()), |b| Self::check_can_fail(b));
 
                 let mut all_errors = cond_errors;
                 all_errors.append(&mut then_errors);
@@ -342,6 +343,7 @@ impl FunctionAnalyzer {
         (can_fail, all_errors)
     }
 
+    #[allow(clippy::ref_option)]
     fn extract_exception_type(exception: &Option<HirExpr>) -> String {
         match exception {
             Some(HirExpr::Call { func, .. }) => func.clone(),
@@ -352,11 +354,13 @@ impl FunctionAnalyzer {
         }
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn calculate_max_stack_depth(body: &[HirStmt]) -> Option<usize> {
         // Simple estimation for V1
         Some(Self::estimate_stack_depth(body, 0))
     }
 
+    #[allow(clippy::match_same_arms)]
     fn estimate_stack_depth(body: &[HirStmt], current: usize) -> usize {
         body.iter().fold(current, |max_depth, stmt| {
             let stmt_depth = match stmt {
@@ -364,8 +368,7 @@ impl FunctionAnalyzer {
                     let then_depth = Self::estimate_stack_depth(then_body, current + 1);
                     let else_depth = else_body
                         .as_ref()
-                        .map(|b| Self::estimate_stack_depth(b, current + 1))
-                        .unwrap_or(current);
+                        .map_or(current, |b| Self::estimate_stack_depth(b, current + 1));
                     then_depth.max(else_depth)
                 }
                 HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
@@ -404,6 +407,7 @@ impl FunctionAnalyzer {
         }
     }
 
+    #[allow(clippy::ref_option)]
     fn check_if_for_yield(
         condition: &HirExpr,
         then_body: &[HirStmt],
@@ -418,6 +422,7 @@ impl FunctionAnalyzer {
         Self::expr_has_yield(condition) || body.iter().any(Self::stmt_has_yield)
     }
 
+    #[allow(clippy::ref_option)]
     fn check_try_for_yield(
         body: &[HirStmt],
         handlers: &[crate::hir::ExceptHandler],

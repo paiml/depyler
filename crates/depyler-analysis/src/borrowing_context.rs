@@ -30,6 +30,7 @@ pub struct BorrowingContext {
 
 /// Detailed parameter usage pattern
 #[derive(Debug, Clone, Default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct ParameterUsagePattern {
     /// Parameter is read without modification
     pub is_read: bool,
@@ -348,6 +349,8 @@ impl BorrowingContext {
     }
 
     /// Analyze an expression for parameter usage
+    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::match_same_arms)]
     fn analyze_expression(&mut self, expr: &HirExpr, borrow_depth: usize) {
         match expr {
             HirExpr::Var(name) => {
@@ -388,7 +391,7 @@ impl BorrowingContext {
                 let in_conditional = self.is_in_conditional();
                 for (i, arg) in args.iter().enumerate() {
                     if let HirExpr::Var(name) = arg {
-                        let takes_ownership = self.function_takes_ownership(func, i);
+                        let takes_ownership = Self::function_takes_ownership(func, i);
                         if let Some(usage) = self.param_usage.get_mut(name) {
                             // Conservative: assume ownership transfer unless we know better
                             if takes_ownership {
@@ -616,7 +619,7 @@ impl BorrowingContext {
     }
 
     /// Determine if a function takes ownership of its argument
-    fn function_takes_ownership(&self, func_name: &str, _arg_index: usize) -> bool {
+    fn function_takes_ownership(func_name: &str, _arg_index: usize) -> bool {
         // Known functions that borrow
         let borrowing_functions = [
             "len",
@@ -765,7 +768,7 @@ impl BorrowingContext {
 
         // String-specific optimizations
         if matches!(python_type, PythonType::String) {
-            return self.determine_string_strategy(param_name, usage);
+            return Self::determine_string_strategy(param_name, usage);
         }
 
         // Determine mutability needs
@@ -781,8 +784,7 @@ impl BorrowingContext {
 
     /// Determine optimal string handling strategy
     fn determine_string_strategy(
-        &self,
-        _param_name: &str,
+                _param_name: &str,
         usage: &ParameterUsagePattern,
     ) -> BorrowingStrategy {
         // CITL: Trace string strategy determination
@@ -828,7 +830,8 @@ impl BorrowingContext {
     }
 
     /// Check if a type implements Copy
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::self_only_used_in_recursion)]
+    #[allow(clippy::match_same_arms)]
     fn is_copy_type(&self, rust_type: &RustType) -> bool {
         match rust_type {
             RustType::Primitive(_) => true,

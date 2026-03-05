@@ -1,7 +1,7 @@
 //! Warnings Module Code Generation - EXTREME TDD
 //!
 //! Handles Python `warnings` module method conversions to Rust.
-//! Extracted from expr_gen.rs for testability and maintainability.
+//! Extracted from `expr_gen.rs` for testability and maintainability.
 //!
 //! Coverage target: 100% line coverage, 100% branch coverage
 
@@ -26,7 +26,7 @@ pub fn convert_warnings_method(
 
     let result = match method {
         "warn" => convert_warn(&arg_exprs)?,
-        _ => bail!("warnings.{} not implemented yet (available: warn)", method),
+        _ => bail!("warnings.{method} not implemented yet (available: warn)"),
     };
 
     Ok(Some(result))

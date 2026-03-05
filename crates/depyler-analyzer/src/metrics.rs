@@ -56,6 +56,7 @@ impl ComplexityDistribution {
         self.low + self.medium + self.high + self.very_high
     }
 
+    #[allow(clippy::cast_precision_loss)]
     pub fn average(&self) -> f64 {
         let total = self.total();
         if total == 0 {
@@ -77,6 +78,7 @@ pub struct PerformanceProfile {
 }
 
 impl PerformanceProfile {
+    #[allow(clippy::cast_precision_loss)]
     pub fn calculate(metrics: &TranspilationMetrics, memory_peak_bytes: usize) -> Self {
         let source_mb = metrics.source_size_bytes as f64 / (1024.0 * 1024.0);
 

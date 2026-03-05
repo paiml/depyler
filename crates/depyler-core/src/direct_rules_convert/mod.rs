@@ -1,6 +1,6 @@
 //! Statement and expression conversion functions for direct rules
 //!
-//! DEPYLER-COVERAGE-95: Extracted from direct_rules.rs to reduce file size
+//! DEPYLER-COVERAGE-95: Extracted from `direct_rules.rs` to reduce file size
 //! and improve testability. Contains body/statement/expression conversion.
 
 mod body_convert;
@@ -22,7 +22,7 @@ pub(crate) use operators::*;
 pub(crate) use stmt_convert::*;
 
 use crate::direct_rules::make_ident;
-use crate::hir::*;
+use crate::hir::{HirExpr, Type, Literal};
 use crate::type_mapper::TypeMapper;
 use anyhow::{bail, Result};
 use quote::quote;
@@ -111,7 +111,7 @@ pub(crate) fn convert_condition_expr(
 }
 
 /// DEPYLER-99MODE: Convert condition expression with class field types and truthiness coercion
-/// Same as convert_condition_expr but also has access to class field types for accurate
+/// Same as `convert_condition_expr` but also has access to class field types for accurate
 /// truthiness checks on self.* attributes (e.g., `if self.items:` → `if !self.items.is_empty()`)
 pub(crate) fn convert_condition_expr_with_class_fields(
     expr: &HirExpr,
@@ -263,7 +263,7 @@ impl<'a> ExprConverter<'a> {
 
     /// DEPYLER-1100: Infer the element type of an iterable expression.
     /// Used to propagate types into generator expression loop variables.
-    /// Returns Some(Type::Float) if iterating over floats, None if unknown.
+    /// Returns `Some(Type::Float)` if iterating over floats, None if unknown.
     fn infer_iterable_element_type(&self, iter_expr: &HirExpr) -> Option<Type> {
         match iter_expr {
             // Direct variable reference - check if it's a known float collection
@@ -329,6 +329,7 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn convert(&self, expr: &HirExpr) -> Result<syn::Expr> {
         match expr {
             HirExpr::Literal(lit) => self.convert_literal(lit),
@@ -490,7 +491,7 @@ impl<'a> ExprConverter<'a> {
                     })
                 }
             }
-            _ => bail!("Expression type not yet supported: {:?}", expr),
+            _ => bail!("Expression type not yet supported: {expr:?}"),
         }
     }
 }

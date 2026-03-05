@@ -13,6 +13,7 @@
 
 use rustpython_parser::ast::{self, Expr, Stmt};
 use std::collections::HashSet;
+use std::fmt::Write as _;
 
 /// A lint warning about an unsupported Python feature
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,6 +87,7 @@ impl DepylintAnalyzer {
     }
 
     /// Get offset from a range
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn get_offset(range: &ast::text_size::TextRange) -> usize {
         range.start().into()
     }
@@ -194,6 +196,7 @@ impl DepylintAnalyzer {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     fn visit_expr(&mut self, expr: &Expr) {
         match expr {
             Expr::Call(call) => {
@@ -243,8 +246,7 @@ impl DepylintAnalyzer {
                                 offset,
                                 "DPL006",
                                 &format!(
-                                    "{}() with dynamic attribute names is not fully supported",
-                                    func_name
+                                    "{func_name}() with dynamic attribute names is not fully supported"
                                 ),
                                 Severity::Warning,
                                 Some("Use explicit attribute access when possible".to_string()),
@@ -339,7 +341,7 @@ impl DepylintAnalyzer {
                 self.add_warning(
                     offset,
                     code,
-                    &format!("{} ({}) is not fully supported", dunder, desc),
+                    &format!("{dunder} ({desc}) is not fully supported"),
                     Severity::Warning,
                     Some("Use explicit properties or methods".to_string()),
                 );
@@ -355,7 +357,7 @@ impl DepylintAnalyzer {
         severity: Severity,
         suggestion: Option<String>,
     ) {
-        let key = format!("{}:{}", code, offset);
+        let key = format!("{code}:{offset}");
         if !self.reported.contains(&key) {
             self.reported.insert(key);
             self.warnings.push(LintWarning {
@@ -397,14 +399,12 @@ impl DepylintAnalyzer {
                         Self::get_offset(&for_stmt.range),
                         "DPL100",
                         &format!(
-                            "Mutating '{}' while iterating over it is not supported - \
-                             Rust's borrow checker prevents this pattern",
-                            iter_var
+                            "Mutating '{iter_var}' while iterating over it is not supported - \
+                             Rust's borrow checker prevents this pattern"
                         ),
                         Severity::Error,
                         Some(format!(
-                            "Collect items to add/remove in a separate list, then modify '{}' after the loop",
-                            iter_var
+                            "Collect items to add/remove in a separate list, then modify '{iter_var}' after the loop"
                         )),
                     );
                     break; // One warning per loop
@@ -414,9 +414,10 @@ impl DepylintAnalyzer {
     }
 
     /// Check if a statement mutates a specific variable
+    #[allow(clippy::self_only_used_in_recursion)]
     fn stmt_mutates_var(&self, stmt: &Stmt, var_name: &str) -> bool {
         match stmt {
-            Stmt::Expr(expr_stmt) => self.expr_mutates_var(&expr_stmt.value, var_name),
+            Stmt::Expr(expr_stmt) => Self::expr_mutates_var(&expr_stmt.value, var_name),
             Stmt::If(if_stmt) => {
                 if_stmt.body.iter().any(|s| self.stmt_mutates_var(s, var_name))
                     || if_stmt.orelse.iter().any(|s| self.stmt_mutates_var(s, var_name))
@@ -426,7 +427,7 @@ impl DepylintAnalyzer {
     }
 
     /// Check if an expression mutates a specific variable
-    fn expr_mutates_var(&self, expr: &Expr, var_name: &str) -> bool {
+    fn expr_mutates_var(expr: &Expr, var_name: &str) -> bool {
         match expr {
             Expr::Call(call) => {
                 // Check for method calls like items.append(), items.remove(), etc.
@@ -567,9 +568,8 @@ impl DepylintAnalyzer {
                         0, // Would need offset tracking
                         "DPL102",
                         &format!(
-                            "Cyclic reference detected: '{}' and '{}' reference each other - \
-                             Rust cannot represent cyclic structures without Rc/RefCell",
-                            obj1, obj2
+                            "Cyclic reference detected: '{obj1}' and '{obj2}' reference each other - \
+                             Rust cannot represent cyclic structures without Rc/RefCell"
                         ),
                         Severity::Error,
                         Some("Use weak references or restructure to avoid cycles".to_string()),
@@ -634,8 +634,7 @@ fn detect_hir_mutation_while_iterating(
                     return Some(PokaYokeViolation {
                         code: "DPL100".to_string(),
                         description: format!(
-                            "Cannot mutate '{}' while iterating over it",
-                            iter_var
+                            "Cannot mutate '{iter_var}' while iterating over it"
                         ),
                         offset: 0,
                         suggestion: "Collect modifications and apply after loop".to_string(),
@@ -658,8 +657,7 @@ fn hir_stmt_mutates_var(stmt: &depyler_hir::hir::HirStmt, var_name: &str) -> boo
             let then_mutates = then_body.iter().any(|s| hir_stmt_mutates_var(s, var_name));
             let else_mutates = else_body
                 .as_ref()
-                .map(|stmts| stmts.iter().any(|s| hir_stmt_mutates_var(s, var_name)))
-                .unwrap_or(false);
+                .is_some_and(|stmts| stmts.iter().any(|s| hir_stmt_mutates_var(s, var_name)));
             then_mutates || else_mutates
         }
         HirStmt::Block(stmts) => stmts.iter().any(|s| hir_stmt_mutates_var(s, var_name)),
@@ -781,12 +779,11 @@ pub fn format_warnings(warnings: &[LintWarning], source: &str, source_path: &str
     for w in warnings {
         // Calculate line/column from offset
         let (line, col) = offset_to_line_col(source, w.offset);
-        output.push_str(&format!(
-            "{}:{}:{}: {} [{}]: {}\n",
+        let _ = writeln!(output, "{}:{}:{}: {} [{}]: {}",
             source_path, line, col, w.severity, w.code, w.message
-        ));
+        );
         if let Some(ref suggestion) = w.suggestion {
-            output.push_str(&format!("  suggestion: {}\n", suggestion));
+            let _ = writeln!(output, "  suggestion: {suggestion}");
         }
     }
     output

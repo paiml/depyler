@@ -59,18 +59,21 @@ impl TranspileError {
     }
 
     /// Add location information to the error
+    #[must_use]
     pub fn with_location(mut self, location: SourceLocation) -> Self {
         self.location = Some(location);
         self
     }
 
     /// Add context to the error
+    #[must_use]
     pub fn with_context(mut self, ctx: impl Into<String>) -> Self {
         self.context.push(ctx.into());
         self
     }
 
     /// Add source error
+    #[must_use]
     pub fn with_source(mut self, source: impl std::error::Error + Send + Sync + 'static) -> Self {
         self.source = Some(Box::new(source));
         self
@@ -150,7 +153,7 @@ where
     }
 }
 
-/// Convert anyhow errors to TranspileError
+/// Convert anyhow errors to `TranspileError`
 impl From<anyhow::Error> for TranspileError {
     fn from(err: anyhow::Error) -> Self {
         TranspileError::new(ErrorKind::InternalError(err.to_string()))

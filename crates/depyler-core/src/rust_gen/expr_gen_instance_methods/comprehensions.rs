@@ -1,17 +1,17 @@
-//! Comprehension handlers for ExpressionConverter
+//! Comprehension handlers for `ExpressionConverter`
 //!
 //! Extracted from mod.rs to reduce file size. Contains handlers for:
 //! list comprehensions, set comprehensions, dict comprehensions,
 //! set operations, and related helper methods.
 
-use crate::hir::*;
+use crate::hir::{HirExpr, BinOp};
 use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use crate::rust_gen::walrus_helpers;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     pub(crate) fn convert_list_comp(
         &mut self,
         element: &HirExpr,
@@ -85,8 +85,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     self.ctx
                         .var_types
                         .get(var_name)
-                        .map(|ty| matches!(ty, crate::hir::Type::String))
-                        .unwrap_or(false)
+                        .is_some_and(|ty| matches!(ty, crate::hir::Type::String))
                 } else {
                     false
                 };
@@ -199,7 +198,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Example: transforms `x > 0` to `*x > 0` when x is the target variable
     ///
     /// Note: Currently unused but kept for potential future use with filter optimization
-    #[allow(dead_code)]
+    #[allow(dead_code, clippy::match_same_arms)]
     pub(super) fn add_deref_to_var_uses(
         &mut self,
         expr: &HirExpr,
@@ -262,6 +261,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    #[allow(clippy::needless_pass_by_value, clippy::unused_self)]
     pub(crate) fn convert_set_operation(
         &self,
         op: BinOp,
@@ -286,6 +286,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    #[allow(clippy::if_not_else)]
     pub(crate) fn convert_set_comp(
         &mut self,
         element: &HirExpr,
@@ -348,6 +349,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { #chain.collect::<std::collections::HashSet<_>>() })
     }
 
+    #[allow(clippy::if_not_else)]
     pub(crate) fn convert_dict_comp(
         &mut self,
         key: &HirExpr,

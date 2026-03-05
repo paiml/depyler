@@ -58,10 +58,10 @@ pub(super) fn fix_generator_yield_scope(code: &str) -> String {
     result
 }
 
-/// DEPYLER-CONVERGE-MULTI-ITER7: Fix BufReader.deserialize() calls.
+/// DEPYLER-CONVERGE-MULTI-ITER7: Fix `BufReader.deserialize()` calls.
 ///
-/// Python csv.reader() maps to BufReader, but BufReader has no .deserialize()
-/// method. Replace with BufRead::lines()-based CSV parsing.
+/// Python `csv.reader()` maps to `BufReader`, but `BufReader` has no .`deserialize()`
+/// method. Replace with `BufRead::lines()-based` CSV parsing.
 pub(super) fn fix_bufreader_deserialize(code: &str) -> String {
     if !code.contains(".deserialize::<HashMap<String, String>>()") {
         return code.to_string();
@@ -85,14 +85,14 @@ pub(super) fn fix_bufreader_deserialize(code: &str) -> String {
          .collect::<Vec<Vec<String>>>()",
     );
     if !result.contains("use std::io::BufRead") {
-        result = format!("use std::io::BufRead;\n{}", result);
+        result = format!("use std::io::BufRead;\n{result}");
     }
     result
 }
 
-/// DEPYLER-CONVERGE-MULTI-ITER7: Fix checked_pow + sqrt type mismatch.
+/// DEPYLER-CONVERGE-MULTI-ITER7: Fix `checked_pow` + sqrt type mismatch.
 ///
-/// When .sqrt() follows power operations, the intermediate checked_pow
+/// When .`sqrt()` follows power operations, the intermediate `checked_pow`
 /// results must be f64, not i32. This fixes E0277 "cannot add f64 to i32".
 pub(super) fn fix_power_sqrt_types(code: &str) -> String {
     if !code.contains(".sqrt()") || !code.contains(".checked_pow(") {
@@ -109,10 +109,10 @@ pub(super) fn fix_power_sqrt_types(code: &str) -> String {
     result
 }
 
-/// DEPYLER-CONVERGE-MULTI-ITER7: Fix DepylerDateTime subtraction.
+/// DEPYLER-CONVERGE-MULTI-ITER7: Fix `DepylerDateTime` subtraction.
 ///
 /// Python `(d2 - d1).days` transpiles to `(d2) - (d1).day() as i32`
-/// which fails because DepylerDateTime doesn't implement Sub<i32>.
+/// which fails because `DepylerDateTime` doesn't implement Sub<i32>.
 /// Replace with direct field access subtraction.
 pub(super) fn fix_datetime_subtraction(code: &str) -> String {
     if !code.contains("DepylerDateTime") {
@@ -137,9 +137,9 @@ pub(super) fn fix_datetime_subtraction(code: &str) -> String {
 
 /// DEPYLER-CONVERGE-MULTI-ITER7: Fix Hasher digest-like method calls.
 ///
-/// Python hashlib generates .update()/.finalize_reset() which come from
-/// the `digest` crate API, but we use std::hash::Hasher. Inject a
-/// HasherExt trait that provides these methods.
+/// Python hashlib generates .`update()/.finalize_reset()` which come from
+/// the `digest` crate API, but we use `std::hash::Hasher`. Inject a
+/// `HasherExt` trait that provides these methods.
 pub(super) fn fix_hasher_digest_methods(code: &str) -> String {
     if !code.contains("DefaultHasher") || !code.contains(".update(") {
         return code.to_string();
@@ -154,7 +154,7 @@ trait HasherExt: std::hash::Hasher {\n\
     }\n\
 }\n\
 impl<T: std::hash::Hasher + ?Sized> HasherExt for T {}\n";
-    result = format!("{}{}", ext_trait, result);
+    result = format!("{ext_trait}{result}");
     result
 }
 
@@ -221,12 +221,12 @@ pub(super) fn fix_path_or_string_union_coercion(code: &str) -> String {
     for line in &lines {
         let trimmed = line.trim();
         let is_call_to_path_fn =
-            path_union_fns.iter().any(|f| trimmed.contains(&format!("{}(", f)));
+            path_union_fns.iter().any(|f| trimmed.contains(&format!("{f}(")));
         if is_call_to_path_fn {
             let mut fixed = line.to_string();
             for pat in &field_patterns {
-                if fixed.contains(pat) && !fixed.contains(&format!("{}.into()", pat)) {
-                    fixed = fixed.replace(pat, &format!("{}.into()", pat));
+                if fixed.contains(pat) && !fixed.contains(&format!("{pat}.into()")) {
+                    fixed = fixed.replace(pat, &format!("{pat}.into()"));
                 }
             }
             output.push(fixed);
@@ -265,9 +265,8 @@ pub(super) fn fix_function_stub_as_type(code: &str) -> String {
                 // Skip the function body (next line should be Default::default() + })
                 let indent = &lines[i][..lines[i].len() - trimmed.len()];
                 result.push(format!(
-                    "{}#[derive(Debug, Clone, Default)]\n{}pub struct {} {{}}\n{}impl {} {{\n\
-                     {}    pub fn new() -> Self {{ Self {{}} }}\n{}}}",
-                    indent, indent, name, indent, name, indent, indent
+                    "{indent}#[derive(Debug, Clone, Default)]\n{indent}pub struct {name} {{}}\n{indent}impl {name} {{\n\
+                     {indent}    pub fn new() -> Self {{ Self {{}} }}\n{indent}}}"
                 ));
                 // Skip the body lines
                 i += 1;
@@ -349,15 +348,15 @@ pub(super) fn fix_tuple_to_vec_when_len_called(code: &str) -> String {
             if let Some(comma_pos) = t[type_start..].find(", DepylerValue)") {
                 let inner_type = t[type_start..type_start + comma_pos].trim();
                 // Check if .field_name.len() is used in code
-                let len_pattern = format!(".{}.len()", field_name);
-                let tostr_pattern = format!(".{}.to_string()", field_name);
-                let iter_pattern = format!(".{}.iter()", field_name);
+                let len_pattern = format!(".{field_name}.len()");
+                let tostr_pattern = format!(".{field_name}.to_string()");
+                let iter_pattern = format!(".{field_name}.iter()");
                 if code.contains(&len_pattern)
                     || code.contains(&tostr_pattern)
                     || code.contains(&iter_pattern)
                 {
-                    let old_type = format!("({}, DepylerValue)", inner_type);
-                    let new_type = format!("Vec<{}>", inner_type);
+                    let old_type = format!("({inner_type}, DepylerValue)");
+                    let new_type = format!("Vec<{inner_type}>");
                     replacements.push((field_name.to_string(), old_type, new_type));
                 }
             }
@@ -385,7 +384,7 @@ pub(super) fn fix_orphaned_semicolon_paren(code: &str) -> String {
         // and `)` has no matching `(`.
         if trimmed == "};)" {
             let indent = &line[..line.len() - trimmed.len()];
-            result.push(format!("{}}}", indent));
+            result.push(format!("{indent}}}"));
         } else {
             result.push(line.to_string());
         }
@@ -396,6 +395,7 @@ pub(super) fn fix_orphaned_semicolon_paren(code: &str) -> String {
 /// Patterns like `Arc::new({ let mut set = HashSet::new(); ... set }` generate
 /// a block expression inside a function call but the closing `}` is missing
 /// the corresponding `)` characters to close `Arc::new(` and `Some(`.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 pub(super) fn fix_inline_block_expression_parens(code: &str) -> String {
     if !code.contains("({ let mut") {
         return code.to_string();
@@ -452,7 +452,7 @@ pub(super) fn fix_inline_block_expression_parens(code: &str) -> String {
                                 let indent = &lines[i][..lines[i].len() - line_trimmed.len()];
                                 let close_str = ")".repeat(needed as usize);
                                 if line_trimmed == "}" {
-                                    result.push(format!("{}}}{};", indent, close_str));
+                                    result.push(format!("{indent}}}{close_str};"));
                                 } else {
                                     result.push(format!("{}{}", lines[i], close_str));
                                 }
@@ -518,6 +518,7 @@ pub(super) fn count_unquoted_braces(line: &str) -> i32 {
 }
 
 /// Count trailing `)` characters after the last `}` on a line.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 pub(super) fn count_trailing_close_parens(line: &str) -> i32 {
     if let Some(pos) = line.rfind('}') {
         let after = &line[pos + 1..];
@@ -527,12 +528,12 @@ pub(super) fn count_trailing_close_parens(line: &str) -> i32 {
     }
 }
 
-#[allow(dead_code)]
+#[allow(dead_code, clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 pub(super) fn count_parens_open(s: &str) -> i32 {
     s.chars().filter(|&c| c == '(').count() as i32
 }
 
-#[allow(dead_code)]
+#[allow(dead_code, clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 pub(super) fn count_parens_close(s: &str) -> i32 {
     s.chars().filter(|&c| c == ')').count() as i32
 }
@@ -550,13 +551,13 @@ pub(super) fn fix_as_bool_on_bool(code: &str) -> String {
     let mut result = code.to_string();
     for var in &bool_vars {
         if has_as_bool {
-            let pattern = format!("{}.as_bool()", var);
+            let pattern = format!("{var}.as_bool()");
             if result.contains(&pattern) {
                 result = result.replace(&pattern, var);
             }
         }
         if has_unwrap {
-            let pattern = format!("{}.unwrap_or_default()", var);
+            let pattern = format!("{var}.unwrap_or_default()");
             if result.contains(&pattern) {
                 result = result.replace(&pattern, var);
             }
@@ -633,17 +634,17 @@ pub(super) fn fix_closure_to_dyn_fn_ref(code: &str) -> String {
         for name in &dyn_fn_names {
             // Find call pattern: `NAME(..., move |...|  ...)`
             // Replace: `move |x: i32| expr)` -> `&(move |x: i32| expr))`
-            let call_prefix = format!("{}(", name);
+            let call_prefix = format!("{name}(");
             if new_line.contains(&call_prefix) && new_line.contains("move |") {
                 // Find the `move |` that's a trailing argument
                 if let Some(move_idx) = new_line.rfind(", move |") {
                     // Find the closing `)` of the outer call
                     if let Some(close_paren) = new_line.rfind(");") {
                         let closure_text = &new_line[move_idx + 2..close_paren];
-                        let replacement = format!(" &({})", closure_text);
+                        let replacement = format!(" &({closure_text})");
                         new_line = format!(
                             "{}{}{}",
-                            &new_line[..move_idx + 1],
+                            &new_line[..=move_idx],
                             replacement,
                             &new_line[close_paren..]
                         );
@@ -667,10 +668,10 @@ pub(super) fn fix_tuple_field_on_unit(code: &str) -> String {
     code.to_string()
 }
 
-/// DEPYLER-99MODE-S9: Fix PyRange iteration.
+/// DEPYLER-99MODE-S9: Fix `PyRange` iteration.
 ///
 /// When `for i in r.iter().cloned()` and `r` is a `PyRange`, replace with
-/// `for i in r.start..r.stop` since PyRange doesn't implement Iterator.
+/// `for i in r.start..r.stop` since `PyRange` doesn't implement Iterator.
 pub(super) fn fix_pyrange_iteration(code: &str) -> String {
     if !code.contains("struct PyRange") || !code.contains(".iter().cloned()") {
         return code.to_string();
@@ -698,8 +699,8 @@ pub(super) fn fix_pyrange_iteration(code: &str) -> String {
     }
     let mut result = code.to_string();
     for var in &pyrange_vars {
-        let old = format!("{}.iter().cloned()", var);
-        let new = format!("{}.start..{}.stop", var, var);
+        let old = format!("{var}.iter().cloned()");
+        let new = format!("{var}.start..{var}.stop");
         result = result.replace(&old, &new);
     }
     result
@@ -800,7 +801,7 @@ pub(super) fn fix_missing_inherited_fields(code: &str) -> String {
 }
 
 /// Parse all `pub struct Name { ... }` blocks and collect their field names and types.
-fn collect_struct_fields<'a>(lines: &[&'a str]) -> Vec<(String, Vec<(String, String)>)> {
+fn collect_struct_fields(lines: &[&str]) -> Vec<(String, Vec<(String, String)>)> {
     let mut struct_fields = Vec::new();
     let mut i = 0;
     while i < lines.len() {
@@ -864,13 +865,14 @@ fn find_missing_inherited_fields_all(
 
 /// Scan the impl block for `struct_name` and find self.field references not in `own_fields`,
 /// resolving them from other structs.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 fn find_missing_fields_for_struct(
     lines: &[&str],
     struct_name: &str,
     own_fields: &[(String, String)],
     all_structs: &[(String, Vec<(String, String)>)],
 ) -> Vec<(String, String)> {
-    let impl_pattern = format!("impl {} {{", struct_name);
+    let impl_pattern = format!("impl {struct_name} {{");
     let field_names: Vec<&str> = own_fields.iter().map(|(n, _)| n.as_str()).collect();
     let mut missing_fields: Vec<(String, String)> = Vec::new();
     let mut in_impl = false;
@@ -949,7 +951,7 @@ fn resolve_field_from_other_structs(
     None
 }
 
-/// Insert missing fields into struct definitions and add Default::default()
+/// Insert missing fields into struct definitions and add `Default::default()`
 /// initializers into constructor literals.
 fn apply_inherited_field_additions(
     code: &str,
@@ -970,23 +972,24 @@ fn insert_fields_into_struct(
     fields_to_add: &[(String, String)],
 ) {
     for (field_name, field_type) in fields_to_add {
-        let struct_pattern = format!("pub struct {} {{", struct_name);
+        let struct_pattern = format!("pub struct {struct_name} {{");
         if let Some(struct_idx) = result.find(&struct_pattern) {
             let insert_point = struct_idx + struct_pattern.len();
-            let field_line = format!("\n    pub {}: {},", field_name, field_type);
+            let field_line = format!("\n    pub {field_name}: {field_type},");
             result.insert_str(insert_point, &field_line);
         }
     }
 }
 
 /// Find the `Self { ... }` constructor literal (not `-> Self {`) in an impl block
-/// and insert Default::default() initializers for inherited fields.
+/// and insert `Default::default()` initializers for inherited fields.
+#[allow(clippy::format_push_string)]
 fn insert_defaults_into_constructor(
     result: &mut String,
     struct_name: &str,
     fields_to_add: &[(String, String)],
 ) {
-    let impl_pattern = format!("impl {} {{", struct_name);
+    let impl_pattern = format!("impl {struct_name} {{");
     let Some(impl_idx) = result.find(&impl_pattern) else {
         return;
     };
@@ -1002,7 +1005,7 @@ fn insert_defaults_into_constructor(
         let abs_self = impl_idx + abs_in_slice + 6;
         let mut extra_fields = String::new();
         for (field_name, _field_type) in fields_to_add {
-            extra_fields.push_str(&format!(" {}: Default::default(),", field_name));
+            extra_fields.push_str(&format!(" {field_name}: Default::default(),"));
         }
         result.insert_str(abs_self, &extra_fields);
         break;
@@ -1113,6 +1116,7 @@ pub(super) fn fix_ambiguous_into_type_annotation(code: &str) -> String {
     result
 }
 
+#[allow(clippy::format_push_string)]
 pub(super) fn fix_dict_get_return(code: &str) -> String {
     let mut result = String::with_capacity(code.len());
     let lines: Vec<&str> = code.lines().collect();
@@ -1162,8 +1166,7 @@ pub(super) fn fix_dict_get_return(code: &str) -> String {
                 if option_dv_vars.iter().any(|v| v == expr) {
                     let indent = &line[..line.len() - trimmed.len()];
                     result.push_str(&format!(
-                        "{}return {}.unwrap_or(DepylerValue::Int(0i64)).into();",
-                        indent, expr
+                        "{indent}return {expr}.unwrap_or(DepylerValue::Int(0i64)).into();"
                     ));
                     result.push('\n');
                     continue;
@@ -1171,7 +1174,7 @@ pub(super) fn fix_dict_get_return(code: &str) -> String {
                 // Fix DV var: `return value;` -> `return value.into();`
                 if dv_vars.iter().any(|v| v == expr) {
                     let indent = &line[..line.len() - trimmed.len()];
-                    result.push_str(&format!("{}return {}.into();", indent, expr));
+                    result.push_str(&format!("{indent}return {expr}.into();"));
                     result.push('\n');
                     continue;
                 }
@@ -1180,8 +1183,7 @@ pub(super) fn fix_dict_get_return(code: &str) -> String {
             if !trimmed.ends_with(';') && option_dv_vars.iter().any(|v| v.as_str() == trimmed) {
                 let indent = &line[..line.len() - trimmed.len()];
                 result.push_str(&format!(
-                    "{}{}.unwrap_or(DepylerValue::Int(0i64)).into()",
-                    indent, trimmed
+                    "{indent}{trimmed}.unwrap_or(DepylerValue::Int(0i64)).into()"
                 ));
                 result.push('\n');
                 continue;
@@ -1189,7 +1191,7 @@ pub(super) fn fix_dict_get_return(code: &str) -> String {
             // Fix tail: dv var
             if !trimmed.ends_with(';') && dv_vars.iter().any(|v| v.as_str() == trimmed) {
                 let indent = &line[..line.len() - trimmed.len()];
-                result.push_str(&format!("{}{}.into()", indent, trimmed));
+                result.push_str(&format!("{indent}{trimmed}.into()"));
                 result.push('\n');
                 continue;
             }
@@ -1297,7 +1299,7 @@ pub(super) fn fix_void_fn_with_return_value(code: &str) -> String {
         let trimmed = line.trim();
         let mut replaced = false;
         for fn_name in &fix_fns {
-            let pat = format!("fn {}(", fn_name);
+            let pat = format!("fn {fn_name}(");
             if trimmed.contains(&pat) && !trimmed.contains("-> ") && trimmed.contains(") {") {
                 let new_line = line.replace(") {", ") -> i32 {");
                 result.push_str(&new_line);
@@ -1313,7 +1315,7 @@ pub(super) fn fix_void_fn_with_return_value(code: &str) -> String {
     result
 }
 
-#[allow(dead_code)]
+#[allow(dead_code, clippy::similar_names)]
 pub(super) fn fix_write_all_on_custom_struct(code: &str) -> String {
     let lines: Vec<&str> = code.lines().collect();
     // Check if any struct has a `pub fn write(&self, data: String)` method
@@ -1382,7 +1384,7 @@ pub(super) fn fix_write_all_on_custom_struct(code: &str) -> String {
             };
             let old_len = 11 + close + 1 + expect_len; // .write_all( + inner + ) + .expect(...)
             let old = &result[pos..pos + old_len];
-            let new = format!(".write({})", new_inner);
+            let new = format!(".write({new_inner})");
             result = result.replacen(old, &new, 1);
         } else {
             break;
@@ -1409,7 +1411,7 @@ pub(super) fn fix_let_type_from_fn_return(code: &str) -> String {
     result.join("\n")
 }
 
-/// Build a map of fn_name -> return_type for functions returning custom types.
+/// Build a map of `fn_name` -> `return_type` for functions returning custom types.
 fn build_custom_fn_return_map(code: &str) -> std::collections::HashMap<String, String> {
     let mut fn_returns = std::collections::HashMap::new();
     for line in code.lines() {
@@ -1439,12 +1441,12 @@ fn extract_fn_name_and_return(trimmed: &str) -> Option<(String, String)> {
     Some((fn_name, ret_type))
 }
 
-/// Check if a return type is a custom (PascalCase) type, not a standard library type.
+/// Check if a return type is a custom (`PascalCase`) type, not a standard library type.
 fn is_custom_return_type(ret_type: &str) -> bool {
     if ret_type.is_empty() {
         return false;
     }
-    let starts_upper = ret_type.chars().next().is_some_and(|c| c.is_uppercase());
+    let starts_upper = ret_type.chars().next().is_some_and(char::is_uppercase);
     if !starts_upper || ret_type.contains("Self") {
         return false;
     }
@@ -1479,13 +1481,13 @@ fn try_fix_let_binding_type(
         return None;
     }
     let indent = &line[..line.len() - trimmed.len()];
-    Some(format!("{}let {}: {} = {}", indent, var_name, correct_type, rhs))
+    Some(format!("{indent}let {var_name}: {correct_type} = {rhs}"))
 }
 
-/// DEPYLER-99MODE-S9: Fix Vec type in assert_eq by inferring from function return type.
+/// DEPYLER-99MODE-S9: Fix Vec type in `assert_eq` by inferring from function return type.
 ///
 /// When `assert_eq!(fn_name(ARGS).unwrap(), Vec::<WRONG>::new(), ...)`,
-/// looks up fn_name's return type `Result<Vec<CORRECT>, ...>` and replaces
+/// looks up `fn_name`'s return type `Result<Vec<CORRECT>, ...>` and replaces
 /// `Vec::<WRONG>::new()` with `Vec::<CORRECT>::new()`.
 pub(super) fn fix_assert_vec_type_from_fn_return(code: &str) -> String {
     if !code.contains("assert_eq!") || !code.contains("Vec::<") {
@@ -1498,7 +1500,7 @@ pub(super) fn fix_assert_vec_type_from_fn_return(code: &str) -> String {
     fix_assert_vec_lines(code, &fn_vec_type)
 }
 
-/// Build a map of fn_name -> inner Vec element type from `Result<Vec<T>, E>` signatures.
+/// Build a map of `fn_name` -> inner Vec element type from `Result<Vec<T>, E>` signatures.
 fn build_fn_vec_inner_type_map(code: &str) -> std::collections::HashMap<String, String> {
     let mut fn_vec_type = std::collections::HashMap::new();
     for line in code.lines() {
@@ -1511,7 +1513,7 @@ fn build_fn_vec_inner_type_map(code: &str) -> std::collections::HashMap<String, 
 }
 
 /// From a function signature like `fn foo(...) -> Result<Vec<MyType>, E>`,
-/// extract ("foo", "MyType").
+/// extract ("foo", "`MyType`").
 fn extract_result_vec_inner_type(trimmed: &str) -> Option<(String, String)> {
     if !(trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ")) {
         return None;
@@ -1547,7 +1549,7 @@ fn extract_balanced_angle_content(s: &str) -> Option<String> {
     None
 }
 
-/// Scan assert_eq!/assert_ne! blocks and fix Vec::<WRONG>::new() with correct inner types.
+/// Scan `assert_eq!/assert_ne`! blocks and fix `Vec::`<WRONG>`::new()` with correct inner types.
 fn fix_assert_vec_lines(
     code: &str,
     fn_vec_type: &std::collections::HashMap<String, String>,
@@ -1584,13 +1586,13 @@ fn fix_assert_vec_lines(
     result.join("\n")
 }
 
-/// Check if a line contains a known function call with .unwrap().
+/// Check if a line contains a known function call with .`unwrap()`.
 fn find_fn_call_in_line(
     trimmed: &str,
     fn_vec_type: &std::collections::HashMap<String, String>,
 ) -> Option<String> {
     for fn_name in fn_vec_type.keys() {
-        if trimmed.contains(&format!("{}(", fn_name)) && trimmed.contains(".unwrap()") {
+        if trimmed.contains(&format!("{fn_name}(")) && trimmed.contains(".unwrap()") {
             return Some(fn_name.clone());
         }
     }
@@ -1598,6 +1600,7 @@ fn find_fn_call_in_line(
 }
 
 /// If the line is a standalone `Vec::<T>::new()` inside an assert, fix the inner type.
+#[allow(clippy::ref_option)]
 fn try_fix_vec_new_line(
     line: &str,
     trimmed: &str,
@@ -1612,7 +1615,7 @@ fn try_fix_vec_new_line(
     let correct_inner = fn_vec_type.get(fn_name)?;
     let indent = &line[..line.len() - trimmed.len()];
     let trailing = if trimmed.ends_with(',') { "," } else { "" };
-    Some(format!("{}Vec::<{}>::new(){}", indent, correct_inner, trailing))
+    Some(format!("{indent}Vec::<{correct_inner}>::new(){trailing}"))
 }
 
 pub(super) fn fix_let_unit_type_annotation(code: &str) -> String {

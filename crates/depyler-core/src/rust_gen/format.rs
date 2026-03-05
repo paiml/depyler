@@ -22,7 +22,7 @@
 /// let formatted = format_rust_code(code);
 /// // Returns properly formatted Rust code
 /// ```
-pub fn format_rust_code(code: String) -> String {
+pub(super) fn format_rust_code(code: String) -> String {
     // First apply string replacements to fix obvious issues
     let code = apply_string_replacements(code);
 
@@ -39,6 +39,7 @@ pub fn format_rust_code(code: String) -> String {
 }
 
 /// Fix operator spacing issues that may remain after rustfmt
+#[allow(clippy::needless_pass_by_value)]
 fn apply_operator_fixes(code: String) -> String {
     code.replace(" ! = (", " != (")
         .replace(" ! = ", " != ")
@@ -85,6 +86,7 @@ fn run_rustfmt(code: &str) -> Result<String, std::io::Error> {
 }
 
 /// Apply string replacements to fix common formatting issues
+#[allow(clippy::needless_pass_by_value)]
 fn apply_string_replacements(code: String) -> String {
     code.replace(" ; ", ";\n    ")
         .replace(" { ", " {\n    ")

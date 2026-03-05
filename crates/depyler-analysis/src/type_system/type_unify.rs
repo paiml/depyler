@@ -46,6 +46,7 @@ pub enum ConcreteType {
 
 impl ConcreteType {
     /// Convert from HIR Type
+    #[allow(clippy::match_same_arms)]
     pub fn from_hir_type(ty: &Type) -> Self {
         match ty {
             Type::Int => ConcreteType::I64,
@@ -136,6 +137,7 @@ impl CallGraph {
     }
 
     /// Add a call edge
+    #[allow(clippy::similar_names)]
     pub fn add_call(&mut self, caller: NodeId, callee: NodeId) {
         if let Some(callees) = self.edges.get_mut(&caller) {
             if !callees.contains(&callee) {
@@ -151,12 +153,12 @@ impl CallGraph {
 
     /// Get callees of a function
     pub fn callees(&self, node: NodeId) -> &[NodeId] {
-        self.edges.get(&node).map(|v| v.as_slice()).unwrap_or(&[])
+        self.edges.get(&node).map_or(&[], std::vec::Vec::as_slice)
     }
 
     /// Get callers of a function
     pub fn callers(&self, node: NodeId) -> &[NodeId] {
-        self.reverse_edges.get(&node).map(|v| v.as_slice()).unwrap_or(&[])
+        self.reverse_edges.get(&node).map_or(&[], std::vec::Vec::as_slice)
     }
 
     /// Topological sort (callees before callers)
@@ -220,6 +222,7 @@ impl UnionFind {
     }
 
     /// Union two sets, returns Ok(()) or Err if types conflict
+    #[allow(clippy::comparison_chain)]
     pub fn union(&mut self, x: usize, y: usize) -> Result<(), UnifyError> {
         let rx = self.find(x);
         let ry = self.find(y);
@@ -297,8 +300,9 @@ pub enum UnifyError {
 // =============================================================================
 
 /// Find common type for two numeric types (widening)
+#[allow(clippy::match_same_arms)]
 pub fn coerce_types(a: &ConcreteType, b: &ConcreteType) -> Option<ConcreteType> {
-    use ConcreteType::*;
+    use ConcreteType::{I32, I64, F32, F64, String, StrRef, Unknown};
 
     // Same type - no coercion needed
     if a == b {
@@ -448,7 +452,7 @@ impl TypeUnifier {
                 }
             }
             HirStmt::Assign { target, value, .. } => {
-                if let Some(name) = self.extract_assign_target_name(target) {
+                if let Some(name) = Self::extract_assign_target_name(target) {
                     let var = self.get_or_create_var(current_fn, &name);
                     let expr_var = self.analyze_expr(value, current_fn, caller_id);
                     if let Some(ev) = expr_var {
@@ -486,8 +490,8 @@ impl TypeUnifier {
         }
     }
 
-    /// Extract simple variable name from AssignTarget
-    fn extract_assign_target_name(&self, target: &AssignTarget) -> Option<String> {
+    /// Extract simple variable name from `AssignTarget`
+    fn extract_assign_target_name(target: &AssignTarget) -> Option<String> {
         match target {
             AssignTarget::Symbol(sym) => Some(sym.clone()),
             _ => None, // Complex targets (index, attribute, tuple) not tracked
@@ -510,7 +514,7 @@ impl TypeUnifier {
                     Literal::Bool(_) => ConcreteType::Bool,
                     Literal::String(_) => ConcreteType::String,
                     Literal::None => ConcreteType::Unit,
-                    _ => ConcreteType::Unknown,
+                    Literal::Bytes(_) => ConcreteType::Unknown,
                 };
                 self.constraints.push(Constraint::Assign(var, ty));
                 Some(var)
@@ -595,6 +599,7 @@ impl TypeUnifier {
         // Iterate until fixpoint
         let mut changed = true;
         let mut iterations = 0;
+        #[allow(clippy::items_after_statements)]
         const MAX_ITERATIONS: usize = 100;
 
         while changed && iterations < MAX_ITERATIONS {
@@ -653,8 +658,7 @@ impl TypeUnifier {
                 .map(|var| {
                     self.uf
                         .get_type(var.0 as usize)
-                        .map(|t| t.to_hir_type())
-                        .unwrap_or(Type::Unknown)
+                        .map_or(Type::Unknown, |t| t.to_hir_type())
                 })
                 .collect()
         } else {
@@ -667,8 +671,7 @@ impl TypeUnifier {
         if let Some(sig) = self.signatures.get(func_name) {
             self.uf
                 .get_type(sig.ret_var.0 as usize)
-                .map(|t| t.to_hir_type())
-                .unwrap_or(Type::Unknown)
+                .map_or(Type::Unknown, |t| t.to_hir_type())
         } else {
             Type::Unknown
         }
@@ -692,7 +695,8 @@ impl Default for TypeUnifier {
 /// 2. Going from Unknown to anything
 ///
 /// NOTE: String → Int/Float override was removed (caused DEPYLER-0302 regression).
-/// Call-site override for heuristic strings is handled in lib.rs propagate_call_site_types.
+/// Call-site override for heuristic strings is handled in lib.rs `propagate_call_site_types`.
+#[allow(clippy::match_same_arms)]
 fn should_override_type(existing: &Type, new: &Type) -> bool {
     match (existing, new) {
         // Unknown should always be updated to concrete type

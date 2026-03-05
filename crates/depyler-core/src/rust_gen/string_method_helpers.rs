@@ -1,6 +1,6 @@
 //! DEPYLER-1025: String method helpers for Pattern trait handling
 //!
-//! Extracted from expr_gen.rs to reduce complexity and improve testability.
+//! Extracted from `expr_gen.rs` to reduce complexity and improve testability.
 //! These helpers handle Python string methods that require Rust Pattern trait.
 
 use crate::hir::{HirExpr, Literal};
@@ -18,9 +18,9 @@ use syn::parse_quote;
 /// * `fn_str_params` - Set of function parameter names that are already &str
 ///
 /// # Returns
-/// A syn::Expr that is guaranteed to implement Pattern trait
+/// A `syn::Expr` that is guaranteed to implement Pattern trait
 #[allow(dead_code)]
-pub fn extract_pattern_arg(
+pub(super) fn extract_pattern_arg(
     hir_arg: &HirExpr,
     rust_arg: &syn::Expr,
     fn_str_params: &HashSet<String>,
@@ -40,14 +40,14 @@ pub fn extract_pattern_arg(
 /// Check if a variable name suggests it's a char from iteration.
 /// Used for char-specific string method handling.
 #[allow(dead_code)]
-pub fn is_char_variable_name(name: &str) -> bool {
+pub(super) fn is_char_variable_name(name: &str) -> bool {
     matches!(name, "char" | "ch" | "c" | "character")
 }
 
 /// Simple string method mappings (no arguments, direct 1:1 mapping).
 /// Returns the Rust method name for zero-argument string methods.
-#[allow(dead_code)]
-pub fn simple_string_method(method: &str) -> Option<&'static str> {
+#[allow(dead_code, clippy::match_same_arms)]
+pub(super) fn simple_string_method(method: &str) -> Option<&'static str> {
     match method {
         "upper" => Some("to_uppercase"),
         "lower" => Some("to_lowercase"),
@@ -67,7 +67,7 @@ pub fn simple_string_method(method: &str) -> Option<&'static str> {
 
 /// String methods that return a new String with trimming (zero arguments).
 #[allow(dead_code)]
-pub fn trim_string_method(method: &str) -> Option<&'static str> {
+pub(super) fn trim_string_method(method: &str) -> Option<&'static str> {
     match method {
         "strip" => Some("trim().to_string()"),
         "lstrip" => Some("trim_start().to_string()"),

@@ -13,6 +13,7 @@ pub struct Optimizer {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct OptimizerConfig {
     /// Enable inlining of small functions
     pub inline_functions: bool,
@@ -78,7 +79,7 @@ impl Optimizer {
         program
     }
 
-    /// DEPYLER-0188: Hoist walrus operator (NamedExpr) assignments to separate statements
+    /// DEPYLER-0188: Hoist walrus operator (`NamedExpr`) assignments to separate statements
     ///
     /// Transforms: if (n := len(text)) > 5: return n
     /// Into:       n = len(text); if n > 5: return n
@@ -187,14 +188,15 @@ impl Optimizer {
         new_body
     }
 
-    /// Extract NamedExpr from an expression, returning hoisted assignments and simplified expr
+    /// Extract `NamedExpr` from an expression, returning hoisted assignments and simplified expr
     fn extract_walrus_from_expr(&self, expr: &HirExpr) -> (Vec<(String, HirExpr)>, HirExpr) {
         let mut assigns = Vec::new();
         let simplified = self.extract_walrus_recursive(expr, &mut assigns);
         (assigns, simplified)
     }
 
-    /// Recursively extract NamedExpr from expression tree
+    /// Recursively extract `NamedExpr` from expression tree
+    #[allow(clippy::self_only_used_in_recursion)]
     fn extract_walrus_recursive(
         &self,
         expr: &HirExpr,
@@ -257,7 +259,7 @@ impl Optimizer {
         // DEPYLER-0269 Fix: Second pass - collect all variable READS
         let mut read_vars = HashSet::new();
         for func in &program.functions {
-            self.collect_read_vars_function(func, &mut read_vars);
+            Self::collect_read_vars_function(func, &mut read_vars);
         }
 
         // Third pass: collect constants (but skip mutated OR read variables)
@@ -291,13 +293,14 @@ impl Optimizer {
     }
 
     /// DEPYLER-0269: Collect all variables that are actually USED (read)
-    fn collect_read_vars_function(&self, func: &HirFunction, read_vars: &mut HashSet<String>) {
+    fn collect_read_vars_function(func: &HirFunction, read_vars: &mut HashSet<String>) {
         for stmt in &func.body {
             Self::collect_read_vars_stmt(stmt, read_vars);
         }
     }
 
     /// DEPYLER-0269: Recursively collect variable reads from statements
+    #[allow(clippy::match_same_arms)]
     fn collect_read_vars_stmt(stmt: &HirStmt, read_vars: &mut HashSet<String>) {
         match stmt {
             HirStmt::Assign { value, .. } => {
@@ -420,6 +423,8 @@ impl Optimizer {
         }
     }
 
+    #[allow(clippy::self_only_used_in_recursion)]
+    #[allow(clippy::match_same_arms)]
     fn collect_constants_stmt(
         &self,
         stmt: &HirStmt,
@@ -436,7 +441,7 @@ impl Optimizer {
                 // This prevents unused variable warnings for user-defined constants
                 if !mutated_vars.contains(name)
                     && !used_vars.contains(name)  // DEPYLER-0269: Skip used variables!
-                    && self.is_constant_expr(value)
+                    && Self::is_constant_expr(value)
                 {
                     constants.insert(name.clone(), value.clone());
                 }
@@ -461,7 +466,7 @@ impl Optimizer {
         }
     }
 
-    fn is_constant_expr(&self, expr: &HirExpr) -> bool {
+    fn is_constant_expr(expr: &HirExpr) -> bool {
         is_constant_expr_inner(expr)
     }
 
@@ -475,6 +480,7 @@ impl Optimizer {
         }
     }
 
+    #[allow(clippy::match_same_arms)]
     fn propagate_constants_stmt(&self, stmt: &mut HirStmt, constants: &HashMap<String, HirExpr>) {
         match stmt {
             HirStmt::Assign { value, .. } => {
@@ -513,6 +519,7 @@ impl Optimizer {
         }
     }
 
+    #[allow(clippy::self_only_used_in_recursion)]
     fn propagate_constants_expr(&self, expr: &mut HirExpr, constants: &HashMap<String, HirExpr>) {
         match expr {
             HirExpr::Var(name) => {
@@ -525,7 +532,7 @@ impl Optimizer {
                 self.propagate_constants_expr(right, constants);
 
                 // Try to evaluate constant expressions
-                if let Some(result) = self.evaluate_constant_binop(expr) {
+                if let Some(result) = Self::evaluate_constant_binop(expr) {
                     *expr = result;
                 }
             }
@@ -533,7 +540,7 @@ impl Optimizer {
                 self.propagate_constants_expr(operand, constants);
 
                 // Try to evaluate constant expressions
-                if let Some(result) = self.evaluate_constant_unaryop(expr) {
+                if let Some(result) = Self::evaluate_constant_unaryop(expr) {
                     *expr = result;
                 }
             }
@@ -566,7 +573,7 @@ impl Optimizer {
         }
     }
 
-    fn evaluate_constant_binop(&self, expr: &HirExpr) -> Option<HirExpr> {
+    fn evaluate_constant_binop(expr: &HirExpr) -> Option<HirExpr> {
         if let HirExpr::Binary { left, right, op } = expr {
             match (left.as_ref(), right.as_ref(), op) {
                 (
@@ -616,7 +623,7 @@ impl Optimizer {
         }
     }
 
-    fn evaluate_constant_unaryop(&self, expr: &HirExpr) -> Option<HirExpr> {
+    fn evaluate_constant_unaryop(expr: &HirExpr) -> Option<HirExpr> {
         if let HirExpr::Unary { op, operand } = expr {
             match (operand.as_ref(), op) {
                 (HirExpr::Literal(Literal::Int(n)), UnaryOp::Neg) => {
@@ -697,22 +704,23 @@ impl Optimizer {
 
     /// DEPYLER-0270 Fix #1 (Updated): Collect truly used variables (referenced, not just assigned)
     /// This version does NOT mark side-effect assignments as used - that's handled separately
-    /// in eliminate_dead_code_function which preserves side-effect assignments.
+    /// in `eliminate_dead_code_function` which preserves side-effect assignments.
+    #[allow(clippy::match_same_arms)]
     fn collect_truly_used_vars_stmt(&self, stmt: &HirStmt, used: &mut HashMap<String, bool>) {
         match stmt {
             HirStmt::Assign { target, value, .. } => {
                 // DEPYLER-0235 FIX: Collect variables from assignment targets
                 // This fixes property writes like `b.size = 20` where `b` is used on LHS
                 self.collect_used_vars_assign_target(target, used);
-                self.collect_used_vars_expr(value, used);
+                Self::collect_used_vars_expr(value, used);
                 // NOTE: We do NOT mark side-effect assignments as used here
                 // That's now handled in eliminate_dead_code_function
             }
             HirStmt::Return(Some(expr)) => {
-                self.collect_used_vars_expr(expr, used);
+                Self::collect_used_vars_expr(expr, used);
             }
             HirStmt::If { condition, then_body, else_body } => {
-                self.collect_used_vars_expr(condition, used);
+                Self::collect_used_vars_expr(condition, used);
                 for s in then_body {
                     self.collect_truly_used_vars_stmt(s, used);
                 }
@@ -723,19 +731,19 @@ impl Optimizer {
                 }
             }
             HirStmt::While { condition, body } => {
-                self.collect_used_vars_expr(condition, used);
+                Self::collect_used_vars_expr(condition, used);
                 for s in body {
                     self.collect_truly_used_vars_stmt(s, used);
                 }
             }
             HirStmt::For { iter, body, .. } => {
-                self.collect_used_vars_expr(iter, used);
+                Self::collect_used_vars_expr(iter, used);
                 for s in body {
                     self.collect_truly_used_vars_stmt(s, used);
                 }
             }
             HirStmt::Expr(expr) => {
-                self.collect_used_vars_expr(expr, used);
+                Self::collect_used_vars_expr(expr, used);
             }
             // DEPYLER-0514: Handle Try statements - recurse into all blocks
             HirStmt::Try { body, handlers, orelse, finalbody } => {
@@ -764,25 +772,25 @@ impl Optimizer {
             }
             // DEPYLER-0514: Handle With statements - recurse into body
             HirStmt::With { context, body, .. } => {
-                self.collect_used_vars_expr(context, used);
+                Self::collect_used_vars_expr(context, used);
                 for s in body {
                     self.collect_truly_used_vars_stmt(s, used);
                 }
             }
             // DEPYLER-0627: Handle Assert statements - variables in test/msg are used
             HirStmt::Assert { test, msg } => {
-                self.collect_used_vars_expr(test, used);
+                Self::collect_used_vars_expr(test, used);
                 if let Some(msg_expr) = msg {
-                    self.collect_used_vars_expr(msg_expr, used);
+                    Self::collect_used_vars_expr(msg_expr, used);
                 }
             }
             // DEPYLER-0627: Handle Raise statements - variables in exception are used
             HirStmt::Raise { exception, cause } => {
                 if let Some(exc) = exception {
-                    self.collect_used_vars_expr(exc, used);
+                    Self::collect_used_vars_expr(exc, used);
                 }
                 if let Some(c) = cause {
-                    self.collect_used_vars_expr(c, used);
+                    Self::collect_used_vars_expr(c, used);
                 }
             }
             // DEPYLER-0688: Handle FunctionDef (nested functions) - must recurse into body
@@ -807,12 +815,13 @@ impl Optimizer {
 
     /// DEPYLER-0270 Fix #1: Check if expression contains indexing operations
     /// Returns true if the expression tree contains any Index nodes, which indicate
-    /// operations that can fail (e.g., list[0], dict["key"]) and have side effects.
+    /// operations that can fail (e.g., `list[0]`, `dict["key"]`) and have side effects.
     ///
     /// # Complexity
     /// DEPYLER-0703: Check if expression has side effects (calls, indexing, etc.)
     /// that should not be eliminated even if the result is unused.
     /// Complexity: 5 (recursive expression traversal with early return)
+    #[allow(clippy::match_same_arms)]
     fn expr_has_side_effects(expr: &HirExpr) -> bool {
         match expr {
             // Indexing has side effects (may panic)
@@ -845,10 +854,11 @@ impl Optimizer {
         }
     }
 
-    fn collect_used_vars_expr(&self, expr: &HirExpr, used: &mut HashMap<String, bool>) {
+    fn collect_used_vars_expr(expr: &HirExpr, used: &mut HashMap<String, bool>) {
         collect_used_vars_expr_inner(expr, used);
     }
 
+    #[allow(clippy::self_only_used_in_recursion)]
     fn collect_used_vars_assign_target(
         &self,
         target: &AssignTarget,
@@ -861,13 +871,13 @@ impl Optimizer {
             AssignTarget::Index { base, index } => {
                 // Collect from both base and index expressions
                 // e.g., `arr[i] = value` uses both `arr` and `i`
-                self.collect_used_vars_expr(base, used);
-                self.collect_used_vars_expr(index, used);
+                Self::collect_used_vars_expr(base, used);
+                Self::collect_used_vars_expr(index, used);
             }
             AssignTarget::Attribute { value, .. } => {
                 // Collect from the base object
                 // e.g., `obj.attr = value` uses `obj`
-                self.collect_used_vars_expr(value, used);
+                Self::collect_used_vars_expr(value, used);
             }
             AssignTarget::Tuple(targets) => {
                 // Recursively collect from tuple elements
@@ -947,7 +957,7 @@ impl Optimizer {
                 HirStmt::Return(Some(expr)) => {
                     // DEPYLER-0275 FIX: Skip CSE for final return with simple expressions
                     // This avoids unnecessary `let _cse_temp_0 = expr; _cse_temp_0` pattern
-                    if is_final_stmt && self.is_simple_return_expr(expr) {
+                    if is_final_stmt && Self::is_simple_return_expr(expr) {
                         // Don't create CSE temp for final simple returns
                         new_body.push(HirStmt::Return(Some(expr.clone())));
                     } else {
@@ -985,6 +995,7 @@ impl Optimizer {
         new_body
     }
 
+    #[allow(clippy::self_only_used_in_recursion)]
     fn process_expr_for_cse(
         &self,
         expr: &HirExpr,
@@ -1010,15 +1021,15 @@ impl Optimizer {
                 };
 
                 // Check if this expression is worth caching (not trivial)
-                if self.is_complex_expr(&new_expr) {
-                    let hash = self.hash_expr(&new_expr);
+                if Self::is_complex_expr(&new_expr) {
+                    let hash = Self::hash_expr(&new_expr);
 
                     if let Some((_, var_name)) = cse_map.get(&hash) {
                         // Reuse existing computation
                         (HirExpr::Var(var_name.clone()), extra_stmts)
                     } else {
                         // Create new temporary
-                        let temp_name = format!("_cse_temp_{}", temp_counter);
+                        let temp_name = format!("_cse_temp_{temp_counter}");
                         *temp_counter += 1;
 
                         extra_stmts.push(HirStmt::Assign {
@@ -1034,7 +1045,7 @@ impl Optimizer {
                     (new_expr, extra_stmts)
                 }
             }
-            HirExpr::Call { func, args, .. } if self.is_pure_function(func) => {
+            HirExpr::Call { func, args, .. } if Self::is_pure_function(func) => {
                 // Process arguments
                 let mut new_args = Vec::new();
                 for arg in args {
@@ -1046,12 +1057,12 @@ impl Optimizer {
 
                 let new_expr = HirExpr::Call { func: func.clone(), args: new_args, kwargs: vec![] };
 
-                let hash = self.hash_expr(&new_expr);
+                let hash = Self::hash_expr(&new_expr);
 
                 if let Some((_, var_name)) = cse_map.get(&hash) {
                     (HirExpr::Var(var_name.clone()), extra_stmts)
                 } else {
-                    let temp_name = format!("_cse_temp_{}", temp_counter);
+                    let temp_name = format!("_cse_temp_{temp_counter}");
                     *temp_counter += 1;
 
                     extra_stmts.push(HirStmt::Assign {
@@ -1068,7 +1079,7 @@ impl Optimizer {
         }
     }
 
-    fn is_complex_expr(&self, expr: &HirExpr) -> bool {
+    fn is_complex_expr(expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Binary { op, left, right } => {
                 // Consider non-trivial operations or non-literal operands
@@ -1084,7 +1095,7 @@ impl Optimizer {
     /// DEPYLER-0275: Check if expression is simple enough to return directly
     /// without creating a CSE temporary variable.
     /// Simple expressions: literals, variables, basic operations, method calls
-    fn is_simple_return_expr(&self, expr: &HirExpr) -> bool {
+    fn is_simple_return_expr(expr: &HirExpr) -> bool {
         matches!(
             expr,
             HirExpr::Literal(_)
@@ -1097,7 +1108,7 @@ impl Optimizer {
         )
     }
 
-    fn is_pure_function(&self, func: &str) -> bool {
+    fn is_pure_function(func: &str) -> bool {
         // List of known pure functions
         let pure_functions = [
             "abs", "len", "min", "max", "sum", "str", "int", "float", "bool", "round", "pow",
@@ -1106,15 +1117,15 @@ impl Optimizer {
         pure_functions.contains(&func)
     }
 
-    fn hash_expr(&self, expr: &HirExpr) -> u64 {
+    fn hash_expr(expr: &HirExpr) -> u64 {
         use std::collections::hash_map::DefaultHasher;
 
         let mut hasher = DefaultHasher::new();
-        self.hash_expr_recursive(expr, &mut hasher);
+        Self::hash_expr_recursive(expr, &mut hasher);
         hasher.finish()
     }
 
-    fn hash_expr_recursive<H: Hasher>(&self, expr: &HirExpr, hasher: &mut H) {
+    fn hash_expr_recursive<H: Hasher>(expr: &HirExpr, hasher: &mut H) {
         hash_expr_recursive_inner(expr, hasher);
     }
 }
@@ -1138,7 +1149,7 @@ fn hash_expr_recursive_inner<H: Hasher>(expr: &HirExpr, hasher: &mut H) {
         }
         HirExpr::Binary { op, left, right } => {
             "binary".hash(hasher);
-            format!("{:?}", op).hash(hasher);
+            format!("{op:?}").hash(hasher);
             hash_expr_recursive_inner(left, hasher);
             hash_expr_recursive_inner(right, hasher);
         }
@@ -1167,6 +1178,8 @@ fn is_constant_expr_inner(expr: &HirExpr) -> bool {
     }
 }
 
+#[allow(clippy::too_many_lines)]
+#[allow(clippy::match_same_arms)]
 fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>) {
     match expr {
         HirExpr::Var(name) => {

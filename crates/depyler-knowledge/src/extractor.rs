@@ -28,6 +28,7 @@ impl Extractor {
     }
 
     /// Include private symbols (starting with _).
+    #[must_use]
     pub fn with_private(mut self) -> Self {
         self.include_private = true;
         self
@@ -73,16 +74,12 @@ impl Extractor {
         match stmt {
             Stmt::FunctionDef(func) => {
                 if self.should_include(&func.name) {
-                    if let Some(fact) = self.extract_function(func, module) {
-                        facts.push(fact);
-                    }
+                    facts.push(self.extract_function(func, module));
                 }
             }
             Stmt::AsyncFunctionDef(func) => {
                 if self.should_include(&func.name) {
-                    if let Some(fact) = self.extract_async_function(func, module) {
-                        facts.push(fact);
-                    }
+                    facts.push(self.extract_async_function(func, module));
                 }
             }
             Stmt::ClassDef(class) => {
@@ -105,17 +102,17 @@ impl Extractor {
     }
 
     /// Extract a function definition.
-    fn extract_function(&self, func: &ast::StmtFunctionDef, module: &str) -> Option<TypeFact> {
-        let signature = self.build_signature(&func.args, &func.returns);
-        let return_type = self.type_to_string(&func.returns);
+    fn extract_function(&self, func: &ast::StmtFunctionDef, module: &str) -> TypeFact {
+        let signature = self.build_signature(&func.args, func.returns.as_deref());
+        let return_type = self.type_to_string(func.returns.as_deref());
 
-        Some(TypeFact {
+        TypeFact {
             module: module.to_string(),
             symbol: func.name.to_string(),
             kind: TypeFactKind::Function,
             signature,
             return_type,
-        })
+        }
     }
 
     /// Extract an async function definition.
@@ -123,17 +120,17 @@ impl Extractor {
         &self,
         func: &ast::StmtAsyncFunctionDef,
         module: &str,
-    ) -> Option<TypeFact> {
-        let signature = self.build_signature(&func.args, &func.returns);
-        let return_type = self.type_to_string(&func.returns);
+    ) -> TypeFact {
+        let signature = self.build_signature(&func.args, func.returns.as_deref());
+        let return_type = self.type_to_string(func.returns.as_deref());
 
-        Some(TypeFact {
+        TypeFact {
             module: module.to_string(),
             symbol: func.name.to_string(),
             kind: TypeFactKind::Function,
             signature: format!("async {signature}"),
             return_type,
-        })
+        }
     }
 
     /// Extract a class and its methods.
@@ -146,16 +143,12 @@ impl Extractor {
             match stmt {
                 Stmt::FunctionDef(method) => {
                     if self.should_include(&method.name) {
-                        if let Some(fact) = self.extract_method(method, module, &class.name) {
-                            facts.push(fact);
-                        }
+                        facts.push(self.extract_method(method, module, &class.name));
                     }
                 }
                 Stmt::AsyncFunctionDef(method) => {
                     if self.should_include(&method.name) {
-                        if let Some(fact) = self.extract_async_method(method, module, &class.name) {
-                            facts.push(fact);
-                        }
+                        facts.push(self.extract_async_method(method, module, &class.name));
                     }
                 }
                 Stmt::AnnAssign(assign) => {
@@ -174,11 +167,11 @@ impl Extractor {
         method: &ast::StmtFunctionDef,
         module: &str,
         class_name: &str,
-    ) -> Option<TypeFact> {
-        let signature = self.build_signature(&method.args, &method.returns);
-        let return_type = self.type_to_string(&method.returns);
+    ) -> TypeFact {
+        let signature = self.build_signature(&method.args, method.returns.as_deref());
+        let return_type = self.type_to_string(method.returns.as_deref());
 
-        Some(TypeFact::method(module, class_name, &method.name, &signature, &return_type))
+        TypeFact::method(module, class_name, &method.name, &signature, &return_type)
     }
 
     /// Extract an async method from a class.
@@ -187,17 +180,17 @@ impl Extractor {
         method: &ast::StmtAsyncFunctionDef,
         module: &str,
         class_name: &str,
-    ) -> Option<TypeFact> {
-        let signature = self.build_signature(&method.args, &method.returns);
-        let return_type = self.type_to_string(&method.returns);
+    ) -> TypeFact {
+        let signature = self.build_signature(&method.args, method.returns.as_deref());
+        let return_type = self.type_to_string(method.returns.as_deref());
 
-        Some(TypeFact::method(
+        TypeFact::method(
             module,
             class_name,
             &method.name,
             &format!("async {signature}"),
             &return_type,
-        ))
+        )
     }
 
     /// Extract an annotated assignment (module-level attribute).
@@ -254,7 +247,7 @@ impl Extractor {
     }
 
     /// Build a signature string from arguments and return type.
-    fn build_signature(&self, args: &ast::Arguments, returns: &Option<Box<ast::Expr>>) -> String {
+    fn build_signature(&self, args: &ast::Arguments, returns: Option<&ast::Expr>) -> String {
         let mut parts = Vec::new();
 
         // Positional-only params
@@ -292,7 +285,7 @@ impl Extractor {
         format!("({params_str}) -> {return_str}")
     }
 
-    /// Convert an ArgWithDefault to string.
+    /// Convert an `ArgWithDefault` to string.
     fn arg_with_default_to_string(&self, arg: &ast::ArgWithDefault) -> String {
         let name = &arg.def.arg;
         let type_str =
@@ -324,7 +317,7 @@ impl Extractor {
     }
 
     /// Convert return type to string.
-    fn type_to_string(&self, returns: &Option<Box<ast::Expr>>) -> String {
+    fn type_to_string(&self, returns: Option<&ast::Expr>) -> String {
         match returns {
             Some(expr) => self.expr_to_string(expr),
             None => "None".to_string(),
@@ -332,6 +325,7 @@ impl Extractor {
     }
 
     /// Convert an expression to a type string.
+    #[allow(clippy::self_only_used_in_recursion)]
     fn expr_to_string(&self, expr: &ast::Expr) -> String {
         match expr {
             ast::Expr::Name(name) => name.id.to_string(),

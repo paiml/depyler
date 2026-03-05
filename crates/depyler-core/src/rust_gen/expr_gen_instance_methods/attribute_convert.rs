@@ -1,10 +1,10 @@
-//! Attribute access and borrow conversion for ExpressionConverter
+//! Attribute access and borrow conversion for `ExpressionConverter`
 //!
-//! Contains convert_attribute, convert_borrow, wrap_range_in_parens.
+//! Contains `convert_attribute`, `convert_borrow`, `wrap_range_in_parens`.
 
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
-use crate::hir::*;
+use crate::hir::{HirExpr, Type};
 use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use crate::rust_gen::keywords;
@@ -13,7 +13,8 @@ use anyhow::{bail, Result};
 use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
+    #[allow(clippy::redundant_else, clippy::too_many_lines)]
     pub(crate) fn convert_attribute(&mut self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
         // DEPYLER-1402: Handle type(x).__name__ pattern
         // In Python, type(x).__name__ returns the type name as a string.
@@ -86,14 +87,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         } else {
                             parse_quote! { DepylerDate::new(9999, 12, 31) }
                         });
-                    } else {
-                        self.ctx.needs_chrono = true;
-                        return Ok(if attr == "min" {
-                            parse_quote! { chrono::NaiveDate::MIN }
-                        } else {
-                            parse_quote! { chrono::NaiveDate::MAX }
-                        });
                     }
+                    self.ctx.needs_chrono = true;
+                    return Ok(if attr == "min" {
+                        parse_quote! { chrono::NaiveDate::MIN }
+                    } else {
+                        parse_quote! { chrono::NaiveDate::MAX }
+                    });
                 } else if var_name == "datetime" {
                     self.ctx.needs_depyler_datetime = true;
                     if nasa_mode {
@@ -102,14 +102,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         } else {
                             parse_quote! { DepylerDateTime::new(9999, 12, 31, 23, 59, 59, 999999) }
                         });
-                    } else {
-                        self.ctx.needs_chrono = true;
-                        return Ok(if attr == "min" {
-                            parse_quote! { chrono::NaiveDateTime::MIN }
-                        } else {
-                            parse_quote! { chrono::NaiveDateTime::MAX }
-                        });
                     }
+                    self.ctx.needs_chrono = true;
+                    return Ok(if attr == "min" {
+                        parse_quote! { chrono::NaiveDateTime::MIN }
+                    } else {
+                        parse_quote! { chrono::NaiveDateTime::MAX }
+                    });
                 } else if var_name == "time" {
                     if nasa_mode {
                         return Ok(if attr == "min" {
@@ -120,17 +119,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             // resolution
                             parse_quote! { (0u32, 0u32, 0u32, 1u32) }
                         });
-                    } else {
-                        self.ctx.needs_chrono = true;
-                        return Ok(if attr == "min" {
-                            parse_quote! { chrono::NaiveTime::MIN }
-                        } else if attr == "max" {
-                            parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).expect("operation failed") }
-                        } else {
-                            // resolution
-                            parse_quote! { chrono::Duration::microseconds(1) }
-                        });
                     }
+                    self.ctx.needs_chrono = true;
+                    return Ok(if attr == "min" {
+                        parse_quote! { chrono::NaiveTime::MIN }
+                    } else if attr == "max" {
+                        parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).expect("operation failed") }
+                    } else {
+                        // resolution
+                        parse_quote! { chrono::Duration::microseconds(1) }
+                    });
                 } else if var_name == "timedelta" {
                     self.ctx.needs_depyler_timedelta = true;
                     if nasa_mode {
@@ -144,17 +142,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             // resolution = timedelta(microseconds=1)
                             parse_quote! { DepylerTimeDelta::new(0, 0, 1) }
                         });
-                    } else {
-                        self.ctx.needs_chrono = true;
-                        return Ok(if attr == "min" {
-                            parse_quote! { chrono::Duration::min_value() }
-                        } else if attr == "max" {
-                            parse_quote! { chrono::Duration::max_value() }
-                        } else {
-                            // resolution
-                            parse_quote! { chrono::Duration::microseconds(1) }
-                        });
                     }
+                    self.ctx.needs_chrono = true;
+                    return Ok(if attr == "min" {
+                        parse_quote! { chrono::Duration::min_value() }
+                    } else if attr == "max" {
+                        parse_quote! { chrono::Duration::max_value() }
+                    } else {
+                        // resolution
+                        parse_quote! { chrono::Duration::microseconds(1) }
+                    });
                 }
             }
         }
@@ -238,8 +235,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .ctx
                 .var_types
                 .get(var_name)
-                .map(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
-                .unwrap_or(false);
+                .is_some_and(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"));
             let is_likely_path = is_named_path || is_typed_path;
 
             if is_likely_path {
@@ -370,7 +366,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     "abs" => parse_quote! { f64::abs },
                     _ => {
                         // If it's not a recognized constant/function, it might be a typo
-                        bail!("math.{} is not a recognized constant or method", attr);
+                        bail!("math.{attr} is not a recognized constant or method");
                     }
                 };
                 return Ok(result);
@@ -397,7 +393,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                     _ => {
                         // Not a string constant - might be a method like capwords
-                        bail!("string.{} is not a recognized constant", attr);
+                        bail!("string.{attr} is not a recognized constant");
                     }
                 };
                 return Ok(result);
@@ -464,7 +460,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         parse_quote! { (3, 11) }
                     }
                     _ => {
-                        bail!("sys.{} is not a recognized attribute", attr);
+                        bail!("sys.{attr} is not a recognized attribute");
                     }
                 };
                 return Ok(result);
@@ -666,7 +662,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Without parens: `0..5.into_iter()` parses as `0..(5.into_iter())` ❌
     /// With parens: `(0..5).into_iter()` parses correctly ✅
     ///
-    /// Detects syn::Expr::Range and wraps in syn::Expr::Paren.
+    /// Detects `syn::Expr::Range` and wraps in `syn::Expr::Paren`.
+    #[allow(clippy::unused_self)]
     pub(crate) fn wrap_range_in_parens(&self, expr: syn::Expr) -> syn::Expr {
         match &expr {
             syn::Expr::Range(_) => {

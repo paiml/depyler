@@ -8,7 +8,7 @@ use quote::quote;
 
 /// Generate error type definitions if needed
 ///
-/// Generates struct definitions for Python error types like ZeroDivisionError and IndexError.
+/// Generates struct definitions for Python error types like `ZeroDivisionError` and `IndexError`.
 /// These types implement the standard Error trait and provide appropriate Display formatting.
 ///
 /// # Arguments
@@ -25,7 +25,8 @@ use quote::quote;
 /// // impl std::fmt::Display for ZeroDivisionError { ... }
 /// // impl std::error::Error for ZeroDivisionError {}
 /// ```
-pub fn generate_error_type_definitions(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenStream> {
+#[allow(clippy::too_many_lines)]
+pub(super) fn generate_error_type_definitions(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenStream> {
     let mut definitions = Vec::new();
 
     if ctx.needs_zerodivisionerror {

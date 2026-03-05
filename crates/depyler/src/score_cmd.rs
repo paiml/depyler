@@ -178,7 +178,7 @@ path = "src/lib.rs"
     )
 }
 
-/// Parse cargo error output into CompilationError structs
+/// Parse cargo error output into `CompilationError` structs
 fn parse_cargo_errors(output: &str) -> Vec<CompilationError> {
     let mut errors = vec![];
 
@@ -201,6 +201,7 @@ fn parse_cargo_errors(output: &str) -> Vec<CompilationError> {
 }
 
 /// Format score report for human output
+#[allow(clippy::cast_precision_loss, clippy::format_push_string)]
 fn format_human(report: &CorpusScoreReport) -> String {
     let mut output = String::new();
 
@@ -223,27 +224,27 @@ fn format_human(report: &CorpusScoreReport) -> String {
     output.push_str(&format!(
         "  A. Compilation:        {}/40 ({:.1}%)\n",
         a_total,
-        (a_total as f32 / 40.0) * 100.0
+        (f32::from(a_total) / 40.0) * 100.0
     ));
     output.push_str(&format!(
         "  B. Type Inference:     {}/25 ({:.1}%)\n",
         b_total,
-        (b_total as f32 / 25.0) * 100.0
+        (f32::from(b_total) / 25.0) * 100.0
     ));
     output.push_str(&format!(
         "  C. Test Coverage:      {}/15 ({:.1}%)\n",
         c_total,
-        (c_total as f32 / 15.0) * 100.0
+        (f32::from(c_total) / 15.0) * 100.0
     ));
     output.push_str(&format!(
         "  D. Code Quality:       {}/10 ({:.1}%)\n",
         d_total,
-        (d_total as f32 / 10.0) * 100.0
+        (f32::from(d_total) / 10.0) * 100.0
     ));
     output.push_str(&format!(
         "  E. Semantic Equiv:     {}/10 ({:.1}%)\n",
         e_total,
-        (e_total as f32 / 10.0) * 100.0
+        (f32::from(e_total) / 10.0) * 100.0
     ));
 
     output.push('\n');
@@ -278,6 +279,7 @@ fn format_human(report: &CorpusScoreReport) -> String {
 }
 
 /// Format score report as JSON
+#[allow(clippy::disallowed_methods)]
 fn format_json(report: &CorpusScoreReport) -> Result<String> {
     let json = serde_json::json!({
         "aggregate_score": report.aggregate_score,
@@ -304,6 +306,7 @@ fn format_json(report: &CorpusScoreReport) -> Result<String> {
 }
 
 /// Format score report as Markdown
+#[allow(clippy::cast_precision_loss, clippy::format_push_string)]
 fn format_markdown(report: &CorpusScoreReport) -> String {
     let mut output = String::new();
 
@@ -328,27 +331,27 @@ fn format_markdown(report: &CorpusScoreReport) -> String {
     output.push_str(&format!(
         "| A. Compilation | {} | 40 | {:.1}% |\n",
         a_total,
-        (a_total as f32 / 40.0) * 100.0
+        (f32::from(a_total) / 40.0) * 100.0
     ));
     output.push_str(&format!(
         "| B. Type Inference | {} | 25 | {:.1}% |\n",
         b_total,
-        (b_total as f32 / 25.0) * 100.0
+        (f32::from(b_total) / 25.0) * 100.0
     ));
     output.push_str(&format!(
         "| C. Test Coverage | {} | 15 | {:.1}% |\n",
         c_total,
-        (c_total as f32 / 15.0) * 100.0
+        (f32::from(c_total) / 15.0) * 100.0
     ));
     output.push_str(&format!(
         "| D. Code Quality | {} | 10 | {:.1}% |\n",
         d_total,
-        (d_total as f32 / 10.0) * 100.0
+        (f32::from(d_total) / 10.0) * 100.0
     ));
     output.push_str(&format!(
         "| E. Semantic Equiv | {} | 10 | {:.1}% |\n",
         e_total,
-        (e_total as f32 / 10.0) * 100.0
+        (f32::from(e_total) / 10.0) * 100.0
     ));
 
     output.push('\n');
@@ -1171,6 +1174,7 @@ error: aborting due to 2 previous errors
 }
 
 /// Handle the score command
+#[allow(clippy::cast_precision_loss)]
 pub fn handle_score_command(args: ScoreArgs) -> Result<()> {
     let mode = parse_mode(&args.mode);
     let format = parse_format(&args.format);
@@ -1186,7 +1190,7 @@ pub fn handle_score_command(args: ScoreArgs) -> Result<()> {
     // Find all Python files
     let python_files: Vec<PathBuf> = walkdir::WalkDir::new(&args.input_dir)
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .filter(|e| e.path().extension().is_some_and(|ext| ext == "py"))
         .filter(|e| !e.path().to_string_lossy().contains("__pycache__"))
         .map(|e| e.path().to_path_buf())
@@ -1236,11 +1240,11 @@ pub fn handle_score_command(args: ScoreArgs) -> Result<()> {
         std::fs::write(&output_path, &output_text)?;
         println!("📝 Report written to {}", output_path.display());
     } else {
-        println!("{}", output_text);
+        println!("{output_text}");
     }
 
     // Check threshold
-    if report.aggregate_score < args.min_score as f32 {
+    if report.aggregate_score < f32::from(args.min_score) {
         anyhow::bail!(
             "Score {:.1} below minimum threshold {}",
             report.aggregate_score,

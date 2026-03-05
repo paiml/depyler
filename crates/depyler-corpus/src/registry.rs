@@ -5,6 +5,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::fmt::Write as _;
 
 /// A registered corpus for convergence testing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,18 +60,21 @@ impl CorpusEntry {
     }
 
     /// Set the description.
+    #[must_use]
     pub fn with_description(mut self, desc: &str) -> Self {
         self.description = desc.to_string();
         self
     }
 
     /// Set the GitHub URL.
+    #[must_use]
     pub fn with_github(mut self, url: &str) -> Self {
         self.github = Some(url.to_string());
         self
     }
 
     /// Set quality metrics.
+    #[must_use]
     pub fn with_quality(mut self, tdg: f64, grade: &str, tests: usize, coverage: f64) -> Self {
         self.tdg_score = Some(tdg);
         self.grade = Some(grade.to_string());
@@ -204,31 +208,31 @@ impl CorpusRegistry {
         );
 
         for entry in self.list() {
-            content.push_str(&format!("[corpora.{}]\n", entry.name));
-            content.push_str(&format!("name = \"{}\"\n", entry.name));
-            content.push_str(&format!("description = \"{}\"\n", entry.description));
-            content.push_str(&format!("path = \"{}\"\n", entry.path.display()));
-            content.push_str(&format!("include = {:?}\n", entry.include));
-            content.push_str(&format!("exclude = {:?}\n", entry.exclude));
+            writeln!(content, "[corpora.{}]", entry.name).expect("write to String");
+            writeln!(content, "name = \"{}\"", entry.name).expect("write to String");
+            writeln!(content, "description = \"{}\"", entry.description).expect("write to String");
+            writeln!(content, "path = \"{}\"", entry.path.display()).expect("write to String");
+            writeln!(content, "include = {:?}", entry.include).expect("write to String");
+            writeln!(content, "exclude = {:?}", entry.exclude).expect("write to String");
 
             if let Some(ref github) = entry.github {
-                content.push_str(&format!("github = \"{github}\"\n"));
+                writeln!(content, "github = \"{github}\"").expect("write to String");
             }
             if let Some(count) = entry.file_count {
-                content.push_str(&format!("file_count = {count}\n"));
+                writeln!(content, "file_count = {count}").expect("write to String");
             }
-            content.push_str(&format!("target_rate = {}\n", entry.target_rate));
+            writeln!(content, "target_rate = {}", entry.target_rate).expect("write to String");
             if let Some(tdg) = entry.tdg_score {
-                content.push_str(&format!("tdg_score = {tdg}\n"));
+                writeln!(content, "tdg_score = {tdg}").expect("write to String");
             }
             if let Some(ref grade) = entry.grade {
-                content.push_str(&format!("grade = \"{grade}\"\n"));
+                writeln!(content, "grade = \"{grade}\"").expect("write to String");
             }
             if let Some(tests) = entry.tests {
-                content.push_str(&format!("tests = {tests}\n"));
+                writeln!(content, "tests = {tests}").expect("write to String");
             }
             if let Some(coverage) = entry.coverage {
-                content.push_str(&format!("coverage = {coverage}\n"));
+                writeln!(content, "coverage = {coverage}").expect("write to String");
             }
             content.push('\n');
         }
@@ -245,9 +249,7 @@ fn parse_corpus_entry(name: &str, value: &toml::Value) -> anyhow::Result<CorpusE
 
     let path = table
         .get("path")
-        .and_then(|v| v.as_str())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."));
+        .and_then(|v| v.as_str()).map_or_else(|| PathBuf::from("."), PathBuf::from);
 
     let mut entry = CorpusEntry::new(name, path);
 
@@ -267,15 +269,18 @@ fn parse_corpus_entry(name: &str, value: &toml::Value) -> anyhow::Result<CorpusE
         entry.exclude = exclude.iter().filter_map(|v| v.as_str().map(String::from)).collect();
     }
 
-    if let Some(count) = table.get("file_count").and_then(|v| v.as_integer()) {
-        entry.file_count = Some(count as usize);
+    if let Some(count) = table.get("file_count").and_then(toml::Value::as_integer) {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        {
+            entry.file_count = Some(count as usize);
+        }
     }
 
-    if let Some(rate) = table.get("target_rate").and_then(|v| v.as_float()) {
+    if let Some(rate) = table.get("target_rate").and_then(toml::Value::as_float) {
         entry.target_rate = rate;
     }
 
-    if let Some(tdg) = table.get("tdg_score").and_then(|v| v.as_float()) {
+    if let Some(tdg) = table.get("tdg_score").and_then(toml::Value::as_float) {
         entry.tdg_score = Some(tdg);
     }
 
@@ -283,11 +288,14 @@ fn parse_corpus_entry(name: &str, value: &toml::Value) -> anyhow::Result<CorpusE
         entry.grade = Some(grade.to_string());
     }
 
-    if let Some(tests) = table.get("tests").and_then(|v| v.as_integer()) {
-        entry.tests = Some(tests as usize);
+    if let Some(tests) = table.get("tests").and_then(toml::Value::as_integer) {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        {
+            entry.tests = Some(tests as usize);
+        }
     }
 
-    if let Some(coverage) = table.get("coverage").and_then(|v| v.as_float()) {
+    if let Some(coverage) = table.get("coverage").and_then(toml::Value::as_float) {
         entry.coverage = Some(coverage);
     }
 

@@ -1,17 +1,18 @@
-//! Regex method handlers for ExpressionConverter
+//! Regex method handlers for `ExpressionConverter`
 //!
 //! Extracted from mod.rs to reduce file size. Contains the `convert_regex_method`
-//! handler covering: findall, match, search, group, groups, start, end, span, as_str.
+//! handler covering: findall, match, search, group, groups, start, end, span, `as_str`.
 
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     /// Handle regex methods (findall)
     #[inline]
     /// DEPYLER-0431: Convert regex instance method calls
     /// Handles both compiled Regex methods and Match object methods
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_regex_method(
         &mut self,
         object_expr: &syn::Expr,
@@ -130,7 +131,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! { #object_expr.as_ref().map(|m| m.as_str()).unwrap_or("") })
             }
 
-            _ => bail!("Unknown regex method: {}", method),
+            _ => bail!("Unknown regex method: {method}"),
         }
     }
 }

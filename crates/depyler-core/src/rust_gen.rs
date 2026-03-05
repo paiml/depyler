@@ -1,5 +1,5 @@
 use crate::cargo_toml_gen; // DEPYLER-0384: Cargo.toml generation
-use crate::hir::*;
+use crate::hir::{HirStmt, HirParam, HirFunction, HirExpr, HirModule, Type, Literal};
 use anyhow::Result;
 use quote::quote;
 use std::collections::{HashMap, HashSet};
@@ -352,9 +352,9 @@ fn load_type_database() -> Option<std::sync::Arc<std::sync::Mutex<depyler_knowle
 
 /// Analyze which variables are reassigned (mutated) in a list of statements
 ///
-/// Populates ctx.mutable_vars with variables that are:
+/// Populates `ctx.mutable_vars` with variables that are:
 /// 1. Reassigned after declaration (x = 1; x = 2)
-/// 2. Mutated via method calls (.push(), .extend(), .insert(), .remove(), .pop(), etc.)
+/// 2. Mutated via method calls (.`push()`, .`extend()`, .`insert()`, .`remove()`, .`pop()`, etc.)
 /// 3. DEPYLER-0312: Function parameters that are reassigned (requires mut)
 ///
 /// Complexity: 7 (stmt loop + match + if + expr scan + method match)
@@ -445,6 +445,7 @@ fn generate_lambda_as_function(
 /// These stubs allow compilation without the actual implementation.
 ///
 /// Complexity: 4 (loop + ident creation + quote)
+#[allow(clippy::no_effect_underscore_binding)]
 pub(super) fn generate_stub_functions(
     unresolved_imports: &[import_gen::UnresolvedImport],
 ) -> Vec<proc_macro2::TokenStream> {
@@ -542,10 +543,11 @@ pub fn generate_rust_file(
     generate_rust_file_internal(module, type_mapper, std::collections::HashMap::new())
 }
 
-/// DEPYLER-1133: Internal implementation that accepts pre-seeded var_types
+/// DEPYLER-1133: Internal implementation that accepts pre-seeded `var_types`
 ///
 /// This is the "Restoration of Truth" - when called with Oracle-learned types,
 /// those types are used during code generation instead of being inferred fresh.
+#[allow(clippy::if_not_else)]
 fn generate_rust_file_internal(
     module: &HirModule,
     type_mapper: &crate::type_mapper::TypeMapper,
@@ -634,7 +636,7 @@ fn generate_rust_file_internal(
     let mut formatted_code = format_rust_code(file.to_string());
     // DEPYLER-0393: Post-process FORMATTED code to detect missed dependencies
     if !nasa_mode && formatted_code.contains("serde_json::") && !ctx.needs_serde_json {
-        formatted_code = format!("use serde_json;\n{}", formatted_code);
+        formatted_code = format!("use serde_json;\n{formatted_code}");
         dependencies.push(cargo_toml_gen::Dependency::new("serde_json", "1.0"));
         dependencies.push(
             cargo_toml_gen::Dependency::new("serde", "1.0")
@@ -657,7 +659,7 @@ fn generate_rust_file_internal(
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 ";
-    formatted_code = format!("{}{}", allow_attrs, formatted_code);
+    formatted_code = format!("{allow_attrs}{formatted_code}");
 
     Ok((formatted_code, dependencies))
 }
@@ -675,6 +677,7 @@ fn generate_rust_file_internal(
 ///
 /// # Returns
 /// Returns the generated Rust code and Cargo dependencies, or an error.
+#[allow(clippy::implicit_hasher)]
 pub fn generate_rust_file_with_overrides(
     module: &HirModule,
     type_mapper: &crate::type_mapper::TypeMapper,
@@ -692,7 +695,7 @@ pub fn generate_rust_file_with_overrides(
     // Log the overrides for observability
     eprintln!("DEPYLER-1133: Restoring {} type constraints from Oracle", type_overrides.len());
     for (var, ty) in &type_overrides {
-        eprintln!("  {} → {:?}", var, ty);
+        eprintln!("  {var} → {ty:?}");
     }
 
     // DEPYLER-1133: THE RESTORATION OF TRUTH
@@ -703,7 +706,7 @@ pub fn generate_rust_file_with_overrides(
 
 /// DEPYLER-1101: Convert Rust type string from E0308 error to HIR Type
 ///
-/// Parses type strings like "i32", "String", "Vec<i32>", "HashMap<String, i32>"
+/// Parses type strings like "i32", "String", "Vec<i32>", "`HashMap`<String, i32>"
 /// into HIR Type representation for use in type overrides.
 pub fn rust_type_string_to_hir(rust_type: &str) -> Type {
     let trimmed = rust_type.trim();

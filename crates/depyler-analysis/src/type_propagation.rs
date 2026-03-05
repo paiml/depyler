@@ -79,6 +79,8 @@ pub fn propagate_call_site_types(hir: &mut HirModule) {
 }
 
 /// Collect variable types from statements (assignments, etc.)
+#[allow(clippy::implicit_hasher)]
+#[allow(clippy::match_same_arms)]
 pub fn collect_var_types_from_stmts(
     stmts: &[HirStmt],
     func_name: &str,
@@ -158,7 +160,8 @@ pub fn extract_element_type(iter_type: &Type) -> Type {
     }
 }
 
-/// DEPYLER-0587: Add target variable(s) to var_types map
+/// DEPYLER-0587: Add target variable(s) to `var_types` map
+#[allow(clippy::implicit_hasher)]
 pub fn add_target_to_var_types(
     target: &AssignTarget,
     elem_type: &Type,
@@ -194,6 +197,7 @@ pub fn infer_expr_type(expr: &HirExpr) -> Option<Type> {
 }
 
 /// Infer type from an expression, including function return types
+#[allow(clippy::implicit_hasher)]
 pub fn infer_expr_type_with_returns(
     expr: &HirExpr,
     func_return_types: &HashMap<String, Type>,
@@ -205,7 +209,7 @@ pub fn infer_expr_type_with_returns(
             Literal::String(_) => Type::String,
             Literal::Bool(_) => Type::Bool,
             Literal::None => Type::None,
-            _ => return None,
+            Literal::Bytes(_) => return None,
         }),
         HirExpr::List(elems) => {
             let elem_type = elems
@@ -226,6 +230,8 @@ pub fn infer_expr_type_with_returns(
 
 /// Collect call site types: when func(var) is called and var has a known type,
 /// record that type for the function's parameter at that position
+#[allow(clippy::too_many_lines)]
+#[allow(clippy::implicit_hasher)]
 pub fn collect_call_site_types(
     stmts: &[HirStmt],
     caller_func_name: &str,
@@ -359,6 +365,8 @@ pub fn collect_call_site_types(
 }
 
 /// Collect call site types from an expression
+#[allow(clippy::too_many_lines)]
+#[allow(clippy::implicit_hasher)]
 pub fn collect_call_site_types_from_expr(
     expr: &HirExpr,
     caller_func_name: &str,

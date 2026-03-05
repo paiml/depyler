@@ -1,6 +1,6 @@
 //! Function Code Generation Helpers - EXTREME TDD
 //!
-//! This module contains extracted pure helper functions from func_gen.rs
+//! This module contains extracted pure helper functions from `func_gen.rs`
 //! for better testability and coverage.
 //!
 //! ## Functions

@@ -2,12 +2,13 @@
 pub mod scope_tracker;
 pub mod union_type_resolution;
 
-use crate::hir::*;
+use crate::hir::{HirModule, Type, HirStmt, HirExpr, HirFunction, AssignTarget, BinOp, Literal, UnaryOp};
 use anyhow::{bail, Result};
 use quote::{quote, ToTokens};
 use scope_tracker::ScopeTracker;
 use syn;
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn generate_rust(file: syn::File) -> Result<String> {
     let tokens = file.to_token_stream();
     let rust_code = tokens.to_string();
@@ -59,6 +60,7 @@ fn function_body_uses_hashmap(body: &[HirStmt]) -> bool {
     body.iter().any(stmt_uses_hashmap)
 }
 
+#[allow(clippy::match_same_arms)]
 fn stmt_uses_hashmap(stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { value, .. } => expr_uses_hashmap(value),
@@ -150,6 +152,7 @@ fn convert_function_to_rust(func: &HirFunction) -> Result<proc_macro2::TokenStre
     Ok(func_tokens)
 }
 
+#[allow(clippy::match_same_arms)]
 fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
     match ty {
         Type::Int => quote! { i32 },
@@ -231,13 +234,13 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
         }
         Type::UnificationVar(id) => {
             // UnificationVar should never appear in final code generation
-            panic!("BUG: UnificationVar({}) encountered in codegen. Type inference incomplete.", id)
+            panic!("BUG: UnificationVar({id}) encountered in codegen. Type inference incomplete.")
         }
     }
 }
 
 /// DEPYLER-0765: Resolve Python union types to valid Rust types
-/// DEPYLER-COVERAGE-95: Delegate to extracted union_type_resolution module
+/// DEPYLER-COVERAGE-95: Delegate to extracted `union_type_resolution` module
 fn resolve_union_type(types: &[Type]) -> proc_macro2::TokenStream {
     union_type_resolution::resolve_union_type(types, type_to_rust_type)
 }
@@ -250,6 +253,7 @@ fn stmt_to_rust_tokens(stmt: &HirStmt) -> Result<proc_macro2::TokenStream> {
 }
 
 // DEPYLER-0012: Helper functions to reduce complexity (extracted from stmt_to_rust_tokens_with_scope)
+#[allow(clippy::needless_pass_by_value)]
 fn handle_assign_target(
     target: &AssignTarget,
     value_tokens: proc_macro2::TokenStream,
@@ -286,65 +290,63 @@ fn handle_assign_target(
                 })
                 .collect();
 
-            match all_symbols {
-                Some(symbols) => {
-                    let all_declared = symbols.iter().all(|s| scope_tracker.is_declared(s));
+            if let Some(symbols) = all_symbols {
+                let all_declared = symbols.iter().all(|s| scope_tracker.is_declared(s));
 
-                    if all_declared {
-                        let idents: Vec<_> = symbols
-                            .iter()
-                            .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
-                            .collect();
-                        Ok(quote! { (#(#idents),*) = #value_tokens; })
-                    } else {
-                        scope_tracker.declare_vars(symbols.iter());
-                        let idents: Vec<_> = symbols
-                            .iter()
-                            .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
-                            .collect();
-                        Ok(quote! { let (mut #(#idents),*) = #value_tokens; })
-                    }
-                }
-                None => {
-                    // GH-109: Handle tuple unpacking with Index targets
-                    // Pattern: list[i], list[j] = list[j], list[i] (swap)
-                    let all_indices: Option<Vec<_>> = targets
+                if all_declared {
+                    let idents: Vec<_> = symbols
                         .iter()
-                        .map(|t| match t {
-                            AssignTarget::Index { base, index } => Some((base, index)),
-                            _ => None,
-                        })
+                        .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
                         .collect();
+                    Ok(quote! { (#(#idents),*) = #value_tokens; })
+                } else {
+                    scope_tracker.declare_vars(symbols.iter());
+                    let idents: Vec<_> = symbols
+                        .iter()
+                        .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
+                        .collect();
+                    Ok(quote! { let (mut #(#idents),*) = #value_tokens; })
+                }
+            } else {
+                // GH-109: Handle tuple unpacking with Index targets
+                // Pattern: list[i], list[j] = list[j], list[i] (swap)
+                let all_indices: Option<Vec<_>> = targets
+                    .iter()
+                    .map(|t| match t {
+                        AssignTarget::Index { base, index } => Some((base, index)),
+                        _ => None,
+                    })
+                    .collect();
 
-                    if let Some(indices) = all_indices {
-                        let temp_var =
-                            syn::Ident::new("_swap_temp", proc_macro2::Span::call_site());
+                if let Some(indices) = all_indices {
+                    let temp_var =
+                        syn::Ident::new("_swap_temp", proc_macro2::Span::call_site());
 
-                        let mut assignments = Vec::new();
-                        for (idx, (base, index)) in indices.iter().enumerate() {
-                            let base_expr = expr_to_rust_tokens(base)?;
-                            let index_expr = expr_to_rust_tokens(index)?;
-                            let tuple_idx = syn::Index::from(idx);
+                    let mut assignments = Vec::new();
+                    for (idx, (base, index)) in indices.iter().enumerate() {
+                        let base_expr = expr_to_rust_tokens(base)?;
+                        let index_expr = expr_to_rust_tokens(index)?;
+                        let tuple_idx = syn::Index::from(idx);
 
-                            // Vec assignment: base[index as usize] = temp.N
-                            assignments.push(quote! {
-                                #base_expr[(#index_expr) as usize] = #temp_var.#tuple_idx;
-                            });
-                        }
-
-                        return Ok(quote! {
-                            let #temp_var = #value_tokens;
-                            #(#assignments)*
+                        // Vec assignment: base[index as usize] = temp.N
+                        assignments.push(quote! {
+                            #base_expr[(#index_expr) as usize] = #temp_var.#tuple_idx;
                         });
                     }
 
-                    anyhow::bail!("Complex tuple unpacking not yet supported")
+                    return Ok(quote! {
+                        let #temp_var = #value_tokens;
+                        #(#assignments)*
+                    });
                 }
+
+                anyhow::bail!("Complex tuple unpacking not yet supported")
             }
         }
     }
 }
 
+#[allow(clippy::ref_option)]
 fn handle_if_stmt(
     condition: &HirExpr,
     then_body: &[HirStmt],
@@ -447,6 +449,7 @@ fn handle_for_stmt(
     })
 }
 
+#[allow(clippy::ref_option)]
 fn handle_with_stmt(
     context: &HirExpr,
     target: &Option<String>,
@@ -473,6 +476,7 @@ fn handle_with_stmt(
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn stmt_to_rust_tokens_with_scope(
     stmt: &HirStmt,
     scope_tracker: &mut ScopeTracker,
@@ -511,7 +515,7 @@ fn stmt_to_rust_tokens_with_scope(
         HirStmt::Break { label } => {
             if let Some(label_name) = label {
                 let label_ident =
-                    syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
+                    syn::Lifetime::new(&format!("'{label_name}"), proc_macro2::Span::call_site());
                 Ok(quote! { break #label_ident; })
             } else {
                 Ok(quote! { break; })
@@ -520,7 +524,7 @@ fn stmt_to_rust_tokens_with_scope(
         HirStmt::Continue { label } => {
             if let Some(label_name) = label {
                 let label_ident =
-                    syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
+                    syn::Lifetime::new(&format!("'{label_name}"), proc_macro2::Span::call_site());
                 Ok(quote! { continue #label_ident; })
             } else {
                 Ok(quote! { continue; })
@@ -636,6 +640,7 @@ fn stmt_to_rust_tokens_with_scope(
 
 /// Convert binary expression to Rust tokens with special operator handling
 /// Complexity: ~6-7 (within ≤10 target)
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn binary_expr_to_rust_tokens(
     op: &BinOp,
     left: &HirExpr,
@@ -696,7 +701,7 @@ fn list_literal_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenSt
     Ok(quote! { vec![#(#item_tokens),*] })
 }
 
-/// Convert dict literal to Rust HashMap
+/// Convert dict literal to Rust `HashMap`
 /// Complexity: 2 (within ≤10 target)
 fn dict_literal_to_rust_tokens(items: &[(HirExpr, HirExpr)]) -> Result<proc_macro2::TokenStream> {
     let mut entries = Vec::new();
@@ -735,6 +740,7 @@ fn borrow_expr_to_rust_tokens(expr: &HirExpr, mutable: bool) -> Result<proc_macr
 
 /// Convert method call expression to Rust method call
 /// Complexity: 1 (within ≤10 target)
+#[allow(clippy::ref_option)]
 fn method_call_to_rust_tokens(
     object: &HirExpr,
     method: &str,
@@ -748,6 +754,7 @@ fn method_call_to_rust_tokens(
 
 /// Convert slice expression to Rust slice notation
 /// Complexity: 5 (match arms, within ≤10 target)
+#[allow(clippy::similar_names, clippy::ref_option)]
 fn slice_expr_to_rust_tokens(
     base: &HirExpr,
     start: &Option<Box<HirExpr>>,
@@ -780,6 +787,7 @@ fn slice_expr_to_rust_tokens(
 
 /// Convert list comprehension to Rust iterator chain
 /// Complexity: 2 (if-else for condition, within ≤10 target)
+#[allow(clippy::ref_option)]
 fn list_comp_to_rust_tokens(
     element: &HirExpr,
     target: &str,
@@ -834,7 +842,7 @@ fn lambda_to_rust_tokens(params: &[String], body: &HirExpr) -> Result<proc_macro
     }
 }
 
-/// Convert set literal to Rust HashSet
+/// Convert set literal to Rust `HashSet`
 /// Complexity: 1 (within ≤10 target)
 fn set_literal_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStream> {
     let item_tokens: Vec<_> = items.iter().map(expr_to_rust_tokens).collect::<Result<Vec<_>>>()?;
@@ -850,6 +858,7 @@ fn set_literal_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStr
 
 /// Convert frozenset literal to Rust Arc<HashSet>
 /// Complexity: 1 (within ≤10 target)
+#[allow(clippy::ref_option)]
 fn frozen_set_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStream> {
     let item_tokens: Vec<_> = items.iter().map(expr_to_rust_tokens).collect::<Result<Vec<_>>>()?;
     // DEPYLER-0623: Use fully qualified path for consistent HashSet resolution
@@ -864,6 +873,7 @@ fn frozen_set_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStre
 
 /// Convert set comprehension to Rust iterator chain
 /// Complexity: 2 (if-else for condition, within ≤10 target)
+#[allow(clippy::ref_option)]
 fn set_comp_to_rust_tokens(
     element: &HirExpr,
     target: &str,
@@ -899,6 +909,7 @@ fn set_comp_to_rust_tokens(
 
 /// Convert dict comprehension to Rust iterator chain
 /// Complexity: 2 (if-else for condition, within ≤10 target)
+#[allow(clippy::too_many_lines, clippy::ref_option)]
 fn dict_comp_to_rust_tokens(
     key: &HirExpr,
     value: &HirExpr,
@@ -933,6 +944,7 @@ fn dict_comp_to_rust_tokens(
     }
 }
 
+#[allow(clippy::unnecessary_wraps, clippy::too_many_lines)]
 fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
     match expr {
         HirExpr::Literal(lit) => literal_to_rust_tokens(lit),
@@ -1094,6 +1106,7 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
     }
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
 fn literal_to_rust_tokens(lit: &Literal) -> Result<proc_macro2::TokenStream> {
     match lit {
         Literal::Int(i) => Ok(quote! { #i }),
@@ -1109,6 +1122,7 @@ fn literal_to_rust_tokens(lit: &Literal) -> Result<proc_macro2::TokenStream> {
     }
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::match_same_arms)]
 fn binop_to_rust_tokens(op: &BinOp) -> proc_macro2::TokenStream {
     match op {
         BinOp::Add => quote! { + },
@@ -1136,6 +1150,7 @@ fn binop_to_rust_tokens(op: &BinOp) -> proc_macro2::TokenStream {
     }
 }
 
+#[allow(clippy::match_same_arms, clippy::needless_pass_by_value, clippy::trivially_copy_pass_by_ref)]
 fn unaryop_to_rust_tokens(op: &UnaryOp) -> proc_macro2::TokenStream {
     match op {
         UnaryOp::Not => quote! { ! },
@@ -1145,6 +1160,7 @@ fn unaryop_to_rust_tokens(op: &UnaryOp) -> proc_macro2::TokenStream {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn prettify_rust_code(code: String) -> String {
     // Very basic formatting - in production, use rustfmt
     code.replace(" ; ", ";\n    ")
@@ -1233,7 +1249,7 @@ fn prettify_rust_code(code: String) -> String {
         .replace(";\n    }", "\n}")
 }
 
-/// Check if an expression is a len() call
+/// Check if an expression is a `len()` call
 fn is_len_call(expr: &HirExpr) -> bool {
     matches!(expr, HirExpr::Call { func, args , ..} if func == "len" && args.len() == 1)
 }

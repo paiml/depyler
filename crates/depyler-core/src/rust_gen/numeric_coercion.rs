@@ -1,7 +1,7 @@
 //! Numeric Type Coercion Helpers
 //!
 //! This module contains helpers for numeric type coercion during code generation.
-//! Extracted from expr_gen.rs for better testability.
+//! Extracted from `expr_gen.rs` for better testability.
 //!
 //! DEPYLER-0582, DEPYLER-0694, DEPYLER-0805: Numeric type coercion handling
 
@@ -9,6 +9,7 @@ use crate::hir::{BinOp, HirExpr, Literal, Type};
 use std::collections::HashMap;
 
 /// Check if expression is a variable with integer type
+#[allow(clippy::implicit_hasher)]
 pub fn is_int_var(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
     if let HirExpr::Var(name) = expr {
         if let Some(var_type) = var_types.get(name) {
@@ -26,6 +27,7 @@ pub fn is_int_var(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
 }
 
 /// Check if expression is a variable with float type
+#[allow(clippy::implicit_hasher)]
 pub fn is_float_var(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
     if let HirExpr::Var(name) = expr {
         if let Some(var_type) = var_types.get(name) {
@@ -68,6 +70,7 @@ pub fn is_color_channel_name(name: &str) -> bool {
 
 /// Check if expression evaluates to an integer type
 /// Handles variables, literals, and binary operations on integers
+#[allow(clippy::implicit_hasher)]
 pub fn is_int_expr(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
     match expr {
         HirExpr::Var(name) => {
@@ -94,6 +97,7 @@ pub fn is_int_expr(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
 }
 
 /// Check if expression returns a float type
+#[allow(clippy::implicit_hasher)]
 pub fn expr_returns_float(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
     match expr {
         HirExpr::Literal(Literal::Float(_)) => true,
@@ -130,6 +134,7 @@ pub fn expr_returns_float(expr: &HirExpr, var_types: &HashMap<String, Type>) -> 
 }
 
 /// Determine if we need to cast an integer to float
+#[allow(clippy::implicit_hasher)]
 pub fn needs_float_coercion(
     expr: &HirExpr,
     other: &HirExpr,

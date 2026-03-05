@@ -1,7 +1,7 @@
 //! Functools Module Code Generation - EXTREME TDD
 //!
 //! Handles Python `functools` module method conversions to Rust.
-//! Extracted from expr_gen.rs for testability and maintainability.
+//! Extracted from `expr_gen.rs` for testability and maintainability.
 //!
 //! Coverage target: 100% line coverage, 100% branch coverage
 
@@ -13,7 +13,7 @@ use syn::parse_quote;
 /// Convert Python functools module method calls to Rust
 ///
 /// # Supported Methods
-/// - reduce: Fold/reduce operation using Iterator::fold()
+/// - reduce: Fold/reduce operation using `Iterator::fold()`
 ///
 /// # Complexity: 2 (match with 1 branch + default)
 pub fn convert_functools_method(
@@ -26,7 +26,7 @@ pub fn convert_functools_method(
 
     let result = match method {
         "reduce" => convert_reduce(&arg_exprs)?,
-        _ => bail!("functools.{} not implemented yet (available: reduce)", method),
+        _ => bail!("functools.{method} not implemented yet (available: reduce)"),
     };
 
     Ok(Some(result))

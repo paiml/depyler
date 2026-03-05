@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 /// - Python output (stdout/stderr/exit code) vs Rust output
 /// - Deterministic 100% accuracy (vs ML-based regression detection)
 ///
-/// Based on McKeeman (1998) "Differential Testing for Software"
+/// Based on `McKeeman` (1998) "Differential Testing for Software"
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -68,7 +69,7 @@ impl DifferentialTester {
             } else {
                 Err(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
-                    format!("depyler executable not found at {:?}", depyler_path),
+                    format!("depyler executable not found at {}", depyler_path.display()),
                 ))
             }
         })?;
@@ -93,7 +94,7 @@ impl DifferentialTester {
         python_file: &Path,
         args: &[&str],
     ) -> Result<DifferentialTestResult, Box<dyn std::error::Error>> {
-        let test_name = python_file.file_stem().unwrap().to_str().unwrap().to_string();
+        let test_name = python_file.file_stem().expect("file has no stem").to_str().expect("non-UTF8 filename").to_string();
 
         // 1. Run Python
         let python_output = self.run_python(python_file, args)?;
@@ -102,13 +103,13 @@ impl DifferentialTester {
         let rust_file = self.transpile(python_file)?;
 
         // 3. Compile Rust
-        let rust_binary = self.compile_rust(&rust_file)?;
+        let rust_binary = Self::compile_rust(&rust_file)?;
 
         // 4. Run Rust
-        let rust_output = self.run_rust(&rust_binary, args)?;
+        let rust_output = Self::run_rust(&rust_binary, args)?;
 
         // 5. Compare
-        let mismatches = self.compare_outputs(&python_output, &rust_output);
+        let mismatches = Self::compare_outputs(&python_output, &rust_output);
 
         Ok(DifferentialTestResult {
             test_name,
@@ -143,14 +144,14 @@ impl DifferentialTester {
     fn transpile(&self, python_file: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
         let rust_file = self
             .temp_dir
-            .join(python_file.file_stem().unwrap().to_str().unwrap())
+            .join(python_file.file_stem().expect("file has no stem").to_str().expect("non-UTF8 filename"))
             .with_extension("rs");
 
         fs::create_dir_all(&self.temp_dir)?;
 
         let output = Command::new(&self.depyler_exe)
-            .args(["transpile", python_file.to_str().unwrap()])
-            .args(["-o", rust_file.to_str().unwrap()])
+            .args(["transpile", python_file.to_str().expect("non-UTF8 path")])
+            .args(["-o", rust_file.to_str().expect("non-UTF8 path")])
             .output()?;
 
         if !output.status.success() {
@@ -165,12 +166,12 @@ impl DifferentialTester {
     }
 
     /// Compile Rust to binary
-    fn compile_rust(&self, rust_file: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    fn compile_rust(rust_file: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
         let binary = rust_file.with_extension("");
 
         let output = Command::new("rustc")
             .arg(rust_file)
-            .args(["-o", binary.to_str().unwrap()])
+            .args(["-o", binary.to_str().expect("non-UTF8 path")])
             .args(["--deny", "warnings"]) // Enforce zero warnings
             .output()?;
 
@@ -187,7 +188,6 @@ impl DifferentialTester {
 
     /// Run compiled Rust binary
     fn run_rust(
-        &self,
         binary: &Path,
         args: &[&str],
     ) -> Result<ProgramOutput, Box<dyn std::error::Error>> {
@@ -206,15 +206,15 @@ impl DifferentialTester {
     }
 
     /// Compare Python vs Rust outputs
-    fn compare_outputs(&self, python: &ProgramOutput, rust: &ProgramOutput) -> Vec<Mismatch> {
+    fn compare_outputs(python: &ProgramOutput, rust: &ProgramOutput) -> Vec<Mismatch> {
         let mut mismatches = Vec::new();
 
         // Compare stdout (with normalization)
-        let python_stdout = self.normalize_output(&python.stdout);
-        let rust_stdout = self.normalize_output(&rust.stdout);
+        let python_stdout = Self::normalize_output(&python.stdout);
+        let rust_stdout = Self::normalize_output(&rust.stdout);
 
         if python_stdout != rust_stdout {
-            let diff = self.compute_diff(&python_stdout, &rust_stdout);
+            let diff = Self::compute_diff(&python_stdout, &rust_stdout);
             mismatches.push(Mismatch::StdoutDifference {
                 python: python_stdout,
                 rust: rust_stdout,
@@ -247,17 +247,17 @@ impl DifferentialTester {
     /// - Whitespace differences
     /// - Platform-specific line endings
     /// - Floating point precision differences
-    fn normalize_output(&self, output: &str) -> String {
+    fn normalize_output(output: &str) -> String {
         output
             .lines()
-            .map(|line| line.trim())
+            .map(str::trim)
             .filter(|line| !line.is_empty())
             .collect::<Vec<_>>()
             .join("\n")
     }
 
     /// Compute unified diff between two strings
-    fn compute_diff(&self, a: &str, b: &str) -> String {
+    fn compute_diff(a: &str, b: &str) -> String {
         // Simple line-by-line diff
         let a_lines: Vec<&str> = a.lines().collect();
         let b_lines: Vec<&str> = b.lines().collect();
@@ -297,7 +297,7 @@ pub struct ReprorustedTestSuite {
 
 impl ReprorustedTestSuite {
     pub fn new(examples_dir: PathBuf) -> Self {
-        Self { tester: DifferentialTester::new().unwrap(), examples_dir }
+        Self { tester: DifferentialTester::new().expect("failed to init DifferentialTester"), examples_dir }
     }
 
     /// Run all reprorusted examples
@@ -316,14 +316,14 @@ impl ReprorustedTestSuite {
             let python_file = self
                 .examples_dir
                 .join(name)
-                .join(format!("{}.py", name.strip_prefix("example_").unwrap()));
+                .join(format!("{}.py", name.strip_prefix("example_").expect("name missing example_ prefix")));
 
             match self.tester.test_file(&python_file, args) {
                 Ok(result) => {
                     results.insert(name.to_string(), result);
                 }
                 Err(e) => {
-                    eprintln!("Failed to test {}: {}", name, e);
+                    eprintln!("Failed to test {name}: {e}");
                 }
             }
         }
@@ -335,9 +335,11 @@ impl ReprorustedTestSuite {
     pub fn generate_report(&self, results: &HashMap<String, DifferentialTestResult>) -> String {
         let pass_count = results.values().filter(|r| r.passed).count();
         let total_count = results.len();
+        #[allow(clippy::cast_precision_loss)]
+        let pass_rate = (pass_count as f64 / total_count as f64) * 100.0;
 
         let mut html = format!(
-            r#"<!DOCTYPE html>
+            r"<!DOCTYPE html>
 <html>
 <head>
     <title>Depyler Differential Testing Report</title>
@@ -350,40 +352,38 @@ impl ReprorustedTestSuite {
 </head>
 <body>
     <h1>Depyler Differential Testing Report</h1>
-    <p>Pass Rate: {}/{} ({:.1}%)</p>
+    <p>Pass Rate: {pass_count}/{total_count} ({pass_rate:.1}%)</p>
     <hr>
-"#,
-            pass_count,
-            total_count,
-            (pass_count as f64 / total_count as f64) * 100.0
+",
         );
 
         for (name, result) in results {
             let status = if result.passed { "PASS" } else { "FAIL" };
             let class = if result.passed { "pass" } else { "fail" };
 
-            html.push_str(&format!(
+            write!(
+                html,
                 r#"<div class="{}">
     <h2>{}: {}</h2>
     <p>Python runtime: {}ms | Rust runtime: {}ms</p>
 "#,
                 class, name, status, result.python_output.runtime_ms, result.rust_output.runtime_ms
-            ));
+            ).expect("write to String");
 
             if !result.passed {
                 html.push_str("<div class=\"diff\">");
                 for mismatch in &result.mismatches {
                     match mismatch {
                         Mismatch::StdoutDifference { diff, .. } => {
-                            html.push_str(&format!("<pre>{}</pre>", diff));
+                            write!(html, "<pre>{diff}</pre>").expect("write to String");
                         }
                         Mismatch::ExitCodeDifference { python, rust } => {
-                            html.push_str(&format!(
-                                "<p>Exit code: Python={}, Rust={}</p>",
-                                python, rust
-                            ));
+                            write!(
+                                html,
+                                "<p>Exit code: Python={python}, Rust={rust}</p>"
+                            ).expect("write to String");
                         }
-                        _ => {}
+                        Mismatch::StderrDifference { .. } => {}
                     }
                 }
                 html.push_str("</div>");
@@ -795,7 +795,7 @@ mod tests {
         let input = "  Line 1  \n\n  Line 2  \r\n  Line 3  ";
         let expected = "Line 1\nLine 2\nLine 3";
 
-        assert_eq!(tester.normalize_output(input), expected);
+        assert_eq!(DifferentialTester::normalize_output(input), expected);
     }
 
     #[test]
@@ -842,57 +842,49 @@ if __name__ == "__main__":
 
     #[test]
     fn test_s11_normalize_output_basic() {
-        let tester = make_dummy_tester();
-        let result = tester.normalize_output("  hello  \n  world  ");
+                let result = DifferentialTester::normalize_output("  hello  \n  world  ");
         assert_eq!(result, "hello\nworld");
     }
 
     #[test]
     fn test_s11_normalize_output_empty_lines_filtered() {
-        let tester = make_dummy_tester();
-        let result = tester.normalize_output("line1\n\n\nline2\n\n");
+                let result = DifferentialTester::normalize_output("line1\n\n\nline2\n\n");
         assert_eq!(result, "line1\nline2");
     }
 
     #[test]
     fn test_s11_normalize_output_crlf() {
-        let tester = make_dummy_tester();
-        let result = tester.normalize_output("foo\r\nbar\r\n");
+                let result = DifferentialTester::normalize_output("foo\r\nbar\r\n");
         assert_eq!(result, "foo\nbar");
     }
 
     #[test]
     fn test_s11_normalize_output_empty() {
-        let tester = make_dummy_tester();
-        let result = tester.normalize_output("");
+                let result = DifferentialTester::normalize_output("");
         assert_eq!(result, "");
     }
 
     #[test]
     fn test_s11_normalize_output_only_whitespace() {
-        let tester = make_dummy_tester();
-        let result = tester.normalize_output("   \n   \n   ");
+                let result = DifferentialTester::normalize_output("   \n   \n   ");
         assert_eq!(result, "");
     }
 
     #[test]
     fn test_s11_normalize_output_trailing_whitespace() {
-        let tester = make_dummy_tester();
-        let result = tester.normalize_output("hello   \nworld   ");
+                let result = DifferentialTester::normalize_output("hello   \nworld   ");
         assert_eq!(result, "hello\nworld");
     }
 
     #[test]
     fn test_s11_compute_diff_identical() {
-        let tester = make_dummy_tester();
-        let result = tester.compute_diff("hello\nworld", "hello\nworld");
+                let result = DifferentialTester::compute_diff("hello\nworld", "hello\nworld");
         assert!(result.is_empty());
     }
 
     #[test]
     fn test_s11_compute_diff_different_lines() {
-        let tester = make_dummy_tester();
-        let result = tester.compute_diff("hello", "world");
+                let result = DifferentialTester::compute_diff("hello", "world");
         assert!(result.contains("Line 1"));
         assert!(result.contains("Python: 'hello'"));
         assert!(result.contains("Rust: 'world'"));
@@ -900,8 +892,7 @@ if __name__ == "__main__":
 
     #[test]
     fn test_s11_compute_diff_length_mismatch() {
-        let tester = make_dummy_tester();
-        let result = tester.compute_diff("line1\nline2\nline3", "line1");
+                let result = DifferentialTester::compute_diff("line1\nline2\nline3", "line1");
         assert!(result.contains("Length mismatch"));
         assert!(result.contains("Python 3 lines"));
         assert!(result.contains("Rust 1 lines"));
@@ -909,15 +900,13 @@ if __name__ == "__main__":
 
     #[test]
     fn test_s11_compute_diff_empty_strings() {
-        let tester = make_dummy_tester();
-        let result = tester.compute_diff("", "");
+                let result = DifferentialTester::compute_diff("", "");
         assert!(result.is_empty());
     }
 
     #[test]
     fn test_s11_compute_diff_multiple_differences() {
-        let tester = make_dummy_tester();
-        let result = tester.compute_diff("a\nb\nc", "x\ny\nz");
+                let result = DifferentialTester::compute_diff("a\nb\nc", "x\ny\nz");
         assert!(result.contains("Line 1"));
         assert!(result.contains("Line 2"));
         assert!(result.contains("Line 3"));
@@ -938,7 +927,7 @@ if __name__ == "__main__":
             exit_code: 0,
             runtime_ms: 5,
         };
-        let mismatches = tester.compare_outputs(&python, &rust);
+        let mismatches = DifferentialTester::compare_outputs(&python, &rust);
         assert!(mismatches.is_empty());
     }
 
@@ -957,7 +946,7 @@ if __name__ == "__main__":
             exit_code: 0,
             runtime_ms: 5,
         };
-        let mismatches = tester.compare_outputs(&python, &rust);
+        let mismatches = DifferentialTester::compare_outputs(&python, &rust);
         assert_eq!(mismatches.len(), 1);
         assert!(matches!(&mismatches[0], Mismatch::StdoutDifference { .. }));
     }
@@ -977,7 +966,7 @@ if __name__ == "__main__":
             exit_code: 1,
             runtime_ms: 5,
         };
-        let mismatches = tester.compare_outputs(&python, &rust);
+        let mismatches = DifferentialTester::compare_outputs(&python, &rust);
         assert!(mismatches.iter().any(|m| matches!(m, Mismatch::ExitCodeDifference { .. })));
     }
 
@@ -996,7 +985,7 @@ if __name__ == "__main__":
             exit_code: 1,
             runtime_ms: 5,
         };
-        let mismatches = tester.compare_outputs(&python, &rust);
+        let mismatches = DifferentialTester::compare_outputs(&python, &rust);
         assert!(mismatches.iter().any(|m| matches!(m, Mismatch::StderrDifference { .. })));
     }
 
@@ -1015,7 +1004,7 @@ if __name__ == "__main__":
             exit_code: 0,
             runtime_ms: 5,
         };
-        let mismatches = tester.compare_outputs(&python, &rust);
+        let mismatches = DifferentialTester::compare_outputs(&python, &rust);
         // When both exit codes are 0, stderr differences are OK
         assert!(!mismatches.iter().any(|m| matches!(m, Mismatch::StderrDifference { .. })));
     }
@@ -1035,7 +1024,7 @@ if __name__ == "__main__":
             exit_code: 1,
             runtime_ms: 5,
         };
-        let mismatches = tester.compare_outputs(&python, &rust);
+        let mismatches = DifferentialTester::compare_outputs(&python, &rust);
         // stdout diff, stderr diff (rust exit != 0), exit code diff
         assert!(mismatches.len() >= 2);
     }
@@ -1055,7 +1044,7 @@ if __name__ == "__main__":
             exit_code: 0,
             runtime_ms: 5,
         };
-        let mismatches = tester.compare_outputs(&python, &rust);
+        let mismatches = DifferentialTester::compare_outputs(&python, &rust);
         // normalize_output trims whitespace, so these should match
         assert!(mismatches.is_empty());
     }

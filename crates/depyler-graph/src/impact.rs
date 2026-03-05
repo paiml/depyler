@@ -44,9 +44,9 @@ pub struct PatientZero {
 pub struct ImpactScorer<'a> {
     graph: &'a DependencyGraph,
     errors: &'a [OverlaidError],
-    /// Damping factor for PageRank (typically 0.85)
+    /// Damping factor for `PageRank` (typically 0.85)
     damping: f64,
-    /// Number of iterations for PageRank convergence
+    /// Number of iterations for `PageRank` convergence
     iterations: usize,
 }
 
@@ -57,18 +57,23 @@ impl<'a> ImpactScorer<'a> {
     }
 
     /// Set damping factor
+    #[must_use]
     pub fn with_damping(mut self, damping: f64) -> Self {
         self.damping = damping.clamp(0.0, 1.0);
         self
     }
 
     /// Set number of iterations
+    #[must_use]
     pub fn with_iterations(mut self, iterations: usize) -> Self {
         self.iterations = iterations.max(1);
         self
     }
 
     /// Calculate impact scores for all nodes
+    #[allow(clippy::cast_precision_loss)]
+    #[allow(clippy::cast_precision_loss)]
+    #[allow(clippy::cast_precision_loss)]
     pub fn calculate_impact(&self) -> Vec<ImpactScore> {
         let node_ids = self.graph.node_ids();
         if node_ids.is_empty() {
@@ -119,7 +124,10 @@ impl<'a> ImpactScorer<'a> {
         counts
     }
 
-    /// Calculate PageRank scores
+    /// Calculate `PageRank` scores
+    #[allow(clippy::cast_precision_loss)]
+    #[allow(clippy::cast_precision_loss)]
+    #[allow(clippy::cast_precision_loss)]
     fn calculate_pagerank(&self, node_ids: &[String]) -> HashMap<String, f64> {
         let n = node_ids.len();
         if n == 0 {

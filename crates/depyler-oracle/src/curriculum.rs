@@ -1,15 +1,15 @@
 //! Curriculum Learning for Error Processing (Strategy #3 - DEPYLER-0633)
 //!
 //! Applies progressive difficulty ordering to fix easy errors first, building momentum.
-//! Based on the StepCoder paper's curriculum learning approach.
+//! Based on the `StepCoder` paper's curriculum learning approach.
 //!
 //! # Difficulty Levels
 //!
 //! | Level | Score | Error Categories | Fix Approach |
 //! |-------|-------|------------------|--------------|
-//! | EASY | 0.25 | SyntaxError, MissingImport | Rule-based |
-//! | MEDIUM | 0.50 | TypeMismatch, MethodNotFound | Oracle lookup |
-//! | HARD | 0.75 | TraitBound, Ownership | Oracle + LLM |
+//! | EASY | 0.25 | `SyntaxError`, `MissingImport` | Rule-based |
+//! | MEDIUM | 0.50 | `TypeMismatch`, `MethodNotFound` | Oracle lookup |
+//! | HARD | 0.75 | `TraitBound`, Ownership | Oracle + LLM |
 //! | EXPERT | 1.00 | Lifetime, Async, Complex Borrow | Human review |
 //!
 //! # References
@@ -195,6 +195,7 @@ pub struct CurriculumStats {
 impl CurriculumStats {
     /// Get success rate for a difficulty level
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn success_rate(&self, level: DifficultyLevel) -> f64 {
         let successes = *self.successes.get(&level).unwrap_or(&0);
         let failures = *self.failures.get(&level).unwrap_or(&0);
@@ -209,6 +210,7 @@ impl CurriculumStats {
 
     /// Get overall success rate
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn overall_success_rate(&self) -> f64 {
         let total_successes: usize = self.successes.values().sum();
         let total_failures: usize = self.failures.values().sum();
@@ -223,6 +225,7 @@ impl CurriculumStats {
 
     /// Get processing progress (0.0-1.0)
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn progress(&self) -> f64 {
         if self.total_added == 0 {
             0.0
@@ -342,7 +345,7 @@ impl CurriculumScheduler {
     #[must_use]
     pub fn count_by_level(&self) -> HashMap<DifficultyLevel, usize> {
         let mut counts = HashMap::new();
-        for entry in self.queue.iter() {
+        for entry in &self.queue {
             *counts.entry(entry.entry.difficulty).or_insert(0) += 1;
         }
         counts
@@ -350,6 +353,7 @@ impl CurriculumScheduler {
 
     /// Generate a summary report
     #[must_use]
+    #[allow(clippy::format_push_string)]
     pub fn summary(&self) -> String {
         let mut report = String::new();
 
@@ -402,12 +406,15 @@ impl std::fmt::Debug for CurriculumScheduler {
         f.debug_struct("CurriculumScheduler")
             .field("pending", &self.queue.len())
             .field("processed", &self.stats.processed)
+            .field("adaptive", &self.adaptive)
+            .field("advance_threshold", &self.advance_threshold)
             .finish()
     }
 }
 
 /// Classify an error's difficulty based on error code and message
 #[must_use]
+#[allow(clippy::match_same_arms)]
 pub fn classify_error_difficulty(error_code: &str, error_message: &str) -> DifficultyLevel {
     let msg_lower = error_message.to_lowercase();
 
@@ -475,8 +482,9 @@ pub fn classify_error_difficulty(error_code: &str, error_message: &str) -> Diffi
     DifficultyLevel::Medium
 }
 
-/// Classify using ErrorCategory from the classifier module
+/// Classify using `ErrorCategory` from the classifier module
 #[must_use]
+#[allow(clippy::match_same_arms)]
 pub fn classify_from_category(category: ErrorCategory) -> DifficultyLevel {
     match category {
         ErrorCategory::SyntaxError => DifficultyLevel::Easy,

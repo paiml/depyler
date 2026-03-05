@@ -1,4 +1,4 @@
-//! Cargo.toml generation from CodeGenContext dependencies
+//! Cargo.toml generation from `CodeGenContext` dependencies
 //!
 //! DEPYLER-0384: Automatically generates Cargo.toml with correct dependencies
 //! based on the needs_* flags tracked during code generation.
@@ -18,6 +18,7 @@ impl Dependency {
         Self { crate_name: crate_name.into(), version: version.into(), features: vec![] }
     }
 
+    #[must_use]
     pub fn with_features(mut self, features: Vec<String>) -> Self {
         self.features = features;
         self
@@ -29,7 +30,7 @@ impl Dependency {
             format!("{} = \"{}\"", self.crate_name, self.version)
         } else {
             let features_str =
-                self.features.iter().map(|f| format!("\"{}\"", f)).collect::<Vec<_>>().join(", ");
+                self.features.iter().map(|f| format!("\"{f}\"")).collect::<Vec<_>>().join(", ");
             format!(
                 "{} = {{ version = \"{}\", features = [{}] }}",
                 self.crate_name, self.version, features_str
@@ -38,7 +39,7 @@ impl Dependency {
     }
 }
 
-/// Extract dependencies from CodeGenContext needs_* flags
+/// Extract dependencies from `CodeGenContext` needs_* flags
 pub fn extract_dependencies(ctx: &CodeGenContext) -> Vec<Dependency> {
     let mut deps = Vec::new();
 
@@ -180,6 +181,7 @@ pub fn extract_dependencies(ctx: &CodeGenContext) -> Vec<Dependency> {
 ///
 /// DEPYLER-0392: Now includes [[bin]] section to ensure generated manifests
 /// are complete and can be built by Cargo without manual editing.
+#[allow(clippy::format_push_string)]
 pub fn generate_cargo_toml(
     package_name: &str,
     source_file_path: &str,
@@ -189,15 +191,15 @@ pub fn generate_cargo_toml(
 
     // Package section
     toml.push_str("[package]\n");
-    toml.push_str(&format!("name = \"{}\"\n", package_name));
+    toml.push_str(&format!("name = \"{package_name}\"\n"));
     toml.push_str("version = \"0.1.0\"\n");
     toml.push_str("edition = \"2021\"\n");
     toml.push('\n');
 
     // Binary section (DEPYLER-0392: Required for cargo build to work)
     toml.push_str("[[bin]]\n");
-    toml.push_str(&format!("name = \"{}\"\n", package_name));
-    toml.push_str(&format!("path = \"{}\"\n", source_file_path));
+    toml.push_str(&format!("name = \"{package_name}\"\n"));
+    toml.push_str(&format!("path = \"{source_file_path}\"\n"));
     toml.push('\n');
 
     // Dependencies section
@@ -232,6 +234,7 @@ pub fn generate_cargo_toml_auto(
 ///
 /// Used by oracle improve loop where generated code has no main function.
 /// Automatically includes quickcheck as dev-dependency for generated tests.
+#[allow(clippy::format_push_string)]
 pub fn generate_cargo_toml_lib(
     package_name: &str,
     source_file_path: &str,
@@ -241,14 +244,14 @@ pub fn generate_cargo_toml_lib(
 
     // Package section
     toml.push_str("[package]\n");
-    toml.push_str(&format!("name = \"{}\"\n", package_name));
+    toml.push_str(&format!("name = \"{package_name}\"\n"));
     toml.push_str("version = \"0.1.0\"\n");
     toml.push_str("edition = \"2021\"\n");
     toml.push('\n');
 
     // Library section (not binary)
     toml.push_str("[lib]\n");
-    toml.push_str(&format!("path = \"{}\"\n", source_file_path));
+    toml.push_str(&format!("path = \"{source_file_path}\"\n"));
     toml.push('\n');
 
     // Dependencies section

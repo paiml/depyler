@@ -1,19 +1,21 @@
-//! Expression operator conversion (binary, unary, truthiness) for ExprConverter
+//! Expression operator conversion (binary, unary, truthiness) for `ExprConverter`
 
 use crate::direct_rules::make_ident;
-use crate::hir::*;
+use crate::hir::{Literal, BinOp, HirExpr, UnaryOp, Type};
 use crate::rust_gen::precedence;
 use anyhow::Result;
 use syn::parse_quote;
 
-use super::operators::*;
+use super::operators::{convert_literal, is_len_call, convert_binop};
 use super::ExprConverter;
 
-impl<'a> ExprConverter<'a> {
+impl ExprConverter<'_> {
+    #[allow(clippy::unnecessary_wraps, clippy::unused_self)]
     pub(super) fn convert_literal(&self, lit: &Literal) -> Result<syn::Expr> {
         Ok(convert_literal(lit))
     }
 
+    #[allow(clippy::too_many_lines, clippy::unnecessary_wraps)]
     pub(super) fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
         // DEPYLER-0597: In method context (not classmethod), 'self' should be Rust keyword
         // Python `self.x` in instance method must become Rust `self.x`, not `self_.x`
@@ -25,6 +27,7 @@ impl<'a> ExprConverter<'a> {
         Ok(parse_quote! { #ident })
     }
 
+    #[allow(clippy::match_same_arms, clippy::too_many_lines)]
     pub(super) fn convert_binary(
         &self,
         op: BinOp,
@@ -246,6 +249,7 @@ impl<'a> ExprConverter<'a> {
                 // Without this, `a + b as f64` parses as `a + (b as f64)` instead of `(a + b) as f64`
                 // DEPYLER-0707: Construct block directly instead of using parse_quote!
                 // parse_quote! re-parses tokens which can fail with complex expressions
+                #[allow(clippy::match_same_arms)]
                 fn wrap_expr_in_block(expr: syn::Expr) -> syn::Expr {
                     syn::Expr::Block(syn::ExprBlock {
                         attrs: vec![],
@@ -332,6 +336,7 @@ impl<'a> ExprConverter<'a> {
 
                 // DEPYLER-0828: Handle float/int comparisons with proper coercion
                 // DEPYLER-1051: Helper to extract integer value from literal or negative literal
+                #[allow(clippy::items_after_statements)]
                 fn extract_int_value(expr: &HirExpr) -> Option<i64> {
                     match expr {
                         HirExpr::Literal(Literal::Int(n)) => Some(*n),
@@ -353,7 +358,7 @@ impl<'a> ExprConverter<'a> {
                         // Integer literal: convert at compile time
                         // DEPYLER-1051: Use explicit f64 suffix to avoid tokenization issues with negative numbers
                         let float_lit = syn::LitFloat::new(
-                            &format!("{}f64", n),
+                            &format!("{n}f64"),
                             proc_macro2::Span::call_site(),
                         );
                         return Ok(parse_quote! { #safe_left #rust_op #float_lit });
@@ -368,7 +373,7 @@ impl<'a> ExprConverter<'a> {
                         // Integer literal: convert at compile time
                         // DEPYLER-1051: Use explicit f64 suffix to avoid tokenization issues with negative numbers
                         let float_lit = syn::LitFloat::new(
-                            &format!("{}f64", n),
+                            &format!("{n}f64"),
                             proc_macro2::Span::call_site(),
                         );
                         return Ok(parse_quote! { #float_lit #rust_op #safe_right });
@@ -407,6 +412,7 @@ impl<'a> ExprConverter<'a> {
     /// DEPYLER-1096: Apply truthiness coercion to an expression for use in if/while conditions.
     /// Python allows any type in conditions (truthy/falsy), Rust requires bool.
     /// Returns: A boolean expression suitable for use as a condition.
+    #[allow(clippy::too_many_lines)]
     pub(super) fn apply_truthiness_coercion(
         &self,
         expr: &HirExpr,

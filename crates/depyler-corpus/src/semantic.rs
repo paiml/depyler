@@ -44,6 +44,7 @@ pub struct DomainStats {
 
 impl DomainStats {
     /// Create new domain stats.
+    #[allow(clippy::cast_precision_loss)]
     pub fn new(total: usize, passed: usize) -> Self {
         let pass_rate = if total > 0 { (passed as f64 / total as f64) * 100.0 } else { 0.0 };
         Self { total, passed, pass_rate }
@@ -195,7 +196,7 @@ impl SemanticClassifier {
 
     /// Classify a Python file's domain based on its imports.
     pub fn classify_file(&self, python_source: &str) -> PythonDomain {
-        let imports = self.extract_imports(python_source);
+        let imports = Self::extract_imports(python_source);
 
         // Check for external packages first (highest priority)
         for import in &imports {
@@ -216,6 +217,7 @@ impl SemanticClassifier {
     }
 
     /// Classify multiple files and compute domain statistics.
+    #[allow(clippy::cast_precision_loss)]
     pub fn classify_corpus(
         &self,
         files: &[(String, String, bool)], // (filename, source, passed)
@@ -249,7 +251,7 @@ impl SemanticClassifier {
     }
 
     /// Extract import statements from Python source.
-    fn extract_imports(&self, source: &str) -> Vec<String> {
+    fn extract_imports(source: &str) -> Vec<String> {
         let mut imports = Vec::new();
 
         for line in source.lines() {

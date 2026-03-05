@@ -1,7 +1,7 @@
 //! Exception Handling Helpers
 //!
 //! This module contains helpers for extracting and analyzing exception types
-//! during code generation. Extracted from stmt_gen.rs for better testability.
+//! during code generation. Extracted from `stmt_gen.rs` for better testability.
 //!
 //! DEPYLER-0333: Exception type extraction for error handling
 
@@ -10,9 +10,9 @@ use crate::hir::HirExpr;
 /// DEPYLER-0333: Extract exception type from raise statement expression
 ///
 /// Extracts the exception type name from various raise patterns:
-/// - `raise ValueError("msg")` → "ValueError"
+/// - `raise ValueError("msg")` → "`ValueError`"
 /// - `raise exc_var` → variable name
-/// - `raise module.ExceptionType("msg")` → "ExceptionType"
+/// - `raise module.ExceptionType("msg")` → "`ExceptionType`"
 /// - Other patterns → "Exception" (fallback)
 ///
 /// # Complexity

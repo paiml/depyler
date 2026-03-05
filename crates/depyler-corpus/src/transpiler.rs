@@ -54,7 +54,7 @@ impl<'a> TranspileRunner<'a> {
     pub fn find_python_files(&self) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
 
-        for entry in WalkDir::new(&self.config.corpus_path).into_iter().filter_map(|e| e.ok()) {
+        for entry in WalkDir::new(&self.config.corpus_path).into_iter().filter_map(std::result::Result::ok) {
             if !entry.file_type().is_file() {
                 continue;
             }
@@ -133,6 +133,7 @@ impl<'a> TranspileRunner<'a> {
     }
 
     /// Get summary statistics.
+    #[allow(clippy::cast_precision_loss)]
     pub fn summarize(results: &[TranspilationResult]) -> TranspileSummary {
         let total = results.len();
         let success = results.iter().filter(|r| r.success).count();

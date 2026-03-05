@@ -1,6 +1,6 @@
-//! Instance method handlers for ExpressionConverter
+//! Instance method handlers for `ExpressionConverter`
 //!
-//! DEPYLER-COVERAGE-95: Extracted from expr_gen.rs to reduce file size
+//! DEPYLER-COVERAGE-95: Extracted from `expr_gen.rs` to reduce file size
 //! and improve testability. Contains collection and instance method handlers.
 
 mod attribute_convert;

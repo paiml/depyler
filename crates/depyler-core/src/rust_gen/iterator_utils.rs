@@ -8,7 +8,7 @@ use crate::hir::{HirExpr, Literal};
 /// Check if an expression produces an iterator (not a collection)
 ///
 /// Generator expressions and method chains ending in iterator adapters produce
-/// iterators that should NOT have .iter().cloned() added when iterated over.
+/// iterators that should NOT have .`iter().cloned()` added when iterated over.
 pub fn is_iterator_producing_expr(expr: &HirExpr) -> bool {
     match expr {
         // Generator expressions always produce iterators

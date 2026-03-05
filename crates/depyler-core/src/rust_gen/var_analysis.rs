@@ -13,6 +13,7 @@ use std::collections::HashSet;
 /// Check if a variable is used in an expression
 ///
 /// DEPYLER-0307, DEPYLER-0569, DEPYLER-0619, DEPYLER-0768
+#[allow(clippy::match_same_arms)]
 pub fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Var(name) => name == var_name,
@@ -156,6 +157,7 @@ pub fn is_var_used_as_dict_key_in_expr(var_name: &str, expr: &HirExpr) -> bool {
 }
 
 /// DEPYLER-0715: Check if a variable is used as a dict key in a statement
+#[allow(clippy::match_same_arms)]
 pub fn is_var_used_as_dict_key_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { target, value, .. } => {
@@ -217,6 +219,7 @@ pub fn is_var_used_as_func_arg_in_expr(var_name: &str, expr: &HirExpr) -> bool {
 }
 
 /// DEPYLER-1045: Check if a variable is used as a function argument in a statement
+#[allow(clippy::match_same_arms)]
 pub fn is_var_used_as_func_arg_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { value, .. } => is_var_used_as_func_arg_in_expr(var_name, value),
@@ -278,6 +281,7 @@ pub fn is_var_in_comparison_in_expr(var_name: &str, expr: &HirExpr) -> bool {
 }
 
 /// DEPYLER-1045: Check if a variable is used in a comparison in a statement
+#[allow(clippy::match_same_arms)]
 pub fn is_var_in_comparison_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { value, .. } => is_var_in_comparison_in_expr(var_name, value),
@@ -337,6 +341,7 @@ pub fn is_var_reassigned_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
 
 /// Check if a variable is used in a statement
 /// DEPYLER-0303 Phase 2: Also checks assignment targets (for `d[k] = v`)
+#[allow(clippy::match_same_arms)]
 pub fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { target, value, .. } => {
@@ -422,6 +427,7 @@ pub fn extract_assigned_symbols(stmts: &[HirStmt]) -> HashSet<String> {
 /// DEPYLER-0476: Fix variable hoisting for variables with incompatible types in nested scopes.
 /// Variables assigned inside for/while loops should NOT be hoisted to the parent if/else scope
 /// because they may have different types than variables with the same name in the if branch.
+#[allow(clippy::match_same_arms)]
 pub fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> HashSet<String> {
     let mut symbols = HashSet::new();
 
@@ -467,8 +473,9 @@ pub fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> HashSet<String> {
 }
 
 /// DEPYLER-1188: Collect all variable names used in an expression
-/// Returns a set of all variable names that appear as HirExpr::Var
+/// Returns a set of all variable names that appear as `HirExpr::Var`
 /// Used to detect when a variable is used multiple times in a tuple expression
+#[allow(clippy::too_many_lines)]
 pub fn collect_vars_in_expr(expr: &HirExpr) -> HashSet<String> {
     let mut vars = HashSet::new();
     collect_vars_recursive(expr, &mut vars);
@@ -476,6 +483,7 @@ pub fn collect_vars_in_expr(expr: &HirExpr) -> HashSet<String> {
 }
 
 /// DEPYLER-1188: Recursive helper to collect variable names
+#[allow(clippy::match_same_arms, clippy::too_many_lines)]
 fn collect_vars_recursive(expr: &HirExpr, vars: &mut HashSet<String>) {
     match expr {
         HirExpr::Var(name) => {
@@ -605,15 +613,15 @@ fn collect_vars_recursive(expr: &HirExpr, vars: &mut HashSet<String>) {
     }
 }
 
-/// DEPYLER-0188: Extract NamedExpr (walrus operator) assignments from a condition expression
-/// Returns: (hoisted_lets, simplified_condition)
+/// DEPYLER-0188: Extract `NamedExpr` (walrus operator) assignments from a condition expression
+/// Returns: (`hoisted_lets`, `simplified_condition`)
 pub fn extract_walrus_from_condition(condition: &HirExpr) -> (Vec<(String, HirExpr)>, HirExpr) {
     let mut walrus_assigns = Vec::new();
     let simplified = extract_walrus_recursive(condition, &mut walrus_assigns);
     (walrus_assigns, simplified)
 }
 
-/// Recursive helper to extract NamedExpr from expression tree
+/// Recursive helper to extract `NamedExpr` from expression tree
 pub fn extract_walrus_recursive(expr: &HirExpr, assigns: &mut Vec<(String, HirExpr)>) -> HirExpr {
     match expr {
         // DEPYLER-0188: When we find a walrus operator, extract it and replace with Var

@@ -182,6 +182,7 @@ impl LambdaTypeInferencer {
         Self { event_patterns: patterns, confidence_threshold: 0.8 }
     }
 
+    #[must_use]
     pub fn with_confidence_threshold(mut self, threshold: f64) -> Self {
         self.confidence_threshold = threshold;
         self
@@ -210,7 +211,7 @@ impl LambdaTypeInferencer {
         }
 
         // Calculate confidence scores and find best match
-        let event_scores = self.calculate_confidence_scores(&matches);
+        let event_scores = Self::calculate_confidence_scores(&matches);
 
         event_scores
             .into_iter()
@@ -222,7 +223,7 @@ impl LambdaTypeInferencer {
 
     fn match_pattern(&self, pattern: &Pattern) -> Option<(EventType, f64)> {
         for (registered_pattern, event_type) in &self.event_patterns {
-            let confidence = self.calculate_pattern_confidence(pattern, registered_pattern);
+            let confidence = Self::calculate_pattern_confidence(pattern, registered_pattern);
             if confidence > 0.0 {
                 return Some((event_type.clone(), confidence));
             }
@@ -230,7 +231,8 @@ impl LambdaTypeInferencer {
         None
     }
 
-    fn calculate_pattern_confidence(&self, observed: &Pattern, registered: &Pattern) -> f64 {
+    #[allow(clippy::cast_precision_loss)]
+    fn calculate_pattern_confidence(observed: &Pattern, registered: &Pattern) -> f64 {
         // Check if the observed pattern contains the registered pattern
         if observed.access_chain.len() < registered.access_chain.len() {
             return 0.0;
@@ -271,7 +273,8 @@ impl LambdaTypeInferencer {
         (base_confidence + length_bonus + specificity_bonus + type_bonus).min(1.0)
     }
 
-    fn calculate_confidence_scores(&self, matches: &[(EventType, f64)]) -> Vec<(EventType, f64)> {
+    #[allow(clippy::cast_precision_loss)]
+    fn calculate_confidence_scores(matches: &[(EventType, f64)]) -> Vec<(EventType, f64)> {
         let mut event_scores: HashMap<EventType, Vec<f64>> = HashMap::new();
 
         for (event_type, confidence) in matches {
@@ -305,15 +308,14 @@ impl LambdaTypeInferencer {
         let matches: Vec<(EventType, f64)> =
             patterns.iter().filter_map(|p| self.match_pattern(p)).collect();
 
-        let event_scores = self.calculate_confidence_scores(&matches);
+        let event_scores = Self::calculate_confidence_scores(&matches);
         let inferred_type = event_scores
             .iter()
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
             .filter(|(_, conf)| *conf > self.confidence_threshold)
-            .map(|(event_type, _)| event_type.clone())
-            .unwrap_or(EventType::Unknown);
+            .map_or(EventType::Unknown, |(event_type, _)| event_type.clone());
 
-        let recommendations = self.generate_recommendations(&patterns);
+        let recommendations = Self::generate_recommendations(&patterns);
         Ok(AnalysisReport {
             inferred_event_type: inferred_type,
             detected_patterns: patterns,
@@ -322,7 +324,7 @@ impl LambdaTypeInferencer {
         })
     }
 
-    fn generate_recommendations(&self, patterns: &[Pattern]) -> Vec<String> {
+    fn generate_recommendations(patterns: &[Pattern]) -> Vec<String> {
         let mut recommendations = Vec::new();
 
         if patterns.is_empty() {

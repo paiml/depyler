@@ -1,6 +1,7 @@
 use depyler_core::hir::{HirExpr, HirFunction, HirStmt, Type};
 use serde::{Deserialize, Serialize};
 
+use std::fmt::Write as _;
 use crate::contract_verification::{
     InvariantChecker, PostconditionVerifier, PreconditionChecker, VerificationResult,
 };
@@ -22,6 +23,7 @@ pub struct Condition {
 pub struct ContractChecker;
 
 impl ContractChecker {
+    #[allow(clippy::ref_option)]
     pub fn extract_contracts(func: &HirFunction) -> Contract {
         let mut contract =
             Contract { preconditions: vec![], postconditions: vec![], invariants: vec![] };
@@ -34,6 +36,7 @@ impl ContractChecker {
         contract
     }
 
+    #[allow(clippy::ref_option)]
     fn extract_docstring_into_contract(contract: &mut Contract, docstring: &Option<String>) {
         if let Some(doc) = docstring {
             let extracted = Self::extract_docstring_contracts(doc);
@@ -119,6 +122,7 @@ impl ContractChecker {
         checks
     }
 
+    #[allow(clippy::format_push_string)]
     fn generate_precondition_function(preconditions: &[Condition], func_name: &str) -> String {
         let mut result = format!("fn check_{func_name}_preconditions(");
         result.push_str("/* params */) -> Result<(), &'static str> {\n");
@@ -149,6 +153,7 @@ impl ContractChecker {
         }
     }
 
+    #[allow(clippy::format_push_string)]
     fn generate_postcondition_function(postconditions: &[Condition], func_name: &str) -> String {
         let mut result = format!("fn check_{func_name}_postconditions(");
         result.push_str("/* result */) -> Result<(), &'static str> {\n");
@@ -218,7 +223,7 @@ impl ContractChecker {
                 contract.preconditions.push(Condition {
                     name: format!("requires_{}", contract.preconditions.len()),
                     expression: annotation.to_string(),
-                    description: format!("Requires: {}", annotation),
+                    description: format!("Requires: {annotation}"),
                 });
             }
         }
@@ -230,7 +235,7 @@ impl ContractChecker {
                 contract.postconditions.push(Condition {
                     name: format!("ensures_{}", contract.postconditions.len()),
                     expression: annotation.to_string(),
-                    description: format!("Ensures: {}", annotation),
+                    description: format!("Ensures: {annotation}"),
                 });
             }
         }
@@ -242,7 +247,7 @@ impl ContractChecker {
                 contract.invariants.push(Condition {
                     name: format!("invariant_{}", contract.invariants.len()),
                     expression: annotation.to_string(),
-                    description: format!("Invariant: {}", annotation),
+                    description: format!("Invariant: {annotation}"),
                 });
             }
         }
@@ -342,6 +347,7 @@ impl ContractChecker {
         result
     }
 
+    #[allow(clippy::format_push_string)]
     fn append_contract_documentation(result: &mut String, contract: &Contract) {
         if contract.preconditions.is_empty()
             && contract.postconditions.is_empty()
@@ -352,7 +358,7 @@ impl ContractChecker {
 
         result.push_str("/// Contract specifications:\n");
         for pre in &contract.preconditions {
-            result.push_str(&format!("/// @requires {}\n", pre.expression));
+            let _ = writeln!(result, "/// @requires {}", pre.expression);
         }
         for post in &contract.postconditions {
             result.push_str(&format!("/// @ensures {}\n", post.expression));
@@ -362,6 +368,7 @@ impl ContractChecker {
         }
     }
 
+    #[allow(clippy::format_push_string)]
     fn append_function_signature(result: &mut String, func: &HirFunction) {
         result.push_str(&format!("pub fn {}", func.name));
         result.push('(');
@@ -379,6 +386,7 @@ impl ContractChecker {
         }
     }
 
+    #[allow(clippy::format_push_string)]
     fn append_precondition_checks(result: &mut String, contract: &Contract) {
         if contract.preconditions.is_empty() {
             return;
@@ -402,6 +410,7 @@ impl ContractChecker {
         }
     }
 
+    #[allow(clippy::format_push_string)]
     fn append_postcondition_checks(result: &mut String, contract: &Contract) {
         if contract.postconditions.is_empty() {
             return;
@@ -496,9 +505,10 @@ fn format_array_type(element_type: &Type, size: &depyler_core::hir::ConstGeneric
         depyler_core::hir::ConstGeneric::Parameter(name) => name.clone(),
         depyler_core::hir::ConstGeneric::Expression(expr) => expr.clone(),
     };
-    format!("[{}; {}]", element_str, size_str)
+    format!("[{element_str}; {size_str}]")
 }
 
+#[allow(clippy::match_same_arms, clippy::ref_option)]
 fn check_stmt_contracts(stmt: &HirStmt) -> Vec<String> {
     match stmt {
         HirStmt::Assign { value, .. } => check_expr_contracts(value),
@@ -513,6 +523,7 @@ fn check_stmt_contracts(stmt: &HirStmt) -> Vec<String> {
     }
 }
 
+#[allow(clippy::ref_option)]
 fn check_if_contracts(
     condition: &HirExpr,
     then_body: &[HirStmt],

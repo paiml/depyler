@@ -1,19 +1,20 @@
-//! List method handlers for ExpressionConverter
+//! List method handlers for `ExpressionConverter`
 //!
 //! Extracted from mod.rs to reduce file size and improve maintainability.
 //! Contains handlers for: append, extend, pop, insert, remove, sort,
 //! index, count, copy, clear, reverse.
 
-use crate::hir::*;
+use crate::hir::{HirExpr, Type, Literal};
 use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use anyhow::{bail, Result};
 use quote::quote;
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     /// Handle list methods (append, extend, pop, insert, remove, sort)
     #[inline]
+    #[allow(clippy::if_not_else, clippy::too_many_lines)]
     pub(crate) fn convert_list_method(
         &mut self,
         object_expr: &syn::Expr,
@@ -82,8 +83,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     self.ctx
                         .class_field_types
                         .get(attr)
-                        .map(|t| matches!(t, Type::List(elem) if matches!(**elem, Type::Unknown | Type::UnificationVar(_))))
-                        .unwrap_or(false)
+                        .is_some_and(|t| matches!(t, Type::List(elem) if matches!(**elem, Type::Unknown | Type::UnificationVar(_))))
                 } else if let HirExpr::Var(var_name) = object {
                     matches!(
                         self.ctx.var_types.get(var_name),
@@ -96,7 +96,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if is_vec_depyler_value {
                     // DEPYLER-1051: Wrap argument in DepylerValue based on argument type
                     // DEPYLER-1210: Avoid double .to_string() - arg_exprs already converts literals
-                    let wrapped_arg: syn::Expr = if !hir_args.is_empty() {
+                    let wrapped_arg: syn::Expr = if hir_args.is_empty() {
+                        parse_quote! { DepylerValue::Str(format!("{}", #arg)) }
+                    } else {
                         match &hir_args[0] {
                             HirExpr::Literal(Literal::Int(_)) => {
                                 parse_quote! { DepylerValue::Int(#arg as i64) }
@@ -129,8 +131,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             }
                             _ => parse_quote! { DepylerValue::Str(format!("{}", #arg)) },
                         }
-                    } else {
-                        parse_quote! { DepylerValue::Str(format!("{}", #arg)) }
                     };
                     self.ctx.needs_depyler_value_enum = true;
                     return Ok(parse_quote! { #object_expr.push(#wrapped_arg) });
@@ -143,7 +143,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // 3. Why: Transpiler generates "X" without .to_string()
                 // 4. Why: append method doesn't check element type
                 // 5. ROOT CAUSE: Missing .to_string() for literals in Vec<String>
-                let needs_to_string = if !hir_args.is_empty() {
+                let needs_to_string = if hir_args.is_empty() {
+                    false
+                } else {
                     // Check if argument is a string literal
                     let is_str_literal =
                         matches!(&hir_args[0], HirExpr::Literal(Literal::String(_)));
@@ -168,8 +170,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     };
 
                     (is_str_literal || is_char_iter_var) && is_vec_string
-                } else {
-                    false
                 };
 
                 if needs_to_string {
@@ -183,7 +183,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         self.ctx
                             .var_types
                             .get(name)
-                            .map(|ty| {
+                            .is_some_and(|ty| {
                                 matches!(
                                     ty,
                                     Type::String
@@ -193,7 +193,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                         | Type::Custom(_)
                                 )
                             })
-                            .unwrap_or(false)
                     } else {
                         false
                     };
@@ -214,7 +213,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // which gives IntoIterator<Item = &T>. Add .iter().cloned() to fix this.
                 // Check if arg is a reference (most common case for function parameters)
                 let arg_string = quote! { #arg }.to_string();
-                if arg_string.contains("&") || !arg_string.contains(".into_iter()") {
+                if arg_string.contains('&') || !arg_string.contains(".into_iter()") {
                     // Likely a reference or direct variable - add iterator conversion
                     Ok(parse_quote! { #object_expr.extend(#arg.iter().cloned()) })
                 } else {
@@ -448,12 +447,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 }
             }
-            _ => bail!("Unknown list method: {}", method),
+            _ => bail!("Unknown list method: {method}"),
         }
     }
 
     /// DEPYLER-1134: Generate type-aware push for concrete element types
     /// This is the "bridge" that ensures the generator respects Oracle/annotation constraints
+    #[allow(clippy::match_same_arms)]
     fn generate_typed_push(
         &mut self,
         object_expr: &syn::Expr,
@@ -479,7 +479,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else {
                     // DEPYLER-99MODE-S9: Clone String variables to prevent E0382 in loops
                     let is_string_var =
-                        hir_args.first().map(|a| matches!(a, HirExpr::Var(_))).unwrap_or(false);
+                        hir_args.first().is_some_and(|a| matches!(a, HirExpr::Var(_)));
                     if is_string_var {
                         Ok(parse_quote! { #object_expr.push(#arg.clone()) })
                     } else {

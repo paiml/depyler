@@ -1,19 +1,20 @@
-//! Type checking and inference helper methods for ExpressionConverter
+//! Type checking and inference helper methods for `ExpressionConverter`
 //!
 //! These methods are pure type-checking/inference helpers that determine
 //! expression types, check type properties, and infer types from HIR expressions.
 //! They do not perform expression conversion themselves.
 
-use crate::hir::*;
+use crate::hir::{HirExpr, Literal, Type, BinOp, UnaryOp};
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use crate::rust_gen::truthiness_helpers::is_option_var_name;
 use anyhow::Result;
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
-    /// Check if the index expression is a string key (for HashMap access)
+impl ExpressionConverter<'_, '_> {
+    /// Check if the index expression is a string key (for `HashMap` access)
     /// Returns true if: index is string literal, OR index variable is string type
     /// DEPYLER-1060: Does NOT return true just because base is Dict - that could have non-string keys
+    #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn is_string_index(&self, base: &HirExpr, index: &HirExpr) -> Result<bool> {
         // Check 1: Is index a string literal?
         if matches!(index, HirExpr::Literal(Literal::String(_))) {
@@ -66,7 +67,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// Check if expression is likely a string variable or string-returning expression
-    /// DEPYLER-1150: Also recognizes string-returning function calls like chr(), str(), etc.
+    /// DEPYLER-1150: Also recognizes string-returning function calls like `chr()`, `str()`, etc.
     pub(crate) fn is_string_variable(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Var(sym) => {
@@ -125,6 +126,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// Check if expression is likely numeric (heuristic)
+    #[allow(clippy::match_same_arms)]
     pub(crate) fn is_numeric_index(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Literal(Literal::Int(_)) => true,
@@ -152,6 +154,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0299 Pattern #3: Check if base expression is a String type (heuristic)
     /// Returns true if base is likely a String/str type (not Vec/List)
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn is_string_base(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Literal(Literal::String(_)) => true,
@@ -446,10 +449,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-0188: Check if expression is a pathlib Path (std::path::PathBuf)
+    /// DEPYLER-0188: Check if expression is a pathlib Path (`std::path::PathBuf`)
     ///
     /// Python's pathlib.Path uses `/` operator (via __truediv__) for path concatenation.
-    /// Rust's PathBuf doesn't implement Div, so we convert to .join().
+    /// Rust's `PathBuf` doesn't implement Div, so we convert to .`join()`.
+    #[allow(clippy::doc_link_with_quotes)]
     pub(crate) fn is_path_expr(&self, expr: &HirExpr) -> bool {
         match expr {
             // Path() or pathlib.Path() call
@@ -483,8 +487,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .ctx
                     .var_types
                     .get(name)
-                    .map(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
-                    .unwrap_or(false);
+                    .is_some_and(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"));
                 if is_typed_path {
                     return true;
                 }
@@ -522,15 +525,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-0607: Check if expression yields serde_json::Value that needs iteration conversion
+    /// DEPYLER-0607: Check if expression yields `serde_json::Value` that needs iteration conversion
     ///
-    /// serde_json::Value doesn't implement IntoIterator, so we need to detect when
-    /// the iteration expression is a JSON Value and wrap it with .as_array().
+    /// `serde_json::Value` doesn't implement `IntoIterator`, so we need to detect when
+    /// the iteration expression is a JSON Value and wrap it with .`as_array()`.
     ///
     /// Returns true for:
     /// - Variables with dict/JSON Value types in context
-    /// - Method chains like data.get("items").cloned().unwrap_or_default()
+    /// - Method chains like `data.get("items").cloned().unwrap_or_default()`
     /// - Dict index expressions like data["items"]
+    #[allow(clippy::doc_link_with_quotes)]
     pub(crate) fn is_json_value_iteration(&self, expr: &HirExpr) -> bool {
         match expr {
             // Variable - check if it has a JSON/dict type in context
@@ -595,7 +599,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0321: Check if expression is a string type
-    /// Used to distinguish string.contains() from HashMap.contains_key()
+    /// Used to distinguish `string.contains()` from `HashMap.contains_key()`
     ///
     /// # Complexity
     /// 4 (match + type lookup + variant check + attribute check)
@@ -642,7 +646,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0498: Check if expression is an Option type
-    /// Used to determine if unwrap_or is needed in binary operations
+    /// Used to determine if `unwrap_or` is needed in binary operations
     ///
     /// Returns true if:
     /// - Expression is a variable with Option<T> type
@@ -793,9 +797,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-0572: Check if expression is a dict value access (returns serde_json::Value)
-    /// Pattern: dict[key] or dict.get(key).cloned().unwrap_or_default()
-    /// These return Value which needs .to_string() when mixed with String in lists
+    /// DEPYLER-0572: Check if expression is a dict value access (returns `serde_json::Value`)
+    /// Pattern: dict[key] or `dict.get(key).cloned().unwrap_or_default()`
+    /// These return Value which needs .`to_string()` when mixed with String in lists
     pub(crate) fn is_dict_value_access(&self, expr: &HirExpr) -> bool {
         match expr {
             // dict[key] index access
@@ -816,12 +820,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-0540: Check if expression is typed as serde_json::Value
-    /// serde_json::Value needs special handling for .keys(), .values(), .items()
-    /// because it requires .as_object().unwrap() before iteration methods.
-    /// DEPYLER-0969: H₃ Error Cascade Prevention - Type::Unknown maps to serde_json::Value
+    /// DEPYLER-0540: Check if expression is typed as `serde_json::Value`
+    /// `serde_json::Value` needs special handling for .`keys()`, .`values()`, .`items()`
+    /// because it requires .`as_object().unwrap()` before iteration methods.
+    /// DEPYLER-0969: H₃ Error Cascade Prevention - `Type::Unknown` maps to `serde_json::Value`
     /// so ALL Unknown-typed variables should use JSON method translations.
-    /// DEPYLER-1017: In NASA mode, skip serde_json - Unknown maps to String
+    /// DEPYLER-1017: In NASA mode, skip `serde_json` - Unknown maps to String
     pub(crate) fn is_serde_json_value(&self, expr: &HirExpr) -> bool {
         // DEPYLER-1017: In NASA mode, never treat anything as serde_json::Value
         if self.ctx.type_mapper.nasa_mode {
@@ -867,9 +871,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         false
     }
 
-    /// DEPYLER-0550: Check if expression could be a serde_json::Value
-    /// Used for comparison handling when .get() returns Option<String>
-    /// but the other side is a JSON Value from .items() iteration
+    /// DEPYLER-0550: Check if expression could be a `serde_json::Value`
+    /// Used for comparison handling when .`get()` returns Option<String>
+    /// but the other side is a JSON Value from .`items()` iteration
     pub(crate) fn is_serde_json_value_expr(&self, expr: &HirExpr) -> bool {
         // First check using the existing helper
         if self.is_serde_json_value(expr) {
@@ -893,17 +897,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         false
     }
 
-    /// DEPYLER-0700: Check if dict expression has serde_json::Value values
+    /// DEPYLER-0700: Check if dict expression has `serde_json::Value` values
     ///
-    /// Returns true if the dict maps to HashMap<String, serde_json::Value>,
+    /// Returns true if the dict maps to `HashMap`<String, `serde_json::Value`>,
     /// which happens when:
     /// - Dict has heterogeneous value types (e.g., {"name": "Alice", "age": 42})
     /// - Dict value type is Unknown (untyped dict)
-    /// - Dict uses serde_json expressions
+    /// - Dict uses `serde_json` expressions
     ///
     /// This is used to wrap default values in dict.get(key, default) with json!()
     /// for type compatibility.
-    /// DEPYLER-1017: In NASA mode, never use serde_json::Value
+    /// DEPYLER-1017: In NASA mode, never use `serde_json::Value`
     pub(crate) fn dict_has_json_value_values(&self, expr: &HirExpr) -> bool {
         // DEPYLER-1017: In NASA mode, dicts never have JSON values
         if self.ctx.type_mapper.nasa_mode {
@@ -948,9 +952,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0729: Check if dict value type is String (not &str)
-    /// Used to determine if string literal defaults in dict.get() need .to_string()
-    /// GH-226: Default to true when type unknown - HashMap<String, String> is most common
-    /// and calling .to_string() on String just clones (harmless), while NOT calling it
+    /// Used to determine if string literal defaults in `dict.get()` need .`to_string()`
+    /// GH-226: Default to true when type unknown - `HashMap`<String, String> is most common
+    /// and calling .`to_string()` on String just clones (harmless), while NOT calling it
     /// on String values causes compile errors
     pub(crate) fn dict_value_type_is_string(&self, expr: &HirExpr) -> bool {
         match expr {
@@ -971,9 +975,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-1319: Check if dict has DepylerValue values (requires .into() for type conversion)
-    /// In NASA mode, dicts with Unknown/Any value types use DepylerValue as the value type.
-    /// When accessing such dicts, we need .into() to convert to the expected primitive type.
+    /// DEPYLER-1319: Check if dict has `DepylerValue` values (requires .`into()` for type conversion)
+    /// In NASA mode, dicts with Unknown/Any value types use `DepylerValue` as the value type.
+    /// When accessing such dicts, we need .`into()` to convert to the expected primitive type.
     pub(crate) fn dict_has_depyler_value_values(&self, expr: &HirExpr) -> bool {
         // In NASA mode, check if the dict value type is Unknown (maps to DepylerValue)
         if !self.ctx.type_mapper.nasa_mode {
@@ -1033,7 +1037,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else {
                     // Heuristic: common list-like attribute names
                     let name = attr.as_str();
-                    name.ends_with("s") && !name.ends_with("ss")
+                    name.ends_with('s') && !name.ends_with("ss")
                         || name.ends_with("list")
                         || name.ends_with("items")
                         || name.ends_with("elements")
@@ -1048,8 +1052,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-0742: Check if expression is a deque type (VecDeque)
-    /// Used to generate correct VecDeque methods instead of Vec methods.
+    /// DEPYLER-0742: Check if expression is a deque type (`VecDeque`)
+    /// Used to generate correct `VecDeque` methods instead of Vec methods.
     pub(crate) fn is_deque_expr(&self, expr: &HirExpr) -> bool {
         match expr {
             // Call to deque() constructor
@@ -1062,7 +1066,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check var_types for Deque type annotation
                 if let Some(var_type) = self.ctx.var_types.get(name) {
                     // Check if the type string contains "deque" or "VecDeque"
-                    let type_str = format!("{:?}", var_type);
+                    let type_str = format!("{var_type:?}");
                     type_str.contains("deque") || type_str.contains("VecDeque")
                 } else {
                     // Fallback: common deque variable names
@@ -1078,11 +1082,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Function parameters with Python `str` type annotation become `&str` in Rust.
     /// When used as dict keys, they should NOT have `&` added (already borrowed).
     ///
-    /// Heuristic: If variable not in var_types and has a string-key-like name,
+    /// Heuristic: If variable not in `var_types` and has a string-key-like name,
     /// it's likely a function parameter that's &str.
     ///
     /// # Complexity
     /// 2 (lookup + name check)
+    #[allow(clippy::match_same_arms)]
     pub(crate) fn is_borrowed_str_param(&self, var_name: &str) -> bool {
         // DEPYLER-0543: Check if variable is a function param with str type
         // These become &str in Rust and should NOT have & added
@@ -1139,7 +1144,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// - Expression is a method call that might return Result
     ///
     /// # Complexity
-    /// 2 (match + HashSet lookup)
+    /// 2 (match + `HashSet` lookup)
+    #[allow(clippy::match_same_arms)]
     pub(crate) fn expr_returns_result(&self, expr: &HirExpr) -> bool {
         match expr {
             // Function calls: check if function is tracked as Result-returning
@@ -1276,7 +1282,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0920: Check if expression returns f32 specifically (trueno/numpy results)
     /// Used to generate f32 literals instead of f64 in comparisons
-    /// DEPYLER-0927: Synced with expr_returns_float for consistent detection
+    /// DEPYLER-0927: Synced with `expr_returns_float` for consistent detection
     pub(crate) fn expr_returns_f32(&self, expr: &HirExpr) -> bool {
         match expr {
             // Variable names commonly used for trueno f32 results
@@ -1321,7 +1327,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-1085: Check if expression returns DepylerValue type
+    /// DEPYLER-1085: Check if expression returns `DepylerValue` type
     /// Used for Value Lifting in if/else branch unification
     pub(crate) fn expr_returns_depyler_value(&self, expr: &HirExpr) -> bool {
         match expr {
@@ -1331,7 +1337,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Var(name) => {
                 let var_type = self.ctx.var_types.get(name);
                 match var_type {
-                    Some(Type::Unknown) | Some(Type::UnificationVar(_)) => true,
+                    Some(Type::Unknown | Type::UnificationVar(_)) => true,
                     // DEPYLER-1316: In NASA mode, any untracked or ambiguous variable
                     // likely came from DepylerValue
                     None if self.ctx.type_mapper.nasa_mode => {
@@ -1383,7 +1389,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if let HirExpr::Var(name) = object.as_ref() {
                     let var_type = self.ctx.var_types.get(name);
                     return match var_type {
-                        Some(Type::Unknown) | Some(Type::UnificationVar(_)) => true,
+                        Some(Type::Unknown | Type::UnificationVar(_)) => true,
                         None if self.ctx.type_mapper.nasa_mode => {
                             !name.starts_with("_dv_")
                                 && !name.starts_with("_cse_")
@@ -1425,8 +1431,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-1085: Wrap a concrete expression in DepylerValue::from()
+    /// DEPYLER-1085: Wrap a concrete expression in `DepylerValue::from()`
     /// Used for Value Lifting when branch types don't match
+    #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn lift_to_depyler_value(&self, expr: &HirExpr, rust_expr: syn::Expr) -> syn::Expr {
         // Use DepylerValue::from() which handles most common types
         // For specific types, use explicit variants for better performance
@@ -1508,7 +1515,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-99MODE-S9: Check if expression is float-typed.
-    /// Used to determine chain cast type (as f64 vs as i32) in py_ops chains.
+    /// Used to determine chain cast type (as f64 vs as i32) in `py_ops` chains.
     pub(crate) fn expr_is_float_type(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Literal(Literal::Float(_)) => true,
@@ -1543,10 +1550,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// - Boolean literals: True, False
     /// - Comparison expressions: a > b, a == b, etc.
     /// - Logical not: not x
-    /// - Type checks: isinstance(), hasattr()
+    /// - Type checks: `isinstance()`, `hasattr()`
     /// - in/not in expressions
     ///
     /// Returns false for expressions that return non-boolean values
+    #[allow(clippy::match_same_arms)]
     pub(crate) fn expr_is_boolean_expr(&self, expr: &HirExpr) -> bool {
         match expr {
             // Boolean literals always return bool
@@ -1604,8 +1612,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-1127: Check if expression is DepylerValue type
-    /// Used to determine if `or`/`and` needs DepylerValue wrapping
+    /// DEPYLER-1127: Check if expression is `DepylerValue` type
+    /// Used to determine if `or`/`and` needs `DepylerValue` wrapping
     pub(crate) fn expr_is_depyler_value(&self, expr: &HirExpr) -> bool {
         match expr {
             // Variables with Unknown type default to DepylerValue
@@ -1618,7 +1626,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Dict access returns DepylerValue for heterogeneous dicts
                     matches!(
                         self.ctx.var_types.get(name),
-                        Some(Type::Dict(_, _)) | Some(Type::Unknown)
+                        Some(Type::Dict(_, _) | Type::Unknown)
                     )
                 } else {
                     false
@@ -1631,7 +1639,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     if let HirExpr::Var(name) = object.as_ref() {
                         matches!(
                             self.ctx.var_types.get(name),
-                            Some(Type::Dict(_, _)) | Some(Type::Unknown)
+                            Some(Type::Dict(_, _) | Type::Unknown)
                         )
                     } else {
                         false
@@ -1644,14 +1652,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-1127: Heuristic check if expression MIGHT return DepylerValue
-    /// More permissive than expr_is_depyler_value - used to safely wrap literals
-    /// in DepylerValue when there's uncertainty.
+    /// DEPYLER-1127: Heuristic check if expression MIGHT return `DepylerValue`
+    /// More permissive than `expr_is_depyler_value` - used to safely wrap literals
+    /// in `DepylerValue` when there's uncertainty.
     ///
     /// Returns true for:
-    /// - All cases from expr_is_depyler_value
-    /// - Method chains with .get(), .cloned(), .unwrap_or() patterns
-    /// - Variables not in var_types (unknown type)
+    /// - All cases from `expr_is_depyler_value`
+    /// - Method chains with .`get()`, .`cloned()`, .`unwrap_or()` patterns
+    /// - Variables not in `var_types` (unknown type)
     pub(crate) fn expr_might_be_depyler_value(&self, expr: &HirExpr) -> bool {
         // First check the strict version
         if self.expr_is_depyler_value(expr) {
@@ -1683,15 +1691,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0303 Phase 3 Fix #6: Check if expression is an owned collection
-    /// Used to determine if zip() should use .into_iter() (owned) vs .iter() (borrowed)
+    /// Used to determine if `zip()` should use .`into_iter()` (owned) vs .`iter()` (borrowed)
     ///
     /// Returns true if:
     /// - Expression is a Var with type List (Vec<T>) - function parameters are owned
     /// - Expression is a list literal - always owned
-    /// - Expression is a list() call - creates owned Vec
+    /// - Expression is a `list()` call - creates owned Vec
     ///
     /// # Complexity
     /// 3 (match + type lookup + variant check)
+    #[allow(clippy::self_only_used_in_recursion)]
     pub(crate) fn is_owned_collection(&self, expr: &HirExpr) -> bool {
         match expr {
             // List literals are always owned
@@ -1713,13 +1722,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-1153: Check if a type is "concrete" (not Unknown/Any/DepylerValue)
     /// Used to determine if a Dict return type should use type-preserving codegen
-    /// instead of DepylerValue wrapping.
+    /// instead of `DepylerValue` wrapping.
     ///
     /// A type is concrete if it's:
     /// - A scalar type (Int, Float, String, Bool)
     /// - A Dict/List/Tuple with concrete element types (recursive)
-    /// - NOT Unknown, Any, or DepylerValue
+    /// - NOT Unknown, Any, or `DepylerValue`
     #[inline]
+    #[allow(clippy::match_same_arms, clippy::self_only_used_in_recursion)]
     pub(super) fn is_concrete_type(&self, ty: &Type) -> bool {
         match ty {
             // Scalar types are concrete
@@ -1773,12 +1783,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-1211: Infer type from an HirExpr
+    /// DEPYLER-1211: Infer type from an `HirExpr`
     ///
     /// Used for recursive type propagation: when `.append(arg)` is called,
     /// we infer the list element type from the argument's type.
     ///
-    /// Returns the inferred Type or Type::Unknown if type cannot be determined.
+    /// Returns the inferred Type or `Type::Unknown` if type cannot be determined.
+    #[allow(clippy::match_same_arms)]
     pub(super) fn infer_type_from_hir_expr(&self, expr: &HirExpr) -> Type {
         match expr {
             // Literal types are directly known
@@ -1902,9 +1913,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-1117: Infer lambda parameter type from body expression
     ///
     /// Analyzes the body to determine what type a parameter should be:
-    /// - If parameter.iter() is called -> Vec<i64> (iterable)
-    /// - If parameter is used directly in PyOps (py_add, py_mul, etc.) -> i64
+    /// - If `parameter.iter()` is called -> Vec<i64> (iterable)
+    /// - If parameter is used directly in `PyOps` (`py_add`, `py_mul`, etc.) -> i64
     /// - Default -> i64 (most common in Python numeric code)
+    #[allow(clippy::unnecessary_wraps)]
     pub(super) fn infer_lambda_param_type(&self, param: &str, body: &HirExpr) -> Option<syn::Type> {
         // DEPYLER-1117: Check iterator methods FIRST - if param.iter() is called,
         // it's a collection, not a scalar
@@ -1989,11 +2001,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// Check if expr is directly the variable (not nested)
+    #[allow(clippy::unused_self)]
     pub(super) fn is_direct_var(&self, var_name: &str, expr: &HirExpr) -> bool {
         matches!(expr, HirExpr::Var(name) if name == var_name)
     }
 
-    /// Check if body uses the parameter as an iterable (list comprehension, for loop, iter() call)
+    /// Check if body uses the parameter as an iterable (list comprehension, for loop, `iter()` call)
     pub(super) fn body_uses_iter_on_param(&self, param: &str, body: &HirExpr) -> bool {
         match body {
             // DEPYLER-1117: List comprehension `[x for x in param]` - param is iterable
@@ -2036,12 +2049,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// Check if an expression is a len() call
+    /// Check if an expression is a `len()` call
+    #[allow(clippy::unused_self)]
     pub(crate) fn is_len_call(&self, expr: &HirExpr) -> bool {
         matches!(expr, HirExpr::Call { func, args , ..} if func == "len" && args.len() == 1)
     }
 
-    /// DEPYLER-0544: Check if expression creates a File (open() or File::create())
+    /// DEPYLER-0544: Check if expression creates a File (`open()` or <File::create()>)
+    #[allow(clippy::unused_self)]
     pub(crate) fn is_file_creating_expr(&self, expr: &HirExpr) -> bool {
         match expr {
             // Call { func: Symbol, .. } - func is a simple function name like "open"
@@ -2067,6 +2082,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0544: Check if expression is sys.stdout
+    #[allow(clippy::unused_self)]
     pub(crate) fn is_stdout_expr(&self, expr: &HirExpr) -> bool {
         if let HirExpr::Attribute { value, attr } = expr {
             if attr == "stdout" {
@@ -2092,6 +2108,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-1071: Check if the body expression uses the given variable in a method call
     /// This detects patterns like `m.group(0)` where m is the Option variable
+    #[allow(clippy::self_only_used_in_recursion)]
     pub(super) fn body_uses_option_var_method(&self, body: &HirExpr, var_name: &str) -> bool {
         match body {
             // Direct method call on the variable: m.group(0)

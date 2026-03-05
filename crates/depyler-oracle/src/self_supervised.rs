@@ -155,6 +155,7 @@ impl SyntheticGenerator for PythonExampleGenerator {
     type Input = StdlibFunction;
     type Output = PythonExample;
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
     fn generate(
         &self,
         seeds: &[Self::Input],
@@ -227,6 +228,7 @@ impl SyntheticGenerator for PythonExampleGenerator {
         score.min(1.0)
     }
 
+    #[allow(clippy::cast_precision_loss, clippy::items_after_statements)]
     fn diversity_score(&self, batch: &[Self::Output]) -> f32 {
         if batch.is_empty() {
             return 0.0;
@@ -286,10 +288,10 @@ pub struct RustcError {
 /// Maps rustc error codes to Oracle categories.
 ///
 /// # Error Code Mapping Strategy
-/// - E03xx: Type system errors → TypeMismatch
+/// - E03xx: Type system errors → `TypeMismatch`
 /// - E04xx: Name resolution → MissingImport/SyntaxError
-/// - E05xx: Borrow checker → BorrowChecker
-/// - E06xx: Lifetime errors → LifetimeError
+/// - E05xx: Borrow checker → `BorrowChecker`
+/// - E06xx: Lifetime errors → `LifetimeError`
 #[must_use]
 pub fn auto_label(error: &RustcError) -> ErrorCategory {
     match error.code.as_str() {
@@ -367,6 +369,7 @@ pub struct CorpusMetrics {
 impl CorpusMetrics {
     /// Calculate acceptance rate.
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn acceptance_rate(&self) -> f32 {
         if self.total_generated == 0 {
             0.0
@@ -377,6 +380,7 @@ impl CorpusMetrics {
 
     /// Calculate duplicate rate.
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn duplicate_rate(&self) -> f32 {
         if self.total_generated == 0 {
             0.0
@@ -387,6 +391,7 @@ impl CorpusMetrics {
 
     /// Calculate class imbalance ratio (max / min).
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn imbalance_ratio(&self) -> f32 {
         if self.category_distribution.is_empty() {
             return 0.0;
@@ -410,6 +415,7 @@ pub struct SelfSupervisedCorpusGenerator {
 impl SelfSupervisedCorpusGenerator {
     /// Create a new corpus generator.
     #[must_use]
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(stdlib_funcs: Vec<StdlibFunction>, config: CorpusConfig) -> Self {
         Self {
             generator: PythonExampleGenerator::new(stdlib_funcs),
@@ -472,13 +478,13 @@ impl SelfSupervisedCorpusGenerator {
 /// to maximize Oracle classification accuracy on the generated corpus.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GenerationParams {
-    /// Weight for DocstringMining strategy (0.0-1.0)
+    /// Weight for `DocstringMining` strategy (0.0-1.0)
     pub weight_docstring: f64,
-    /// Weight for TypeEnumeration strategy (0.0-1.0)
+    /// Weight for `TypeEnumeration` strategy (0.0-1.0)
     pub weight_type_enum: f64,
-    /// Weight for EdgeCases strategy (0.0-1.0)
+    /// Weight for `EdgeCases` strategy (0.0-1.0)
     pub weight_edge_cases: f64,
-    /// Weight for ErrorInduction strategy (0.0-1.0)
+    /// Weight for `ErrorInduction` strategy (0.0-1.0)
     pub weight_error_induction: f64,
     /// Weight for Composition strategy (0.0-1.0)
     pub weight_composition: f64,
@@ -555,7 +561,7 @@ impl GenerationParams {
         }
     }
 
-    /// Get strategy weights as a HashMap for easy lookup.
+    /// Get strategy weights as a `HashMap` for easy lookup.
     #[must_use]
     pub fn strategy_weights(&self) -> HashMap<GenerationStrategy, f64> {
         let mut weights = HashMap::new();
@@ -709,7 +715,8 @@ impl MetaheuristicOptimizer {
 ///
 /// # Returns
 /// Fitness score in [0.0, 1.0], representing Oracle accuracy.
-#[allow(dead_code)] // Used in optimization loop
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss, dead_code)]
+#[allow(clippy::manual_let_else)]
 pub fn evaluate_fitness(
     params: &GenerationParams,
     stdlib_funcs: &[StdlibFunction],
@@ -735,13 +742,13 @@ pub fn evaluate_fitness(
 
     // Fitness components:
     // 1. Acceptance rate (want high)
-    let acceptance_score = metrics.acceptance_rate() as f64;
+    let acceptance_score = f64::from(metrics.acceptance_rate());
 
     // 2. Category balance (want low imbalance)
-    let balance_score = 1.0 / (1.0 + metrics.imbalance_ratio() as f64 / 10.0);
+    let balance_score = 1.0 / (1.0 + f64::from(metrics.imbalance_ratio()) / 10.0);
 
     // 3. Diversity (want high)
-    let diversity_score = metrics.diversity_score as f64;
+    let diversity_score = f64::from(metrics.diversity_score);
 
     // 4. Error code coverage (want many unique codes)
     let coverage_score = (metrics.unique_error_codes as f64 / 50.0).min(1.0);
@@ -765,7 +772,7 @@ pub struct EvaluationMetrics {
     pub class_balance: f64,
     /// Coverage of error categories (0.0-1.0)
     pub category_coverage: f64,
-    /// Diversity score from DiversityMonitor (0.0-1.0)
+    /// Diversity score from `DiversityMonitor` (0.0-1.0)
     pub diversity_score: f64,
     /// Estimated Oracle accuracy (from k-fold CV)
     pub estimated_accuracy: f64,
@@ -776,16 +783,17 @@ pub struct EvaluationMetrics {
 impl EvaluationMetrics {
     /// Create metrics from corpus generation results.
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn from_corpus(metrics: &CorpusMetrics, k_fold_accuracy: f64, macro_f1: f64) -> Self {
         let total_categories = 7; // ErrorCategory variants
         let covered_categories = metrics.category_distribution.len();
 
         Self {
             corpus_size: metrics.accepted,
-            uniqueness_rate: 1.0 - metrics.duplicate_rate() as f64,
-            class_balance: 1.0 / (1.0 + metrics.imbalance_ratio() as f64 / 10.0),
-            category_coverage: covered_categories as f64 / total_categories as f64,
-            diversity_score: metrics.diversity_score as f64,
+            uniqueness_rate: 1.0 - f64::from(metrics.duplicate_rate()),
+            class_balance: 1.0 / (1.0 + f64::from(metrics.imbalance_ratio()) / 10.0),
+            category_coverage: covered_categories as f64 / f64::from(total_categories),
+            diversity_score: f64::from(metrics.diversity_score),
             estimated_accuracy: k_fold_accuracy,
             macro_f1,
         }
@@ -932,6 +940,7 @@ impl Evaluator {
 
     /// Generate a summary report of all results.
     #[must_use]
+    #[allow(clippy::format_push_string)]
     pub fn summary_report(&self) -> String {
         let mut report = String::new();
         report.push_str("=== Self-Supervised Corpus Evaluation Report ===\n\n");
@@ -1042,6 +1051,7 @@ impl DifficultyLevel {
 
     /// Get weight multiplier for this level (higher = more samples).
     #[must_use]
+    #[allow(clippy::match_same_arms)]
     pub fn weight(&self) -> f64 {
         match self {
             DifficultyLevel::Basic => 0.3,
@@ -1234,13 +1244,14 @@ fn evaluate_fitness_with_curriculum(
     }
 
     if level_count > 0 {
-        total_fitness / level_count as f64 * 4.0 // Normalize
+        total_fitness / f64::from(level_count) * 4.0 // Normalize
     } else {
         0.0
     }
 }
 
 /// Evaluate fitness for a specific difficulty level's strategies.
+#[allow(clippy::cast_precision_loss)]
 fn evaluate_level_fitness(
     _params: &GenerationParams,
     stdlib_funcs: &[StdlibFunction],
@@ -1251,7 +1262,7 @@ fn evaluate_level_fitness(
     let strategy_diversity = strategies.len() as f64 / 5.0;
     let stdlib_coverage = (stdlib_funcs.len() as f64 / 50.0).min(1.0);
 
-    (strategy_diversity + stdlib_coverage) / 2.0
+    f64::midpoint(strategy_diversity, stdlib_coverage)
 }
 
 // ============================================================================
@@ -1261,9 +1272,9 @@ fn evaluate_level_fitness(
 /// Fix pattern extracted from training sample.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FixPattern {
-    /// Add type conversion (.into(), as, etc.)
+    /// Add type conversion (.`into()`, as, etc.)
     TypeConversion,
-    /// Add .clone() to fix borrow issues
+    /// Add .`clone()` to fix borrow issues
     AddClone,
     /// Add missing import/use statement
     AddImport,
@@ -1368,6 +1379,7 @@ impl CorpusFixPredictor {
 
     /// Predict fix for an error, returning highest confidence fix.
     #[must_use]
+    #[allow(clippy::disallowed_methods, clippy::unwrap_used)]
     pub fn predict(&self, category: ErrorCategory) -> Option<&ExtractedFix> {
         self.patterns.get(&category).and_then(|fixes| {
             fixes.iter().max_by(|a, b| a.confidence.partial_cmp(&b.confidence).unwrap())

@@ -1,7 +1,7 @@
 //! Random Module Code Generation - EXTREME TDD
 //!
 //! Handles Python `random` module method conversions to Rust rand crate.
-//! Extracted from expr_gen.rs for testability and maintainability.
+//! Extracted from `expr_gen.rs` for testability and maintainability.
 //!
 //! Coverage target: 100% line coverage, 100% branch coverage
 
@@ -56,13 +56,13 @@ pub fn convert_random_method(
             ctx.needs_rand_distr = true;
             convert_triangular(&arg_exprs)?
         }
-        _ => bail!("random.{} not implemented yet", method),
+        _ => bail!("random.{method} not implemented yet"),
     };
 
     Ok(Some(result))
 }
 
-/// random.random() → rand::random::<f64>()
+/// `random.random()` → `rand::random::`<f64>()
 fn convert_random(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if !arg_exprs.is_empty() {
         bail!("random.random() takes no arguments");
@@ -86,6 +86,7 @@ fn convert_randint(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
 }
 
 /// random.randrange(stop) or (start, stop) or (start, stop, step)
+#[allow(clippy::similar_names)]
 fn convert_randrange(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.is_empty() || arg_exprs.len() > 3 {
         bail!("random.randrange() requires 1-3 arguments");
@@ -211,7 +212,7 @@ fn convert_choices(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
 /// random.gauss(mu, sigma) → normal distribution
 fn convert_gauss(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 2 {
-        bail!("random.{}() requires exactly 2 arguments", method);
+        bail!("random.{method}() requires exactly 2 arguments");
     }
     let mu = &arg_exprs[0];
     let sigma = &arg_exprs[1];
@@ -282,6 +283,7 @@ fn convert_triangular(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
 ///
 /// Returns deterministic values to enable std-only compilation.
 /// WARNING: These are NOT random - for compilation testing only!
+#[allow(clippy::redundant_else, clippy::match_same_arms)]
 fn convert_random_method_nasa_stub(
     method: &str,
     args: &[HirExpr],
@@ -295,11 +297,11 @@ fn convert_random_method_nasa_stub(
         "random" => parse_quote! { 0.5_f64 },
         // randint(a, b) returns a (first value in range)
         "randint" => {
-            if !arg_exprs.is_empty() {
+            if arg_exprs.is_empty() {
+                parse_quote! { 0 }
+            } else {
                 let a = &arg_exprs[0];
                 parse_quote! { #a }
-            } else {
-                parse_quote! { 0 }
             }
         }
         // randrange returns start value
@@ -314,20 +316,20 @@ fn convert_random_method_nasa_stub(
         }
         // uniform(a, b) returns a
         "uniform" => {
-            if !arg_exprs.is_empty() {
+            if arg_exprs.is_empty() {
+                parse_quote! { 0.0_f64 }
+            } else {
                 let a = &arg_exprs[0];
                 parse_quote! { #a as f64 }
-            } else {
-                parse_quote! { 0.0_f64 }
             }
         }
         // choice returns first element
         "choice" => {
-            if !arg_exprs.is_empty() {
+            if arg_exprs.is_empty() {
+                bail!("random.choice() requires a sequence argument")
+            } else {
                 let seq = &arg_exprs[0];
                 parse_quote! { #seq[0].clone() }
-            } else {
-                bail!("random.choice() requires a sequence argument")
             }
         }
         // shuffle is no-op (already shuffled... not)
@@ -344,30 +346,30 @@ fn convert_random_method_nasa_stub(
         }
         // choices returns first element repeated
         "choices" => {
-            if !arg_exprs.is_empty() {
+            if arg_exprs.is_empty() {
+                bail!("random.choices() requires a sequence argument")
+            } else {
                 let seq = &arg_exprs[0];
                 let k = if arg_exprs.len() >= 2 { &arg_exprs[1] } else { &parse_quote! { 1 } };
                 parse_quote! { vec![#seq[0].clone(); #k as usize] }
-            } else {
-                bail!("random.choices() requires a sequence argument")
             }
         }
         // gauss returns mu (mean)
         "gauss" | "normalvariate" => {
-            if !arg_exprs.is_empty() {
+            if arg_exprs.is_empty() {
+                parse_quote! { 0.0_f64 }
+            } else {
                 let mu = &arg_exprs[0];
                 parse_quote! { #mu as f64 }
-            } else {
-                parse_quote! { 0.0_f64 }
             }
         }
         // expovariate returns 1/lambda (mean of exponential)
         "expovariate" => {
-            if !arg_exprs.is_empty() {
+            if arg_exprs.is_empty() {
+                parse_quote! { 1.0_f64 }
+            } else {
                 let lambd = &arg_exprs[0];
                 parse_quote! { 1.0_f64 / (#lambd as f64) }
-            } else {
-                parse_quote! { 1.0_f64 }
             }
         }
         // seed is no-op
@@ -381,7 +383,7 @@ fn convert_random_method_nasa_stub(
                 parse_quote! { 0.5_f64 }
             }
         }
-        _ => bail!("random.{} not implemented in NASA mode", method),
+        _ => bail!("random.{method} not implemented in NASA mode"),
     };
 
     Ok(Some(result))

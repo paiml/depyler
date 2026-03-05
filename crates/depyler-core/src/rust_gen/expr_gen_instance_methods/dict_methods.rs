@@ -1,18 +1,19 @@
-//! Dict method handlers for ExpressionConverter
+//! Dict method handlers for `ExpressionConverter`
 //!
 //! Extracted from mod.rs to reduce file size and improve maintainability.
 //! Contains handlers for: get, keys, values, items, update, setdefault,
 //! popitem, pop, clear, copy.
 
-use crate::hir::*;
+use crate::hir::{HirExpr, Literal, Type};
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     /// Handle dict methods (get, keys, values, items, update)
-    /// DEPYLER-0540: Added hir_object param to detect serde_json::Value types
+    /// DEPYLER-0540: Added `hir_object` param to detect `serde_json::Value` types
     #[inline]
+    #[allow(clippy::too_many_lines)]
     pub(super) fn convert_dict_method(
         &mut self,
         object_expr: &syn::Expr,
@@ -47,9 +48,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             // String variable - borrow if needed
                             if self.is_borrowed_str_param(var_name) {
                                 return Ok(parse_quote! { #object_expr.get_str(#key).cloned() });
-                            } else {
-                                return Ok(parse_quote! { #object_expr.get_str(&#key).cloned() });
                             }
+                            return Ok(parse_quote! { #object_expr.get_str(&#key).cloned() });
                         }
                         // For non-string keys on DepylerValue, fall through to standard handling
                     }
@@ -126,11 +126,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 return Ok(
                                     parse_quote! { #object_expr.get_str(#key).cloned().unwrap_or(#default_expr) },
                                 );
-                            } else {
-                                return Ok(
-                                    parse_quote! { #object_expr.get_str(&#key).cloned().unwrap_or(#default_expr) },
-                                );
                             }
+                            return Ok(
+                                parse_quote! { #object_expr.get_str(&#key).cloned().unwrap_or(#default_expr) },
+                            );
                         }
                     }
 
@@ -338,11 +337,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 Ok(parse_quote! { #object_expr.clone() })
             }
-            _ => bail!("Unknown dict method: {}", method),
+            _ => bail!("Unknown dict method: {method}"),
         }
     }
 
-    /// DEPYLER-0564: Check if object is dict value access that returns serde_json::Value
+    /// DEPYLER-0564: Check if object is dict value access that returns `serde_json::Value`
     /// When calling string methods on dict values, we need to convert Value to &str first
     #[inline]
     pub(super) fn needs_value_to_string_conversion(&self, hir_object: &HirExpr) -> bool {
@@ -363,6 +362,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0564: Recursively check if expression is a dict value access chain
+    #[allow(clippy::self_only_used_in_recursion)]
     pub(super) fn check_dict_value_chain(&self, expr: &HirExpr) -> bool {
         match expr {
             // Direct dict.get("key") call
@@ -387,8 +387,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-0564: Check if Rust expression is likely a serde_json::Value
-    /// by looking for patterns like .unwrap_or_default() which indicate dict value access
+    /// DEPYLER-0564: Check if Rust expression is likely a `serde_json::Value`
+    /// by looking for patterns like .`unwrap_or_default()` which indicate dict value access
+    #[allow(clippy::unused_self)]
     pub(super) fn rust_expr_needs_value_conversion(&self, expr: &syn::Expr) -> bool {
         // Convert to string and check for patterns
         let expr_str = quote::quote!(#expr).to_string();

@@ -1,10 +1,10 @@
-//! JSON serialization helper functions extracted from expr_gen.rs
+//! JSON serialization helper functions extracted from `expr_gen.rs`
 //! DEPYLER-COVERAGE-95: Extracted for testability
 
 use crate::hir::Type;
 
-/// Helper: Check if a type should use serde_json::Value
-/// DEPYLER-0726: Also check for Type::Custom("Any") after DEPYLER-0725 fix
+/// Helper: Check if a type should use `serde_json::Value`
+/// DEPYLER-0726: Also check for `Type::Custom("Any`") after DEPYLER-0725 fix
 /// DEPYLER-0773: Also check for "object" which is Python's top-level type
 pub fn is_json_value_type(ty: &Type) -> bool {
     matches!(ty, Type::Unknown)

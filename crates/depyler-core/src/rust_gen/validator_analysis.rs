@@ -12,7 +12,7 @@
 //!    parameter types for validator functions can be corrected.
 
 use super::context::CodeGenContext;
-use crate::hir::*;
+use crate::hir::{HirFunction, HirConstant, HirStmt, HirExpr};
 
 /// Analyze functions for string optimization
 ///
@@ -27,7 +27,7 @@ pub(super) fn analyze_string_optimization(ctx: &mut CodeGenContext, functions: &
 /// DEPYLER-0447: Analyze function bodies AND constants to find argparse validators
 ///
 /// Scans all statements in function bodies and constant expressions to find
-/// add_argument(type=validator_func) calls. Populates ctx.validator_functions
+/// `add_argument(type=validator_func)` calls. Populates `ctx.validator_functions`
 /// with function names used as type= parameters.
 /// This must run BEFORE function signature generation so parameter types can be corrected.
 ///
@@ -48,7 +48,8 @@ pub(super) fn analyze_validators(
     }
 }
 
-/// Helper: Recursively scan statements for add_argument(type=...) calls
+/// Helper: Recursively scan statements for `add_argument(type`=...) calls
+#[allow(clippy::match_same_arms)]
 pub(super) fn scan_stmts_for_validators(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
     for stmt in stmts {
         match stmt {
@@ -84,7 +85,7 @@ pub(super) fn scan_stmts_for_validators(stmts: &[HirStmt], ctx: &mut CodeGenCont
     }
 }
 
-/// Helper: Scan expression for add_argument method calls
+/// Helper: Scan expression for `add_argument` method calls
 pub(super) fn scan_expr_for_validators(expr: &HirExpr, ctx: &mut CodeGenContext) {
     match expr {
         HirExpr::MethodCall { method, kwargs, .. } if method == "add_argument" => {

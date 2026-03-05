@@ -1,6 +1,6 @@
 //! Stdlib pathlib instance method converters
 //!
-//! DEPYLER-REFACTOR: Extracted from expr_gen/mod.rs
+//! DEPYLER-REFACTOR: Extracted from `expr_gen/mod.rs`
 //!
 //! Contains converters for pathlib instance method calls:
 //! - `convert_pathlib_instance_method` — Maps Path/PathBuf variable method calls
@@ -10,11 +10,12 @@ use super::ExpressionConverter;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     /// DEPYLER-0829: Convert pathlib methods on Path/PathBuf variable instances
     /// This handles cases like `p.write_text(content)` where p is a Path variable
-    /// Unlike try_convert_pathlib_method which handles module calls like pathlib.Path(...).method()
+    /// Unlike `try_convert_pathlib_method` which handles module calls like `pathlib.Path(...).method()`
     #[inline]
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn convert_pathlib_instance_method(
         &mut self,
         path_expr: &syn::Expr,
@@ -63,10 +64,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Directory operations
             "mkdir" => {
                 // Check if parents=True was passed
-                if !arg_exprs.is_empty() {
-                    parse_quote! { std::fs::create_dir_all(&#path_expr).expect("operation failed") }
-                } else {
+                if arg_exprs.is_empty() {
                     parse_quote! { std::fs::create_dir(&#path_expr).expect("operation failed") }
+                } else {
+                    parse_quote! { std::fs::create_dir_all(&#path_expr).expect("operation failed") }
                 }
             }
 

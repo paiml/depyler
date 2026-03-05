@@ -1,4 +1,4 @@
-//! Sys I/O method handlers for ExpressionConverter
+//! Sys I/O method handlers for `ExpressionConverter`
 //!
 //! Extracted from mod.rs to reduce file size. Contains the `convert_sys_io_method`
 //! handler covering: stdout/stderr write, flush, stdin read/readline/readlines.
@@ -8,12 +8,13 @@ use anyhow::{bail, Result};
 use quote::quote;
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     /// DEPYLER-0381: Convert sys I/O stream method calls
-    /// sys.stdout.write(msg) → writeln!(std::io::stdout(), "{}", msg).unwrap()
-    /// sys.stdin.read() → { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).unwrap(); s }
-    /// sys.stdout.flush() → std::io::stdout().flush().unwrap()
+    /// sys.stdout.write(msg) → `writeln!(std::io::stdout()`, "{}", `msg).unwrap()`
+    /// `sys.stdin.read()` → { let mut s = `String::new()`; `std::io::stdin().read_to_string(&mut` `s).unwrap()`; s }
+    /// `sys.stdout.flush()` → `std::io::stdout().flush().unwrap()`
     #[inline]
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_sys_io_method(
         &self,
         stream: &str,
@@ -24,14 +25,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "stdin" => quote! { std::io::stdin() },
             "stdout" => quote! { std::io::stdout() },
             "stderr" => quote! { std::io::stderr() },
-            _ => bail!("Unknown I/O stream: {}", stream),
+            _ => bail!("Unknown I/O stream: {stream}"),
         };
 
         let result = match (stream, method) {
             // stdout/stderr write methods
             ("stdout" | "stderr", "write") => {
                 if arg_exprs.is_empty() {
-                    bail!("{}.write() requires an argument", stream);
+                    bail!("{stream}.write() requires an argument");
                 }
                 let msg = &arg_exprs[0];
                 // Use writeln! macro for cleaner code and automatic newline handling
@@ -89,7 +90,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            _ => bail!("{}.{}() is not yet supported", stream, method),
+            _ => bail!("{stream}.{method}() is not yet supported"),
         };
 
         Ok(result)

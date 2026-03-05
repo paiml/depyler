@@ -1,7 +1,7 @@
 //! Regular Expression Module Code Generation - EXTREME TDD
 //!
 //! Handles Python `re` module method conversions to Rust regex crate.
-//! Extracted from expr_gen.rs for testability and maintainability.
+//! Extracted from `expr_gen.rs` for testability and maintainability.
 //!
 //! Coverage target: 100% line coverage, 100% branch coverage
 
@@ -24,7 +24,7 @@ use syn::parse_quote;
 /// - `re.escape(text)` → `regex::escape(text)`
 ///
 /// # Complexity: 10 (match with 10 branches)
-/// DEPYLER-1070: Added NASA mode support using DepylerRegexMatch
+/// DEPYLER-1070: Added NASA mode support using `DepylerRegexMatch`
 pub fn convert_re_method(
     method: &str,
     args: &[HirExpr],
@@ -56,13 +56,13 @@ pub fn convert_re_method(
         "split" => convert_split(&arg_exprs)?,
         "escape" => convert_escape(&arg_exprs)?,
         "fullmatch" => convert_fullmatch(args, &arg_exprs)?,
-        _ => bail!("re.{} not implemented yet", method),
+        _ => bail!("re.{method} not implemented yet"),
     };
 
     Ok(Some(result))
 }
 
-/// DEPYLER-1070: NASA mode regex conversion using DepylerRegexMatch
+/// DEPYLER-1070: NASA mode regex conversion using `DepylerRegexMatch`
 /// Uses simple string methods instead of regex crate
 fn convert_re_method_nasa(
     method: &str,
@@ -168,14 +168,14 @@ fn convert_re_method_nasa(
                 }
             }
         }
-        _ => bail!("re.{} not implemented yet", method),
+        _ => bail!("re.{method} not implemented yet"),
     };
 
     Ok(Some(result))
 }
 
 /// Helper to extract bare string literals for regex methods
-/// Regex::new() and find() expect &str, not String
+/// `Regex::new()` and `find()` expect &str, not String
 fn extract_str_arg(args: &[HirExpr], arg_exprs: &[syn::Expr], idx: usize) -> syn::Expr {
     match args.get(idx) {
         Some(HirExpr::Literal(Literal::String(s))) => {
@@ -186,7 +186,7 @@ fn extract_str_arg(args: &[HirExpr], arg_exprs: &[syn::Expr], idx: usize) -> syn
     }
 }
 
-/// Convert re.search() call
+/// Convert `re.search()` call
 fn convert_search(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() < 2 {
         bail!("re.search() requires at least 2 arguments (pattern, string)");
@@ -210,7 +210,7 @@ fn convert_search(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr
     }
 }
 
-/// Convert re.match() call
+/// Convert `re.match()` call
 fn convert_match(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() < 2 {
         bail!("re.match() requires at least 2 arguments (pattern, string)");
@@ -222,7 +222,7 @@ fn convert_match(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr>
     Ok(parse_quote! { regex::Regex::new(#pattern).expect("regex operation failed").find(#text) })
 }
 
-/// Convert re.findall() call
+/// Convert `re.findall()` call
 fn convert_findall(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() < 2 {
         bail!("re.findall() requires at least 2 arguments (pattern, string)");
@@ -239,7 +239,7 @@ fn convert_findall(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Exp
     })
 }
 
-/// Convert re.finditer() call
+/// Convert `re.finditer()` call
 fn convert_finditer(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() < 2 {
         bail!("re.finditer() requires at least 2 arguments (pattern, string)");
@@ -256,7 +256,7 @@ fn convert_finditer(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Ex
     })
 }
 
-/// Convert re.sub() call
+/// Convert `re.sub()` call
 fn convert_sub(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() < 3 {
         bail!("re.sub() requires at least 3 arguments (pattern, repl, string)");
@@ -273,7 +273,7 @@ fn convert_sub(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     })
 }
 
-/// Convert re.subn() call
+/// Convert `re.subn()` call
 fn convert_subn(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() < 3 {
         bail!("re.subn() requires at least 3 arguments (pattern, repl, string)");
@@ -292,7 +292,7 @@ fn convert_subn(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> 
     })
 }
 
-/// Convert re.compile() call
+/// Convert `re.compile()` call
 fn convert_compile(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.is_empty() {
         bail!("re.compile() requires at least 1 argument (pattern)");
@@ -311,7 +311,7 @@ fn convert_compile(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     }
 }
 
-/// Convert re.split() call
+/// Convert `re.split()` call
 fn convert_split(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() < 2 {
         bail!("re.split() requires at least 2 arguments (pattern, string)");
@@ -339,7 +339,7 @@ fn convert_split(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     }
 }
 
-/// Convert re.escape() call
+/// Convert `re.escape()` call
 fn convert_escape(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("re.escape() requires exactly 1 argument");
@@ -348,7 +348,7 @@ fn convert_escape(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { regex::escape(#text).to_string() })
 }
 
-/// DEPYLER-1070: Convert re.fullmatch() call
+/// DEPYLER-1070: Convert `re.fullmatch()` call
 /// fullmatch checks if the entire string matches the pattern
 fn convert_fullmatch(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() < 2 {

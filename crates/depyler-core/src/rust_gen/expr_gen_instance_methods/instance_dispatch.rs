@@ -1,16 +1,17 @@
-//! Instance method dispatch for ExpressionConverter
+//! Instance method dispatch for `ExpressionConverter`
 //!
-//! Contains convert_instance_method - the main router for Python instance method calls.
+//! Contains `convert_instance_method` - the main router for Python instance method calls.
 
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
-use crate::hir::*;
+use crate::hir::{HirExpr, Type, Literal};
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use crate::rust_gen::keywords;
 use anyhow::{bail, Result};
 use syn::{self, parse_quote};
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
+    #[allow(clippy::redundant_else, clippy::too_many_lines)]
     pub(crate) fn convert_instance_method(
         &mut self,
         object: &HirExpr,
@@ -156,11 +157,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return Ok(parse_quote! {
                     #object_expr.write_all(#content.as_ref().expect("value is None").as_bytes()).expect("write failed")
                 });
-            } else {
-                return Ok(parse_quote! {
-                    #object_expr.write_all(#content.as_bytes()).expect("write failed")
-                });
             }
+            return Ok(parse_quote! {
+                #object_expr.write_all(#content.as_bytes()).expect("write failed")
+            });
         }
 
         // DEPYLER-0529: Handle file .close() method
@@ -235,9 +235,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 "isoformat" if arg_exprs.is_empty() => {
                     if nasa_mode {
                         return Ok(parse_quote! { format!("{:?}", #object_expr) });
-                    } else {
-                        return Ok(parse_quote! { #object_expr.to_string() });
                     }
+                    return Ok(parse_quote! { #object_expr.to_string() });
                 }
                 // dt.strftime(fmt) → format string
                 "strftime" if arg_exprs.len() == 1 => {
@@ -258,25 +257,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         return Ok(
                             parse_quote! { #object_expr.duration_since(std::time::UNIX_EPOCH).expect("operation failed").as_secs() as f64 },
                         );
-                    } else {
-                        return Ok(parse_quote! { #object_expr.and_utc().timestamp() as f64 });
                     }
+                    return Ok(parse_quote! { #object_expr.and_utc().timestamp() as f64 });
                 }
                 // dt.date() → date component
                 "date" if arg_exprs.is_empty() => {
                     if nasa_mode {
                         return Ok(parse_quote! { #object_expr });
-                    } else {
-                        return Ok(parse_quote! { #object_expr.date() });
                     }
+                    return Ok(parse_quote! { #object_expr.date() });
                 }
                 // dt.time() → time component
                 "time" if arg_exprs.is_empty() => {
                     if nasa_mode {
                         return Ok(parse_quote! { #object_expr });
-                    } else {
-                        return Ok(parse_quote! { #object_expr.time() });
                     }
+                    return Ok(parse_quote! { #object_expr.time() });
                 }
                 _ => {} // Fall through to default handling
             }
@@ -611,7 +607,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 if is_deque_depyler_value && self.ctx.type_mapper.nasa_mode {
                     // Wrap argument in DepylerValue based on argument type
-                    let wrapped_arg: syn::Expr = if !hir_args.is_empty() {
+                    let wrapped_arg: syn::Expr = if hir_args.is_empty() {
+                        parse_quote! { DepylerValue::from(#arg) }
+                    } else {
                         match &hir_args[0] {
                             HirExpr::Literal(Literal::Int(_)) => {
                                 parse_quote! { DepylerValue::Int(#arg as i64) }
@@ -638,8 +636,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             },
                             _ => parse_quote! { DepylerValue::from(#arg) },
                         }
-                    } else {
-                        parse_quote! { DepylerValue::from(#arg) }
                     };
                     self.ctx.needs_depyler_value_enum = true;
                     Ok(parse_quote! { #object_expr.push_front(#wrapped_arg) })
@@ -694,7 +690,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                     if is_deque_depyler_value && self.ctx.type_mapper.nasa_mode {
                         // Wrap argument in DepylerValue based on argument type
-                        let wrapped_arg: syn::Expr = if !hir_args.is_empty() {
+                        let wrapped_arg: syn::Expr = if hir_args.is_empty() {
+                            parse_quote! { DepylerValue::from(#arg) }
+                        } else {
                             match &hir_args[0] {
                                 HirExpr::Literal(Literal::Int(_)) => {
                                     parse_quote! { DepylerValue::Int(#arg as i64) }
@@ -723,8 +721,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 },
                                 _ => parse_quote! { DepylerValue::from(#arg) },
                             }
-                        } else {
-                            parse_quote! { DepylerValue::from(#arg) }
                         };
                         self.ctx.needs_depyler_value_enum = true;
                         Ok(parse_quote! { #object_expr.push_back(#wrapped_arg) })

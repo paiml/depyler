@@ -19,7 +19,7 @@ pub fn is_float_literal(expr: &HirExpr) -> bool {
 
 /// Check if an expression is a numeric literal (int or float)
 pub fn is_numeric_literal(expr: &HirExpr) -> bool {
-    matches!(expr, HirExpr::Literal(Literal::Int(_)) | HirExpr::Literal(Literal::Float(_)))
+    matches!(expr, HirExpr::Literal(Literal::Int(_) | Literal::Float(_)))
 }
 
 /// Check if a type is numeric (Int or Float)
@@ -99,6 +99,7 @@ pub fn is_zero_literal(expr: &HirExpr) -> bool {
 }
 
 /// Check if expression represents one
+#[allow(clippy::float_cmp)]
 pub fn is_one_literal(expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Literal(Literal::Int(1)) => true,
@@ -150,36 +151,43 @@ pub fn get_bool_value(expr: &HirExpr) -> Option<bool> {
 }
 
 /// Generate a cast expression to i32
+#[allow(clippy::needless_pass_by_value)]
 pub fn cast_to_i32(expr: syn::Expr) -> syn::Expr {
     parse_quote! { (#expr as i32) }
 }
 
 /// Generate a cast expression to i64
+#[allow(clippy::needless_pass_by_value)]
 pub fn cast_to_i64(expr: syn::Expr) -> syn::Expr {
     parse_quote! { (#expr as i64) }
 }
 
 /// Generate a cast expression to f32
+#[allow(clippy::needless_pass_by_value)]
 pub fn cast_to_f32(expr: syn::Expr) -> syn::Expr {
     parse_quote! { (#expr as f32) }
 }
 
 /// Generate a cast expression to f64
+#[allow(clippy::needless_pass_by_value)]
 pub fn cast_to_f64(expr: syn::Expr) -> syn::Expr {
     parse_quote! { (#expr as f64) }
 }
 
 /// Generate a cast expression to usize
+#[allow(clippy::needless_pass_by_value)]
 pub fn cast_to_usize(expr: syn::Expr) -> syn::Expr {
     parse_quote! { (#expr as usize) }
 }
 
 /// Generate a cast expression to isize
+#[allow(clippy::needless_pass_by_value)]
 pub fn cast_to_isize(expr: syn::Expr) -> syn::Expr {
     parse_quote! { (#expr as isize) }
 }
 
 /// Check if conversion between types requires explicit cast
+#[allow(clippy::match_same_arms)]
 pub fn needs_cast(from: &Type, to: &Type) -> bool {
     match (from, to) {
         // Same types don't need cast
@@ -272,11 +280,12 @@ pub fn is_float_var_name(name: &str) -> bool {
     matches!(name, "r" | "g" | "h" | "s" | "v" | "l" | "c" | "m" | "k")
 }
 
-/// Check if an HirExpr is a pure integer expression (recursive)
+/// Check if an `HirExpr` is a pure integer expression (recursive)
 /// Handles variables, literals, and binary operations on integers
+#[allow(clippy::implicit_hasher)]
 pub fn is_int_expr_recursive(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
     match expr {
-        HirExpr::Var(name) => var_types.get(name).map(is_int_type_extended).unwrap_or(false),
+        HirExpr::Var(name) => var_types.get(name).is_some_and(is_int_type_extended),
         HirExpr::Literal(Literal::Int(_)) => true,
         // Binary operations on integers produce integers (except division)
         HirExpr::Binary { left, right, op } => {
@@ -295,12 +304,14 @@ pub fn is_int_expr_recursive(expr: &HirExpr, var_types: &HashMap<String, Type>) 
 }
 
 /// Coerce an integer literal to a float literal expression (f64)
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 pub fn coerce_int_literal_to_f64(val: i64) -> syn::Expr {
     let float_val = val as f64;
     parse_quote! { #float_val }
 }
 
 /// Coerce an integer literal to an f32 literal expression
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 pub fn coerce_int_literal_to_f32(val: i64) -> syn::Expr {
     let float_val = val as f32;
     parse_quote! { #float_val }

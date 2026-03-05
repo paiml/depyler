@@ -1,7 +1,7 @@
 //! Error classification for convergence loop (Issue #172)
 //!
-//! Integrates depyler_oracle for ML-based error classification and
-//! OracleQueryLoop for pattern-based fix suggestions.
+//! Integrates `depyler_oracle` for ML-based error classification and
+//! `OracleQueryLoop` for pattern-based fix suggestions.
 
 use super::compiler::{CompilationError, CompilationResult};
 use depyler_oracle::{ErrorCategory as OracleCategory, Oracle};
@@ -139,7 +139,7 @@ impl ErrorClassifier {
                     error: error.clone(),
                     category,
                     subcategory,
-                    confidence: result.confidence as f64,
+                    confidence: f64::from(result.confidence),
                     suggested_fix: result.suggested_fix,
                 };
             }
@@ -150,6 +150,7 @@ impl ErrorClassifier {
     }
 
     /// Fallback rule-based classification (original hardcoded logic)
+    #[allow(clippy::match_same_arms, clippy::unused_self)]
     fn classify_fallback(&self, error: &CompilationError) -> ErrorClassification {
         let (category, subcategory, confidence) = match error.code.as_str() {
             "E0599" => (ErrorCategory::TranspilerGap, "missing_method".into(), 0.9),

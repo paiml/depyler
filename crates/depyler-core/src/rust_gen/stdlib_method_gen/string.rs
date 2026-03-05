@@ -1,7 +1,7 @@
 //! String Module Code Generation - EXTREME TDD
 //!
 //! Handles Python `string` module method conversions to Rust.
-//! Extracted from expr_gen.rs for testability and maintainability.
+//! Extracted from `expr_gen.rs` for testability and maintainability.
 //!
 //! Coverage target: 100% line coverage, 100% branch coverage
 
@@ -26,7 +26,7 @@ pub fn convert_string_method(
 
     let result = match method {
         "capwords" => convert_capwords(&arg_exprs)?,
-        _ => bail!("string.{} not implemented yet", method),
+        _ => bail!("string.{method} not implemented yet"),
     };
 
     Ok(Some(result))

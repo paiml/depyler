@@ -10,7 +10,7 @@
 //! RRF_score(d) = Σ 1/(k + rank_i(d))
 //! ```
 //!
-//! where k=60 (Cormack et al. 2009) and rank_i(d) is the rank of
+//! where k=60 (Cormack et al. 2009) and `rank_i(d)` is the rank of
 //! document d in ranking system i.
 //!
 //! # References
@@ -72,6 +72,7 @@ impl Bm25Scorer {
     /// # Errors
     ///
     /// Returns error if corpus is empty.
+    #[allow(clippy::cast_precision_loss)]
     pub fn fit<S: AsRef<str>>(&mut self, documents: &[S]) -> Result<(), OracleError> {
         if documents.is_empty() {
             return Err(OracleError::Feature("Cannot fit BM25 on empty corpus".to_string()));
@@ -116,7 +117,7 @@ impl Bm25Scorer {
     ///
     /// # Returns
     ///
-    /// Vector of (document_index, score) pairs sorted by score descending.
+    /// Vector of (`document_index`, score) pairs sorted by score descending.
     #[must_use]
     pub fn score(&self, query: &str) -> Vec<(usize, f64)> {
         let query_tokens = tokenize(query);
@@ -136,6 +137,7 @@ impl Bm25Scorer {
     }
 
     /// Score a single document against query tokens
+    #[allow(clippy::cast_precision_loss)]
     fn score_document(&self, query_tokens: &[String], doc_tokens: &[String]) -> f64 {
         let doc_len = doc_tokens.len() as f64;
 
@@ -179,6 +181,7 @@ impl Default for Bm25Scorer {
 }
 
 /// Compute IDF (Inverse Document Frequency)
+#[allow(clippy::cast_precision_loss)]
 fn compute_idf(doc_freq: usize, num_docs: usize) -> f64 {
     let n = num_docs as f64;
     let df = doc_freq as f64;
@@ -212,14 +215,15 @@ pub struct RrfResult {
 ///
 /// # Arguments
 ///
-/// * `bm25_ranking` - BM25 ranking: vec of (doc_idx, score)
-/// * `tfidf_ranking` - TF-IDF ranking: vec of (doc_idx, score)
+/// * `bm25_ranking` - BM25 ranking: vec of (`doc_idx`, score)
+/// * `tfidf_ranking` - TF-IDF ranking: vec of (`doc_idx`, score)
 /// * `top_k` - Maximum number of results to return
 ///
 /// # Returns
 ///
 /// RRF-fused ranking sorted by combined score descending.
 #[must_use]
+#[allow(clippy::cast_precision_loss)]
 pub fn reciprocal_rank_fusion(
     bm25_ranking: &[(usize, f64)],
     tfidf_ranking: &[(usize, f64)],
@@ -275,7 +279,7 @@ pub fn reciprocal_rank_fusion(
 pub struct HybridRetriever {
     /// BM25 scorer
     bm25: Bm25Scorer,
-    /// TF-IDF extractor (uses existing depyler TfidfFeatureExtractor)
+    /// TF-IDF extractor (uses existing depyler `TfidfFeatureExtractor`)
     tfidf: crate::tfidf::TfidfFeatureExtractor,
     /// Original documents for reference
     documents: Vec<String>,

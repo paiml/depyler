@@ -1,7 +1,7 @@
 //! Walrus Operator (Named Expression) Helpers
 //!
 //! This module contains helpers for handling Python's walrus operator (:=)
-//! during code generation. Extracted from expr_gen.rs for better testability.
+//! during code generation. Extracted from `expr_gen.rs` for better testability.
 //!
 //! DEPYLER-0792: Walrus operator support for Python 3.8+
 
@@ -9,7 +9,8 @@ use crate::hir::HirExpr;
 use std::collections::HashSet;
 
 /// Collect all variable names defined by walrus operators in conditions
-/// Recursively walks the expression tree to find NamedExpr targets
+/// Recursively walks the expression tree to find `NamedExpr` targets
+#[allow(clippy::implicit_hasher)]
 pub fn collect_walrus_vars_from_conditions(conditions: &[HirExpr]) -> HashSet<String> {
     let mut vars = HashSet::new();
     for cond in conditions {
@@ -18,7 +19,8 @@ pub fn collect_walrus_vars_from_conditions(conditions: &[HirExpr]) -> HashSet<St
     vars
 }
 
-/// Helper to recursively find NamedExpr (walrus) targets in an expression
+/// Helper to recursively find `NamedExpr` (walrus) targets in an expression
+#[allow(clippy::implicit_hasher)]
 pub fn collect_walrus_vars_from_expr(expr: &HirExpr, vars: &mut HashSet<String>) {
     match expr {
         HirExpr::NamedExpr { target, value } => {
@@ -64,6 +66,7 @@ pub fn collect_walrus_vars_from_expr(expr: &HirExpr, vars: &mut HashSet<String>)
 }
 
 /// Check if an expression uses any of the given variable names
+#[allow(clippy::match_same_arms, clippy::implicit_hasher)]
 pub fn expr_uses_any_var(expr: &HirExpr, var_names: &HashSet<String>) -> bool {
     match expr {
         HirExpr::Var(name) => var_names.contains(name),

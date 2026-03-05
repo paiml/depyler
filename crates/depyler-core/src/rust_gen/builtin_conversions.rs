@@ -1,28 +1,28 @@
 //! Builtin type conversion code generation
 //!
-//! This module handles Python builtin type conversions: int(), float(), bool(), str(), len()
-//! Extracted from expr_gen.rs as part of DEPYLER-REFACTOR-001 (God File split)
+//! This module handles Python builtin type conversions: `int()`, `float()`, `bool()`, `str()`, `len()`
+//! Extracted from `expr_gen.rs` as part of DEPYLER-REFACTOR-001 (God File split)
 //!
 //! # DEPYLER-REFACTOR-001 Traceability
-//! - Original location: expr_gen.rs lines 1622-1922
+//! - Original location: `expr_gen.rs` lines 1622-1922
 //! - Extraction date: 2025-11-25
-//! - Tests: tests/refactor_builtin_conversions_test.rs
+//! - Tests: `tests/refactor_builtin_conversions_test.rs`
 
 use crate::hir::{BinOp, HirExpr, Literal, Type, UnaryOp};
 use crate::rust_gen::context::CodeGenContext;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-/// Convert Python len() call to Rust .len() with i32 cast
+/// Convert Python `len()` call to Rust .`len()` with i32 cast
 ///
-/// Python's len() returns int (maps to i32), but Rust's .len() returns usize.
+/// Python's `len()` returns int (maps to i32), but Rust's .`len()` returns usize.
 /// CSE optimization runs before return statement processing, so we need the cast
-/// to avoid type mismatches when CSE extracts len() into a temporary variable.
+/// to avoid type mismatches when CSE extracts `len()` into a temporary variable.
 ///
 /// # DEPYLER-0276: Keep cast for CSE compatibility
 ///
 /// # Complexity: 2
-pub fn convert_len_call(args: &[syn::Expr]) -> Result<syn::Expr> {
+pub(super) fn convert_len_call(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() != 1 {
         bail!("len() requires exactly one argument");
     }
@@ -30,20 +30,21 @@ pub fn convert_len_call(args: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { #arg.len() as i32 })
 }
 
-/// Convert Python int() call to Rust integer parsing or casting
+/// Convert Python `int()` call to Rust integer parsing or casting
 ///
-/// Python int() serves multiple purposes:
-/// 1. Parse strings to integers (requires .parse())
+/// Python `int()` serves multiple purposes:
+/// 1. Parse strings to integers (requires .`parse()`)
 /// 2. Convert floats to integers (truncation via as i32)
 /// 3. Convert bools to integers (False→0, True→1 via as i32)
-/// 4. Handle base conversion: int("ff", 16) → i64::from_str_radix
+/// 4. Handle base conversion: int("ff", 16) → `i64::from_str_radix`
 ///
-/// # DEPYLER-0307 Fix #7: String variables need .parse() not cast
+/// # DEPYLER-0307 Fix #7: String variables need .`parse()` not cast
 /// # DEPYLER-0327 Fix #1: Improved type inference for method calls
-/// # DEPYLER-REFACTOR-001: Handle int(string, base) with from_str_radix
+/// # DEPYLER-REFACTOR-001: Handle int(string, base) with `from_str_radix`
 ///
 /// # Complexity: 9 (within limit)
-pub fn convert_int_cast(
+#[allow(clippy::too_many_lines)]
+pub(super) fn convert_int_cast(
     ctx: &CodeGenContext,
     hir_args: &[HirExpr],
     arg_exprs: &[syn::Expr],
@@ -203,14 +204,14 @@ pub fn convert_int_cast(
     Ok(parse_quote! { (#arg) as i32 })
 }
 
-/// Convert Python float() call to Rust float parsing or casting
+/// Convert Python `float()` call to Rust float parsing or casting
 ///
-/// Python float() serves two purposes:
-/// 1. Parse strings to floats (requires .parse())
+/// Python `float()` serves two purposes:
+/// 1. Parse strings to floats (requires .`parse()`)
 /// 2. Convert integers to floats (via as f64)
 ///
 /// # Complexity: 6
-pub fn convert_float_cast(
+pub(super) fn convert_float_cast(
     ctx: &CodeGenContext,
     hir_args: &[HirExpr],
     arg_exprs: &[syn::Expr],
@@ -316,16 +317,16 @@ pub fn convert_float_cast(
     Ok(parse_quote! { (#arg) as f64 })
 }
 
-/// Convert Python str() call to Rust .to_string()
+/// Convert Python `str()` call to Rust .`to_string()`
 ///
 /// # DEPYLER-GH121: Wrap argument in parentheses to handle cast expressions
 /// Without parens, `x as f32.to_string()` is invalid Rust syntax.
 /// With parens, `(x as f32).to_string()` is valid.
 ///
-/// # DEPYLER-0188: PathBuf doesn't implement Display, use .display().to_string()
+/// # DEPYLER-0188: `PathBuf` doesn't implement Display, use .`display().to_string()`
 ///
 /// # Complexity: 4
-pub fn convert_str_conversion(
+pub(super) fn convert_str_conversion(
     hir_args: &[HirExpr],
     args: &[syn::Expr],
     is_path_expr_fn: impl Fn(&HirExpr) -> bool,
@@ -344,16 +345,16 @@ pub fn convert_str_conversion(
     Ok(parse_quote! { (#arg).to_string() })
 }
 
-/// Convert Python bool() call to Rust truthiness check
+/// Convert Python `bool()` call to Rust truthiness check
 ///
-/// Python bool() checks truthiness:
+/// Python `bool()` checks truthiness:
 /// - Strings: non-empty → true, empty → false
 /// - Integers: non-zero → true, zero → false
 /// - Floats: non-zero → true, zero → false
 /// - Lists/collections: non-empty → true, empty → false
 ///
 /// # Complexity: 9 (within limit)
-pub fn convert_bool_cast(
+pub(super) fn convert_bool_cast(
     ctx: &CodeGenContext,
     hir_args: &[HirExpr],
     arg_exprs: &[syn::Expr],
@@ -409,9 +410,10 @@ pub fn convert_bool_cast(
     Ok(parse_quote! { #arg != 0 })
 }
 
-/// Convert bool() for a variable based on its type
+/// Convert `bool()` for a variable based on its type
 ///
 /// # Complexity: 7
+#[allow(clippy::unnecessary_wraps)]
 fn convert_bool_var(ctx: &CodeGenContext, var_name: &str, arg: &syn::Expr) -> Result<syn::Expr> {
     let var_type = ctx.var_types.get(var_name);
     match var_type {
@@ -440,7 +442,7 @@ fn convert_bool_var(ctx: &CodeGenContext, var_name: &str, arg: &syn::Expr) -> Re
 /// - Direct string literals
 /// - Parenthesized expressions
 /// - Grouped expressions
-/// - .to_string() method calls on literals
+/// - .`to_string()` method calls on literals
 ///
 /// # Complexity: 5
 fn extract_str_literal(expr: &syn::Expr) -> Option<String> {
@@ -464,12 +466,12 @@ fn extract_str_literal(expr: &syn::Expr) -> Option<String> {
     None
 }
 
-/// Check if object.method() returns String type
+/// Check if `object.method()` returns String type
 ///
-/// Used to detect .get() on Vec<String> and similar patterns
+/// Used to detect .`get()` on Vec<String> and similar patterns
 ///
 /// # Complexity: 6
-pub fn is_string_method_call(
+pub(super) fn is_string_method_call(
     ctx: &CodeGenContext,
     object: &HirExpr,
     method: &str,
@@ -499,7 +501,8 @@ pub fn is_string_method_call(
 /// Returns Some(true) if definitely bool, None if unknown
 ///
 /// # Complexity: 5
-pub fn is_bool_expr(expr: &HirExpr) -> Option<bool> {
+#[allow(clippy::match_same_arms)]
+pub(super) fn is_bool_expr(expr: &HirExpr) -> Option<bool> {
     match expr {
         // Comparison operations always return bool
         HirExpr::Binary {

@@ -1,22 +1,22 @@
 //! Subprocess stdlib code generation
 //!
-//! Handles conversion of Python subprocess module calls to Rust std::process::Command.
+//! Handles conversion of Python subprocess module calls to Rust `std::process::Command`.
 
-use crate::hir::*;
+use crate::hir::{HirExpr, Symbol, Literal, Type};
 use crate::rust_gen::context::ToRustExpr;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
 use super::ExpressionConverter;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
-    /// Convert subprocess.run() to std::process::Command
+impl ExpressionConverter<'_, '_> {
+    /// Convert `subprocess.run()` to `std::process::Command`
     /// DEPYLER-0391: Subprocess module for executing system commands
     ///
-    /// Maps Python subprocess.run() to Rust std::process::Command:
-    /// - subprocess.run(cmd) → Command::new(cmd[0]).args(&cmd[1..]).status()
-    /// - capture_output=True → .output() instead of .status()
-    /// - cwd=path → .current_dir(path)
+    /// Maps Python `subprocess.run()` to Rust `std::process::Command`:
+    /// - subprocess.run(cmd) → `Command::new(cmd`[0]).args(&cmd[1..]).`status()`
+    /// - `capture_output=True` → .`output()` instead of .`status()`
+    /// - cwd=path → .`current_dir(path)`
     /// - check=True → verify exit status (NOTE: add error handling tracked in DEPYLER-0424)
     ///
     /// Returns anonymous struct with: returncode, stdout, stderr
@@ -24,6 +24,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// # Complexity
     /// ≤10 (linear processing of kwargs)
     #[inline]
+    #[allow(clippy::similar_names, clippy::too_many_lines)]
     pub(super) fn convert_subprocess_run(
         &mut self,
         args: &[HirExpr],
@@ -207,18 +208,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(result)
     }
 
-    /// Convert subprocess.Popen() to std::process::Command::spawn()
+    /// Convert `subprocess.Popen()` to `std::process::Command::spawn()`
     /// DEPYLER-0931: Subprocess Popen for process management
     ///
-    /// Maps Python subprocess.Popen() to Rust std::process::Command:
-    /// - subprocess.Popen(cmd) → Command::new(cmd).spawn().expect("...")
-    /// - subprocess.Popen(cmd, shell=True) → Command::new("sh").arg("-c").arg(cmd).spawn()
+    /// Maps Python `subprocess.Popen()` to Rust `std::process::Command`:
+    /// - subprocess.Popen(cmd) → `Command::new(cmd).spawn().expect`("...")
+    /// - subprocess.Popen(cmd, shell=True) → `Command::new("sh").arg("-c").arg(cmd).spawn()`
     ///
-    /// Returns std::process::Child which has .wait(), .kill(), etc.
+    /// Returns `std::process::Child` which has .`wait()`, .`kill()`, etc.
     ///
     /// # Complexity
     /// ≤10 (linear processing of kwargs)
     #[inline]
+    #[allow(clippy::similar_names)]
     pub(super) fn convert_subprocess_popen(
         &mut self,
         args: &[HirExpr],

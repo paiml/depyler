@@ -14,6 +14,7 @@
 //! Reference: Hinton et al. (2015) - Distilling the Knowledge in a Neural Network
 
 use super::pattern_store::{PatternStore, TranspilationPattern};
+use std::fmt::Write as _;
 
 /// Criteria for graduating a pattern to a hardcoded rule
 #[derive(Debug, Clone)]
@@ -55,20 +56,20 @@ impl KnowledgeDistiller {
 
     /// Generate Rust code for a hardcoded rule
     ///
-    /// Returns a function definition that can be added to direct_rules.rs
+    /// Returns a function definition that can be added to `direct_rules.rs`
     pub fn generate_rule(&self, pattern: &TranspilationPattern) -> String {
         // Convert ID to valid Rust identifier (snake_case)
         let fn_name = pattern.id.replace(['-', '.'], "_");
 
         format!(
-            r#"
+            r"
 // Auto-generated from pattern {} (confidence: {:.2}, uses: {})
 // Original Python: {}
 fn handle_pattern_{}(ctx: &mut CodegenContext, expr: &HirExpr) -> TokenStream {{
     // Generated output: {}
     quote! {{ {} }}
 }}
-"#,
+",
             pattern.id,
             pattern.confidence,
             pattern.usage_count,
@@ -98,14 +99,13 @@ fn handle_pattern_{}(ctx: &mut CodegenContext, expr: &HirExpr) -> TokenStream {{
         let mut report = format!("=== Graduation Candidates ({}) ===\n\n", candidates.len());
 
         for pattern in candidates {
-            report.push_str(&format!(
-                "Pattern: {}\n  Confidence: {:.2}%\n  Usage: {}\n  Success Rate: {:.2}%\n  Error Prevented: {}\n\n",
+            let _ = writeln!(report, "Pattern: {}\n  Confidence: {:.2}%\n  Usage: {}\n  Success Rate: {:.2}%\n  Error Prevented: {}\n",
                 pattern.id,
                 pattern.confidence * 100.0,
                 pattern.usage_count,
                 pattern.success_rate * 100.0,
                 pattern.error_prevented
-            ));
+            );
         }
 
         report

@@ -1,18 +1,19 @@
-//! Set method handlers for ExpressionConverter
+//! Set method handlers for `ExpressionConverter`
 //!
 //! Extracted from mod.rs to reduce file size and improve maintainability.
 //! Contains handlers for: add, remove, discard, clear, update,
-//! intersection_update, difference_update, union, intersection,
-//! difference, symmetric_difference, issubset, issuperset, isdisjoint.
+//! `intersection_update`, `difference_update`, union, intersection,
+//! difference, `symmetric_difference`, issubset, issuperset, isdisjoint.
 
-use crate::hir::*;
+use crate::hir::{HirExpr, Type, Literal};
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     /// Handle set methods (add, discard, clear)
     #[inline]
+    #[allow(clippy::too_many_lines)]
     pub(super) fn convert_set_method(
         &mut self,
         object_expr: &syn::Expr,
@@ -238,7 +239,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     #object_expr.is_disjoint(&#other)
                 })
             }
-            _ => bail!("Unknown set method: {}", method),
+            _ => bail!("Unknown set method: {method}"),
         }
     }
 }

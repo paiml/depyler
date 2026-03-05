@@ -79,6 +79,7 @@ fn transpile_isolated(python_source: &str) -> Option<String> {
 }
 
 /// Analyze a corpus and identify Patient Zeros
+#[allow(clippy::manual_let_else, clippy::similar_names)]
 pub fn analyze_corpus(corpus_dir: &Path, top_n: usize, output: Option<&Path>) -> Result<()> {
     let mut all_errors: Vec<(String, String, usize)> = Vec::new();
     let mut all_python_sources: Vec<(PathBuf, String)> = Vec::new();
@@ -91,7 +92,7 @@ pub fn analyze_corpus(corpus_dir: &Path, top_n: usize, output: Option<&Path>) ->
     println!("Analyzing corpus: {}", corpus_dir.display());
 
     // Find all Python files
-    for entry in WalkDir::new(corpus_dir).into_iter().filter_map(|e| e.ok()).filter(|e| {
+    for entry in WalkDir::new(corpus_dir).into_iter().filter_map(std::result::Result::ok).filter(|e| {
         e.path().extension().is_some_and(|ext| ext == "py")
             && !e.path().to_string_lossy().contains("__pycache__")
     }) {
@@ -105,12 +106,9 @@ pub fn analyze_corpus(corpus_dir: &Path, top_n: usize, output: Option<&Path>) ->
         };
 
         // Transpile to Rust (in isolated thread to catch panics)
-        let rust_code = match transpile_isolated(&python_source) {
-            Some(code) => code,
-            None => {
-                files_panicked += 1;
-                continue;
-            }
+        let rust_code = if let Some(code) = transpile_isolated(&python_source) { code } else {
+            files_panicked += 1;
+            continue;
         };
 
         // Try to compile the Rust code
@@ -126,7 +124,7 @@ pub fn analyze_corpus(corpus_dir: &Path, top_n: usize, output: Option<&Path>) ->
     }
 
     if files_panicked > 0 {
-        println!("Warning: {} files caused transpiler panics", files_panicked);
+        println!("Warning: {files_panicked} files caused transpiler panics");
     }
 
     println!(
@@ -180,7 +178,7 @@ pub fn analyze_corpus(corpus_dir: &Path, top_n: usize, output: Option<&Path>) ->
         fs::write(output_path, &json)?;
         println!("Analysis written to: {}", output_path.display());
     } else {
-        println!("{}", json);
+        println!("{json}");
     }
 
     // Print Patient Zeros summary
@@ -204,6 +202,7 @@ pub fn analyze_corpus(corpus_dir: &Path, top_n: usize, output: Option<&Path>) ->
 }
 
 /// Vectorize failures from a corpus for ML training
+#[allow(clippy::manual_let_else)]
 pub fn vectorize_corpus(
     corpus_dir: &Path,
     output: &Path,
@@ -216,7 +215,7 @@ pub fn vectorize_corpus(
     eprintln!("Vectorizing failures from: {}", corpus_dir.display());
 
     // Find all Python files
-    for entry in WalkDir::new(corpus_dir).into_iter().filter_map(|e| e.ok()).filter(|e| {
+    for entry in WalkDir::new(corpus_dir).into_iter().filter_map(std::result::Result::ok).filter(|e| {
         e.path().extension().is_some_and(|ext| ext == "py")
             && !e.path().to_string_lossy().contains("__pycache__")
     }) {
@@ -230,12 +229,9 @@ pub fn vectorize_corpus(
         };
 
         // Transpile to Rust (in isolated thread)
-        let rust_code = match transpile_isolated(&python_source) {
-            Some(code) => code,
-            None => {
-                files_panicked += 1;
-                continue;
-            }
+        let rust_code = if let Some(code) = transpile_isolated(&python_source) { code } else {
+            files_panicked += 1;
+            continue;
         };
 
         // Get compilation errors (with panic isolation)
@@ -266,7 +262,7 @@ pub fn vectorize_corpus(
         }
     }
 
-    eprintln!("Processed {} files ({} panicked)", files_processed, files_panicked);
+    eprintln!("Processed {files_processed} files ({files_panicked} panicked)");
 
     // Serialize output
     let output_str = match format {
@@ -281,6 +277,7 @@ pub fn vectorize_corpus(
 }
 
 /// Check Rust code compilation and extract errors
+#[allow(clippy::cast_possible_truncation, clippy::manual_let_else)]
 fn check_rust_compilation(rust_code: &str) -> Vec<(String, String, usize)> {
     use std::process::Command;
 
@@ -331,7 +328,7 @@ fn check_rust_compilation(rust_code: &str) -> Vec<(String, String, usize)> {
                     .and_then(|s| s.as_array())
                     .and_then(|a| a.first())
                     .and_then(|s| s.get("line_start"))
-                    .and_then(|l| l.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(1) as usize;
 
                 if !code.is_empty() {

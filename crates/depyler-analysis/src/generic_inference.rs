@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 /// Tracks type variables and their constraints for generic inference
 #[derive(Debug, Default)]
 pub struct TypeVarRegistry {
-    /// Map from TypeVar names to their constraints
+    /// Map from `TypeVar` names to their constraints
     type_vars: HashMap<String, TypeVarConstraints>,
     /// Type parameters inferred for functions
     function_type_params: HashMap<String, Vec<TypeParameter>>,
@@ -143,7 +143,7 @@ impl TypeVarRegistry {
             .collect();
 
         // Generate type parameters
-        let type_params = self.generate_type_parameters(
+        let type_params = Self::generate_type_parameters(
             &filtered_type_vars,
             &inference.constraints,
             &filtered_dict_key_vars,
@@ -180,6 +180,8 @@ impl TypeVarRegistry {
         }
     }
 
+    #[allow(clippy::unnecessary_wraps)]
+    #[allow(clippy::match_same_arms)]
     fn type_to_rust_string(&self, ty: &Type) -> String {
         match ty {
             Type::Custom(name) if self.type_vars.contains_key(name) => name.clone(),
@@ -203,9 +205,9 @@ impl TypeVarRegistry {
         }
     }
 
+    #[allow(clippy::needless_continue, clippy::unnecessary_wraps)]
     fn generate_type_parameters(
-        &self,
-        type_vars: &HashSet<String>,
+                type_vars: &HashSet<String>,
         constraints: &HashMap<String, Vec<TypeConstraint>>,
         dict_key_type_vars: &HashSet<String>,
     ) -> Result<Vec<TypeParameter>> {
@@ -277,9 +279,10 @@ impl TypeVarCollector {
 
     /// DEPYLER-0271: Track nesting to only add generic T when Unknown is in a nested position
     /// (like List[Unknown], Dict[str, Unknown]) but NOT for bare Unknown (function return type)
+    #[allow(clippy::match_same_arms)]
     fn collect_from_type_internal(&mut self, ty: &Type, _nested: bool) {
         match ty {
-            Type::Custom(name) if name.chars().next().is_some_and(|c| c.is_uppercase()) => {
+            Type::Custom(name) if name.chars().next().is_some_and(char::is_uppercase) => {
                 // Assume single uppercase letters are type variables
                 if name.len() == 1 {
                     self.type_vars.insert(name.clone());
@@ -344,6 +347,7 @@ impl TypeVarCollector {
     }
 
     #[allow(dead_code)] // Reserved for future use in generic inference passes
+    #[allow(clippy::match_same_arms)]
     fn collect_from_stmt(&mut self, stmt: &HirStmt) {
         match stmt {
             HirStmt::Assign { value, .. } => self.collect_from_expr(value),
@@ -376,7 +380,9 @@ impl TypeVarCollector {
         }
     }
 
-    #[allow(dead_code, clippy::only_used_in_recursion)] // Reserved for future use in generic inference passes
+    #[allow(dead_code, clippy::self_only_used_in_recursion)] // Reserved for future use in generic inference passes
+    #[allow(clippy::self_only_used_in_recursion)]
+    #[allow(clippy::match_same_arms)]
     fn collect_from_expr(&mut self, expr: &HirExpr) {
         match expr {
             HirExpr::Binary { left, right, .. } => {
@@ -518,6 +524,7 @@ impl TypeInference {
         Ok(())
     }
 
+    #[allow(clippy::match_same_arms)]
     fn analyze_stmt_for_param(
         &mut self,
         param_name: &str,
@@ -634,6 +641,7 @@ impl TypeInference {
         self.constraints.entry(type_var.to_string()).or_default().push(constraint);
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn check_binary_op_usage(
         &mut self,
         param_name: &str,
@@ -746,6 +754,7 @@ impl TypeInference {
     }
 
     /// Helper to collect types from return statements recursively
+    #[allow(clippy::match_same_arms)]
     fn collect_return_types_from_stmts(&self, stmts: &[HirStmt], types: &mut Vec<Type>) {
         for stmt in stmts {
             match stmt {
@@ -783,7 +792,7 @@ impl TypeInference {
                 Literal::String(_) => Some(Type::String),
                 Literal::Bool(_) => Some(Type::Bool),
                 Literal::None => Some(Type::None),
-                _ => None,
+                Literal::Bytes(_) => None,
             },
             HirExpr::Var(name) => {
                 // Look up the variable's type from param_types

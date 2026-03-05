@@ -77,6 +77,7 @@ pub enum BlockerPriority {
 
 impl BlockerPriority {
     /// Determine priority based on frequency and total count.
+    #[allow(clippy::cast_precision_loss)]
     pub fn from_frequency(count: usize, total: usize) -> Self {
         if total == 0 {
             return Self::P3Low;

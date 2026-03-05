@@ -8,14 +8,14 @@
 //! - `shlex` (shell command line lexing)
 //! - `textwrap` (text wrapping and formatting)
 
-use crate::hir::*;
+use crate::hir::HirExpr;
 use crate::rust_gen::context::ToRustExpr;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
 use super::ExpressionConverter;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     /// Try to convert calendar module method calls
     /// DEPYLER-0424: Calendar module - date/time calculations
     ///
@@ -119,8 +119,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             _ => {
                 bail!(
-                    "calendar.{} not implemented yet (try: isleap, weekday, monthrange, leapdays)",
-                    method
+                    "calendar.{method} not implemented yet (try: isleap, weekday, monthrange, leapdays)"
                 );
             }
         };
@@ -131,12 +130,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Try to convert binascii module method calls
     /// DEPYLER-STDLIB-BINASCII: Binary/ASCII conversions
     ///
-    /// Supports: hexlify, unhexlify, b2a_hex, a2b_hex, b2a_base64, a2b_base64, crc32
+    /// Supports: hexlify, unhexlify, `b2a_hex`, `a2b_hex`, `b2a_base64`, `a2b_base64`, crc32
     /// Common encoding/decoding operations
     ///
     /// # Complexity
     /// Cyclomatic: 8 (match with 7 functions + default)
     #[inline]
+    #[allow(clippy::too_many_lines)]
     pub(super) fn try_convert_binascii_method(
         &mut self,
         method: &str,
@@ -150,7 +150,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Hex conversions
             "hexlify" | "b2a_hex" => {
                 if arg_exprs.len() != 1 {
-                    bail!("binascii.{}() requires exactly 1 argument", method);
+                    bail!("binascii.{method}() requires exactly 1 argument");
                 }
                 self.ctx.needs_hex = true;
                 let data = &arg_exprs[0];
@@ -163,7 +163,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             "unhexlify" | "a2b_hex" => {
                 if arg_exprs.len() != 1 {
-                    bail!("binascii.{}() requires exactly 1 argument", method);
+                    bail!("binascii.{method}() requires exactly 1 argument");
                 }
                 self.ctx.needs_hex = true;
                 let data = &arg_exprs[0];
@@ -358,7 +358,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("binascii.{} not implemented yet (available: hexlify, unhexlify, b2a_hex, a2b_hex, b2a_base64, a2b_base64, b2a_qp, a2b_qp, b2a_uu, a2b_uu, crc32)", method);
+                bail!("binascii.{method} not implemented yet (available: hexlify, unhexlify, b2a_hex, a2b_hex, b2a_base64, a2b_base64, b2a_qp, a2b_qp, b2a_uu, a2b_uu, crc32)");
             }
         };
 
@@ -368,7 +368,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Try to convert urllib.parse module method calls
     /// DEPYLER-STDLIB-URLLIB-PARSE: URL parsing and encoding
     ///
-    /// Supports: quote, unquote, quote_plus, unquote_plus, urlencode, parse_qs
+    /// Supports: quote, unquote, `quote_plus`, `unquote_plus`, urlencode, `parse_qs`
     /// Common URL encoding/decoding operations
     ///
     /// # Complexity
@@ -502,7 +502,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("urllib.parse.{} not implemented yet (available: quote, unquote, quote_plus, unquote_plus, urlencode, parse_qs)", method);
+                bail!("urllib.parse.{method} not implemented yet (available: quote, unquote, quote_plus, unquote_plus, urlencode, parse_qs)");
             }
         };
 
@@ -534,7 +534,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Basic pattern matching
             "fnmatch" | "fnmatchcase" => {
                 if arg_exprs.len() != 2 {
-                    bail!("fnmatch.{}() requires exactly 2 arguments", method);
+                    bail!("fnmatch.{method}() requires exactly 2 arguments");
                 }
                 let name = &arg_exprs[0];
                 let pattern = &arg_exprs[1];
@@ -610,7 +610,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("fnmatch.{} not implemented yet (available: fnmatch, fnmatchcase, filter, translate)", method);
+                bail!("fnmatch.{method} not implemented yet (available: fnmatch, fnmatchcase, filter, translate)");
             }
         };
 
@@ -744,7 +744,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("shlex.{} not implemented yet (available: split, quote, join)", method);
+                bail!("shlex.{method} not implemented yet (available: split, quote, join)");
             }
         };
 
@@ -760,6 +760,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// # Complexity
     /// Cyclomatic: 6 (match with 5 functions + default)
     #[inline]
+    #[allow(clippy::too_many_lines)]
     pub(super) fn try_convert_textwrap_method(
         &mut self,
         method: &str,
@@ -936,7 +937,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!("textwrap.{} not implemented yet (available: wrap, fill, dedent, indent, shorten)", method);
+                bail!("textwrap.{method} not implemented yet (available: wrap, fill, dedent, indent, shorten)");
             }
         };
 

@@ -1,11 +1,11 @@
-//! Binary operator conversion for ExpressionConverter
+//! Binary operator conversion for `ExpressionConverter`
 //!
-//! Contains convert_binary, convert_pow_op, convert_mul_op,
-//! convert_add_op, convert_containment_op, wrap_in_parens.
+//! Contains `convert_binary`, `convert_pow_op`, `convert_mul_op`,
+//! `convert_add_op`, `convert_containment_op`, `wrap_in_parens`.
 
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
-use crate::hir::*;
+use crate::hir::{BinOp, HirExpr, Literal, Type, UnaryOp};
 use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::expr_analysis;
 use crate::rust_gen::precedence;
@@ -18,7 +18,8 @@ use syn::{self, parse_quote};
 
 use super::ExpressionConverter;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
+    #[allow(clippy::unnecessary_wraps, clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss, clippy::checked_conversions, clippy::too_many_lines)]
     pub(crate) fn convert_binary(
         &mut self,
         op: BinOp,
@@ -103,15 +104,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .ctx
                 .current_return_type
                 .as_ref()
-                .map(crate::rust_gen::func_gen::return_type_expects_int)
-                .unwrap_or(false);
+                .is_some_and(crate::rust_gen::func_gen::return_type_expects_int);
 
             // DEPYLER-E0282-FIX: Add i32 suffix to integer literals to resolve
             // type inference ambiguity with PyOps traits that have multiple impls
             let left_pyops = if let HirExpr::Literal(Literal::Int(n)) = left {
                 // Only add suffix for small integers that fit in i32
-                if *n >= i32::MIN as i64 && *n <= i32::MAX as i64 {
-                    let lit_str = format!("{}i32", n);
+                if *n >= i64::from(i32::MIN) && *n <= i64::from(i32::MAX) {
+                    let lit_str = format!("{n}i32");
                     let lit = syn::LitInt::new(&lit_str, proc_macro2::Span::call_site());
                     parse_quote! { #lit }
                 } else {
@@ -121,8 +121,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 left_expr.clone()
             };
             let right_pyops = if let HirExpr::Literal(Literal::Int(n)) = right {
-                if *n >= i32::MIN as i64 && *n <= i32::MAX as i64 {
-                    let lit_str = format!("{}i32", n);
+                if *n >= i64::from(i32::MIN) && *n <= i64::from(i32::MAX) {
+                    let lit_str = format!("{n}i32");
                     let lit = syn::LitInt::new(&lit_str, proc_macro2::Span::call_site());
                     parse_quote! { #lit }
                 } else {
@@ -167,8 +167,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .ctx
                     .current_return_type
                     .as_ref()
-                    .map(crate::rust_gen::func_gen::return_type_expects_float)
-                    .unwrap_or(false);
+                    .is_some_and(crate::rust_gen::func_gen::return_type_expects_float);
                 // DEPYLER-99MODE-S9: Also check if either operand is float-typed.
                 // For functions returning bool/int, float operands still need f64 cast.
                 let operand_is_float =
@@ -202,9 +201,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-1163: Cast py_div result to i32 when return type expects int
                     if return_expects_int {
                         return Ok(parse_quote! { ((#left_typed).py_div(#right_pyops) as i32) });
-                    } else {
-                        return Ok(parse_quote! { (#left_typed).py_div(#right_pyops) });
                     }
+                    return Ok(parse_quote! { (#left_typed).py_div(#right_pyops) });
                 }
                 BinOp::Mod => return Ok(parse_quote! { (#left_typed).py_mod(#right_pyops) }),
                 _ => {}
@@ -221,16 +219,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if right_is_empty_list {
                     if matches!(op, BinOp::Eq) {
                         return Ok(parse_quote! { #left_expr.is_empty() });
-                    } else {
-                        return Ok(parse_quote! { !#left_expr.is_empty() });
                     }
+                    return Ok(parse_quote! { !#left_expr.is_empty() });
                 }
                 if left_is_empty_list {
                     if matches!(op, BinOp::Eq) {
                         return Ok(parse_quote! { #right_expr.is_empty() });
-                    } else {
-                        return Ok(parse_quote! { !#right_expr.is_empty() });
                     }
+                    return Ok(parse_quote! { !#right_expr.is_empty() });
                 }
             }
 
@@ -637,8 +633,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .ctx
                     .current_return_type
                     .as_ref()
-                    .map(return_type_expects_float)
-                    .unwrap_or(false);
+                    .is_some_and(return_type_expects_float);
 
                 if needs_float_division || has_float_operand {
                     // Cast both operands to f64 for Python float division semantics
@@ -889,12 +884,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-REFACTOR-001 Phase 2.8: Extracted power operator helper
     ///
     /// Handles Python power operator with type-aware behavior:
-    /// - Integer base with positive int exp: base.checked_pow(exp as u32)
+    /// - Integer base with positive int exp: `base.checked_pow(exp` as u32)
     /// - Integer base with negative exp: (base as f64).powf(exp as f64)
     /// - Float base or exp: (base as f64).powf(exp as f64)
     /// - Variables: runtime type selection
     ///
     /// # Complexity: 7
+    #[allow(clippy::match_same_arms, clippy::needless_pass_by_value, clippy::unnecessary_wraps)]
     pub(crate) fn convert_pow_op(
         &self,
         left: &HirExpr,
@@ -982,6 +978,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-0699: Wrap expression in explicit parentheses
     /// This ensures correct operator precedence when casting
     /// Uses a block expression { expr } which is guaranteed to not be optimized away
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn wrap_in_parens(expr: syn::Expr) -> syn::Expr {
         // DEPYLER-0707: Construct block directly instead of using parse_quote!
         // parse_quote! re-parses tokens which can fail with complex expressions
@@ -1004,6 +1001,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// - Arithmetic multiplication: a * b
     ///
     /// # Complexity: 7
+    #[allow(clippy::too_many_lines, clippy::match_same_arms)]
     pub(crate) fn convert_mul_op(
         &mut self,
         left: &HirExpr,
@@ -1201,11 +1199,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-REFACTOR-001 Phase 2.8: Extracted addition operator helper
     ///
     /// Handles Python addition with type-aware behavior:
-    /// - List concatenation: iter().chain().cloned().collect()
+    /// - List concatenation: `iter().chain().cloned().collect()`
     /// - String concatenation: format!("{}{}", a, b)
     /// - Arithmetic addition: a + b
     ///
     /// # Complexity: 5
+    #[allow(clippy::too_many_lines, clippy::unnecessary_wraps, clippy::needless_pass_by_value)]
     pub(crate) fn convert_add_op(
         &self,
         left: &HirExpr,
@@ -1219,7 +1218,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         let is_list_var = match (left, right) {
             (HirExpr::Var(name), _) | (_, HirExpr::Var(name)) => {
-                self.ctx.var_types.get(name).map(|t| matches!(t, Type::List(_))).unwrap_or(false)
+                self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::List(_)))
             }
             _ => false,
         };
@@ -1261,8 +1260,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         self.ctx
                             .var_types
                             .get(var_name)
-                            .map(|t| matches!(t, Type::String))
-                            .unwrap_or(false)
+                            .is_some_and(|t| matches!(t, Type::String))
                             || self.is_string_base(base)
                     } else if let HirExpr::Attribute { attr: _, .. } = base.as_ref() {
                         // args.text, args.prefix etc.
@@ -1388,16 +1386,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// - String: .contains(&value)
     /// - Set: .contains(&value)
     /// - List: .contains(&value)
-    /// - Dict/HashMap: .get(&key).is_some()
+    /// - Dict/HashMap: .`get(&key).is_some()`
     ///
     /// # Arguments
-    /// * `negate` - true for NotIn operator, false for In operator
+    /// * `negate` - true for `NotIn` operator, false for In operator
     /// * `left` - HIR expression for the left operand (for os.environ detection)
     /// * `right` - HIR expression for the right operand (container, for type detection)
     /// * `left_expr` - Generated Rust expression for left operand
     /// * `right_expr` - Generated Rust expression for right operand
     ///
     /// # Complexity: 6
+    #[allow(clippy::needless_pass_by_value, clippy::too_many_lines, clippy::unnecessary_wraps)]
     pub(crate) fn convert_containment_op(
         &self,
         negate: bool,
@@ -1435,20 +1434,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         return Ok(
                             parse_quote! { #right_expr.as_ref().expect("value is None").get(&#left_expr).is_none() },
                         );
-                    } else {
-                        return Ok(
-                            parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_none() },
-                        );
                     }
+                    return Ok(
+                        parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_none() },
+                    );
                 } else if needs_borrow {
                     return Ok(
                         parse_quote! { #right_expr.as_ref().expect("value is None").get(&#left_expr).is_some() },
                     );
-                } else {
-                    return Ok(
-                        parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_some() },
-                    );
                 }
+                return Ok(
+                    parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_some() },
+                );
             }
         }
 
@@ -1467,14 +1464,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             if negate {
                 if needs_borrow {
                     return Ok(parse_quote! { #right_expr.get(&#left_expr).is_none() });
-                } else {
-                    return Ok(parse_quote! { #right_expr.get(#left_expr).is_none() });
                 }
+                return Ok(parse_quote! { #right_expr.get(#left_expr).is_none() });
             } else if needs_borrow {
                 return Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() });
-            } else {
-                return Ok(parse_quote! { #right_expr.get(#left_expr).is_some() });
             }
+            return Ok(parse_quote! { #right_expr.get(#left_expr).is_some() });
         }
 
         // DEPYLER-0321: Type-aware container detection
@@ -1504,20 +1499,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let array_str = if right_str.starts_with('(') && right_str.ends_with(')') {
                 format!("[{}]", &right_str[1..right_str.len() - 1])
             } else {
-                format!("[{}]", right_str)
+                format!("[{right_str}]")
             };
             if let Ok(array_expr) = syn::parse_str::<syn::Expr>(&array_str) {
                 if negate {
                     if needs_borrow {
                         return Ok(parse_quote! { !#array_expr.contains(&#left_expr) });
-                    } else {
-                        return Ok(parse_quote! { !#array_expr.contains(#left_expr) });
                     }
+                    return Ok(parse_quote! { !#array_expr.contains(#left_expr) });
                 } else if needs_borrow {
                     return Ok(parse_quote! { #array_expr.contains(&#left_expr) });
-                } else {
-                    return Ok(parse_quote! { #array_expr.contains(#left_expr) });
                 }
+                return Ok(parse_quote! { #array_expr.contains(#left_expr) });
             }
             // If parsing fails, fall through to default
         }
@@ -1600,14 +1593,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if negate {
                     if needs_borrow {
                         return Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() });
-                    } else {
-                        return Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() });
                     }
+                    return Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() });
                 } else if needs_borrow {
                     return Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() });
-                } else {
-                    return Ok(parse_quote! { #right_expr.get(#left_expr).is_some() });
                 }
+                return Ok(parse_quote! { #right_expr.get(#left_expr).is_some() });
             }
 
             // DEPYLER-0935: Check if left side is a string - if so, this is likely a substring check

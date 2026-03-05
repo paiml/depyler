@@ -1,13 +1,13 @@
 //! Lambda, generator, formatting, and conditional expression conversion
 //!
-//! Contains convert_lambda, convert_await, convert_yield, convert_fstring,
-//! convert_ifexpr, apply_truthiness_conversion, convert_sort_by_key,
-//! convert_generator_expression, convert_nested_generators, build_nested_chain,
-//! parse_target_pattern, convert_named_expr.
+//! Contains `convert_lambda`, `convert_await`, `convert_yield`, `convert_fstring`,
+//! `convert_ifexpr`, `apply_truthiness_conversion`, `convert_sort_by_key`,
+//! `convert_generator_expression`, `convert_nested_generators`, `build_nested_chain`,
+//! `parse_target_pattern`, `convert_named_expr`.
 
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
-use crate::hir::*;
+use crate::hir::{HirExpr, FStringPart, Type, Literal};
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use crate::rust_gen::keywords;
@@ -19,7 +19,7 @@ use crate::trace_decision;
 use anyhow::{bail, Result};
 use syn::{self, parse_quote};
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     pub(crate) fn convert_lambda(
         &mut self,
         params: &[String],
@@ -67,7 +67,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Only clone non-Copy types
             if !var_type.is_copy() {
                 let safe_var = crate::rust_gen::keywords::safe_ident(var_name);
-                let clone_var_name = format!("{}_capture", var_name);
+                let clone_var_name = format!("{var_name}_capture");
                 let clone_var = crate::rust_gen::keywords::safe_ident(&clone_var_name);
 
                 // Generate: let prefix_capture = prefix.clone();
@@ -136,6 +136,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-1202: Substitute captured variable references with their cloned versions
     /// This creates a modified copy of the body expression with renamed variables
+    #[allow(clippy::self_only_used_in_recursion)]
     fn substitute_captured_vars(
         &self,
         expr: &HirExpr,
@@ -236,6 +237,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    #[allow(clippy::ref_option)]
     pub(crate) fn convert_yield(&mut self, value: &Option<Box<HirExpr>>) -> Result<syn::Expr> {
         if self.ctx.in_generator {
             // Inside Iterator::next() - convert to return Some(value)
@@ -256,6 +258,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn convert_fstring(&mut self, parts: &[FStringPart]) -> Result<syn::Expr> {
         // Handle empty f-strings
         if parts.is_empty() {
@@ -318,7 +321,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                             // Argument is NOT an Option if it has action="store_true" or "store_false"
                                             if matches!(
                                                 arg.action.as_deref(),
-                                                Some("store_true") | Some("store_false")
+                                                Some("store_true" | "store_false")
                                             ) {
                                                 return false;
                                             }
@@ -405,7 +408,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                                 // Either explicit type annotation OR inferred from nargs
                                                 let is_vec_from_nargs = matches!(
                                                     arg.nargs.as_deref(),
-                                                    Some("+") | Some("*")
+                                                    Some("+" | "*")
                                                 );
                                                 let is_collection_type =
                                                     if let Some(ref arg_type) = arg.arg_type {
@@ -443,8 +446,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             .ctx
                             .var_types
                             .get(var_name)
-                            .map(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
-                            .unwrap_or(false),
+                            .is_some_and(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path")),
                         HirExpr::MethodCall { method, .. } => {
                             // Methods that return PathBuf
                             matches!(
@@ -459,10 +461,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                     self.ctx
                                         .var_types
                                         .get(var_name)
-                                        .map(|t| {
+                                        .is_some_and(|t| {
                                             matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path")
                                         })
-                                        .unwrap_or(false)
                                 } else {
                                     false
                                 }
@@ -519,6 +520,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
     pub(crate) fn convert_ifexpr(
         &mut self,
         test: &HirExpr,
@@ -624,6 +626,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
     /// DEPYLER-1071: Generate `if let Some(ref val) = option_var { body } else { orelse }`
     /// with the option variable replaced by the unwrapped val in the body
+    #[allow(clippy::similar_names)]
     fn generate_option_if_let_expr(
         &mut self,
         var_name: &str,
@@ -631,7 +634,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         orelse: &HirExpr,
     ) -> Result<syn::Expr> {
         let var_ident = keywords::safe_ident(var_name);
-        let val_name = format!("{}_val", var_name);
+        let val_name = format!("{var_name}_val");
         let val_ident = keywords::safe_ident(&val_name);
 
         // Create a temporary context with the unwrapped variable name
@@ -655,6 +658,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-1071: Recursively substitute a variable name in an expression
+    #[allow(clippy::self_only_used_in_recursion)]
     fn substitute_var_in_expr(&self, expr: &HirExpr, old_name: &str, new_name: &str) -> HirExpr {
         match expr {
             HirExpr::Var(name) if name == old_name => HirExpr::Var(new_name.to_string()),
@@ -693,6 +697,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Apply Python truthiness conversion to non-boolean conditions
     /// Python: `if val:` where val is String/List/Dict/Set/Optional/Int/Float
     /// Rust: `if !val.is_empty()` / `if val.is_some()` / `if val != 0`
+    #[allow(clippy::ref_option, clippy::match_same_arms)]
     pub(crate) fn apply_truthiness_conversion(
         condition: &HirExpr,
         cond_expr: syn::Expr,
@@ -769,6 +774,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         cond_expr
     }
 
+    #[allow(clippy::too_many_lines, clippy::ref_option)]
     pub(crate) fn convert_sort_by_key(
         &mut self,
         iterable: &HirExpr,
@@ -830,6 +836,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         })
     }
 
+    #[allow(clippy::match_same_arms, clippy::too_many_lines)]
     pub(crate) fn convert_generator_expression(
         &mut self,
         element: &HirExpr,
@@ -853,8 +860,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 self.ctx
                     .var_types
                     .get(var_name)
-                    .map(|ty| matches!(ty, crate::hir::Type::String))
-                    .unwrap_or(false)
+                    .is_some_and(|ty| matches!(ty, crate::hir::Type::String))
             } else {
                 false
             };
@@ -924,8 +930,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     self.ctx
                         .var_types
                         .get(var_name)
-                        .map(|ty| matches!(ty, crate::hir::Type::String))
-                        .unwrap_or(false)
+                        .is_some_and(|ty| matches!(ty, crate::hir::Type::String))
                 } else {
                     false
                 };
@@ -952,7 +957,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Parse target pattern to extract tuple variable names
                 // Target is like "(a, b)" or "a, b" - strip parens and split
                 let target_clean = gen.target.trim_start_matches('(').trim_end_matches(')');
-                let vars: Vec<&str> = target_clean.split(',').map(|s| s.trim()).collect();
+                let vars: Vec<&str> = target_clean.split(',').map(str::trim).collect();
                 if vars.len() == 2 && !vars[0].is_empty() && !vars[1].is_empty() {
                     let a = syn::Ident::new(vars[0], proc_macro2::Span::call_site());
                     let b = syn::Ident::new(vars[1], proc_macro2::Span::call_site());
@@ -1076,6 +1081,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(chain)
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn build_nested_chain(
         &mut self,
         element: &HirExpr,
@@ -1136,13 +1142,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(chain)
     }
 
+    #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     pub(crate) fn parse_target_pattern(&self, target: &str) -> Result<syn::Pat> {
         // Handle simple variable: x
         // Handle tuple: (x, y)
         if target.starts_with('(') && target.ends_with(')') {
             // Tuple pattern
             let inner = &target[1..target.len() - 1];
-            let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+            let parts: Vec<&str> = inner.split(',').map(str::trim).collect();
             let idents: Vec<syn::Ident> =
                 parts.iter().map(|s| syn::Ident::new(s, proc_macro2::Span::call_site())).collect();
             Ok(parse_quote! { ( #(#idents),* ) })

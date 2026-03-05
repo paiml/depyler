@@ -1,4 +1,4 @@
-//! TranspilerPatcher - DEPYLER-1308
+//! `TranspilerPatcher` - DEPYLER-1308
 //!
 //! Self-modifying compiler infrastructure that applies patches to depyler-core
 //! source code based on Oracle-identified error patterns.
@@ -114,7 +114,7 @@ impl Default for AprFile {
     }
 }
 
-/// TranspilerPatcher - modifies depyler-core source based on Oracle patterns
+/// `TranspilerPatcher` - modifies depyler-core source based on Oracle patterns
 pub struct TranspilerPatcher {
     /// Path to depyler-core crate
     core_path: PathBuf,
@@ -157,6 +157,7 @@ impl TranspilerPatcher {
     /// Load patches from embedded defaults
     /// DEPYLER-1311: Updated with contextual keywords from source line extraction
     /// DEPYLER-1312: Corrected function names and impl block names to match codebase
+    #[allow(clippy::too_many_lines)]
     pub fn load_defaults(&mut self) {
         // DEPYLER-1312: Patches with correct function names matching depyler-core
         let defaults = vec![
@@ -176,10 +177,10 @@ impl TranspilerPatcher {
                     "iterator".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
         // DEPYLER-1308: Hint - list element type from first element
         let _element_count = elts.len();
-"#
+"
                 .to_string(),
                 confidence: 0.85,
                 enabled: true,
@@ -198,10 +199,10 @@ impl TranspilerPatcher {
                     "get".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
         // DEPYLER-1308: Hint - dict value type from first entry
         let _entry_count = items.len();
-"#
+"
                 .to_string(),
                 confidence: 0.80,
                 enabled: true,
@@ -222,10 +223,10 @@ impl TranspilerPatcher {
                     "float".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
     // DEPYLER-1308: Hint - propagate return type to body expressions
     let _return_type_hint = func.ret_type.clone();
-"#
+"
                 .to_string(),
                 confidence: 0.75,
                 enabled: true,
@@ -244,10 +245,10 @@ impl TranspilerPatcher {
                     "float".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
         // DEPYLER-1308: Preserve tuple element types during conversion
         let _element_count = elts.len();
-"#
+"
                 .to_string(),
                 confidence: 0.75,
                 enabled: true,
@@ -309,10 +310,10 @@ impl TranspilerPatcher {
                     "constructor".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
         // DEPYLER-1311: Handle Option method calls
         let _is_option_type = false; // Placeholder for Option detection
-"#
+"
                 .to_string(),
                 confidence: 0.78,
                 enabled: true,
@@ -331,10 +332,10 @@ impl TranspilerPatcher {
                     "list".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
         // DEPYLER-1311: Handle iterator method chains
         let _is_iterator_chain = false; // Placeholder for iterator detection
-"#
+"
                 .to_string(),
                 confidence: 0.77,
                 enabled: true,
@@ -376,10 +377,10 @@ impl TranspilerPatcher {
                     "insert".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
         // DEPYLER-1311: Ensure HashMap keys implement Hash + Eq
         let _key_hashable = true; // Placeholder for hashability check
-"#
+"
                 .to_string(),
                 confidence: 0.72,
                 enabled: true,
@@ -392,7 +393,7 @@ impl TranspilerPatcher {
     }
 
     /// Find patches matching an error
-    /// DEPYLER-1310: Enhanced to check context_keywords from source lines
+    /// DEPYLER-1310: Enhanced to check `context_keywords` from source lines
     pub fn find_patches(
         &self,
         error_code: &str,
@@ -515,6 +516,7 @@ impl TranspilerPatcher {
     /// Check if an impl block matches the expected name
     /// Reserved for future AST-based patching (currently using text-based approach)
     #[allow(dead_code)]
+    #[allow(clippy::unused_self)]
     fn impl_matches(&self, impl_item: &ItemImpl, expected: &str) -> bool {
         if let syn::Type::Path(type_path) = &*impl_item.self_ty {
             if let Some(segment) = type_path.path.segments.last() {
@@ -525,6 +527,7 @@ impl TranspilerPatcher {
     }
 
     /// Inject code at the start of a function (text-based)
+    #[allow(clippy::unused_self)]
     fn inject_at_function_start(
         &self,
         _syntax: &File,
@@ -566,6 +569,7 @@ impl TranspilerPatcher {
     }
 
     /// Inject code before return statements
+    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::cast_sign_loss, clippy::unused_self)]
     fn inject_before_return(
         &self,
         _syntax: &File,
@@ -620,6 +624,7 @@ impl TranspilerPatcher {
     }
 
     /// Add a new match arm
+    #[allow(clippy::unused_self)]
     fn add_match_arm(
         &self,
         source: &str,
@@ -641,10 +646,11 @@ impl TranspilerPatcher {
             return Ok(result);
         }
 
-        Err(anyhow::anyhow!("Could not find pattern '{}' to insert match arm", before_pattern))
+        Err(anyhow::anyhow!("Could not find pattern '{before_pattern}' to insert match arm"))
     }
 
     /// Replace a match arm
+    #[allow(clippy::unused_self)]
     fn replace_match_arm(
         &self,
         source: &str,
@@ -665,6 +671,7 @@ impl TranspilerPatcher {
     }
 
     /// Wrap function body
+    #[allow(clippy::unused_self)]
     fn wrap_function_body(
         &self,
         _syntax: &File,
@@ -710,6 +717,7 @@ impl TranspilerPatcher {
     }
 
     /// Add an import statement
+    #[allow(clippy::unused_self)]
     fn add_import(&self, source: &str, patch: &PatchRecord) -> Result<String> {
         // Find the last use statement or module doc comment
         let use_pattern = regex::Regex::new(r"(use [^;]+;)\n")?;
@@ -735,6 +743,7 @@ impl TranspilerPatcher {
     }
 
     /// Modify type annotation
+    #[allow(clippy::unnecessary_wraps, clippy::unused_self)]
     fn modify_type(&self, source: &str, from: &str, to: &str) -> Result<String> {
         let result = source.replace(from, to);
         Ok(result)
@@ -756,7 +765,7 @@ impl TranspilerPatcher {
 
     /// Get total loaded patches
     pub fn patch_count(&self) -> usize {
-        self.patches.values().map(|v| v.len()).sum()
+        self.patches.values().map(std::vec::Vec::len).sum()
     }
 }
 

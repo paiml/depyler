@@ -265,7 +265,7 @@ impl Default for OracleConfig {
 }
 
 pub struct Oracle {
-    /// Random Forest classifier (replaces DecisionTree per GH-106)
+    /// Random Forest classifier (replaces `DecisionTree` per GH-106)
     classifier: RandomForestClassifier,
     /// Configuration used to create the classifier (kept for model introspection)
     #[allow(dead_code)]
@@ -275,7 +275,7 @@ pub struct Oracle {
     /// Fix templates per category
     fix_templates: HashMap<ErrorCategory, Vec<String>>,
     /// ADWIN drift detector for retraining triggers (Issue #213)
-    /// Replaces manual performance_history tracking with adaptive windowing
+    /// Replaces manual `performance_history` tracking with adaptive windowing
     adwin_detector: ADWIN,
 }
 
@@ -600,6 +600,7 @@ impl Oracle {
         self.build_classification_result(predictions)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     fn build_classification_result(&self, predictions: Vec<usize>) -> Result<ClassificationResult> {
         if predictions.is_empty() {
             return Err(OracleError::Classification("No prediction produced".to_string()));
@@ -835,6 +836,7 @@ impl Default for Oracle {
 // ============================================================
 
 /// Print drift status to stdout with visual indicators.
+#[allow(clippy::similar_names)]
 pub fn print_drift_status(stats: &DriftStats, status: &DriftStatus) {
     let status_indicator = match status {
         DriftStatus::Stable => "🟢 STABLE",
@@ -845,7 +847,7 @@ pub fn print_drift_status(stats: &DriftStats, status: &DriftStatus) {
     println!("╭─────────────────────────────────────────────────────╮");
     println!("│            Drift Detection Status                   │");
     println!("├─────────────────────────────────────────────────────┤");
-    println!("│  Status: {:^40} │", status_indicator);
+    println!("│  Status: {status_indicator:^40} │");
     println!("│  Samples: {:>8}                                 │", stats.n_samples);
     println!("│  Error Rate: {:>6.2}%                               │", stats.error_rate * 100.0);
     println!(
@@ -945,6 +947,7 @@ pub fn print_lineage_history(lineage: &OracleLineage) {
 }
 
 /// Create a visual accuracy bar.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn create_accuracy_bar(accuracy: f64) -> String {
     let filled = (accuracy * 10.0).round() as usize;
     let empty = 10 - filled;
@@ -965,7 +968,7 @@ pub fn print_oracle_status(trigger: &RetrainTrigger, lineage: &OracleLineage) {
 // Issue #213: RetrainOrchestrator-style Integration
 // ============================================================
 
-/// Result of observing a prediction (mirrors aprender::online::orchestrator::ObserveResult).
+/// Result of observing a prediction (mirrors `aprender::online::orchestrator::ObserveResult`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObserveResult {
     /// Model is performing well
@@ -976,7 +979,7 @@ pub enum ObserveResult {
     DriftDetected,
 }
 
-/// Configuration for retrain trigger (mirrors aprender::online::orchestrator::RetrainConfig).
+/// Configuration for retrain trigger (mirrors `aprender::online::orchestrator::RetrainConfig`).
 #[derive(Debug, Clone)]
 pub struct RetrainConfig {
     /// Minimum predictions before drift detection is reliable
@@ -1000,7 +1003,7 @@ impl Default for RetrainConfig {
     }
 }
 
-/// Statistics from the retrain trigger (mirrors aprender::online::orchestrator::OrchestratorStats).
+/// Statistics from the retrain trigger (mirrors `aprender::online::orchestrator::OrchestratorStats`).
 #[derive(Debug, Clone, Default)]
 pub struct RetrainStats {
     /// Total predictions observed
@@ -1020,6 +1023,7 @@ pub struct RetrainStats {
 impl RetrainStats {
     /// Current error rate.
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn error_rate(&self) -> f64 {
         if self.predictions_observed == 0 {
             0.0
@@ -1035,7 +1039,7 @@ impl RetrainStats {
     }
 }
 
-/// Retrain trigger for Oracle (adapted from aprender::online::orchestrator::RetrainOrchestrator).
+/// Retrain trigger for Oracle (adapted from `aprender::online::orchestrator::RetrainOrchestrator`).
 ///
 /// Monitors prediction outcomes and determines when retraining is needed.
 /// Integrates ADWIN drift detection with Oracle predictions.

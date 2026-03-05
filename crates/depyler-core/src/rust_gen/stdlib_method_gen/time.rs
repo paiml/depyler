@@ -1,7 +1,7 @@
 //! Time Module Code Generation - EXTREME TDD
 //!
-//! Handles Python `time` module method conversions to Rust std::time/chrono.
-//! Extracted from expr_gen.rs for testability and maintainability.
+//! Handles Python `time` module method conversions to Rust `std::time/chrono`.
+//! Extracted from `expr_gen.rs` for testability and maintainability.
 //!
 //! Coverage target: 100% line coverage, 100% branch coverage
 
@@ -20,11 +20,11 @@ use syn::parse_quote;
 /// - `time.perf_counter()` → `Instant::now()`
 /// - `time.process_time()` → `Instant::now()` (approximation)
 /// - `time.thread_time()` → `Instant::now()` (approximation)
-/// - `time.ctime(t)` → std::time formatting (NASA) or chrono (non-NASA)
-/// - `time.strftime(fmt, t)` → std::time formatting (NASA) or chrono (non-NASA)
-/// - `time.strptime(s, fmt)` → std::time parsing (NASA) or chrono (non-NASA)
-/// - `time.gmtime(t)` → std::time conversion (NASA) or chrono (non-NASA)
-/// - `time.localtime(t)` → std::time conversion (NASA) or chrono (non-NASA)
+/// - `time.ctime(t)` → `std::time` formatting (NASA) or chrono (non-NASA)
+/// - `time.strftime(fmt, t)` → `std::time` formatting (NASA) or chrono (non-NASA)
+/// - `time.strptime(s, fmt)` → `std::time` parsing (NASA) or chrono (non-NASA)
+/// - `time.gmtime(t)` → `std::time` conversion (NASA) or chrono (non-NASA)
+/// - `time.localtime(t)` → `std::time` conversion (NASA) or chrono (non-NASA)
 /// - `time.mktime(t)` → timestamp conversion
 /// - `time.asctime(t)` → ASCII time string
 ///
@@ -87,13 +87,14 @@ pub fn convert_time_method(
             }
             convert_asctime(&arg_exprs)?
         }
-        _ => bail!("time.{} not implemented yet", method),
+        _ => bail!("time.{method} not implemented yet"),
     };
 
     Ok(Some(result))
 }
 
-/// time.time() → SystemTime::now().duration_since(UNIX_EPOCH).as_secs_f64()
+/// `time.time()` → `SystemTime::now().duration_since(UNIX_EPOCH).as_secs_f64()`
+#[allow(clippy::unnecessary_wraps)]
 fn convert_time_time() -> Result<syn::Expr> {
     Ok(parse_quote! {
         std::time::SystemTime::now()
@@ -103,17 +104,19 @@ fn convert_time_time() -> Result<syn::Expr> {
     })
 }
 
-/// time.monotonic() / time.perf_counter() → Instant::now()
+/// `time.monotonic()` / `time.perf_counter()` → `Instant::now()`
+#[allow(clippy::unnecessary_wraps)]
 fn convert_monotonic() -> Result<syn::Expr> {
     Ok(parse_quote! { std::time::Instant::now() })
 }
 
-/// time.process_time() / time.thread_time() → Instant::now() (approximation)
+/// `time.process_time()` / `time.thread_time()` → `Instant::now()` (approximation)
+#[allow(clippy::unnecessary_wraps)]
 fn convert_process_time() -> Result<syn::Expr> {
     Ok(parse_quote! { std::time::Instant::now() })
 }
 
-/// time.sleep(seconds) → thread::sleep(Duration::from_secs_f64(seconds))
+/// time.sleep(seconds) → `thread::sleep(Duration::from_secs_f64(seconds))`
 fn convert_sleep(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("time.sleep() requires exactly 1 argument (seconds)");
@@ -124,7 +127,7 @@ fn convert_sleep(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     })
 }
 
-/// time.ctime(timestamp) → std::time formatting (NASA) or chrono (non-NASA)
+/// time.ctime(timestamp) → `std::time` formatting (NASA) or chrono (non-NASA)
 fn convert_ctime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("time.ctime() requires exactly 1 argument (timestamp)");
@@ -148,7 +151,7 @@ fn convert_ctime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> 
     }
 }
 
-/// time.strftime(format, time_tuple) → std::time formatting (NASA) or chrono (non-NASA)
+/// time.strftime(format, `time_tuple`) → `std::time` formatting (NASA) or chrono (non-NASA)
 fn convert_strftime(
     args: &[HirExpr],
     arg_exprs: &[syn::Expr],
@@ -174,7 +177,7 @@ fn convert_strftime(
     }
 }
 
-/// time.strptime(string, format) → std::time parsing (NASA) or chrono (non-NASA)
+/// time.strptime(string, format) → `std::time` parsing (NASA) or chrono (non-NASA)
 fn convert_strptime(
     args: &[HirExpr],
     arg_exprs: &[syn::Expr],
@@ -199,7 +202,8 @@ fn convert_strptime(
     }
 }
 
-/// time.gmtime(timestamp) → std::time conversion (NASA) or chrono (non-NASA)
+/// time.gmtime(timestamp) → `std::time` conversion (NASA) or chrono (non-NASA)
+#[allow(clippy::unnecessary_wraps)]
 fn convert_gmtime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
     let timestamp = if arg_exprs.is_empty() {
         parse_quote! { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).expect("time operation failed").as_secs_f64() }
@@ -223,7 +227,8 @@ fn convert_gmtime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr>
     }
 }
 
-/// time.localtime(timestamp) → std::time conversion (NASA) or chrono (non-NASA)
+/// time.localtime(timestamp) → `std::time` conversion (NASA) or chrono (non-NASA)
+#[allow(clippy::unnecessary_wraps)]
 fn convert_localtime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
     let timestamp = if arg_exprs.is_empty() {
         parse_quote! { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).expect("time operation failed").as_secs_f64() }
@@ -247,7 +252,7 @@ fn convert_localtime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Ex
     }
 }
 
-/// time.mktime(time_tuple) → timestamp conversion
+/// `time.mktime(time_tuple)` → timestamp conversion
 fn convert_mktime(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("time.mktime() requires exactly 1 argument (time_tuple)");
@@ -256,7 +261,7 @@ fn convert_mktime(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { #time_tuple.timestamp() as f64 })
 }
 
-/// time.asctime(time_tuple) → ASCII time string
+/// `time.asctime(time_tuple)` → ASCII time string
 fn convert_asctime(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("time.asctime() requires exactly 1 argument (time_tuple)");

@@ -1,11 +1,11 @@
-//! Collection constructor handlers for ExpressionConverter
+//! Collection constructor handlers for `ExpressionConverter`
 //!
 //! Extracted from mod.rs to reduce file size and improve maintainability.
 //! Contains handlers for: list, tuple, set, frozenset constructors.
 
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
-use crate::hir::*;
+use crate::hir::{HirExpr, Literal, Type};
 use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use crate::trace_decision;
@@ -13,7 +13,7 @@ use anyhow::Result;
 use quote::quote;
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     pub(crate) fn convert_list(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
         // CITL: Trace list construction decision
         trace_decision!(
@@ -61,6 +61,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0741: Helper to convert list elements, allowing the flag to be reset afterward
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn convert_list_elements(
         &mut self,
         elts: &[HirExpr],
@@ -297,6 +298,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-1144: Convert list literal with explicit f64 coercion for integer elements
     /// Used when the target type is known to be Vec<f64> (e.g., class field typed as list[float])
     /// Converts `[0, 1, 2]` → `vec![0.0, 1.0, 2.0]`
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
     pub(crate) fn convert_list_with_float_coercion(
         &mut self,
         elts: &[HirExpr],
@@ -337,7 +339,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0711: Check if list has heterogeneous element types
     /// Returns true if elements have different primitive types (int, string, float, bool)
-    /// DEPYLER-1212: Also checks variable types from var_types context
+    /// DEPYLER-1212: Also checks variable types from `var_types` context
     pub(crate) fn list_has_mixed_types(&self, elts: &[HirExpr]) -> bool {
         if elts.len() <= 1 {
             return false; // Single element or empty - no mixing possible
@@ -387,7 +389,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-99MODE-S9: Infer type of a complex expression for mixed-type detection
-    /// Used in list_has_mixed_types to avoid false-positive mixed type detection
+    /// Used in `list_has_mixed_types` to avoid false-positive mixed type detection
     fn infer_element_type_from_expr(&self, expr: &HirExpr) -> Option<Type> {
         match expr {
             // Index into a typed collection: list[i] → element type
@@ -475,7 +477,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         None
     }
 
-    /// DEPYLER-1212: Check if list needs DepylerValue wrapping (for NASA mode)
+    /// DEPYLER-1212: Check if list needs `DepylerValue` wrapping (for NASA mode)
     /// Returns true if:
     /// 1. Elements have mixed types (can't determine uniform type)
     /// 2. All elements are non-literal and their types are unknown
@@ -491,7 +493,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 HirExpr::Var(name) => {
                     matches!(
                         self.ctx.var_types.get(name),
-                        None | Some(Type::Unknown) | Some(Type::UnificationVar(_))
+                        None | Some(Type::Unknown | Type::UnificationVar(_))
                     )
                 }
                 _ => true, // Complex expressions - unknown type
@@ -634,6 +636,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-1163: Check if all elements in a collection are of the same type
     /// Returns true if all elements are literals of the same type (Int, Float, String, Bool)
+    #[allow(clippy::unused_self)]
     fn elements_are_homogeneous(&self, elts: &[HirExpr]) -> bool {
         if elts.is_empty() {
             return false;
@@ -666,7 +669,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         })
     }
 
-    /// DEPYLER-1163: Wrap an expression in the appropriate DepylerValue variant
+    /// DEPYLER-1163: Wrap an expression in the appropriate `DepylerValue` variant
     fn wrap_in_depyler_value(&mut self, expr: &HirExpr) -> Result<syn::Expr> {
         match expr {
             HirExpr::Literal(Literal::Int(n)) => Ok(parse_quote! { DepylerValue::Int(#n as i64) }),

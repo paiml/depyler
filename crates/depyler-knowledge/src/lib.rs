@@ -120,7 +120,7 @@ pub struct TypeFact {
 }
 
 impl TypeFact {
-    /// Create a new TypeFact for a function.
+    /// Create a new `TypeFact` for a function.
     pub fn function(module: &str, symbol: &str, signature: &str, return_type: &str) -> Self {
         Self {
             module: module.to_string(),
@@ -131,7 +131,7 @@ impl TypeFact {
         }
     }
 
-    /// Create a new TypeFact for a class.
+    /// Create a new `TypeFact` for a class.
     pub fn class(module: &str, symbol: &str) -> Self {
         Self {
             module: module.to_string(),
@@ -142,7 +142,7 @@ impl TypeFact {
         }
     }
 
-    /// Create a new TypeFact for a method.
+    /// Create a new `TypeFact` for a method.
     pub fn method(
         module: &str,
         class: &str,

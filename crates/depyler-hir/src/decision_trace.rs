@@ -57,7 +57,7 @@ pub enum DecisionCategory {
     MethodDispatch,
 
     /// Import and use statement resolution
-    /// std:: vs external crate, prelude items
+    /// `std::` vs external crate, prelude items
     ImportResolve,
 
     /// Error handling strategy: Result/Option wrapping
@@ -90,7 +90,7 @@ impl std::fmt::Display for DecisionCategory {
 /// were considered, and confidence levels for pattern learning.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DepylerDecision {
-    /// Unique decision ID (FNV-1a hash of category::name::file::line)
+    /// Unique decision ID (FNV-1a hash of `category::name::file::line`)
     pub id: u64,
 
     /// Timestamp in nanoseconds since trace start
@@ -152,7 +152,7 @@ impl DepylerDecision {
             name: name.to_string(),
             py_ast_hash: 0,
             chosen_path: chosen.to_string(),
-            alternatives: alternatives.iter().map(|s| s.to_string()).collect(),
+            alternatives: alternatives.iter().map(std::string::ToString::to_string).collect(),
             confidence,
             py_span: (0, 0),
             rs_span: None,
@@ -160,18 +160,21 @@ impl DepylerDecision {
     }
 
     /// Set Python AST hash for pattern matching
+    #[must_use]
     pub fn with_py_ast_hash(mut self, hash: u64) -> Self {
         self.py_ast_hash = hash;
         self
     }
 
     /// Set Python source span
+    #[must_use]
     pub fn with_py_span(mut self, start: usize, end: usize) -> Self {
         self.py_span = (start, end);
         self
     }
 
     /// Set Rust target span
+    #[must_use]
     pub fn with_rs_span(mut self, start: usize, end: usize) -> Self {
         self.rs_span = Some((start, end));
         self
@@ -180,7 +183,7 @@ impl DepylerDecision {
 
 /// Generate a unique decision ID using FNV-1a hash
 ///
-/// Format: category::name::file::line
+/// Format: `category::name::file::line`
 pub fn generate_decision_id(category: &str, name: &str, file: &str, line: u32) -> u64 {
     let mut hasher = fnv::FnvHasher::default();
 
@@ -196,6 +199,7 @@ pub fn generate_decision_id(category: &str, name: &str, file: &str, line: u32) -
 }
 
 /// Get current timestamp in nanoseconds
+#[allow(clippy::cast_possible_truncation)]
 fn current_timestamp_ns() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -510,7 +514,7 @@ pub trait DecisionWriter: Send + Sync {
 /// JSON Lines writer for decision trace output
 ///
 /// Writes decisions as newline-delimited JSON for compatibility
-/// with tools that don't support MessagePack.
+/// with tools that don't support `MessagePack`.
 pub struct JsonFileWriter {
     path: std::path::PathBuf,
     buffer: Vec<DepylerDecision>,
@@ -551,7 +555,7 @@ impl DecisionWriter for JsonFileWriter {
         // Create parent directory if needed
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create parent directory: {}", e))?;
+                .map_err(|e| format!("Failed to create parent directory: {e}"))?;
         }
 
         // Append to file (JSONL format)
@@ -559,17 +563,17 @@ impl DecisionWriter for JsonFileWriter {
             .create(true)
             .append(true)
             .open(&self.path)
-            .map_err(|e| format!("Failed to open file: {}", e))?;
+            .map_err(|e| format!("Failed to open file: {e}"))?;
 
         let mut writer = std::io::BufWriter::new(file);
 
         for decision in &self.buffer {
             let json = serde_json::to_string(decision)
-                .map_err(|e| format!("Failed to serialize decision: {}", e))?;
-            writeln!(writer, "{}", json).map_err(|e| format!("Failed to write decision: {}", e))?;
+                .map_err(|e| format!("Failed to serialize decision: {e}"))?;
+            writeln!(writer, "{json}").map_err(|e| format!("Failed to write decision: {e}"))?;
         }
 
-        writer.flush().map_err(|e| format!("Failed to flush writer: {}", e))?;
+        writer.flush().map_err(|e| format!("Failed to flush writer: {e}"))?;
 
         self.buffer.clear();
         Ok(())
@@ -644,7 +648,7 @@ impl DecisionWriter for NoOpWriter {
 // Collector Implementations (DEPYLER-EXPLAIN-001)
 // ============================================================================
 
-/// TranspileDecision enum per issue #214 specification
+/// `TranspileDecision` enum per issue #214 specification
 /// Maps to the decision points during transpilation
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TranspileDecision {
@@ -672,13 +676,13 @@ impl std::fmt::Display for TranspileDecision {
     }
 }
 
-/// TranspileTrace per issue #214 specification
+/// `TranspileTrace` per issue #214 specification
 /// Single trace entry capturing a transpiler decision point
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranspileTrace {
     /// Timestamp in nanoseconds since trace collection started
     pub timestamp_ns: u64,
-    /// Source location in Python (file:line:column)
+    /// Source location in Python (<file:line:column>)
     pub source_loc: String,
     /// The type of decision made
     pub decision: TranspileDecision,
@@ -712,23 +716,25 @@ impl TranspileTrace {
     }
 
     /// Set source location
+    #[must_use]
     pub fn with_source_loc(mut self, loc: &str) -> Self {
         self.source_loc = loc.to_string();
         self
     }
 
     /// Add alternatives
+    #[must_use]
     pub fn with_alternatives(mut self, alts: &[&str]) -> Self {
-        self.alternatives = alts.iter().map(|s| s.to_string()).collect();
+        self.alternatives = alts.iter().map(std::string::ToString::to_string).collect();
         self
     }
 }
 
 /// Collector trait for trace collection strategies
 /// Performance requirements per issue #214:
-/// - RingCollector: <100ns per trace
-/// - StreamCollector: <1µs per trace
-/// - HashChainCollector: <10µs per trace
+/// - `RingCollector`: <100ns per trace
+/// - `StreamCollector`: <1µs per trace
+/// - `HashChainCollector`: <10µs per trace
 pub trait TraceCollector: Send + Sync {
     /// Collect a trace entry
     fn collect(&mut self, trace: TranspileTrace);
@@ -750,11 +756,11 @@ pub trait TraceCollector: Send + Sync {
     /// Export traces to JSON
     fn export_json(&self) -> Result<String, String> {
         serde_json::to_string_pretty(self.traces())
-            .map_err(|e| format!("Failed to serialize traces: {}", e))
+            .map_err(|e| format!("Failed to serialize traces: {e}"))
     }
 }
 
-/// RingCollector - Ultra-fast circular buffer collector
+/// `RingCollector` - Ultra-fast circular buffer collector
 /// Target latency: <100ns per trace
 /// Uses a fixed-size ring buffer with atomic operations
 pub struct RingCollector {
@@ -825,7 +831,7 @@ impl TraceCollector for RingCollector {
     }
 }
 
-/// StreamCollector - Streaming collector with buffered I/O
+/// `StreamCollector` - Streaming collector with buffered I/O
 /// Target latency: <1µs per trace
 /// Writes traces to a memory-mapped file with buffering
 pub struct StreamCollector {
@@ -864,6 +870,7 @@ impl StreamCollector {
     }
 
     /// Set flush threshold
+    #[must_use]
     pub fn with_flush_threshold(mut self, threshold: usize) -> Self {
         self.flush_threshold = threshold;
         self
@@ -881,7 +888,7 @@ impl StreamCollector {
             // Create parent directory if needed
             if let Some(parent) = path.parent() {
                 std::fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create directory: {}", e))?;
+                    .map_err(|e| format!("Failed to create directory: {e}"))?;
             }
 
             // Append to file
@@ -889,15 +896,15 @@ impl StreamCollector {
                 .create(true)
                 .append(true)
                 .open(path)
-                .map_err(|e| format!("Failed to open file: {}", e))?;
+                .map_err(|e| format!("Failed to open file: {e}"))?;
 
             let mut writer = std::io::BufWriter::new(file);
             for trace in &self.buffer {
                 let json = serde_json::to_string(trace)
-                    .map_err(|e| format!("Serialization error: {}", e))?;
-                writeln!(writer, "{}", json).map_err(|e| format!("Write error: {}", e))?;
+                    .map_err(|e| format!("Serialization error: {e}"))?;
+                writeln!(writer, "{json}").map_err(|e| format!("Write error: {e}"))?;
             }
-            writer.flush().map_err(|e| format!("Flush error: {}", e))?;
+            writer.flush().map_err(|e| format!("Flush error: {e}"))?;
         }
 
         self.total_streamed += self.buffer.len();
@@ -944,7 +951,7 @@ impl TraceCollector for StreamCollector {
     }
 }
 
-/// HashChainCollector - Tamper-evident collector with hash chain
+/// `HashChainCollector` - Tamper-evident collector with hash chain
 /// Target latency: <10µs per trace
 /// Each trace includes hash of previous trace for audit trail
 #[derive(Default)]
@@ -962,7 +969,7 @@ pub struct HashChainedTrace {
     pub trace: TranspileTrace,
     /// Hash of previous entry (0 for first entry)
     pub prev_hash: u64,
-    /// Hash of this entry (includes prev_hash)
+    /// Hash of this entry (includes `prev_hash`)
     pub entry_hash: u64,
 }
 
@@ -1033,7 +1040,7 @@ impl HashChainCollector {
             verified: self.verify_chain(),
         };
 
-        serde_json::to_string_pretty(&export).map_err(|e| format!("Failed to export: {}", e))
+        serde_json::to_string_pretty(&export).map_err(|e| format!("Failed to export: {e}"))
     }
 }
 

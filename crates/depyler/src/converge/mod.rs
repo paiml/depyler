@@ -60,6 +60,7 @@ use anyhow::Result;
 use depyler_oracle::NgramFixPredictor;
 
 /// Run the convergence loop to improve compilation rate
+#[allow(clippy::too_many_lines)]
 pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<ConvergenceState> {
     let mut state = ConvergenceState::new(config.clone());
     let compiler = BatchCompiler::new(&config.input_dir).with_display_mode(config.display_mode);

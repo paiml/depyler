@@ -37,7 +37,7 @@ pub struct YieldAnalysis {
     pub yield_points: Vec<YieldPoint>,
     /// Variables that need to be in state struct (modified between yields)
     pub state_variables: Vec<String>,
-    /// Map from state_id to the next statement after the yield
+    /// Map from `state_id` to the next statement after the yield
     pub resume_points: HashMap<usize, usize>,
 }
 
@@ -67,7 +67,7 @@ impl YieldAnalysis {
         }
 
         // Finalize analysis (compute live variables, etc.)
-        analysis.finalize();
+        YieldAnalysis::finalize();
         analysis
     }
 
@@ -142,6 +142,7 @@ impl YieldAnalysis {
     ///
     /// # Complexity: 3
     #[inline]
+    #[allow(clippy::ref_option)]
     fn analyze_if_stmt(
         then_body: &[HirStmt],
         else_body: &Option<Vec<HirStmt>>,
@@ -180,6 +181,7 @@ impl YieldAnalysis {
     ///
     /// # Complexity: 5
     #[inline]
+    #[allow(clippy::ref_option)]
     fn analyze_try_stmt(
         body: &[HirStmt],
         handlers: &[depyler_hir::hir::ExceptHandler],
@@ -239,7 +241,7 @@ impl YieldAnalysis {
     /// Finalize analysis by computing live variables and state variables
     ///
     /// # Complexity: 2 (placeholder for future liveness analysis)
-    fn finalize(&mut self) {
+    fn finalize() {
         // NOTE: Implement liveness analysis to determine which variables need capturing (tracked in DEPYLER-0424)
         // need to be preserved in the state struct.
         // For now, we'll rely on the existing GeneratorStateInfo analysis.
@@ -937,7 +939,7 @@ mod tests {
             live_vars: vec![],
             depth: 0,
         });
-        analysis.finalize();
+        YieldAnalysis::finalize();
         // Currently finalize is a placeholder, just ensure it doesn't crash
         assert_eq!(analysis.yield_points.len(), 1);
     }

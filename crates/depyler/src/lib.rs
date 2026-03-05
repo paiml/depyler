@@ -161,7 +161,7 @@ pub enum Commands {
         #[arg(long)]
         corpus: PathBuf,
 
-        /// Output model path (default: ~/.depyler/oracle_user.bin)
+        /// Output model path (default: ~/.`depyler/oracle_user.bin`)
         #[arg(short, long)]
         output: Option<PathBuf>,
 
@@ -413,6 +413,7 @@ pub enum CorpusCommands {
 // Core Commands
 // ============================================================================
 
+#[allow(clippy::fn_params_excessive_bools, clippy::needless_pass_by_value)]
 pub fn transpile_command(
     input: PathBuf,
     output: Option<PathBuf>,
@@ -435,7 +436,7 @@ pub fn transpile_command(
                 Some(input.display().to_string()),
                 Some(&python_source),
             );
-            eprintln!("{}", diagnostic);
+            eprintln!("{diagnostic}");
             anyhow::bail!("transpilation failed");
         }
     };
@@ -494,6 +495,7 @@ pub fn transpile_command(
     Ok(())
 }
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn compile_command(input: PathBuf, output: Option<PathBuf>, profile: String) -> Result<()> {
     let output_ref = output.as_deref();
     let profile_ref = if profile.is_empty() { None } else { Some(profile.as_str()) };
@@ -501,6 +503,7 @@ pub fn compile_command(input: PathBuf, output: Option<PathBuf>, profile: String)
     Ok(())
 }
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn analyze_command(input: PathBuf, format: String) -> Result<()> {
     let python_source = fs::read_to_string(&input)?;
     let pipeline = DepylerPipeline::new();
@@ -510,12 +513,13 @@ pub fn analyze_command(input: PathBuf, format: String) -> Result<()> {
 
     match format.as_str() {
         "json" => println!("{}", serde_json::to_string_pretty(&report)?),
-        _ => println!("{:#?}", report),
+        _ => println!("{report:#?}"),
     }
 
     Ok(())
 }
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn check_command(input: PathBuf) -> Result<()> {
     let python_source = fs::read_to_string(&input)?;
     let pipeline = DepylerPipeline::new();
@@ -531,7 +535,7 @@ pub fn check_command(input: PathBuf) -> Result<()> {
                 Some(input.display().to_string()),
                 Some(&python_source),
             );
-            eprintln!("{}", diagnostic);
+            eprintln!("{diagnostic}");
             anyhow::bail!("check failed")
         }
     }
@@ -545,6 +549,7 @@ pub fn check_command(input: PathBuf) -> Result<()> {
 /// 3. Learns correct types from compiler error messages
 /// 4. Re-transpiles with learned type constraints
 /// 5. Repeats until compilation succeeds or max iterations reached
+#[allow(clippy::needless_pass_by_value)]
 pub fn repair_command(
     input: PathBuf,
     output: Option<PathBuf>,
@@ -555,7 +560,7 @@ pub fn repair_command(
 
     if verbose {
         println!("{} Starting type repair for {}", "🔧".green(), input.display());
-        println!("   Max iterations: {}", max_iterations);
+        println!("   Max iterations: {max_iterations}");
     }
 
     let result = repair_file_types(&input, max_iterations)?;
@@ -600,8 +605,7 @@ pub fn repair_command(
         println!("   Final compile rate: {:.1}%", result.final_rate * 100.0);
 
         anyhow::bail!(
-            "Type repair failed after {} iterations. Consider manual fixes.",
-            max_iterations
+            "Type repair failed after {max_iterations} iterations. Consider manual fixes."
         )
     }
 }

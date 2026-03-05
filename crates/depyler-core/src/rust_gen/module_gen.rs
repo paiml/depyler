@@ -17,7 +17,7 @@
 
 use super::context::CodeGenContext;
 use super::{keywords, type_gen};
-use crate::hir::*;
+use crate::hir::{TypeAlias, Import};
 use crate::string_optimization::StringOptimizer;
 use quote::quote;
 use std::collections::HashSet;
@@ -26,7 +26,7 @@ use syn::parse_quote;
 /// Deduplicate use statements to avoid E0252 errors
 ///
 /// DEPYLER-0335 FIX #1: Multiple sources can generate the same import.
-/// For example, both generate_import_tokens and generate_conditional_imports
+/// For example, both `generate_import_tokens` and `generate_conditional_imports`
 /// might add `use std::collections::HashMap;`.
 ///
 /// # Complexity
@@ -58,7 +58,7 @@ pub(super) fn deduplicate_use_statements(
 ///
 /// Adds imports for collections and smart pointers as needed.
 /// Complexity: 1 (data-driven approach, well within <=10 target)
-/// DEPYLER-1016: Added nasa_mode to skip external crate imports
+/// DEPYLER-1016: Added `nasa_mode` to skip external crate imports
 pub(super) fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenStream> {
     let mut imports = Vec::new();
     let nasa_mode = ctx.type_mapper.nasa_mode;
@@ -114,11 +114,12 @@ pub(super) fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_mac
 /// to Rust type aliases like `type EventHandler = Box<dyn Fn(String)>;`
 ///
 /// # Arguments
-/// * `type_aliases` - Vector of TypeAlias structs from HIR
-/// * `type_mapper` - TypeMapper for converting Python types to Rust types
+/// * `type_aliases` - Vector of `TypeAlias` structs from HIR
+/// * `type_mapper` - `TypeMapper` for converting Python types to Rust types
 ///
 /// # Returns
-/// Vector of TokenStreams containing type alias declarations
+/// Vector of `TokenStreams` containing type alias declarations
+#[allow(clippy::manual_let_else)]
 pub(super) fn generate_type_alias_tokens(
     type_aliases: &[TypeAlias],
     type_mapper: &crate::type_mapper::TypeMapper,
@@ -164,7 +165,7 @@ pub(super) fn generate_type_alias_tokens(
 ///
 /// Maps Python imports to Rust use statements.
 /// Complexity: ~7-8 (within <=10 target)
-/// DEPYLER-1016: Added nasa_mode to skip external crate imports
+/// DEPYLER-1016: Added `nasa_mode` to skip external crate imports
 pub(super) fn generate_import_tokens(
     imports: &[Import],
     module_mapper: &crate::module_mapper::ModuleMapper,

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use std::fmt::Write as _;
 use depyler_annotations::{Architecture, LambdaAnnotations, LambdaEventType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -128,11 +129,13 @@ impl LambdaOptimizer {
         Self { strategies, performance_targets: PerformanceTargets::default() }
     }
 
+    #[must_use]
     pub fn with_targets(mut self, targets: PerformanceTargets) -> Self {
         self.performance_targets = targets;
         self
     }
 
+    #[must_use]
     pub fn enable_aggressive_mode(mut self) -> Self {
         for config in self.strategies.values_mut() {
             config.aggressive_mode = true;
@@ -156,34 +159,33 @@ impl LambdaOptimizer {
 
         // Binary size optimizations
         if self.is_strategy_enabled(&OptimizationStrategy::BinarySize) {
-            self.apply_binary_size_optimizations(&mut plan, annotations)?;
+            Self::apply_binary_size_optimizations(&mut plan, annotations);
         }
 
         // Cold start optimizations
         if self.is_strategy_enabled(&OptimizationStrategy::ColdStart)
             && annotations.cold_start_optimize
         {
-            self.apply_cold_start_optimizations(&mut plan, annotations)?;
+            Self::apply_cold_start_optimizations(&mut plan, annotations);
         }
 
         // Pre-warming optimizations
         if self.is_strategy_enabled(&OptimizationStrategy::PreWarming) {
-            self.apply_pre_warming_optimizations(&mut plan, annotations)?;
+            Self::apply_pre_warming_optimizations(&mut plan, annotations);
         }
 
         // Memory usage optimizations
         if self.is_strategy_enabled(&OptimizationStrategy::MemoryUsage) {
-            self.apply_memory_optimizations(&mut plan, annotations)?;
+            Self::apply_memory_optimizations(&mut plan, annotations);
         }
 
         Ok(plan)
     }
 
     fn apply_binary_size_optimizations(
-        &self,
         plan: &mut OptimizationPlan,
         annotations: &LambdaAnnotations,
-    ) -> Result<()> {
+    ) {
         // Profile overrides for maximum size reduction
         plan.profile_overrides.insert("opt-level".to_string(), "z".to_string());
         plan.profile_overrides.insert("lto".to_string(), "true".to_string());
@@ -229,14 +231,12 @@ impl LambdaOptimizer {
             },
         ]);
 
-        Ok(())
     }
 
     fn apply_cold_start_optimizations(
-        &self,
         plan: &mut OptimizationPlan,
         annotations: &LambdaAnnotations,
-    ) -> Result<()> {
+    ) {
         // Pre-allocation and warming for common types
         let mut pre_warm_code = String::new();
 
@@ -259,20 +259,20 @@ impl LambdaOptimizer {
                 }
                 LambdaEventType::SqsEvent => {
                     pre_warm_code.push_str(
-                        r#"
+                        r"
     // Pre-warm SQS types
     let _ = std::hint::black_box(Vec::<String>::with_capacity(10));
     let _ = std::hint::black_box(String::with_capacity(1024));
-"#,
+",
                     );
                 }
                 LambdaEventType::S3Event => {
                     pre_warm_code.push_str(
-                        r#"
+                        r"
     // Pre-warm S3 types
     let _ = std::hint::black_box(std::path::PathBuf::new());
     let _ = std::hint::black_box(String::with_capacity(512));
-"#,
+",
                     );
                 }
                 _ => {}
@@ -281,7 +281,7 @@ impl LambdaOptimizer {
 
         // Global pre-warming
         pre_warm_code.push_str(
-            r#"
+            r"
     // Pre-warm common allocations
     let _ = std::hint::black_box(serde_json::Value::Null);
     
@@ -290,7 +290,7 @@ impl LambdaOptimizer {
         static BUFFER: std::cell::RefCell<Vec<u8>> = std::cell::RefCell::new(Vec::with_capacity(8192));
     }}
     BUFFER.with(|_| {{}});
-"#
+"
         );
 
         plan.pre_warm_code = pre_warm_code;
@@ -319,19 +319,17 @@ static INIT: extern "C" fn() = {{
         // Configure opt-level=3 for latency-sensitive Lambda workloads (prioritizes response time)
         plan.profile_overrides.insert("opt-level".to_string(), "3".to_string());
 
-        Ok(())
     }
 
     fn apply_pre_warming_optimizations(
-        &self,
         plan: &mut OptimizationPlan,
         annotations: &LambdaAnnotations,
-    ) -> Result<()> {
+    ) {
         // Event-specific pre-warming paths
         for path in &annotations.pre_warm_paths {
-            plan.pre_warm_code.push_str(&format!(
-                "    // Pre-warm path: {path}\n    let _ = std::hint::black_box(String::from(\"{path}\"));\n"
-            ));
+            writeln!(plan.pre_warm_code,
+                "    // Pre-warm path: {path}\n    let _ = std::hint::black_box(String::from(\"{path}\"));"
+            ).expect("write to String");
         }
 
         // Serde pre-warming for custom serialization
@@ -345,14 +343,12 @@ static INIT: extern "C" fn() = {{
             );
         }
 
-        Ok(())
     }
 
     fn apply_memory_optimizations(
-        &self,
         plan: &mut OptimizationPlan,
         annotations: &LambdaAnnotations,
-    ) -> Result<()> {
+    ) {
         // Use mimalloc for better memory allocation patterns
         plan.dependency_optimizations.push(DependencyOptimization {
             crate_name: "mimalloc".to_string(),
@@ -363,7 +359,7 @@ static INIT: extern "C" fn() = {{
 
         // Memory pool initialization for low-memory environments
         if annotations.memory_size <= 128 {
-            plan.pre_warm_code.push_str(&format!(
+            write!(plan.pre_warm_code,
                 r#"
     // Memory-constrained optimization
     if std::env::var("AWS_LAMBDA_FUNCTION_MEMORY_SIZE").unwrap_or_default() == "{}" {{
@@ -372,13 +368,12 @@ static INIT: extern "C" fn() = {{
     }}
 "#,
                 annotations.memory_size
-            ));
+            ).expect("write to String");
         }
 
         // Stack size optimization
         plan.rustc_flags.push("-C link-arg=-Wl,-z,stack-size=131072".to_string()); // 128KB stack
 
-        Ok(())
     }
 
     /// Generate Cargo profile for Lambda optimization
@@ -386,7 +381,7 @@ static INIT: extern "C" fn() = {{
         let mut profile = String::from("\n[profile.lambda]\ninherits = \"release\"\n");
 
         for (key, value) in &plan.profile_overrides {
-            profile.push_str(&format!("{key} = {value}\n"));
+            writeln!(profile, "{key} = {value}").expect("write to String");
         }
 
         // Add lambda-specific package overrides
@@ -422,7 +417,7 @@ echo "Target: {} MB memory, {} architecture"
 
         // Set environment variables
         script.push_str("# Optimization environment variables\n");
-        script.push_str(&format!("export RUSTFLAGS=\"{}\"\n", plan.rustc_flags.join(" ")));
+        writeln!(script, "export RUSTFLAGS=\"{}\"", plan.rustc_flags.join(" ")).expect("write to String");
         script.push_str("export CARGO_PROFILE_LAMBDA_LTO=true\n");
         script.push_str("export CARGO_PROFILE_LAMBDA_PANIC=\"abort\"\n");
         script.push_str("export CARGO_PROFILE_LAMBDA_CODEGEN_UNITS=1\n");
@@ -433,16 +428,16 @@ echo "Target: {} MB memory, {} architecture"
             Architecture::X86_64 => "--x86-64",
         };
 
-        script.push_str(&format!(
-            r#"
+        write!(script, 
+            r"
 # Build with cargo-lambda
 cargo lambda build \
     --profile lambda \
     {arch_flag} \
     --output-format zip
 
-"#
-        ));
+"
+        ).expect("write to String");
 
         // Post-build optimizations
         script.push_str(

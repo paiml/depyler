@@ -29,7 +29,7 @@
 //! # References
 //!
 //! - Wang, Y., et al. (2022). Compilable Neural Code Generation with Compiler Feedback.
-//! - StepCoder (Dou et al., 2024). RLCF for code generation.
+//! - `StepCoder` (Dou et al., 2024). RLCF for code generation.
 
 use crate::{AutoFixer, OracleError};
 use aprender::citl::{
@@ -94,7 +94,7 @@ impl IterativeFixResult {
 
 /// CITL-enhanced fixer for transpiled Rust code.
 ///
-/// Integrates aprender's CITL module with depyler's AutoFixer
+/// Integrates aprender's CITL module with depyler's `AutoFixer`
 /// for iterative compilation-driven fixing.
 pub struct CITLFixer {
     /// Rust compiler interface
@@ -118,7 +118,7 @@ impl CITLFixer {
     ///
     /// # Errors
     ///
-    /// Returns error if AutoFixer initialization fails.
+    /// Returns error if `AutoFixer` initialization fails.
     pub fn new() -> Result<Self, OracleError> {
         Self::with_config(CITLFixerConfig::default())
     }
@@ -127,7 +127,7 @@ impl CITLFixer {
     ///
     /// # Errors
     ///
-    /// Returns error if AutoFixer initialization fails.
+    /// Returns error if `AutoFixer` initialization fails.
     pub fn with_config(config: CITLFixerConfig) -> Result<Self, OracleError> {
         let compiler = RustCompiler::new().mode(config.compilation_mode);
         let encoder = ErrorEncoder::new();
@@ -165,6 +165,7 @@ impl CITLFixer {
     ///
     /// # Returns
     /// `IterativeFixResult` containing the final state after fix attempts.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn fix_all(&mut self, source: &str) -> IterativeFixResult {
         let start = Instant::now();
         let mut current = source.to_string();
@@ -282,6 +283,7 @@ impl CITLFixer {
     }
 
     /// Apply a pattern-based fix to the source.
+    #[allow(clippy::unused_self)]
     fn apply_pattern_fix(
         &self,
         source: &str,
@@ -372,7 +374,7 @@ pub struct CITLFixerConfig {
     pub confidence_threshold: f32,
     /// Path to pattern library file
     pub pattern_library_path: Option<String>,
-    /// Use AutoFixer as fallback
+    /// Use `AutoFixer` as fallback
     pub use_autofixer_fallback: bool,
     /// Compilation mode
     pub compilation_mode: CompilationMode,

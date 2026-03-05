@@ -56,6 +56,7 @@ impl WarmStats {
     }
 
     /// Single-shot compile rate (compiled + cached / total)
+    #[allow(clippy::cast_precision_loss)]
     pub fn compile_rate(&self) -> f64 {
         let total = self.total();
         if total == 0 {
@@ -132,7 +133,7 @@ impl CacheWarmer {
     pub fn find_python_files(&self, dir: &Path) -> Vec<PathBuf> {
         walkdir::WalkDir::new(dir)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .filter(|e| {
                 e.path().extension().is_some_and(|ext| ext == "py")
                     && !e.path().to_string_lossy().contains("__pycache__")
@@ -191,6 +192,7 @@ impl CacheWarmer {
     }
 
     /// Try to compile Rust code with cargo check (for proper dependency resolution)
+    #[allow(clippy::unused_self)]
     fn try_compile(&self, rust_code: &str) -> Result<(), String> {
         let temp_dir = tempfile::tempdir().map_err(|e| e.to_string())?;
         let src_dir = temp_dir.path().join("src");

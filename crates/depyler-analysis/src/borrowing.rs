@@ -3,6 +3,7 @@ use std::collections::HashSet;
 
 /// Tracks how parameters are used within a function to infer borrowing patterns
 #[derive(Debug, Default)]
+#[allow(clippy::struct_field_names)]
 pub struct BorrowingContext {
     /// Parameters that are mutated in the function
     mutated_params: HashSet<String>,
@@ -59,7 +60,7 @@ impl BorrowingContext {
         } else if self.mutated_params.contains(param_name) {
             // Mutated parameters need mutable borrow
             BorrowingPattern::MutableBorrow
-        } else if self.is_copyable(param_type) {
+        } else if Self::is_copyable(param_type) {
             // Small copyable types should be passed by value
             BorrowingPattern::Owned
         } else {
@@ -74,9 +75,9 @@ impl BorrowingContext {
         let type_str = self.type_to_rust_string(param_type);
 
         match pattern {
-            BorrowingPattern::Owned => format!("{}: {}", param_name, type_str),
-            BorrowingPattern::Borrowed => format!("{}: &{}", param_name, type_str),
-            BorrowingPattern::MutableBorrow => format!("{}: &mut {}", param_name, type_str),
+            BorrowingPattern::Owned => format!("{param_name}: {type_str}"),
+            BorrowingPattern::Borrowed => format!("{param_name}: &{type_str}"),
+            BorrowingPattern::MutableBorrow => format!("{param_name}: &mut {type_str}"),
         }
     }
 
@@ -86,7 +87,7 @@ impl BorrowingContext {
             HirStmt::Return(Some(expr)) => self.analyze_return(expr),
             HirStmt::Expr(expr) => self.analyze_expr(expr),
             HirStmt::If { condition, then_body, else_body } => {
-                self.analyze_if(condition, then_body, else_body)
+                self.analyze_if(condition, then_body, else_body);
             }
             HirStmt::While { condition, body } => self.analyze_while(condition, body),
             HirStmt::For { target: _, iter, body } => self.analyze_for(iter, body),
@@ -109,6 +110,7 @@ impl BorrowingContext {
         self.analyze_expr(expr);
     }
 
+    #[allow(clippy::ref_option)]
     fn analyze_if(
         &mut self,
         condition: &HirExpr,
@@ -142,7 +144,7 @@ impl BorrowingContext {
         }
     }
 
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::self_only_used_in_recursion)]
     fn analyze_expr(&mut self, expr: &HirExpr) {
         match expr {
             HirExpr::Binary { op: _, left, right } => self.analyze_binary(left, right),
@@ -263,15 +265,15 @@ impl BorrowingContext {
         }
     }
 
-    fn is_copyable(&self, ty: &Type) -> bool {
+    fn is_copyable(ty: &Type) -> bool {
         matches!(ty, Type::Int | Type::Float | Type::Bool | Type::None)
     }
 
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::self_only_used_in_recursion)]
     fn type_to_rust_string(&self, ty: &Type) -> String {
         match ty {
             Type::Unknown | Type::Int | Type::Float | Type::String | Type::Bool | Type::None => {
-                self.primitive_type_to_rust(ty)
+                Self::primitive_type_to_rust(ty)
             }
             Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Array { .. } => {
                 self.collection_type_to_rust(ty)
@@ -286,12 +288,12 @@ impl BorrowingContext {
             Type::UnificationVar(id) => {
                 // UnificationVar should never appear in final code generation
                 // It should be resolved by the type inference system before codegen
-                panic!("BUG: UnificationVar({}) encountered during code generation. Type inference did not complete.", id)
+                panic!("BUG: UnificationVar({id}) encountered during code generation. Type inference did not complete.")
             }
         }
     }
 
-    fn primitive_type_to_rust(&self, ty: &Type) -> String {
+    fn primitive_type_to_rust(ty: &Type) -> String {
         match ty {
             Type::Unknown => "serde_json::Value".to_string(),
             Type::Int => "i32".to_string(),

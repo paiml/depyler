@@ -146,7 +146,7 @@ pub fn is_float_var_name(name: &str) -> bool {
 
 /// Check if single-letter variable name suggests a float (color channels)
 /// DEPYLER-0950: Heuristic for colorsys color channel variables
-/// Single-letter names from hsv_to_rgb(), rgb_to_hsv(), rgb_to_hls() etc.
+/// Single-letter names from `hsv_to_rgb()`, `rgb_to_hsv()`, `rgb_to_hls()` etc.
 ///
 /// Note: a, b, x, y are intentionally excluded (too generic, DEPYLER-0954)
 pub fn is_color_channel_name(name: &str) -> bool {

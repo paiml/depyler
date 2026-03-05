@@ -1,16 +1,17 @@
-//! Advanced expression conversion for ExprConverter
+//! Advanced expression conversion for `ExprConverter`
 //!
 //! Handles list/set/dict comprehensions, module constructors, lambda, fstring,
 //! attribute access, and dynamic calls.
 
 use crate::direct_rules::{make_ident, parse_target_pattern};
-use crate::hir::*;
+use crate::hir::HirExpr;
 use anyhow::Result;
 use syn::parse_quote;
 
 use super::ExprConverter;
 
-impl<'a> ExprConverter<'a> {
+impl ExprConverter<'_> {
+    #[allow(clippy::ref_option)]
     pub(super) fn convert_list_comp(
         &self,
         element: &HirExpr,
@@ -60,6 +61,7 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    #[allow(clippy::too_many_lines, clippy::ref_option)]
     pub(super) fn convert_set_comp(
         &self,
         element: &HirExpr,
@@ -111,8 +113,9 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-0610: Convert Python stdlib module constructor calls to Rust
-    /// threading.Semaphore(n) → std::sync::Mutex::new(n)
-    /// queue.Queue() → std::collections::VecDeque::new()
+    /// threading.Semaphore(n) → `std::sync::Mutex::new(n)`
+    /// `queue.Queue()` → `std::collections::VecDeque::new()`
+    #[allow(clippy::match_same_arms, clippy::too_many_lines)]
     pub(super) fn convert_module_constructor(
         &self,
         module: &str,
@@ -388,6 +391,7 @@ impl<'a> ExprConverter<'a> {
         Ok(result)
     }
 
+    #[allow(clippy::ref_option)]
     pub(super) fn convert_dict_comp(
         &self,
         key: &HirExpr,
@@ -468,7 +472,7 @@ impl<'a> ExprConverter<'a> {
     /// Handles Python f-strings like `f"Hello {name}"` → `format!("Hello {}", name)`
     ///
     /// Strategy: Build format template and collect args, then generate format!() call.
-    /// Simplified version for direct_rules - basic formatting only.
+    /// Simplified version for `direct_rules` - basic formatting only.
     pub(super) fn convert_fstring(&self, parts: &[crate::hir::FStringPart]) -> Result<syn::Expr> {
         use crate::hir::FStringPart;
 
@@ -514,6 +518,7 @@ impl<'a> ExprConverter<'a> {
         Ok(parse_quote! { format!(#template, #(#args),*) })
     }
 
+    #[allow(clippy::too_many_lines)]
     pub(super) fn convert_attribute(&self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
         // Handle classmethod cls.ATTR → Self::ATTR
         if let HirExpr::Var(var_name) = value {
@@ -537,13 +542,12 @@ impl<'a> ExprConverter<'a> {
                         } else {
                             parse_quote! { DepylerDate::new(9999, 12, 31) }
                         });
-                    } else {
-                        return Ok(if attr == "min" {
-                            parse_quote! { chrono::NaiveDate::MIN }
-                        } else {
-                            parse_quote! { chrono::NaiveDate::MAX }
-                        });
                     }
+                    return Ok(if attr == "min" {
+                        parse_quote! { chrono::NaiveDate::MIN }
+                    } else {
+                        parse_quote! { chrono::NaiveDate::MAX }
+                    });
                 } else if var_name == "datetime" {
                     if nasa_mode {
                         return Ok(if attr == "min" {
@@ -551,13 +555,12 @@ impl<'a> ExprConverter<'a> {
                         } else {
                             parse_quote! { DepylerDateTime::new(9999, 12, 31, 23, 59, 59, 999999) }
                         });
-                    } else {
-                        return Ok(if attr == "min" {
-                            parse_quote! { chrono::NaiveDateTime::MIN }
-                        } else {
-                            parse_quote! { chrono::NaiveDateTime::MAX }
-                        });
                     }
+                    return Ok(if attr == "min" {
+                        parse_quote! { chrono::NaiveDateTime::MIN }
+                    } else {
+                        parse_quote! { chrono::NaiveDateTime::MAX }
+                    });
                 } else if var_name == "time" {
                     if nasa_mode {
                         return Ok(if attr == "min" {
@@ -565,13 +568,12 @@ impl<'a> ExprConverter<'a> {
                         } else {
                             parse_quote! { (23u32, 59u32, 59u32, 999999u32) }
                         });
-                    } else {
-                        return Ok(if attr == "min" {
-                            parse_quote! { chrono::NaiveTime::MIN }
-                        } else {
-                            parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).expect("invalid time") }
-                        });
                     }
+                    return Ok(if attr == "min" {
+                        parse_quote! { chrono::NaiveTime::MIN }
+                    } else {
+                        parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).expect("invalid time") }
+                    });
                 }
             }
 
@@ -652,7 +654,7 @@ impl<'a> ExprConverter<'a> {
     /// DEPYLER-0188: Convert dynamic/subscript function call
     /// Pattern: `handlers[name](args)` → `(handlers[&name])(args)` or `handlers.get(&name).unwrap()(args)`
     ///
-    /// In Rust, calling a value from a HashMap requires:
+    /// In Rust, calling a value from a `HashMap` requires:
     /// 1. Index access with reference: `handlers[&name]`
     /// 2. Parentheses to call the result: `(handlers[&name])(args)`
     pub(super) fn convert_dynamic_call(

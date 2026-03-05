@@ -161,7 +161,7 @@ impl UseAfterMoveAnalysis {
             "drain",
         ]
         .iter()
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .collect()
     }
 
@@ -205,7 +205,7 @@ impl UseAfterMoveAnalysis {
             "sorted",
         ]
         .iter()
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .collect()
     }
 
@@ -231,6 +231,8 @@ impl UseAfterMoveAnalysis {
     }
 
     /// Analyze a statement for move semantics
+    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::match_same_arms)]
     fn analyze_statement(&mut self, stmt: &HirStmt) {
         match stmt {
             HirStmt::Assign { target, value, .. } => {
@@ -241,7 +243,7 @@ impl UseAfterMoveAnalysis {
                 if let HirExpr::Var(source_name) = value {
                     // This is a potential aliasing pattern: `b = a`
                     if let AssignTarget::Symbol(target_name) = target {
-                        self.record_potential_alias(target_name, source_name);
+                        Self::record_potential_alias(target_name, source_name);
                     }
                 }
 
@@ -271,7 +273,7 @@ impl UseAfterMoveAnalysis {
                 let state_after_then = self.move_states.clone();
 
                 // Restore and analyze else branch
-                self.move_states = state_before.clone();
+                self.move_states.clone_from(&state_before);
                 if let Some(else_stmts) = else_body {
                     for stmt in else_stmts {
                         self.analyze_statement(stmt);
@@ -379,6 +381,8 @@ impl UseAfterMoveAnalysis {
     }
 
     /// Analyze an expression to check if it uses a moved variable
+    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::match_same_arms)]
     fn analyze_expression_for_use(&mut self, expr: &HirExpr) {
         match expr {
             HirExpr::Var(name) => {
@@ -591,7 +595,7 @@ impl UseAfterMoveAnalysis {
     }
 
     /// Record potential alias pattern
-    fn record_potential_alias(&mut self, _target: &str, _source: &str) {
+    fn record_potential_alias(_target: &str, _source: &str) {
         // Track aliasing for later analysis
     }
 
@@ -605,6 +609,7 @@ impl UseAfterMoveAnalysis {
     }
 
     /// Merge states after if/else branches
+    #[allow(clippy::match_same_arms)]
     fn merge_branch_states(
         &mut self,
         before: &HashMap<String, MoveState>,
@@ -639,7 +644,7 @@ impl UseAfterMoveAnalysis {
 
         for (var, state) in &current {
             if let MoveState::Moved(span) = state {
-                if before.get(var).map(|s| s == &MoveState::Available).unwrap_or(false) {
+                if before.get(var).is_some_and(|s| s == &MoveState::Available) {
                     self.move_states
                         .insert(var.clone(), MoveState::ConditionallyMoved(span.clone()));
                 }
@@ -660,6 +665,7 @@ impl UseAfterMoveAnalysis {
     }
 
     /// Find captured variables in a statement
+    #[allow(clippy::match_same_arms)]
     fn find_captured_vars_in_stmt(
         &mut self,
         stmt: &HirStmt,
@@ -759,13 +765,11 @@ impl StrategicCloneAnalysis {
         for (target, source, alias_idx, var_type) in aliases {
             let source_used_after = var_uses
                 .get(&source)
-                .map(|uses| uses.iter().any(|&u| u > alias_idx))
-                .unwrap_or(false);
+                .is_some_and(|uses| uses.iter().any(|&u| u > alias_idx));
 
             let alias_used_after = var_uses
                 .get(&target)
-                .map(|uses| uses.iter().any(|&u| u > alias_idx))
-                .unwrap_or(false);
+                .is_some_and(|uses| uses.iter().any(|&u| u > alias_idx));
 
             if source_used_after && alias_used_after {
                 self.aliases.push(AliasingPattern {
@@ -782,6 +786,7 @@ impl StrategicCloneAnalysis {
         self.aliases.clone()
     }
 
+    #[allow(clippy::match_same_arms)]
     fn collect_var_info(
         &self,
         stmt: &HirStmt,
@@ -847,6 +852,7 @@ impl StrategicCloneAnalysis {
         }
     }
 
+    #[allow(clippy::self_only_used_in_recursion)]
     fn collect_uses_in_expr(
         &self,
         expr: &HirExpr,

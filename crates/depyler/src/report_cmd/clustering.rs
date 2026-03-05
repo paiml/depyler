@@ -1,6 +1,6 @@
 //! ML Clustering for Error Analysis (GH-209 Phase 2)
 //!
-//! Uses aprender's KMeans and DBSCAN algorithms to group compilation
+//! Uses aprender's `KMeans` and DBSCAN algorithms to group compilation
 //! failures by feature similarity, enabling pattern discovery.
 
 use serde::{Deserialize, Serialize};
@@ -40,6 +40,7 @@ impl ErrorFeatureVector {
     }
 
     /// Convert to flat feature vector for clustering
+    #[allow(clippy::cast_precision_loss)]
     pub fn to_flat_vector(&self) -> Vec<f64> {
         let mut vec = Vec::with_capacity(self.total_dims);
 
@@ -52,7 +53,7 @@ impl ErrorFeatureVector {
         // AST features (already f32, convert to f64)
         for &f in &self.ast_features {
             // Normalize by reasonable max values
-            vec.push((f as f64).min(100.0) / 100.0);
+            vec.push(f64::from(f).min(100.0) / 100.0);
         }
 
         vec
@@ -127,6 +128,7 @@ impl ClusterAnalysis {
     }
 
     /// Get fraction of samples that are outliers
+    #[allow(clippy::cast_precision_loss)]
     pub fn outlier_fraction(&self) -> f64 {
         if self.total_samples == 0 {
             0.0
@@ -139,9 +141,9 @@ impl ClusterAnalysis {
 /// Configuration for error clustering (GH-209)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterConfig {
-    /// Number of clusters for KMeans (0 = auto-detect)
+    /// Number of clusters for `KMeans` (0 = auto-detect)
     pub n_clusters: usize,
-    /// Maximum iterations for KMeans
+    /// Maximum iterations for `KMeans`
     pub max_iterations: usize,
     /// Convergence tolerance
     pub tolerance: f64,
@@ -182,6 +184,7 @@ impl ErrorClusterAnalyzer {
     /// Cluster failed results (GH-209)
     ///
     /// Returns cluster analysis with auto-labeled clusters
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
     pub fn cluster_errors(&self, results: &[ExtendedAnalysisResult]) -> ClusterAnalysis {
         // Filter to failed results only
         let failed: Vec<_> = results.iter().enumerate().filter(|(_, r)| !r.base.success).collect();
@@ -199,7 +202,7 @@ impl ErrorClusterAnalyzer {
         let features: Vec<ErrorFeatureVector> =
             failed.iter().map(|(_, r)| ErrorFeatureVector::from_result(r)).collect();
 
-        let feature_matrix: Vec<Vec<f64>> = features.iter().map(|f| f.to_flat_vector()).collect();
+        let feature_matrix: Vec<Vec<f64>> = features.iter().map(ErrorFeatureVector::to_flat_vector).collect();
 
         // Determine optimal k (simple heuristic: sqrt(n) / 2, min 2, max 10)
         let n = failed.len();
@@ -274,7 +277,8 @@ impl Default for ErrorClusterAnalyzer {
     }
 }
 
-/// Simple KMeans implementation (no external deps)
+/// Simple `KMeans` implementation (no external deps)
+#[allow(clippy::cast_precision_loss)]
 fn simple_kmeans(data: &[Vec<f64>], k: usize, max_iter: usize) -> (Vec<usize>, Vec<Vec<f64>>) {
     if data.is_empty() || k == 0 {
         return (vec![], vec![]);
@@ -361,9 +365,7 @@ fn find_dominant_error_code(indices: &[usize], results: &[ExtendedAnalysisResult
 
     counts
         .into_iter()
-        .max_by_key(|(_, count)| *count)
-        .map(|(code, _)| code)
-        .unwrap_or_else(|| "UNKNOWN".to_string())
+        .max_by_key(|(_, count)| *count).map_or_else(|| "UNKNOWN".to_string(), |(code, _)| code)
 }
 
 /// Find most common semantic domain in cluster
@@ -377,8 +379,7 @@ fn find_dominant_domain(indices: &[usize], results: &[ExtendedAnalysisResult]) -
     counts
         .into_iter()
         .max_by_key(|(_, count)| *count)
-        .map(|(domain, _)| domain)
-        .unwrap_or(SemanticDomain::Unknown)
+        .map_or(SemanticDomain::Unknown, |(domain, _)| domain)
 }
 
 /// Generate human-readable cluster label
@@ -397,7 +398,7 @@ fn generate_cluster_label(error_code: &str, domain: SemanticDomain, count: usize
 
     let domain_desc = domain.label();
 
-    format!("{} - {} ({} files)", error_desc, domain_desc, count)
+    format!("{error_desc} - {domain_desc} ({count} files)")
 }
 
 /// Calculate cluster cohesion (mean intra-cluster distance)
@@ -429,13 +430,14 @@ fn calculate_cohesion(
     }
 
     if count > 0 {
-        total_dist / count as f64
+        total_dist / f64::from(count)
     } else {
         0.0
     }
 }
 
 /// Calculate simplified silhouette score
+#[allow(clippy::cast_precision_loss)]
 fn calculate_silhouette(data: &[Vec<f64>], labels: &[usize]) -> f64 {
     if data.len() <= 1 {
         return 0.0;
@@ -494,7 +496,7 @@ fn calculate_silhouette(data: &[Vec<f64>], labels: &[usize]) -> f64 {
                             / cluster_points.len() as f64
                     }
                 })
-                .fold(f64::MAX, |a, b| a.min(b))
+                .fold(f64::MAX, f64::min)
         };
 
         let s_i = if a_i.max(b_i) == 0.0 { 0.0 } else { (b_i - a_i) / a_i.max(b_i) };

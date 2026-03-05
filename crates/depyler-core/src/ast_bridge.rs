@@ -1,4 +1,4 @@
-use crate::hir::*;
+use crate::hir::{HirModule, HirFunction, TypeAlias, HirConstant, HirStmt, Type, FunctionProperties, Protocol, HirClass, HirField, HirMethod, HirParam, ProtocolMethod, HirExpr, Literal, AssignTarget, BinOp, UnaryOp, Import, ImportItem};
 use anyhow::{bail, Result};
 use depyler_annotations::{AnnotationExtractor, AnnotationParser, TranspilationAnnotations};
 use rustpython_ast::{self as ast};
@@ -108,6 +108,7 @@ impl AstBridge {
     /// let bridge = AstBridge::new()
     ///     .with_source(python_code.to_string());
     /// ```
+    #[must_use]
     pub fn with_source(mut self, source: String) -> Self {
         self.source_code = Some(source);
         self
@@ -160,7 +161,7 @@ impl AstBridge {
     ///
     /// # Returns
     ///
-    /// Returns a tuple of (HirModule, TypeEnvironment) where TypeEnvironment contains
+    /// Returns a tuple of (`HirModule`, `TypeEnvironment`) where `TypeEnvironment` contains
     /// all type annotations collected during HIR generation.
     pub fn python_to_hir(
         mut self,
@@ -173,6 +174,7 @@ impl AstBridge {
         Ok((hir, self.type_env))
     }
 
+    #[allow(clippy::too_many_lines)]
     fn convert_module(&mut self, module: ast::ModModule) -> Result<HirModule> {
         let mut functions = Vec::new();
         let mut imports = Vec::new();
@@ -488,6 +490,7 @@ impl AstBridge {
         Ok(Some(TypeAlias { name: target.to_string(), target_type, is_newtype }))
     }
 
+    #[allow(clippy::unused_self)]
     fn try_convert_annotated_type_alias(
         &self,
         ann_assign: &ast::StmtAnnAssign,
@@ -540,6 +543,7 @@ impl AstBridge {
     }
 
     /// Try to convert a simple assignment to a module-level constant
+    #[allow(clippy::unused_self)]
     fn try_convert_constant(&mut self, assign: &ast::StmtAssign) -> Result<Option<HirConstant>> {
         // Only handle single assignment targets
         if assign.targets.len() != 1 {
@@ -602,6 +606,7 @@ impl AstBridge {
     ///     analyze_dataset();
     /// }
     /// ```
+    #[allow(clippy::unnecessary_wraps)]
     fn try_convert_if_main(&mut self, if_stmt: &ast::StmtIf) -> Result<Option<HirFunction>> {
         // Check if condition is `__name__ == "__main__"`
         if !self.is_main_guard(&if_stmt.test) {
@@ -625,6 +630,7 @@ impl AstBridge {
     }
 
     /// DEPYLER-1155: Check if expression is `__name__ == "__main__"`
+    #[allow(clippy::unused_self)]
     fn is_main_guard(&self, expr: &ast::Expr) -> bool {
         match expr {
             ast::Expr::Compare(compare) => {
@@ -653,6 +659,7 @@ impl AstBridge {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn is_type_name(&self, name: &str) -> bool {
         matches!(
             name,
@@ -715,6 +722,7 @@ impl AstBridge {
         Ok(Some(Protocol { name, type_params, methods, is_runtime_checkable }))
     }
 
+    #[allow(clippy::too_many_lines)]
     fn try_convert_class(&mut self, class: &ast::StmtClassDef) -> Result<Option<HirClass>> {
         // Extract docstring if present
         let docstring = self.extract_class_docstring(&class.body);
@@ -929,6 +937,7 @@ impl AstBridge {
         }))
     }
 
+    #[allow(clippy::too_many_lines)]
     fn convert_method(
         &mut self,
         method: &ast::StmtFunctionDef,
@@ -998,10 +1007,10 @@ impl AstBridge {
             false
         } else if is_classmethod {
             // Skip 'cls' parameter for classmethods
-            method.args.args.first().map(|arg| arg.def.arg.as_str() == "cls").unwrap_or(false)
+            method.args.args.first().is_some_and(|arg| arg.def.arg.as_str() == "cls")
         } else {
             // Skip 'self' parameter for instance methods
-            method.args.args.first().map(|arg| arg.def.arg.as_str() == "self").unwrap_or(false)
+            method.args.args.first().is_some_and(|arg| arg.def.arg.as_str() == "self")
         };
 
         let args_to_process =
@@ -1065,6 +1074,7 @@ impl AstBridge {
         }))
     }
 
+    #[allow(clippy::too_many_lines)]
     fn convert_async_method(
         &mut self,
         method: &ast::StmtAsyncFunctionDef,
@@ -1134,10 +1144,10 @@ impl AstBridge {
             false
         } else if is_classmethod {
             // Skip 'cls' parameter for classmethods
-            method.args.args.first().map(|arg| arg.def.arg.as_str() == "cls").unwrap_or(false)
+            method.args.args.first().is_some_and(|arg| arg.def.arg.as_str() == "cls")
         } else {
             // Skip 'self' parameter for instance methods
-            method.args.args.first().map(|arg| arg.def.arg.as_str() == "self").unwrap_or(false)
+            method.args.args.first().is_some_and(|arg| arg.def.arg.as_str() == "self")
         };
 
         let args_to_process =
@@ -1201,11 +1211,12 @@ impl AstBridge {
         }))
     }
 
+    #[allow(clippy::unused_self)]
     fn extract_class_docstring(&mut self, body: &[ast::Stmt]) -> Option<String> {
         if let Some(ast::Stmt::Expr(expr)) = body.first() {
             if let ast::Expr::Constant(c) = expr.value.as_ref() {
                 if let ast::Constant::Str(s) = &c.value {
-                    return Some(s.to_string());
+                    return Some(s.clone());
                 }
             }
         }
@@ -1263,12 +1274,14 @@ impl AstBridge {
 
     /// DEPYLER-0835: Check if a name looks like a type variable
     /// Type variables are typically single uppercase letters (T, U, K, V)
+    #[allow(clippy::unused_self)]
     fn is_type_variable(&self, name: &str) -> bool {
-        name.len() == 1 && name.chars().next().is_some_and(|c| c.is_uppercase())
+        name.len() == 1 && name.chars().next().is_some_and(char::is_uppercase)
     }
 
     /// DEPYLER-0841: Format the slice of a subscript expression
     /// Converts AST slice to string like "L, R" from Generic[L, R]
+    #[allow(clippy::self_only_used_in_recursion)]
     fn format_subscript_slice(&self, slice: &ast::Expr) -> String {
         match slice {
             // Single type parameter: Generic[T]
@@ -1347,6 +1360,7 @@ impl AstBridge {
         Ok(ProtocolMethod { name, params: params.into(), ret_type, is_optional, has_default })
     }
 
+    #[allow(clippy::unused_self)]
     fn method_has_default_implementation(&self, body: &[ast::Stmt]) -> bool {
         // Filter out docstrings and ellipsis statements
         let meaningful_stmts: Vec<_> = body
@@ -1485,6 +1499,7 @@ impl AstBridge {
     /// DEPYLER-0637: Recursively collect all statements from a body,
     /// including statements inside if/else/for/while/with/try blocks.
     /// This allows field inference to find self.X assignments in nested code.
+    #[allow(clippy::unnecessary_wraps)]
     fn collect_all_statements_recursive(body: &[ast::Stmt]) -> Vec<&ast::Stmt> {
         let mut all_stmts = Vec::new();
 
@@ -1525,10 +1540,11 @@ impl AstBridge {
     }
 
     /// DEPYLER-0603: Infer fields from any method (not just __init__)
-    /// This is simpler than infer_fields_from_init because we don't have
+    /// This is simpler than `infer_fields_from_init` because we don't have
     /// parameter type information from the method signature.
     /// Fields inferred from non-__init__ methods get a synthetic default value
     /// so they don't become constructor parameters.
+    #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     fn infer_fields_from_method(&self, method: &ast::StmtFunctionDef) -> Result<Vec<HirField>> {
         let mut fields = Vec::new();
 
@@ -1607,6 +1623,7 @@ impl AstBridge {
 
     /// DEPYLER-0603: Create a default value for a type.
     /// Used for fields inferred from non-__init__ methods.
+    #[allow(clippy::match_same_arms, clippy::unused_self, clippy::unnecessary_wraps)]
     fn create_default_value_for_type(&self, ty: &Type) -> Option<HirExpr> {
         match ty {
             Type::Int => Some(HirExpr::Literal(crate::hir::Literal::Int(0))),
@@ -1619,6 +1636,7 @@ impl AstBridge {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn infer_type_from_expr(&self, expr: &ast::Expr) -> Option<Type> {
         match expr {
             ast::Expr::Constant(c) => match &c.value {
@@ -1638,6 +1656,7 @@ impl AstBridge {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn check_returns_self(&self, body: &[ast::Stmt]) -> bool {
         for stmt in body {
             if let ast::Stmt::Return(ret_stmt) = stmt {
@@ -1683,7 +1702,7 @@ pub fn python_to_hir(
     AstBridge::new().python_to_hir(module)
 }
 
-/// DEPYLER-0359: Propagate can_fail property through function call chains
+/// DEPYLER-0359: Propagate `can_fail` property through function call chains
 ///
 /// This function performs a fixed-point iteration to propagate the `can_fail` property
 /// from callees to callers. If function A calls function B, and B can fail, then A
@@ -1700,6 +1719,7 @@ fn propagate_can_fail_through_calls(functions: &mut [HirFunction]) {
     // Fixed-point iteration: keep propagating until no changes occur
     let mut changed = true;
     let mut iterations = 0;
+    #[allow(clippy::items_after_statements)]
     const MAX_ITERATIONS: usize = 100; // Prevent infinite loops
 
     while changed && iterations < MAX_ITERATIONS {
@@ -1749,8 +1769,7 @@ fn stmt_calls_failing_function(
                 || calls_failing_function(then_body, can_fail_map)
                 || else_body
                     .as_ref()
-                    .map(|body| calls_failing_function(body, can_fail_map))
-                    .unwrap_or(false)
+                    .is_some_and(|body| calls_failing_function(body, can_fail_map))
         }
         HirStmt::While { condition, body } => {
             expr_calls_failing_function(condition, can_fail_map)
@@ -1765,8 +1784,7 @@ fn stmt_calls_failing_function(
                 || handlers.iter().any(|h| calls_failing_function(&h.body, can_fail_map))
                 || finalbody
                     .as_ref()
-                    .map(|fb| calls_failing_function(fb, can_fail_map))
-                    .unwrap_or(false)
+                    .is_some_and(|fb| calls_failing_function(fb, can_fail_map))
         }
         _ => false,
     }
@@ -1807,6 +1825,7 @@ fn expr_calls_failing_function(
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
     use crate::ast_bridge::converters::ExprConverter;
     let mut params = Vec::new();
@@ -2001,10 +2020,12 @@ pub(crate) fn extract_assign_target(expr: &ast::Expr) -> Result<AssignTarget> {
     }
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 pub(crate) fn convert_expr(expr: ast::Expr) -> Result<HirExpr> {
     ExprConverter::convert(expr)
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::match_wildcard_for_single_variants)]
 pub(crate) fn convert_binop(op: &ast::Operator) -> Result<BinOp> {
     Ok(match op {
         ast::Operator::Add => BinOp::Add,
@@ -2023,11 +2044,13 @@ pub(crate) fn convert_binop(op: &ast::Operator) -> Result<BinOp> {
     })
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
 pub(crate) fn convert_aug_op(op: &ast::Operator) -> Result<BinOp> {
     // Augmented assignment operators map to the same binary operators
     convert_binop(op)
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
 pub(crate) fn convert_unaryop(op: &ast::UnaryOp) -> Result<UnaryOp> {
     Ok(match op {
         ast::UnaryOp::Not => UnaryOp::Not,
@@ -2037,6 +2060,7 @@ pub(crate) fn convert_unaryop(op: &ast::UnaryOp) -> Result<UnaryOp> {
     })
 }
 
+#[allow(clippy::match_same_arms, clippy::needless_pass_by_value, clippy::unnecessary_wraps, clippy::trivially_copy_pass_by_ref)]
 pub(crate) fn convert_cmpop(op: &ast::CmpOp) -> Result<BinOp> {
     Ok(match op {
         ast::CmpOp::Eq => BinOp::Eq,
@@ -2081,6 +2105,7 @@ fn convert_import(import: ast::StmtImport) -> Result<Vec<Import>> {
         .collect()
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_import_from(import: ast::StmtImportFrom) -> Result<Vec<Import>> {
     let module = import.module.map(|m| m.to_string()).unwrap_or_default();
 
@@ -2101,6 +2126,7 @@ fn convert_import_from(import: ast::StmtImportFrom) -> Result<Vec<Import>> {
     Ok(vec![Import { module, alias: None, items }])
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn extract_docstring_and_body(body: Vec<ast::Stmt>) -> Result<(Option<String>, Vec<HirStmt>)> {
     if body.is_empty() {
         return Ok((None, vec![]));
@@ -2122,7 +2148,7 @@ fn extract_docstring_and_body(body: Vec<ast::Stmt>) -> Result<(Option<String>, V
     };
 
     // Convert the body, skipping the docstring if it exists
-    let start_index = if docstring.is_some() { 1 } else { 0 };
+    let start_index = usize::from(docstring.is_some());
     let filtered_body: Vec<HirStmt> =
         body.into_iter().skip(start_index).filter_map(|stmt| convert_stmt(stmt).ok()).collect();
 

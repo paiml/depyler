@@ -7,6 +7,7 @@ pub struct TypedValue {
 }
 
 impl TypedValue {
+    #[allow(clippy::disallowed_methods, clippy::match_same_arms, clippy::unwrap_used)]
     pub fn arbitrary_for_type(ty: &Type, g: &mut Gen) -> Self {
         let value = match ty {
             Type::Int => {
@@ -78,6 +79,7 @@ impl TypedValue {
 }
 
 // DEPYLER-0024: Helper functions to reduce complexity (extracted from shrink_value)
+#[allow(clippy::disallowed_methods, clippy::unwrap_used)]
 fn shrink_integer(i: i64) -> Vec<serde_json::Value> {
     if i == 0 {
         return vec![];
@@ -94,6 +96,7 @@ fn shrink_integer(i: i64) -> Vec<serde_json::Value> {
     shrunk
 }
 
+#[allow(clippy::disallowed_methods, clippy::unwrap_used)]
 fn shrink_float(f: f64) -> Vec<serde_json::Value> {
     if f == 0.0 {
         vec![]
@@ -102,6 +105,7 @@ fn shrink_float(f: f64) -> Vec<serde_json::Value> {
     }
 }
 
+#[allow(clippy::disallowed_methods, clippy::unwrap_used)]
 fn shrink_string(s: &str) -> Vec<serde_json::Value> {
     if s.is_empty() {
         return vec![];

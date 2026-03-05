@@ -8,12 +8,13 @@
 /// Apply NASA mode text-level fixes to generated Rust code.
 /// NASA mode strips external crate dependencies for single-shot compile compatibility.
 /// This function:
-/// - Replaces serde_json types with std equivalents
+/// - Replaces `serde_json` types with std equivalents
 /// - Stubs clap/argparse imports and types
 /// - Removes external crate use statements
 /// - Stubs pytest assertions
 /// - Fixes derive attributes for std-only types
 /// - Stubs Python exception types
+#[allow(clippy::too_many_lines)]
 pub(super) fn apply_nasa_mode_fixes(formatted_code: &mut String) {
     // Replace serde_json types and methods with std equivalents
     *formatted_code = formatted_code.replace("serde_json::Value", "String");
@@ -289,11 +290,11 @@ pub(super) fn apply_nasa_mode_fixes(formatted_code: &mut String) {
             {
                 // Replace entire pytest.raises(...) with a no-op
                 let indent = &line[..line.len() - trimmed.len()];
-                format!("{}let _context = ();", indent)
+                format!("{indent}let _context = ();")
             } else if trimmed.contains("pytest.") {
                 // Replace any other pytest.<method>(...) with ()
                 let indent = &line[..line.len() - trimmed.len()];
-                format!("{}// pytest stub: {}", indent, trimmed)
+                format!("{indent}// pytest stub: {trimmed}")
             } else {
                 line.to_string()
             }

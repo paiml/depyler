@@ -1,8 +1,8 @@
 //! DEPYLER-CACHE-001: O(1) Incremental Compilation Cache
 //!
 //! Implements content-addressable caching for transpilation results using:
-//! - SQLite for O(1) index lookups (Rev 2: replaces Parquet)
-//! - CAS (Content-Addressable Storage) for blob storage (WiscKey pattern)
+//! - `SQLite` for O(1) index lookups (Rev 2: replaces Parquet)
+//! - CAS (Content-Addressable Storage) for blob storage (`WiscKey` pattern)
 //! - Hermetic cache keys (transpiler hash, not version string)
 //! - Automatic invalidation via input addressing (Poka-Yoke)
 //!
@@ -20,8 +20,8 @@
 //!
 //! - Nix (LISA 2004): Input addressing for automatic invalidation
 //! - Venti (FAST 2002): Content-addressable storage
-//! - WiscKey (FAST 2016): Key-value separation
-//! - Firebuild (ASPLOS 2020): SQLite WAL for concurrent access
+//! - `WiscKey` (FAST 2016): Key-value separation
+//! - Firebuild (ASPLOS 2020): `SQLite` WAL for concurrent access
 
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -35,14 +35,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Cache key for transpilation results (Rev 2 - Hermetic)
 ///
-/// Uses transpiler binary hash instead of SemVer string to ensure
+/// Uses transpiler binary hash instead of `SemVer` string to ensure
 /// automatic invalidation when transpiler changes (Jidoka principle).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TranspilationCacheKey {
     /// SHA256 of Python source file content
     pub source_hash: [u8; 32],
     /// SHA256 of transpiler binary OR git commit hash
-    /// (Rev 2: NOT SemVer string - that's stale during development)
+    /// (Rev 2: NOT `SemVer` string - that's stale during development)
     pub transpiler_hash: [u8; 32],
     /// Hash of relevant environment variables (PYTHONPATH, etc.)
     pub env_hash: [u8; 32],
@@ -116,7 +116,7 @@ impl TranspilationCacheKey {
         hasher.finalize().into()
     }
 
-    /// Hex-encoded combined hash (for SQLite primary key)
+    /// Hex-encoded combined hash (for `SQLite` primary key)
     pub fn hex_key(&self) -> String {
         hex::encode(self.combined_hash())
     }
@@ -233,7 +233,7 @@ impl CasStore {
         if actual_hash != hash {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("Hash mismatch: expected {}, got {}", hash, actual_hash),
+                format!("Hash mismatch: expected {hash}, got {actual_hash}"),
             ));
         }
 
@@ -254,6 +254,7 @@ impl CasStore {
     }
 
     /// List all blob hashes
+    #[allow(clippy::case_sensitive_file_extension_comparisons)]
     pub fn list_blobs(&self) -> io::Result<Vec<String>> {
         let mut hashes = Vec::new();
         let sha_dir = self.base_path.join("sha256");
@@ -322,6 +323,7 @@ pub struct CacheStats {
 
 impl CacheStats {
     /// Calculate hit rate as a percentage
+    #[allow(clippy::cast_precision_loss)]
     pub fn hit_rate(&self) -> f64 {
         let total = self.hit_count + self.miss_count;
         if total == 0 {
@@ -415,6 +417,7 @@ impl SqliteCache {
     }
 
     /// Store a cache entry
+    #[allow(clippy::needless_pass_by_value)]
     pub fn store(
         &self,
         key: &TranspilationCacheKey,
@@ -504,6 +507,7 @@ impl SqliteCache {
     }
 
     /// Run garbage collection
+    #[allow(clippy::cast_possible_wrap)]
     pub fn gc(&self) -> Result<GcResult, CacheError> {
         let now = current_timestamp();
         let mut freed_bytes = 0u64;
@@ -594,6 +598,7 @@ impl SqliteCache {
         Ok(blobs)
     }
 
+    #[allow(clippy::cast_possible_wrap)]
     fn increment_stat(&self, name: &str) -> Result<(), CacheError> {
         let now = current_timestamp();
         self.conn.execute(
@@ -604,6 +609,7 @@ impl SqliteCache {
         Ok(())
     }
 
+    #[allow(clippy::cast_sign_loss, clippy::unnecessary_wraps)]
     fn get_stat(&self, name: &str) -> Result<u64, CacheError> {
         let value: i64 = self
             .conn

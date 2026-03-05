@@ -1,6 +1,6 @@
 //! DEPYLER-1024: Truthiness conversion helpers
 //!
-//! Extracted from stmt_gen.rs to reduce complexity and improve testability.
+//! Extracted from `stmt_gen.rs` to reduce complexity and improve testability.
 //! These helpers handle Python truthiness semantics conversion to Rust.
 
 /// Collection variable names that indicate container types needing `.is_empty()` check.
@@ -159,7 +159,7 @@ pub fn is_collection_generic_base(base: &str) -> bool {
 
 /// Collection attribute/field names used in classes and structs.
 /// These are typically Vec/HashMap/etc fields that need `.is_empty()` for truthiness.
-/// DEPYLER-COVERAGE-95: Extracted from stmt_gen::apply_negated_truthiness
+/// DEPYLER-COVERAGE-95: Extracted from `stmt_gen::apply_negated_truthiness`
 pub const COLLECTION_ATTR_NAMES: &[&str] = &[
     "heap", "stack", "queue", "items", "elements", "data", "values", "list", "array", "nodes",
     "children", "entries", "records",

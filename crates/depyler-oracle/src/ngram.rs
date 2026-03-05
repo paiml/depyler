@@ -107,8 +107,8 @@ impl NgramFixPredictor {
     /// Create a new predictor with tuned default settings.
     ///
     /// Defaults optimized via grid search:
-    /// - ngram_range: (1, 2) - bigrams outperform trigrams
-    /// - min_similarity: 0.05 - more lenient matching improves recall
+    /// - `ngram_range`: (1, 2) - bigrams outperform trigrams
+    /// - `min_similarity`: 0.05 - more lenient matching improves recall
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -197,6 +197,7 @@ impl NgramFixPredictor {
 
     /// Predict top-k fixes for an error message.
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn predict_fixes(&self, error_message: &str, top_k: usize) -> Vec<FixSuggestion> {
         if !self.is_fitted || self.patterns.is_empty() {
             return Vec::new();
@@ -249,6 +250,7 @@ impl NgramFixPredictor {
     }
 
     /// Compute cosine similarity between two error messages using N-gram overlap.
+    #[allow(clippy::cast_precision_loss)]
     fn compute_similarity(&self, a: &str, b: &str) -> f32 {
         // Use simple N-gram Jaccard similarity for now
         // (TF-IDF transform would require storing document vectors)
@@ -297,7 +299,7 @@ impl NgramFixPredictor {
     /// Total number of learned patterns.
     #[must_use]
     pub fn pattern_count(&self) -> usize {
-        self.patterns.values().map(|v| v.len()).sum()
+        self.patterns.values().map(std::vec::Vec::len).sum()
     }
 
     /// Check if predictor has been fitted.
@@ -347,7 +349,7 @@ impl NgramFixPredictor {
         Ok(())
     }
 
-    /// Get default user model path (~/.depyler/oracle_user.bin)
+    /// Get default user model path (~/.`depyler/oracle_user.bin`)
     #[must_use]
     pub fn default_user_model_path() -> std::path::PathBuf {
         dirs::home_dir()
@@ -371,7 +373,7 @@ fn normalize_error(message: &str) -> String {
     // Extract and weight error code (tuned: 2x weighting)
     let error_code = extract_error_code(message);
     let code_prefix = error_code
-        .map(|c| format!("{} {} ", c, c)) // Repeat code twice
+        .map(|c| format!("{c} {c} ")) // Repeat code twice
         .unwrap_or_default();
 
     let normalized = message
@@ -385,7 +387,7 @@ fn normalize_error(message: &str) -> String {
         .trim()
         .to_string();
 
-    format!("{}{}", code_prefix, normalized)
+    format!("{code_prefix}{normalized}")
 }
 
 /// Extract rustc error code from message (e.g., "E0308").

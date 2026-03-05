@@ -10,6 +10,7 @@ use depyler_hir::hir::{HirFunction, Type};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::fmt::Write as _;
 
 /// Source mapping information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -144,18 +145,19 @@ impl DebugInfoGenerator {
     }
 
     /// Generate debug print for a variable
+    #[allow(clippy::match_same_arms)]
     pub fn generate_debug_print(&self, var_name: &str, var_type: &Type) -> String {
         match self.debug_level {
             DebugLevel::None => String::new(),
             DebugLevel::Basic | DebugLevel::Full => match var_type {
                 Type::Int | Type::Float | Type::Bool => {
-                    format!("eprintln!(\"DEBUG: {} = {{}}\", {});", var_name, var_name)
+                    format!("eprintln!(\"DEBUG: {var_name} = {{}}\", {var_name});")
                 }
                 Type::String => {
-                    format!("eprintln!(\"DEBUG: {} = {{}}\", {});", var_name, var_name)
+                    format!("eprintln!(\"DEBUG: {var_name} = {{}}\", {var_name});")
                 }
                 _ => {
-                    format!("eprintln!(\"DEBUG: {} = {{:?}}\", {});", var_name, var_name)
+                    format!("eprintln!(\"DEBUG: {var_name} = {{:?}}\", {var_name});")
                 }
             },
         }
@@ -173,12 +175,12 @@ impl DebugRuntime {
 
     /// Generate an assertion with debug info
     pub fn debug_assert(condition: &str, message: &str) -> String {
-        format!("debug_assert!({}, \"{}\");", condition, message)
+        format!("debug_assert!({condition}, \"{message}\");")
     }
 
     /// Generate a trace point
     pub fn trace_point(location: &str) -> String {
-        format!("depyler_trace!(\"{}\");", location)
+        format!("depyler_trace!(\"{location}\");")
     }
 }
 
@@ -203,7 +205,7 @@ impl DebuggerIntegration {
     pub fn generate_init_script(&self, source_map: &SourceMap) -> String {
         match self.debugger_type {
             DebuggerType::Gdb | DebuggerType::RustGdb => self.generate_gdb_script(source_map),
-            DebuggerType::Lldb => self.generate_lldb_script(source_map),
+            DebuggerType::Lldb => Self::generate_lldb_script(source_map),
         }
     }
 
@@ -219,7 +221,7 @@ impl DebuggerIntegration {
 
         // Add function breakpoints
         for mapping in source_map.function_map.values() {
-            script.push_str(&format!("break {}\n", mapping.rust_name));
+            let _ = writeln!(script, "break {}", mapping.rust_name);
         }
 
         // Pretty printers for Rust types
@@ -233,7 +235,7 @@ impl DebuggerIntegration {
         script
     }
 
-    fn generate_lldb_script(&self, source_map: &SourceMap) -> String {
+    fn generate_lldb_script(source_map: &SourceMap) -> String {
         let mut script = String::new();
         script.push_str("# LLDB initialization script for Depyler debugging\n");
         script.push_str("# Source: ");
@@ -245,7 +247,7 @@ impl DebuggerIntegration {
 
         // Add function breakpoints
         for mapping in source_map.function_map.values() {
-            script.push_str(&format!("breakpoint set --name {}\n", mapping.rust_name));
+            let _ = writeln!(script, "breakpoint set --name {}", mapping.rust_name);
         }
 
         script
@@ -254,6 +256,7 @@ impl DebuggerIntegration {
 
 /// Debug configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct DebugConfig {
     pub debug_level: DebugLevel,
     pub generate_source_map: bool,

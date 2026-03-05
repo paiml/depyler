@@ -1,10 +1,10 @@
-//! Generic call conversion for ExpressionConverter
+//! Generic call conversion for `ExpressionConverter`
 //!
-//! Contains convert_generic_call and related method routing.
+//! Contains `convert_generic_call` and related method routing.
 
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
-use crate::hir::*;
+use crate::hir::{HirExpr, Type, Literal};
 use crate::rust_gen::stdlib_method_gen;
 use anyhow::{bail, Result};
 use quote::quote;
@@ -12,7 +12,8 @@ use syn::{self, parse_quote};
 
 use super::ExpressionConverter;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::cast_precision_loss, clippy::cast_sign_loss, clippy::disallowed_methods, clippy::match_same_arms, clippy::redundant_else, clippy::single_match, clippy::single_match_else, clippy::unwrap_used, clippy::too_many_lines, clippy::items_after_statements)]
     pub(crate) fn convert_generic_call(
         &mut self,
         func: &str,
@@ -180,11 +181,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     return Ok(parse_quote! {
                         serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&#arg).expect("parse failed")
                     });
-                } else {
-                    return Ok(parse_quote! {
-                        serde_json::from_str::<serde_json::Value>(&#arg).expect("parse failed")
-                    });
                 }
+                return Ok(parse_quote! {
+                    serde_json::from_str::<serde_json::Value>(&#arg).expect("parse failed")
+                });
             }
 
             // DEPYLER-1004: Special handling for serde_json::from_reader
@@ -206,11 +206,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     return Ok(parse_quote! {
                         serde_json::from_reader::<_, std::collections::HashMap<String, serde_json::Value>>(#arg).expect("parse failed")
                     });
-                } else {
-                    return Ok(parse_quote! {
-                        serde_json::from_reader::<_, serde_json::Value>(#arg).expect("parse failed")
-                    });
                 }
+                return Ok(parse_quote! {
+                    serde_json::from_reader::<_, serde_json::Value>(#arg).expect("parse failed")
+                });
             }
 
             // DEPYLER-1004: Check if this function returns Result and needs .unwrap()
@@ -256,7 +255,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // Check if this might be a constructor call (capitalized name)
-        if func.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+        if func.chars().next().is_some_and(char::is_uppercase) {
             // DEPYLER-0900: Rename constructor if it shadows stdlib type (e.g., Box -> PyBox)
             // Treat as constructor call - ClassName::new(args)
             let safe_name = crate::direct_rules::safe_class_name(func);
@@ -498,7 +497,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             if let Some(var_type) = self.ctx.var_types.get(var_name) {
                                 // DEPYLER-0467: Debug logging for key/value
                                 if matches!(var_name.as_str(), "key" | "value") {
-                                    eprintln!("[DEPYLER-0467] Variable '{}' has type: {:?}", var_name, var_type);
+                                    eprintln!("[DEPYLER-0467] Variable '{var_name}' has type: {var_type:?}");
                                 }
 
                                 // DEPYLER-0467: Always borrow serde_json::Value types
@@ -558,7 +557,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 // DEPYLER-0467/DEPYLER-0767: Variable not in var_types
                                 // First check function_param_borrows (authoritative source)
                                 // Fall back to name heuristic if not tracked
-                                eprintln!("[DEPYLER-0467] Variable '{}' NOT in var_types, checking function_param_borrows", var_name);
+                                eprintln!("[DEPYLER-0467] Variable '{var_name}' NOT in var_types, checking function_param_borrows");
                                 self.ctx
                                     .function_param_borrows
                                     .get(func)
@@ -694,8 +693,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                     .function_param_types
                                     .get(func)
                                     .and_then(|types| types.get(param_idx))
-                                    .map(|ty| matches!(ty, Type::String))
-                                    .unwrap_or(false);
+                                    .is_some_and(|ty| matches!(ty, Type::String));
 
                             if !callee_expects_borrow && !callee_param_is_str {
                                 return parse_quote! { #arg_expr.to_string() };
@@ -747,8 +745,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             self.ctx
                                 .var_types
                                 .get(var_name)
-                                .map(|ty| matches!(ty, Type::Optional(_)))
-                                .unwrap_or(false)
+                                .is_some_and(|ty| matches!(ty, Type::Optional(_)))
                         } else if let HirExpr::Attribute { value: _, attr } = hir_arg {
                             // Handle attribute access like args.cwd
                             let check_optional = |arg: &crate::rust_gen::argparse_transform::ArgParserArgument| {
@@ -756,13 +753,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 if field_name != *attr {
                                     return false;
                                 }
-                                if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+                                if matches!(arg.action.as_deref(), Some("store_true" | "store_false")) {
                                     return false;
                                 }
                                 !arg.is_positional
                                     && !arg.required.unwrap_or(false)
                                     && arg.default.is_none()
-                                    && !matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
+                                    && !matches!(arg.nargs.as_deref(), Some("+" | "*"))
                             };
 
                             let is_optional_in_parser = self.ctx.argparser_tracker.parsers.values()
@@ -811,27 +808,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                     // For Option<&str>, wrap the literal directly without .to_string()
                                     if optional_is_borrowed {
                                         return parse_quote! { &Some(#arg_expr) };
-                                    } else {
-                                        return parse_quote! { Some(#arg_expr) };
                                     }
+                                    return parse_quote! { Some(#arg_expr) };
                                 }
                                 return arg_expr.clone();
                             } else {
                                 // Param is String - need .to_string() conversion
                                 let expr_str = quote::quote! { #arg_expr }.to_string();
-                                let converted: syn::Expr = if !expr_str.contains("to_string") {
-                                    parse_quote! { #arg_expr.to_string() }
-                                } else {
+                                let converted: syn::Expr = if expr_str.contains("to_string") {
                                     arg_expr.clone()
+                                } else {
+                                    parse_quote! { #arg_expr.to_string() }
                                 };
                                 // DEPYLER-0779: Wrap in Some if optional param
                                 // Use &Some for borrowed (&Option<T>), Some for owned (Option<T>)
                                 if needs_some_wrap {
                                     if optional_is_borrowed {
                                         return parse_quote! { &Some(#converted) };
-                                    } else {
-                                        return parse_quote! { Some(#converted) };
                                     }
+                                    return parse_quote! { Some(#converted) };
                                 }
                                 return converted;
                             }
@@ -842,9 +837,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         if needs_some_wrap {
                             if optional_is_borrowed {
                                 return parse_quote! { &Some(#arg_expr) };
-                            } else {
-                                return parse_quote! { Some(#arg_expr) };
                             }
+                            return parse_quote! { Some(#arg_expr) };
                         }
 
                         // DEPYLER-1168: Call-site clone insertion for variables used later
@@ -857,11 +851,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             // 2. Variable type is clonable (List, Dict, Set, String, Custom types)
                             let used_later = self.ctx.vars_used_later.contains(var_name);
                             let is_clonable_type = self.ctx.var_types.get(var_name)
-                                .map(|ty| matches!(ty,
+                                .is_some_and(|ty| matches!(ty,
                                     Type::List(_) | Type::Dict(_, _) | Type::Set(_) |
                                     Type::String | Type::Tuple(_) | Type::Custom(_)
-                                ))
-                                .unwrap_or(false);
+                                ));
 
                             if used_later && is_clonable_type {
                                 return parse_quote! { #arg_expr.clone() };
@@ -1018,14 +1011,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let call_str = format!(
                 "{}({})",
                 func_ident,
-                args_tokens.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(", ")
+                args_tokens.iter().map(std::string::ToString::to_string).collect::<Vec<_>>().join(", ")
             );
             let call_expr: syn::Expr = match syn::parse_str(&call_str) {
                 Ok(expr) => expr,
                 Err(_) => {
                     // DEPYLER-0588: Fallback using syn::parse_str instead of parse_quote!
                     // This avoids panics even with unusual function names
-                    let simple_call = format!("{}()", func_ident);
+                    let simple_call = format!("{func_ident}()");
                     syn::parse_str(&simple_call).unwrap_or_else(|_| {
                         // Ultimate fallback: create a unit expression
                         syn::parse_str("()").unwrap()

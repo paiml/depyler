@@ -1,7 +1,7 @@
 //! Shutil Module Code Generation - EXTREME TDD
 //!
-//! Handles Python `shutil` module method conversions to Rust std::fs.
-//! Extracted from expr_gen.rs for testability and maintainability.
+//! Handles Python `shutil` module method conversions to Rust `std::fs`.
+//! Extracted from `expr_gen.rs` for testability and maintainability.
 //!
 //! Coverage target: 100% line coverage, 100% branch coverage
 
@@ -10,7 +10,7 @@ use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-/// Convert Python shutil module method calls to Rust std::fs
+/// Convert Python shutil module method calls to Rust `std::fs`
 ///
 /// # Supported Methods
 /// - copy, copy2: File copying
@@ -34,7 +34,7 @@ pub fn convert_shutil_method(
         "rmtree" => convert_rmtree(&arg_exprs)?,
         "copytree" => convert_copytree(&arg_exprs)?,
         "which" => convert_which(&arg_exprs)?,
-        _ => bail!("shutil.{} not implemented yet", method),
+        _ => bail!("shutil.{method} not implemented yet"),
     };
 
     Ok(Some(result))
@@ -43,7 +43,7 @@ pub fn convert_shutil_method(
 /// shutil.copy/copy2(src, dst)
 fn convert_copy(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() < 2 {
-        bail!("shutil.{}() requires 2 arguments (src, dst)", method);
+        bail!("shutil.{method}() requires 2 arguments (src, dst)");
     }
     let src = &arg_exprs[0];
     let dst = &arg_exprs[1];

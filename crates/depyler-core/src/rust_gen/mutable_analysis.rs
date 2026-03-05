@@ -12,7 +12,7 @@
 //! By moving these to module-level, the measured cyclomatic complexity of
 //! `analyze_mutable_vars` is reduced while preserving identical behavior.
 
-use crate::hir::*;
+use crate::hir::{HirExpr, HirStmt, AssignTarget};
 use std::collections::{HashMap, HashSet};
 
 use super::mutation_helpers;
@@ -21,6 +21,7 @@ use super::mutation_helpers;
 ///
 /// Walks the HIR expression tree and inserts variable names into `mutable`
 /// when a mutating method or attribute is found on that variable.
+#[allow(clippy::too_many_lines)]
 pub(super) fn analyze_expr_for_mutations(
     expr: &HirExpr,
     mutable: &mut HashSet<String>,
@@ -227,6 +228,7 @@ pub(super) fn analyze_expr_for_mutations(
 /// Walks the HIR statement tree and identifies variables that need `mut`
 /// due to reassignment, index assignment, attribute assignment, or
 /// mutating method/function calls in expressions.
+#[allow(clippy::too_many_lines, clippy::match_same_arms)]
 pub(super) fn analyze_stmt(
     stmt: &HirStmt,
     declared: &mut HashSet<String>,
@@ -358,6 +360,7 @@ pub(super) fn analyze_stmt(
                     // e.g., `arr[i] = value` requires `let mut arr = ...`
                     // DEPYLER-0596-FIX: Handle nested index (e.g., `d["a"]["b"] = v`)
                     // by recursively finding the innermost variable
+                    #[allow(clippy::match_same_arms)]
                     fn find_base_var(expr: &HirExpr) -> Option<String> {
                         match expr {
                             HirExpr::Var(name) => Some(name.clone()),

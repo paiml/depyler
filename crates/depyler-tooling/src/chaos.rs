@@ -71,6 +71,7 @@ impl ChaosConfig {
     /// let config = ChaosConfig::new().with_memory_limit(512 * 1024 * 1024); // 512 MB
     /// assert_eq!(config.memory_limit, 512 * 1024 * 1024);
     /// ```
+    #[must_use]
     pub fn with_memory_limit(mut self, bytes: usize) -> Self {
         self.memory_limit = bytes;
         self
@@ -88,6 +89,7 @@ impl ChaosConfig {
     /// let clamped = ChaosConfig::new().with_cpu_limit(1.5);
     /// assert_eq!(clamped.cpu_limit, 1.0);
     /// ```
+    #[must_use]
     pub fn with_cpu_limit(mut self, fraction: f64) -> Self {
         self.cpu_limit = fraction.clamp(0.0, 1.0);
         self
@@ -102,6 +104,7 @@ impl ChaosConfig {
     /// let config = ChaosConfig::new().with_timeout(Duration::from_secs(30));
     /// assert_eq!(config.timeout, Duration::from_secs(30));
     /// ```
+    #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
@@ -115,12 +118,14 @@ impl ChaosConfig {
     /// let config = ChaosConfig::new().with_signal_injection(true);
     /// assert_eq!(config.signal_injection, true);
     /// ```
+    #[must_use]
     pub fn with_signal_injection(mut self, enabled: bool) -> Self {
         self.signal_injection = enabled;
         self
     }
 
     /// Build the final configuration (consumes self)
+    #[must_use]
     pub fn build(self) -> Self {
         self
     }
@@ -208,13 +213,13 @@ impl std::fmt::Display for ChaosError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ChaosError::MemoryLimitExceeded { limit, used } => {
-                write!(f, "Memory limit exceeded: {} > {} bytes", used, limit)
+                write!(f, "Memory limit exceeded: {used} > {limit} bytes")
             }
             ChaosError::Timeout { elapsed, limit } => {
-                write!(f, "Timeout: {:?} > {:?}", elapsed, limit)
+                write!(f, "Timeout: {elapsed:?} > {limit:?}")
             }
             ChaosError::SignalInjectionFailed { signal, reason } => {
-                write!(f, "Signal injection failed ({}): {}", signal, reason)
+                write!(f, "Signal injection failed ({signal}): {reason}")
             }
         }
     }

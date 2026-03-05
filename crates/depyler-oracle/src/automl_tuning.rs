@@ -1,6 +1,6 @@
 //! AutoML-powered hyperparameter tuning using aprender.
 //!
-//! Leverages aprender's SearchSpace and RandomSearch for
+//! Leverages aprender's `SearchSpace` and `RandomSearch` for
 //! automated hyperparameter optimization of the oracle predictor.
 
 use aprender::automl::params::ParamKey;
@@ -12,7 +12,7 @@ use crate::ngram::NgramFixPredictor;
 use crate::training::TrainingSample;
 use crate::tuning::TuningResult;
 
-/// Oracle-specific parameter keys for AutoML search.
+/// Oracle-specific parameter keys for `AutoML` search.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OracleParam {
     /// Minimum similarity threshold (0.0-1.0)
@@ -38,6 +38,7 @@ impl ParamKey for OracleParam {
 
 /// Build a search space for oracle hyperparameters.
 #[must_use]
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn build_oracle_search_space() -> SearchSpace<OracleParam> {
     SearchSpace::new()
         .add_continuous(OracleParam::MinSimilarity, 0.01, 0.3)
@@ -46,7 +47,7 @@ pub fn build_oracle_search_space() -> SearchSpace<OracleParam> {
         .add_continuous(OracleParam::ErrorCodeWeight, 1.0, 5.0)
 }
 
-/// Configuration extracted from AutoML trial parameters.
+/// Configuration extracted from `AutoML` trial parameters.
 #[derive(Clone, Debug)]
 pub struct AutoMLConfig {
     pub min_similarity: f32,
@@ -55,7 +56,8 @@ pub struct AutoMLConfig {
 }
 
 impl AutoMLConfig {
-    /// Extract config from AutoML parameter values.
+    /// Extract config from `AutoML` parameter values.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn from_params(params: &HashMap<OracleParam, ParamValue>) -> Self {
         let min_similarity =
             params.get(&OracleParam::MinSimilarity).and_then(ParamValue::as_f64).unwrap_or(0.1)
@@ -80,6 +82,7 @@ impl AutoMLConfig {
 }
 
 /// Evaluate a configuration using leave-one-out cross-validation.
+#[allow(clippy::cast_precision_loss)]
 fn evaluate_config(config: &AutoMLConfig, samples: &[TrainingSample]) -> f64 {
     let n = samples.len();
     if n == 0 {
@@ -116,23 +119,24 @@ fn evaluate_config(config: &AutoMLConfig, samples: &[TrainingSample]) -> f64 {
         }
     }
 
-    correct as f64 / n as f64
+    f64::from(correct) / n as f64
 }
 
 /// Weight error codes by repeating them in the message.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn weight_error_codes(message: &str, weight: f32) -> String {
     if let Some(code_start) = message.find("error[E") {
         if let Some(code_end) = message[code_start..].find(']') {
-            let code = &message[code_start..code_start + code_end + 1];
+            let code = &message[code_start..=(code_start + code_end)];
             let repeat_count = weight.round() as usize;
             let repeated = std::iter::repeat_n(code, repeat_count).collect::<Vec<_>>().join(" ");
-            return format!("{} {}", repeated, message);
+            return format!("{repeated} {message}");
         }
     }
     message.to_string()
 }
 
-/// Result from AutoML optimization.
+/// Result from `AutoML` optimization.
 #[derive(Clone, Debug)]
 pub struct AutoMLResult {
     /// Best configuration found
@@ -145,9 +149,9 @@ pub struct AutoMLResult {
     pub history: Vec<(AutoMLConfig, f64)>,
 }
 
-/// Run AutoML hyperparameter optimization.
+/// Run `AutoML` hyperparameter optimization.
 ///
-/// Uses aprender's RandomSearch to explore the hyperparameter space
+/// Uses aprender's `RandomSearch` to explore the hyperparameter space
 /// and find optimal settings for the oracle predictor.
 ///
 /// # Arguments
@@ -185,26 +189,27 @@ pub fn automl_optimize(n_trials: usize) -> AutoMLResult {
     AutoMLResult { config: best_config, accuracy: best_accuracy, trials: n_trials, history }
 }
 
-/// Quick AutoML optimization with fewer trials.
+/// Quick `AutoML` optimization with fewer trials.
 #[must_use]
 pub fn automl_quick() -> AutoMLResult {
     automl_optimize(20)
 }
 
-/// Full AutoML optimization with comprehensive search.
+/// Full `AutoML` optimization with comprehensive search.
 #[must_use]
 pub fn automl_full() -> AutoMLResult {
     automl_optimize(100)
 }
 
-/// Extended AutoML optimization with thorough search.
+/// Extended `AutoML` optimization with thorough search.
 #[must_use]
 pub fn automl_extended() -> AutoMLResult {
     automl_optimize(300)
 }
 
-/// Convert AutoML result to TuningResult for compatibility.
+/// Convert `AutoML` result to `TuningResult` for compatibility.
 impl From<AutoMLResult> for TuningResult {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn from(result: AutoMLResult) -> Self {
         TuningResult {
             config: crate::tuning::TuningConfig {

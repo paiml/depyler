@@ -1,14 +1,14 @@
-//! Type analysis helpers for ExpressionConverter
+//! Type analysis helpers for `ExpressionConverter`
 //!
-//! Contains deref_if_borrowed_param, coerce_int_to_float_if_needed,
-//! is_int_expr, is_float_var, infer_iterable_element_type, borrow helpers.
+//! Contains `deref_if_borrowed_param`, `coerce_int_to_float_if_needed`,
+//! `is_int_expr`, `is_float_var`, `infer_iterable_element_type`, borrow helpers.
 
-use crate::hir::*;
+use crate::hir::{HirExpr, Type, Literal, BinOp};
 use syn::parse_quote;
 
 use super::ExpressionConverter;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     pub(crate) fn deref_if_borrowed_param(
         &self,
         hir_expr: &HirExpr,
@@ -30,6 +30,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-0582: Coerce integer literal to float if other operand is float-typed
     /// Python automatically promotes int to float in arithmetic with floats
     /// e.g., `1 - beta1` where beta1:float → `1.0 - beta1` in Rust
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
     pub(crate) fn coerce_int_to_float_if_needed(
         &self,
         expr: syn::Expr,
@@ -173,6 +174,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     ///
     /// Example: `filter(lambda x: x != 0, data)` where `data: list[float]`
     /// We need to know `x` is `Float` to coerce `0` to `0.0`
+    #[allow(clippy::match_same_arms)]
     pub(crate) fn infer_iterable_element_type(&self, iterable: &HirExpr) -> Option<Type> {
         match iterable {
             // Variable: look up type and extract element type from List/Set
@@ -220,7 +222,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0465: Add & to borrow a path expression if it's a simple variable
-    /// This prevents moving String parameters in PathBuf::from() and File::open()
+    /// This prevents moving String parameters in `PathBuf::from()` and <File::open()>
     ///
     /// # Complexity
     /// ≤10 (simple match pattern)
@@ -236,7 +238,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0541: Handle borrowing for potentially Option-typed path variables
-    /// When path variable is Option<String>, use .as_ref().unwrap() for file operations
+    /// When path variable is Option<String>, use .`as_ref().unwrap()` for file operations
     pub(crate) fn borrow_path_with_option_check(
         &self,
         path_expr: &syn::Expr,

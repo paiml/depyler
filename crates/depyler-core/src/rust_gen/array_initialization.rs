@@ -4,12 +4,12 @@
 //! - zeros(n), ones(n), full(n, value) - numpy-style array creation
 //! - range(end), range(start, end), range(start, end, step)
 //!
-//! Extracted from expr_gen.rs as part of DEPYLER-REFACTOR-001 (God File split)
+//! Extracted from `expr_gen.rs` as part of DEPYLER-REFACTOR-001 (God File split)
 //!
 //! # DEPYLER-REFACTOR-001 Traceability
-//! - Original location: expr_gen.rs lines 1663-1815
+//! - Original location: `expr_gen.rs` lines 1663-1815
 //! - Extraction date: 2025-11-25
-//! - Tests: tests/refactor_array_initialization_test.rs
+//! - Tests: `tests/refactor_array_initialization_test.rs`
 
 use crate::hir::{HirExpr, Literal};
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
@@ -20,9 +20,9 @@ use syn::parse_quote;
 // Range Expression Functions
 // ============================================================================
 
-/// Convert Python range() call to Rust range expression
+/// Convert Python `range()` call to Rust range expression
 ///
-/// Python range() has three forms:
+/// Python `range()` has three forms:
 /// - `range(end)` → `0..(end)`
 /// - `range(start, end)` → `(start)..(end)`
 /// - `range(start, end, step)` → `(start..end).step_by(step)` or `(end..start).rev().step_by(step)`
@@ -34,7 +34,7 @@ use syn::parse_quote;
 /// Solution: Always wrap range bounds in parentheses for safety.
 ///
 /// # Complexity: 3
-pub fn convert_range_call(args: &[syn::Expr]) -> Result<syn::Expr> {
+pub(super) fn convert_range_call(args: &[syn::Expr]) -> Result<syn::Expr> {
     match args.len() {
         1 => {
             let end = &args[0];
@@ -58,7 +58,7 @@ pub fn convert_range_call(args: &[syn::Expr]) -> Result<syn::Expr> {
 /// Routes to appropriate helper based on step direction.
 ///
 /// # Complexity: 3
-pub fn convert_range_with_step(
+pub(super) fn convert_range_with_step(
     start: &syn::Expr,
     end: &syn::Expr,
     step: &syn::Expr,
@@ -76,13 +76,14 @@ pub fn convert_range_with_step(
 
 /// Convert range with negative step
 ///
-/// Python: range(10, 0, -1) → Rust: (0..10).rev().step_by(1)
+/// Python: range(10, 0, -1) → Rust: (`0..10).rev().step_by(1`)
 ///
-/// DEPYLER-0313: Cast to i32 before abs() to avoid ambiguous numeric type
-/// DEPYLER-0316: Always use .step_by() for consistent iterator type
+/// DEPYLER-0313: Cast to i32 before `abs()` to avoid ambiguous numeric type
+/// DEPYLER-0316: Always use .`step_by()` for consistent iterator type
 ///
 /// # Complexity: 4
-pub fn convert_range_negative_step(
+#[allow(clippy::unnecessary_wraps)]
+pub(super) fn convert_range_negative_step(
     start: &syn::Expr,
     end: &syn::Expr,
     step: &syn::Expr,
@@ -107,12 +108,13 @@ pub fn convert_range_negative_step(
 
 /// Convert range with positive step
 ///
-/// Python: range(0, 10, 2) → Rust: (0..10).step_by(2)
+/// Python: range(0, 10, 2) → Rust: (`0..10).step_by(2`)
 ///
 /// Includes zero-step protection at runtime.
 ///
 /// # Complexity: 3
-pub fn convert_range_positive_step(
+#[allow(clippy::unnecessary_wraps)]
+pub(super) fn convert_range_positive_step(
     start: &syn::Expr,
     end: &syn::Expr,
     step: &syn::Expr,
@@ -142,7 +144,7 @@ pub fn convert_range_positive_step(
 /// - Dynamic size: Vec `vec![value; n]`
 ///
 /// # Complexity: 5
-pub fn convert_array_init_call(
+pub(super) fn convert_array_init_call(
     ctx: &mut CodeGenContext,
     func: &str,
     args: &[HirExpr],
@@ -150,7 +152,7 @@ pub fn convert_array_init_call(
 ) -> Result<syn::Expr> {
     // Handle zeros(n), ones(n), full(n, value) patterns
     if args.is_empty() {
-        bail!("{} requires at least one argument", func);
+        bail!("{func} requires at least one argument");
     }
 
     // Extract size from first argument if it's a literal
@@ -176,7 +178,7 @@ pub fn convert_array_init_call(
 /// - `full(5, 42)` → `vec![42; 5]`
 ///
 /// # Complexity: 4
-pub fn convert_array_small_literal(
+pub(super) fn convert_array_small_literal(
     ctx: &mut CodeGenContext,
     func: &str,
     args: &[HirExpr],
@@ -207,7 +209,7 @@ pub fn convert_array_small_literal(
 /// - `full(100, 42)` → `vec![42; 100]`
 ///
 /// # Complexity: 4
-pub fn convert_array_large_literal(
+pub(super) fn convert_array_large_literal(
     ctx: &mut CodeGenContext,
     func: &str,
     args: &[HirExpr],
@@ -238,7 +240,7 @@ pub fn convert_array_large_literal(
 /// - `full(n, val)` → `vec![val; n as usize]`
 ///
 /// # Complexity: 4
-pub fn convert_array_dynamic_size(
+pub(super) fn convert_array_dynamic_size(
     ctx: &mut CodeGenContext,
     func: &str,
     args: &[HirExpr],

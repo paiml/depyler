@@ -1,14 +1,14 @@
-//! Builtin function call conversion for ExprConverter
+//! Builtin function call conversion for `ExprConverter`
 //!
 //! Handles len, ord, chr, list, bytes, tuple, enumerate, zip, sorted, sum, etc.
 
-use crate::hir::*;
+use crate::hir::{HirExpr, Type};
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
 use super::ExprConverter;
 
-impl<'a> ExprConverter<'a> {
+impl ExprConverter<'_> {
     pub(super) fn convert_call(&self, func: &str, args: &[HirExpr]) -> Result<syn::Expr> {
         // Handle classmethod cls(args) → Self::new(args)
         if func == "cls" && self.is_classmethod {
@@ -86,6 +86,7 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_len_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() != 1 {
             bail!("len() requires exactly one argument");
@@ -99,9 +100,10 @@ impl<'a> ExprConverter<'a> {
     /// DEPYLER-0906: Convert Python ord(c) to Rust char code point
     ///
     /// Python: ord('a') → 97
-    /// Rust: 'a'.chars().next().unwrap() as i32
+    /// Rust: 'a'.`chars().next().unwrap()` as i32
     ///
     /// For single-char strings, get first char and convert to i32.
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_ord_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() != 1 {
             bail!("ord() requires exactly one argument");
@@ -113,9 +115,10 @@ impl<'a> ExprConverter<'a> {
     /// DEPYLER-0906: Convert Python chr(n) to Rust char string
     ///
     /// Python: chr(97) → 'a'
-    /// Rust: char::from_u32(97u32).unwrap().to_string()
+    /// Rust: `char::from_u32(97u32).unwrap().to_string()`
     ///
     /// Converts Unicode code point to single-character String.
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_chr_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() != 1 {
             bail!("chr() requires exactly one argument");
@@ -124,11 +127,12 @@ impl<'a> ExprConverter<'a> {
         Ok(parse_quote! { char::from_u32(#code as u32).expect("invalid char").to_string() })
     }
 
-    /// DEPYLER-0931: Convert Python list() builtin to Rust Vec
+    /// DEPYLER-0931: Convert Python `list()` builtin to Rust Vec
     ///
-    /// list() → Vec::new()
-    /// list(iterable) → iterable.into_iter().collect::<Vec<_>>()
-    /// list(dict.keys()) → dict.keys().cloned().collect::<Vec<_>>()
+    /// `list()` → `Vec::new()`
+    /// list(iterable) → `iterable.into_iter().collect::`<Vec<_>>()
+    /// list(dict.keys()) → `dict.keys().cloned().collect::`<Vec<_>>()
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_list_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.is_empty() {
             // list() → Vec::new()
@@ -159,8 +163,9 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    /// DEPYLER-0935: bytes() builtin for class method bodies
+    /// DEPYLER-0935: `bytes()` builtin for class method bodies
     /// In Python, bytes(n) creates n zero bytes, bytes([list]) collects the list
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_bytes_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.is_empty() {
             // bytes() → Vec::<u8>::new()
@@ -175,8 +180,9 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    /// DEPYLER-0936: bytearray() builtin for class method bodies
+    /// DEPYLER-0936: `bytearray()` builtin for class method bodies
     /// In Python, bytearray(n) creates n zero bytes, bytearray([list]) collects the list
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_bytearray_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.is_empty() {
             // bytearray() → Vec::<u8>::new()
@@ -191,7 +197,8 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    /// DEPYLER-0937: tuple() builtin for class method bodies
+    /// DEPYLER-0937: `tuple()` builtin for class method bodies
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_tuple_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.is_empty() {
             // tuple() → Vec::new()
@@ -207,6 +214,7 @@ impl<'a> ExprConverter<'a> {
 
     /// DEPYLER-1001: enumerate(iterable) → iterable.iter().cloned().enumerate().map(|(i, x)| (i as i32, x))
     /// enumerate(iterable, start) → iterable.iter().cloned().enumerate().map(|(i, x)| ((i + start) as i32, x))
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_enumerate_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.is_empty() || args.len() > 2 {
             bail!("enumerate() requires 1 or 2 arguments");
@@ -224,7 +232,8 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    /// DEPYLER-1001: zip(a, b) → a.into_iter().zip(b.into_iter())
+    /// DEPYLER-1001: zip(a, b) → `a.into_iter().zip(b.into_iter())`
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_zip_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() < 2 {
             bail!("zip() requires at least 2 arguments");
@@ -243,7 +252,8 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    /// DEPYLER-1001: reversed(iterable) → iterable.iter().cloned().rev()
+    /// DEPYLER-1001: reversed(iterable) → `iterable.iter().cloned().rev()`
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_reversed_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() != 1 {
             bail!("reversed() requires exactly 1 argument");
@@ -252,7 +262,8 @@ impl<'a> ExprConverter<'a> {
         Ok(parse_quote! { #iterable.iter().cloned().rev() })
     }
 
-    /// DEPYLER-1001: sorted(iterable) → sorted Vec with partial_cmp for float support
+    /// DEPYLER-1001: sorted(iterable) → sorted Vec with `partial_cmp` for float support
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_sorted_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.is_empty() || args.len() > 2 {
             bail!("sorted() requires 1 or 2 arguments");
@@ -267,15 +278,15 @@ impl<'a> ExprConverter<'a> {
         })
     }
 
-    /// DEPYLER-0968: sum() builtin for class method bodies
+    /// DEPYLER-0968: `sum()` builtin for class method bodies
     ///
-    /// Handles Python sum() function conversion to Rust iterator patterns.
+    /// Handles Python `sum()` function conversion to Rust iterator patterns.
     ///
     /// Variants:
-    /// - sum(generator_exp) → generator_expr.sum::<T>()
-    /// - sum(range(...)) → (range_expr).sum::<T>()
-    /// - sum(d.values()) / sum(d.keys()) → d.values().cloned().sum::<T>()
-    /// - sum(iterable) → iterable.iter().sum::<T>()
+    /// - `sum(generator_exp)` → `generator_expr.sum::`<T>()
+    /// - sum(range(...)) → (`range_expr).sum::`<T>()
+    /// - sum(d.values()) / sum(d.keys()) → `d.values().cloned().sum::`<T>()
+    /// - sum(iterable) → `iterable.iter().sum::`<T>()
     pub(super) fn convert_sum_call(
         &self,
         hir_args: &[HirExpr],
@@ -321,7 +332,8 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    /// Infer the target type for sum() based on the expression context
+    /// Infer the target type for `sum()` based on the expression context
+    #[allow(clippy::match_same_arms)]
     pub(super) fn infer_sum_type(&self, expr: &HirExpr) -> syn::Type {
         // Check if we can determine the type from class field types
         match expr {
@@ -351,13 +363,14 @@ impl<'a> ExprConverter<'a> {
         parse_quote! { f64 }
     }
 
-    /// DEPYLER-1097: Convert Python all() builtin to Rust
+    /// DEPYLER-1097: Convert Python `all()` builtin to Rust
     ///
     /// Python: all(iterable) → True if all elements are truthy
-    /// Rust: iterable.iter().all(|x| truthiness_check(x))
+    /// Rust: iterable.iter().all(|x| `truthiness_check(x)`)
     ///
     /// For boolean iterables: iterable.iter().all(|&x| x)
-    /// For other types: iterable.iter().all(|x| !x.is_empty()) etc.
+    /// For other types: iterable.iter().all(|x| !`x.is_empty()`) etc.
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_all_call(
         &self,
         hir_args: &[HirExpr],
@@ -385,10 +398,11 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    /// DEPYLER-1097: Convert Python any() builtin to Rust
+    /// DEPYLER-1097: Convert Python `any()` builtin to Rust
     ///
     /// Python: any(iterable) → True if any element is truthy
-    /// Rust: iterable.iter().any(|x| truthiness_check(x))
+    /// Rust: iterable.iter().any(|x| `truthiness_check(x)`)
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_any_call(
         &self,
         hir_args: &[HirExpr],
@@ -411,11 +425,12 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    /// DEPYLER-1097: Convert Python dict() builtin to Rust
+    /// DEPYLER-1097: Convert Python `dict()` builtin to Rust
     ///
-    /// Python: dict() → {} (empty dict)
+    /// Python: `dict()` → {} (empty dict)
     /// Python: dict(iterable) → dict from key-value pairs
-    /// Rust: HashMap::new() or HashMap::from_iter()
+    /// Rust: `HashMap::new()` or `HashMap::from_iter()`
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_dict_call(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if arg_exprs.is_empty() {
             // Empty dict: dict() → HashMap::new()
@@ -429,6 +444,7 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_range_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         match args.len() {
             1 => {
@@ -456,7 +472,7 @@ impl<'a> ExprConverter<'a> {
     ) -> Result<syn::Expr> {
         // Handle zeros(n), ones(n), full(n, value) patterns
         if args.is_empty() {
-            bail!("{} requires at least one argument", func);
+            bail!("{func} requires at least one argument");
         }
 
         // DEPYLER-0695: Always use vec![] for zeros/ones/full to ensure consistent
@@ -478,6 +494,7 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_set_constructor(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.is_empty() {
             // Empty set: set()
@@ -506,6 +523,7 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    #[allow(clippy::unused_self)]
     pub(super) fn convert_frozenset_constructor(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.is_empty() {
             // Empty frozenset: frozenset()

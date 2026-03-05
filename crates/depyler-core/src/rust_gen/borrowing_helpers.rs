@@ -1,11 +1,11 @@
-//! Borrowing helper functions extracted from expr_gen.rs
+//! Borrowing helper functions extracted from `expr_gen.rs`
 //! DEPYLER-COVERAGE-95: Extracted for testability
 
 use crate::hir::Type;
 use syn::parse_quote;
 
 /// DEPYLER-0465: Add & to borrow a path expression if it's a simple variable
-/// This prevents moving String parameters in PathBuf::from() and File::open()
+/// This prevents moving String parameters in `PathBuf::from()` and <File::open()>
 ///
 /// DEPRECATED: Use `borrow_if_needed_typed` when type information is available.
 pub fn borrow_if_needed(expr: &syn::Expr) -> syn::Expr {
@@ -36,6 +36,7 @@ pub fn borrow_if_needed(expr: &syn::Expr) -> syn::Expr {
 /// // Unknown type - defensive borrowing
 /// borrow_if_needed_typed(&val, None) -> &val
 /// ```
+#[allow(clippy::match_same_arms)]
 pub fn borrow_if_needed_typed(expr: &syn::Expr, var_type: Option<&Type>) -> syn::Expr {
     match expr {
         // If it's a simple path (variable), check if borrowing is needed
@@ -57,6 +58,7 @@ pub fn borrow_if_needed_typed(expr: &syn::Expr, var_type: Option<&Type>) -> syn:
 }
 
 /// Wrap expression in parentheses
+#[allow(clippy::needless_pass_by_value)]
 pub fn wrap_in_parens(expr: syn::Expr) -> syn::Expr {
     parse_quote! { (#expr) }
 }

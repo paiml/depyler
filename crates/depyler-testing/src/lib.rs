@@ -1,7 +1,7 @@
 /// Depyler Testing Framework
 ///
 /// Differential testing and validation utilities for the Depyler transpiler.
-/// Implements McKeeman (1998) "Differential Testing for Software" methodology.
+/// Implements `McKeeman` (1998) "Differential Testing for Software" methodology.
 ///
 /// # Modules
 ///

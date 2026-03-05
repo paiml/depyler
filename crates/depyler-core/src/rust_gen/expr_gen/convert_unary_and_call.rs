@@ -1,13 +1,13 @@
-//! Unary operator conversion and main convert_call for ExpressionConverter
+//! Unary operator conversion and main `convert_call` for `ExpressionConverter`
 //!
-//! Contains convert_unary, convert_call (main dispatcher), try_convert_map_with_zip,
-//! and individual builtin converters (len, int_cast, float_cast, str, bool, range,
+//! Contains `convert_unary`, `convert_call` (main dispatcher), `try_convert_map_with_zip`,
+//! and individual builtin converters (len, `int_cast`, `float_cast`, str, bool, range,
 //! set, frozenset, counter, defaultdict, dict, deque, list, bytes, bytearray,
 //! tuple, filter, format, ord, open, getattr).
 
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
-use crate::hir::*;
+use crate::hir::{UnaryOp, HirExpr, Type, Literal};
 use crate::rust_gen::array_initialization;
 use crate::rust_gen::builtin_conversions;
 use crate::rust_gen::collection_constructors;
@@ -20,7 +20,8 @@ use syn::{self, parse_quote};
 
 use super::ExpressionConverter;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub(crate) fn convert_unary(&mut self, op: &UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
         // CITL: Trace unary operation decision
         trace_decision!(
@@ -145,6 +146,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn convert_call(
         &mut self,
         func: &str,
@@ -539,8 +541,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             .ctx
                             .module_constant_types
                             .get(var_name)
-                            .map(|ty| matches!(ty, Type::Int | Type::Float | Type::Bool))
-                            .unwrap_or(false);
+                            .is_some_and(|ty| matches!(ty, Type::Int | Type::Float | Type::Bool));
                         if !is_scalar_const {
                             converted_args.push(parse_quote! { &#expr });
                             continue;
@@ -830,21 +831,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
-    #[allow(dead_code)]
+    /// DEPYLER-REFACTOR-001: Delegated to `builtin_conversions` module
+    #[allow(dead_code, clippy::unused_self)]
     pub(crate) fn convert_len_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         builtin_conversions::convert_len_call(args)
     }
 
-    /// DEPYLER-0659: Handle len() with type awareness for serde_json::Value
-    /// serde_json::Value doesn't have a direct .len() method
-    /// - Arrays: use .as_array().map(|a| a.len()).unwrap_or(0)
-    /// - Objects: use .as_object().map(|o| o.len()).unwrap_or(0)
-    /// - Strings: use .as_str().map(|s| s.len()).unwrap_or(0)
+    /// DEPYLER-0659: Handle `len()` with type awareness for `serde_json::Value`
+    /// `serde_json::Value` doesn't have a direct .`len()` method
+    /// - Arrays: use .`as_array().map(|a`| `a.len()).unwrap_or(0`)
+    /// - Objects: use .`as_object().map(|o`| `o.len()).unwrap_or(0`)
+    /// - Strings: use .`as_str().map(|s`| `s.len()).unwrap_or(0`)
     ///
-    /// DEPYLER-DAY2-BUG-002: Handle len() on tuples
-    /// Rust tuples don't have .len() method - size is known at compile time
+    /// DEPYLER-DAY2-BUG-002: Handle `len()` on tuples
+    /// Rust tuples don't have .`len()` method - size is known at compile time
     /// - Tuples: return compile-time constant (e.g., 4 for (i32, i32, i32, i32))
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
     pub(crate) fn convert_len_call_with_type(
         &self,
         hir_args: &[HirExpr],
@@ -896,7 +898,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
+    /// DEPYLER-REFACTOR-001: Delegated to `builtin_conversions` module
     pub(crate) fn convert_int_cast(
         &self,
         hir_args: &[HirExpr],
@@ -913,7 +915,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         )
     }
 
-    /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
+    /// DEPYLER-REFACTOR-001: Delegated to `builtin_conversions` module
     pub(crate) fn convert_float_cast(
         &self,
         hir_args: &[HirExpr],
@@ -922,10 +924,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         builtin_conversions::convert_float_cast(self.ctx, hir_args, arg_exprs)
     }
 
-    /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
-    /// DEPYLER-0188: Pass HirExpr to detect PathBuf for .display().to_string()
-    /// DEPYLER-0722: Handle Option<T> types - use .unwrap().to_string()
-    /// GH-207: Don't add .unwrap() if expression already has .unwrap_or()
+    /// DEPYLER-REFACTOR-001: Delegated to `builtin_conversions` module
+    /// DEPYLER-0188: Pass `HirExpr` to detect `PathBuf` for .`display().to_string()`
+    /// DEPYLER-0722: Handle Option<T> types - use .`unwrap().to_string()`
+    /// GH-207: Don't add .`unwrap()` if expression already has .`unwrap_or()`
     pub(crate) fn convert_str_conversion(
         &self,
         hir_args: &[HirExpr],
@@ -955,7 +957,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         builtin_conversions::convert_str_conversion(hir_args, args, |e| self.is_path_expr(e))
     }
 
-    /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
+    /// DEPYLER-REFACTOR-001: Delegated to `builtin_conversions` module
     pub(crate) fn convert_bool_cast(
         &self,
         hir_args: &[HirExpr],
@@ -964,12 +966,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         builtin_conversions::convert_bool_cast(self.ctx, hir_args, arg_exprs)
     }
 
-    /// DEPYLER-REFACTOR-001: Delegated to array_initialization module
+    /// DEPYLER-REFACTOR-001: Delegated to `array_initialization` module
+    #[allow(clippy::unused_self)]
     pub(crate) fn convert_range_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         array_initialization::convert_range_call(args)
     }
 
-    /// DEPYLER-REFACTOR-001: Delegated to array_initialization module
+    /// DEPYLER-REFACTOR-001: Delegated to `array_initialization` module
     pub(crate) fn convert_array_init_call(
         &mut self,
         func: &str,
@@ -979,12 +982,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         array_initialization::convert_array_init_call(self.ctx, func, args, arg_exprs)
     }
 
-    /// DEPYLER-REFACTOR-001: Delegated to collection_constructors module
+    /// DEPYLER-REFACTOR-001: Delegated to `collection_constructors` module
     pub(crate) fn convert_set_constructor(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
         collection_constructors::convert_set_constructor(self.ctx, args)
     }
 
-    /// DEPYLER-REFACTOR-001: Delegated to collection_constructors module
+    /// DEPYLER-REFACTOR-001: Delegated to `collection_constructors` module
     pub(crate) fn convert_frozenset_constructor(
         &mut self,
         args: &[syn::Expr],
@@ -997,7 +1000,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     // DEPYLER-REFACTOR-001: Delegated to collection_constructors module
     // ========================================================================
 
-    /// DEPYLER-0751: Handle Counter(string) by using .chars() instead of .into_iter()
+    /// DEPYLER-0751: Handle Counter(string) by using .`chars()` instead of .`into_iter()`
     pub(crate) fn convert_counter_builtin(
         &mut self,
         hir_args: &[HirExpr],
@@ -1060,11 +1063,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         collection_constructors::convert_list_builtin(self.ctx, args)
     }
 
-    /// DEPYLER-0935: Convert Python bytes() constructor to Vec<u8>
-    /// bytes() → Vec::<u8>::new()
+    /// DEPYLER-0935: Convert Python `bytes()` constructor to Vec<u8>
+    /// `bytes()` → `Vec::`<u8>`::new()`
     /// bytes(n) → vec![0u8; n]
     /// bytes([1, 2, 3]) → vec![1u8, 2u8, 3u8]
-    /// bytes(string) → string.as_bytes().to_vec()
+    /// bytes(string) → `string.as_bytes().to_vec()`
+    #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn convert_bytes_builtin(
         &mut self,
         hir_args: &[HirExpr],
@@ -1129,11 +1133,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { Vec::<u8>::new() })
     }
 
-    /// DEPYLER-0674: Convert Python bytearray() constructor to Vec<u8>
-    /// bytearray() → Vec::new()
+    /// DEPYLER-0674: Convert Python `bytearray()` constructor to Vec<u8>
+    /// `bytearray()` → `Vec::new()`
     /// bytearray(n) → vec![0u8; n]
     /// bytearray([1, 2, 3]) → vec![1u8, 2u8, 3u8]
-    /// bytearray(b"hello") → b"hello".to_vec()
+    /// bytearray(b"hello") → `b"hello".to_vec()`
+    #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn convert_bytearray_builtin(
         &mut self,
         hir_args: &[HirExpr],
@@ -1202,11 +1207,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { Vec::<u8>::new() })
     }
 
-    /// DEPYLER-0937: Convert Python tuple() constructor to Vec
+    /// DEPYLER-0937: Convert Python `tuple()` constructor to Vec
     /// In Rust, we represent Python tuples as Vec since Rust tuples are fixed-size.
-    /// tuple() → vec![]
+    /// `tuple()` → vec![]
     /// tuple([1, 2, 3]) → vec![1, 2, 3]
-    /// tuple(iterable) → iterable.into_iter().collect::<Vec<_>>()
+    /// tuple(iterable) → `iterable.into_iter().collect::`<Vec<_>>()
+    #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn convert_tuple_builtin(
         &mut self,
         hir_args: &[HirExpr],
@@ -1295,6 +1301,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// format(num, "o") → octal string
     /// format(num, "x") → hex string
     /// format(num, "d") → decimal string
+    #[allow(clippy::match_same_arms, clippy::unused_self)]
     pub(crate) fn convert_format_builtin(
         &self,
         args: &[syn::Expr],
@@ -1317,8 +1324,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // For unknown format specs, fall back to generic format
                     let spec_str = spec.as_str();
                     // Try to parse as f-string format spec
-                    let format_str = format!("{{:{}}}", spec_str);
-                    let format_lit: syn::LitStr = syn::parse_str(&format!("\"{}\"", format_str))?;
+                    let format_str = format!("{{:{spec_str}}}");
+                    let format_lit: syn::LitStr = syn::parse_str(&format!("\"{format_str}\""))?;
                     Ok(parse_quote! { format!(#format_lit, #value) })
                 }
             }
@@ -1358,13 +1365,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         })
     }
 
-    /// Convert Python open() to Rust file I/O
+    /// Convert Python `open()` to Rust file I/O
     /// DEPYLER-0387: File I/O builtin for context managers
     ///
-    /// Maps Python open() to Rust std::fs:
-    /// - open(path) or open(path, 'r') → std::fs::File::open(path)?
-    /// - open(path, 'w') → std::fs::File::create(path)?
-    /// - open(path, 'a') → std::fs::OpenOptions::new().append(true).open(path)?
+    /// Maps Python `open()` to Rust `std::fs`:
+    /// - open(path) or open(path, 'r') → `std::fs::File::open(path)`?
+    /// - open(path, 'w') → `std::fs::File::create(path)`?
+    /// - open(path, 'a') → `std::fs::OpenOptions::new().append(true).open(path)`?
     ///
     /// # Complexity
     /// ≤10 (match with 3 branches)
@@ -1457,6 +1464,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     // moved to stdlib_method_gen::builtin_functions module for testability
 
     // DEPYLER-STDLIB-50: getattr() - get attribute by name (needs context-specific error)
+    #[allow(clippy::unused_self)]
     pub(crate) fn convert_getattr_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() < 2 || args.len() > 3 {
             bail!("getattr() requires 2 or 3 arguments (object, name, optional default)");

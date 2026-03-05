@@ -31,7 +31,7 @@ impl ConstGenericInferencer {
         self.collect_const_values(function)?;
 
         // Second pass: transform types and expressions
-        self.transform_function_types(function)?;
+        Self::transform_function_types(function)?;
 
         // Third pass: transform function body
         for stmt in &mut function.body {
@@ -71,13 +71,15 @@ impl ConstGenericInferencer {
         }
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn scan_assign_for_const(&mut self, symbol: &str, value: &HirExpr) -> Result<()> {
-        if let Some(size) = self.detect_fixed_size_pattern(value) {
+        if let Some(size) = Self::detect_fixed_size_pattern(value) {
             self.const_values.insert(symbol.to_string(), size);
         }
         Ok(())
     }
 
+    #[allow(clippy::ref_option)]
     fn scan_if_branches(
         &mut self,
         then_body: &[HirStmt],
@@ -98,22 +100,23 @@ impl ConstGenericInferencer {
     }
 
     /// Detect patterns that indicate fixed-size arrays
-    fn detect_fixed_size_pattern(&self, expr: &HirExpr) -> Option<usize> {
+    fn detect_fixed_size_pattern(expr: &HirExpr) -> Option<usize> {
         match expr {
             HirExpr::Binary { op: depyler_hir::hir::BinOp::Mul, left, right } => {
-                self.detect_multiply_pattern(left, right)
+                Self::detect_multiply_pattern(left, right)
             }
-            HirExpr::List(elements) => self.detect_literal_list_size(elements),
-            HirExpr::Call { func, args, .. } => self.detect_array_func_call(func, args),
+            HirExpr::List(elements) => Self::detect_literal_list_size(elements),
+            HirExpr::Call { func, args, .. } => Self::detect_array_func_call(func, args),
             _ => None,
         }
     }
 
-    fn detect_multiply_pattern(&self, left: &HirExpr, right: &HirExpr) -> Option<usize> {
-        self.check_list_times_int(left, right).or_else(|| self.check_list_times_int(right, left))
+    fn detect_multiply_pattern(left: &HirExpr, right: &HirExpr) -> Option<usize> {
+        Self::check_list_times_int(left, right).or_else(|| Self::check_list_times_int(right, left))
     }
 
-    fn check_list_times_int(&self, list_side: &HirExpr, int_side: &HirExpr) -> Option<usize> {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap)]
+    fn check_list_times_int(list_side: &HirExpr, int_side: &HirExpr) -> Option<usize> {
         if let (HirExpr::List(elements), HirExpr::Literal(Literal::Int(size))) =
             (list_side, int_side)
         {
@@ -124,7 +127,7 @@ impl ConstGenericInferencer {
         None
     }
 
-    fn detect_literal_list_size(&self, elements: &[HirExpr]) -> Option<usize> {
+    fn detect_literal_list_size(elements: &[HirExpr]) -> Option<usize> {
         if !elements.is_empty() && elements.len() < 1000 {
             Some(elements.len())
         } else {
@@ -132,7 +135,8 @@ impl ConstGenericInferencer {
         }
     }
 
-    fn detect_array_func_call(&self, func: &str, args: &[HirExpr]) -> Option<usize> {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap)]
+    fn detect_array_func_call(func: &str, args: &[HirExpr]) -> Option<usize> {
         match func {
             "zeros" | "ones" | "full" => {
                 if let Some(HirExpr::Literal(Literal::Int(size))) = args.first() {
@@ -157,8 +161,9 @@ impl ConstGenericInferencer {
     /// 2. We add a `array[int, 5]` syntax for explicit fixed-size arrays
     /// 3. We have strong evidence (beyond literal inference) that arrays are needed
     ///
-    /// See: https://github.com/depyler/depyler/issues/XXXX
-    fn transform_function_types(&mut self, _function: &mut HirFunction) -> Result<()> {
+    /// See: <https://github.com/depyler/depyler/issues/XXXX>
+    #[allow(clippy::unnecessary_wraps)]
+    fn transform_function_types(_function: &mut HirFunction) -> Result<()> {
         // DISABLED: This transformation was causing list[int] -> [i32; 5]
         // which breaks semantics (dynamic list becomes fixed array)
 
@@ -194,7 +199,7 @@ impl ConstGenericInferencer {
         let mut var_sizes = HashMap::new();
         for stmt in &function.body {
             if let HirStmt::Assign { target: AssignTarget::Symbol(symbol), value, .. } = stmt {
-                if let Some(size) = self.detect_fixed_size_pattern(value) {
+                if let Some(size) = Self::detect_fixed_size_pattern(value) {
                     var_sizes.insert(symbol.clone(), size);
                 }
             }
@@ -207,7 +212,7 @@ impl ConstGenericInferencer {
         for stmt in &function.body {
             if let HirStmt::Return(Some(expr)) = stmt {
                 // Check if returning a literal pattern
-                if let Some(size) = self.detect_fixed_size_pattern(expr) {
+                if let Some(size) = Self::detect_fixed_size_pattern(expr) {
                     return Some(size);
                 }
                 // Check if returning a variable with known size
@@ -237,6 +242,7 @@ impl ConstGenericInferencer {
 
     /// Scan statement for list mutations
     #[allow(dead_code)] // Currently unused due to disabled transform_function_types
+    #[allow(clippy::match_same_arms)]
     fn scan_stmt_for_mutations(&self, stmt: &HirStmt, mutated: &mut HashSet<String>) {
         match stmt {
             HirStmt::Expr(expr) => {
@@ -276,8 +282,9 @@ impl ConstGenericInferencer {
     }
 
     /// Scan expression for list mutations
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::self_only_used_in_recursion)]
     #[allow(dead_code)] // Currently unused due to disabled transform_function_types
+    #[allow(clippy::self_only_used_in_recursion)]
     fn scan_expr_for_mutations(&self, expr: &HirExpr, mutated: &mut HashSet<String>) {
         match expr {
             HirExpr::MethodCall { object, method, args, .. } => {
@@ -330,9 +337,10 @@ impl ConstGenericInferencer {
 
     /// Find const usage patterns in statements
     #[allow(dead_code)] // Currently unused due to disabled transform_function_types
+    #[allow(clippy::self_only_used_in_recursion)]
     fn find_const_usage_in_stmt(&self, param_name: &str, stmt: &HirStmt) -> Option<usize> {
         match stmt {
-            HirStmt::Assign { value, .. } => self.find_const_usage_in_expr(param_name, value),
+            HirStmt::Assign { value, .. } => Self::find_const_usage_in_expr(param_name, value),
             HirStmt::If { condition: _, then_body, else_body } => {
                 // Check condition for len(param) == N
                 // Recursively check bodies
@@ -356,31 +364,30 @@ impl ConstGenericInferencer {
 
     /// Find const usage patterns in expressions
     #[allow(dead_code)] // Currently unused due to disabled transform_function_types
-    fn find_const_usage_in_expr(&self, param_name: &str, expr: &HirExpr) -> Option<usize> {
+    fn find_const_usage_in_expr(param_name: &str, expr: &HirExpr) -> Option<usize> {
         match expr {
             HirExpr::Binary { op: depyler_hir::hir::BinOp::Eq, left, right } => {
-                self.find_len_equality_pattern(param_name, left, right)
+                Self::find_len_equality_pattern(param_name, left, right)
             }
-            HirExpr::Index { base, index } => self.find_index_pattern(param_name, base, index),
+            HirExpr::Index { base, index } => Self::find_index_pattern(param_name, base, index),
             _ => None,
         }
     }
 
     #[allow(dead_code)] // Currently unused due to disabled transform_function_types
     fn find_len_equality_pattern(
-        &self,
-        param_name: &str,
+                param_name: &str,
         left: &HirExpr,
         right: &HirExpr,
     ) -> Option<usize> {
-        self.check_len_eq_side(param_name, left, right)
-            .or_else(|| self.check_len_eq_side(param_name, right, left))
+        Self::check_len_eq_side(param_name, left, right)
+            .or_else(|| Self::check_len_eq_side(param_name, right, left))
     }
 
     #[allow(dead_code)] // Currently unused due to disabled transform_function_types
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap)]
     fn check_len_eq_side(
-        &self,
-        param_name: &str,
+                param_name: &str,
         call_side: &HirExpr,
         size_side: &HirExpr,
     ) -> Option<usize> {
@@ -399,9 +406,9 @@ impl ConstGenericInferencer {
     }
 
     #[allow(dead_code)] // Currently unused due to disabled transform_function_types
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap)]
     fn find_index_pattern(
-        &self,
-        param_name: &str,
+                param_name: &str,
         base: &HirExpr,
         index: &HirExpr,
     ) -> Option<usize> {
@@ -467,7 +474,7 @@ impl ConstGenericInferencer {
     }
 
     /// Transform expressions to use array literals where appropriate
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::self_only_used_in_recursion)]
     fn transform_expression(&mut self, expr: &mut HirExpr) -> Result<()> {
         match expr {
             HirExpr::List(elements) => self.transform_list_expr(elements),
@@ -518,6 +525,7 @@ impl ConstGenericInferencer {
         self.transform_expression(index)
     }
 
+    #[allow(clippy::similar_names)]
     fn transform_slice_expr(
         &mut self,
         base: &mut HirExpr,

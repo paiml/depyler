@@ -87,7 +87,7 @@ impl<'a> CompilationVerifier<'a> {
         let success = output.status.success();
 
         // Find the .rs file in the directory
-        let rust_file = self.find_rs_file(cargo_dir)?;
+        let rust_file = Self::find_rs_file(cargo_dir)?;
 
         Ok(CompilationResult {
             rust_file,
@@ -149,7 +149,7 @@ impl<'a> CompilationVerifier<'a> {
         })
     }
 
-    fn find_rs_file(&self, dir: &Path) -> Result<PathBuf> {
+    fn find_rs_file(dir: &Path) -> Result<PathBuf> {
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -162,6 +162,7 @@ impl<'a> CompilationVerifier<'a> {
     }
 
     /// Get summary statistics.
+    #[allow(clippy::cast_precision_loss)]
     pub fn summarize(results: &[CompilationResult]) -> CompileSummary {
         let total = results.len();
         let success = results.iter().filter(|r| r.success).count();

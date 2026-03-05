@@ -271,7 +271,7 @@ fn estimate_caret_width(line: &str, column: Option<usize>) -> usize {
 /// Looks for patterns like:
 /// - "at line N, column M" (rustpython style)
 /// - "line N" (generic)
-/// - ":N:M:" (file:line:col)
+/// - ":N:M:" (<file:line:col>)
 fn extract_location(msg: &str) -> (Option<usize>, Option<usize>) {
     // Pattern: "at row N, column M" (rustpython)
     if let Some(rest) = msg.find("at row ").map(|i| &msg[i + "at row ".len()..]) {
@@ -459,6 +459,7 @@ fn default_categorization() -> Categorization {
 }
 
 /// Generate help text for parse errors.
+#[allow(clippy::unnecessary_wraps)]
 fn extract_parse_help(lower: &str) -> Option<String> {
     if lower.contains("indent") {
         Some("Check indentation — Python requires consistent whitespace".to_string())

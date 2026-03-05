@@ -38,6 +38,7 @@ impl EnhancedError {
         }
     }
 
+    #[must_use]
     pub fn with_location(mut self, file: &str, line: usize, column: usize) -> Self {
         self.file_path = Some(file.to_string());
         self.line = Some(line);
@@ -45,16 +46,19 @@ impl EnhancedError {
         self
     }
 
+    #[must_use]
     pub fn with_source_line(mut self, line: &str) -> Self {
         self.source_line = Some(line.to_string());
         self
     }
 
+    #[must_use]
     pub fn with_suggestion(mut self, suggestion: &str) -> Self {
         self.suggestion = Some(suggestion.to_string());
         self
     }
 
+    #[must_use]
     pub fn add_note(mut self, note: &str) -> Self {
         self.notes.push(note.to_string());
         self
@@ -78,7 +82,7 @@ impl EnhancedError {
         enhanced
     }
 
-    /// Format location information (file:line:column)
+    /// Format location information (<file:line:column>)
     #[inline]
     fn format_location_info(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let (Some(file), Some(line), Some(column)) = (&self.file_path, self.line, self.column) {
@@ -94,7 +98,7 @@ impl EnhancedError {
             (&self.source_line, self.line, self.column)
         {
             writeln!(f, "   {} |", format!("{:4}", " ").dimmed())?;
-            writeln!(f, "   {} | {}", format!("{:4}", line_num).blue().bold(), line_text)?;
+            writeln!(f, "   {} | {}", format!("{line_num:4}").blue().bold(), line_text)?;
             writeln!(
                 f,
                 "   {} | {}{}",
@@ -204,6 +208,7 @@ fn apply_suggestion_to_error(
 
 /// Generate suggestion for unsupported Python features
 #[inline]
+#[allow(clippy::unnecessary_wraps)]
 fn suggest_unsupported_feature(feature: &str) -> Option<(String, Vec<String>)> {
     // Special case for yield (most common unsupported feature)
     if feature == "yield" {
@@ -299,7 +304,7 @@ fn suggest_string_mismatch(expected: &str, found: &str) -> Option<(String, Vec<S
 /// Suggest fix for division type mismatches (int vs float)
 #[inline]
 fn suggest_division_mismatch(expected: &str, found: &str) -> Option<(String, Vec<String>)> {
-    if expected.contains("f64") && found.contains("i") {
+    if expected.contains("f64") && found.contains('i') {
         Some((
             "Division result type mismatch - Python '/' always returns float".to_string(),
             vec![
@@ -368,6 +373,7 @@ fn suggest_collection_mismatch(expected: &str, found: &str) -> Option<(String, V
 
 /// Generic fallback suggestion for unmatched type mismatches
 #[inline]
+#[allow(clippy::unnecessary_wraps)]
 fn suggest_generic_mismatch(
     expected: &str,
     found: &str,
@@ -429,7 +435,7 @@ impl ErrorReporter {
             if i > 0 {
                 println!();
             }
-            println!("{}", error);
+            println!("{error}");
         }
 
         if self.errors.len() > 1 {
@@ -441,9 +447,8 @@ impl ErrorReporter {
         if self.has_errors() {
             self.display_errors();
             anyhow::bail!("Transpilation failed with {} errors", self.errors.len())
-        } else {
-            Ok(value)
         }
+        Ok(value)
     }
 }
 

@@ -99,7 +99,7 @@ impl MemorySafetyAnalyzer {
                 status: PropertyStatus::Violated(violation_messages.join("; ")),
                 confidence: 1.0,
                 method: VerificationMethod::StaticAnalysis,
-                counterexamples: self.violations_to_test_cases(&violations),
+                counterexamples: Self::violations_to_test_cases(&violations),
             }
         }
     }
@@ -143,6 +143,7 @@ impl MemorySafetyAnalyzer {
         None
     }
 
+    #[allow(clippy::ref_option)]
     fn analyze_if(
         &mut self,
         condition: &HirExpr,
@@ -337,17 +338,20 @@ impl MemorySafetyAnalyzer {
         self.borrows.retain(|_, borrow| borrow.scope_depth < self.scope_depth);
     }
 
+    #[allow(clippy::unused_self)]
     fn is_copy_type(&self, _name: &str) -> bool {
         // For now, assume primitives are copy types
         // In a real implementation, this would check the actual type
         false
     }
 
+    #[allow(clippy::unused_self)]
     fn is_unsafe_index(&self, _base: &HirExpr, _index: &HirExpr) -> bool {
         // Simplified check - in reality would do bounds analysis
         false
     }
 
+    #[allow(clippy::unused_self)]
     fn infer_type(&self, _expr: &HirExpr) -> Type {
         // Simplified type inference
         Type::Unknown
@@ -366,6 +370,7 @@ impl MemorySafetyAnalyzer {
         violations
     }
 
+    #[allow(clippy::unused_self)]
     fn check_stmt_for_races(&self, stmt: &HirStmt) -> Option<MemorySafetyViolation> {
         match stmt {
             HirStmt::Assign { target, .. } => {
@@ -387,12 +392,14 @@ impl MemorySafetyAnalyzer {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn is_shared_mutable(&self, _var: &str) -> bool {
         // Simplified check - would need to track shared state
         false
     }
 
-    fn violations_to_test_cases(&self, violations: &[MemorySafetyViolation]) -> Vec<TestCase> {
+    #[allow(clippy::disallowed_methods, clippy::unwrap_used)]
+    fn violations_to_test_cases(violations: &[MemorySafetyViolation]) -> Vec<TestCase> {
         violations
             .iter()
             .map(|v| TestCase {

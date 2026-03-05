@@ -1,32 +1,33 @@
 //! Stdlib numpy method converters
 //!
-//! DEPYLER-REFACTOR: Extracted from expr_gen/mod.rs
+//! DEPYLER-REFACTOR: Extracted from `expr_gen/mod.rs`
 //!
 //! Contains converters for numpy module calls:
 //! - `try_convert_numpy_call` — Maps numpy API to trueno (SIMD-accelerated tensor library)
 //! - `try_convert_numpy_call_nasa_mode` — Maps numpy API to std-only Vec<f64> operations
 
 use super::ExpressionConverter;
-use crate::hir::*;
+use crate::hir::HirExpr;
 use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::numpy_gen;
 use anyhow::{bail, Result};
 use quote;
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     /// Try to convert numpy module calls to trueno equivalents.
     ///
     /// Phase 3: NumPy→Trueno codegen
     ///
     /// Maps numpy API calls to trueno (SIMD-accelerated tensor library):
-    /// - np.array([...]) → Vector::from_slice(&[...])
+    /// - np.array([...]) → `Vector::from_slice`(&[...])
     /// - np.dot(a, b) → a.dot(&b)?
-    /// - np.sum(a) → a.sum()?
-    /// - np.mean(a) → a.mean()?
-    /// - np.sqrt(a) → a.sqrt()?
+    /// - np.sum(a) → `a.sum()`?
+    /// - np.mean(a) → `a.mean()`?
+    /// - np.sqrt(a) → `a.sqrt()`?
     ///
     /// Returns None if the method is not a recognized numpy function.
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn try_convert_numpy_call(
         &mut self,
         method: &str,
@@ -266,6 +267,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// | `np.exp(a)` | `a.iter().map(\|x\| x.exp()).collect()` |
     /// | `np.sum(a)` | `a.iter().sum::<f64>()` |
     /// | `np.dot(a, b)` | `a.iter().zip(b.iter()).map(\|(x, y)\| x * y).sum::<f64>()` |
+    #[allow(clippy::too_many_lines)]
     fn try_convert_numpy_call_nasa_mode(
         &mut self,
         method: &str,

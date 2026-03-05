@@ -93,6 +93,7 @@ impl ErrorCategory {
 }
 
 /// Error classifier using rule-based and ML approaches.
+#[allow(clippy::struct_field_names)]
 pub struct ErrorClassifier {
     /// Keywords indicating type mismatch
     type_keywords: Vec<&'static str>,
@@ -195,6 +196,7 @@ impl ErrorClassifier {
 
     /// Get confidence score for classification.
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn confidence(&self, message: &str, category: ErrorCategory) -> f32 {
         let lower = message.to_lowercase();
 

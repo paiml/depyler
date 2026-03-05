@@ -1,9 +1,9 @@
 //! Function code generation
 //!
 //! This module handles converting HIR functions to Rust token streams.
-//! It includes all function conversion helpers and the HirFunction RustCodeGen trait implementation.
+//! It includes all function conversion helpers and the `HirFunction` `RustCodeGen` trait implementation.
 
-use crate::hir::*;
+use crate::hir::{HirStmt, HirExpr, Type, AssignTarget, HirFunction, HirParam, BinOp, Literal, UnaryOp};
 use crate::rust_gen::context::{CodeGenContext, RustCodeGen};
 // DEPYLER-COVERAGE-95: Advanced inference helpers extracted to func_gen_inference
 #[allow(unused_imports)] // DEPYLER-COVERAGE-95: Some imports only used in tests
@@ -21,10 +21,12 @@ use syn::{self, parse_quote};
 /// DEPYLER-0608: Extract field names accessed via args.X pattern in a function body
 /// Used to generate individual parameters for cmd_* handler functions
 /// instead of taking &Args (which doesn't have subcommand fields)
+#[allow(clippy::too_many_lines)]
 fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String> {
     use std::collections::HashSet;
     let mut fields: HashSet<String> = HashSet::new();
 
+    #[allow(clippy::items_after_statements, clippy::match_same_arms)]
     fn walk_expr(expr: &HirExpr, args_name: &str, fields: &mut HashSet<String>) {
         match expr {
             HirExpr::Attribute { value, attr } => {
@@ -137,6 +139,7 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
         }
     }
 
+    #[allow(clippy::items_after_statements, clippy::match_same_arms)]
     fn walk_stmt(stmt: &HirStmt, args_name: &str, fields: &mut HashSet<String>) {
         match stmt {
             HirStmt::Expr(expr) => walk_expr(expr, args_name, fields),
@@ -268,7 +271,7 @@ fn collect_typed_locals_from_body(stmts: &[HirStmt]) -> std::collections::HashMa
 ///
 /// Takes optional parameter types map to resolve variable references like `result = n`
 /// where `n` is a function parameter with a known type.
-#[allow(dead_code)]
+#[allow(dead_code, clippy::too_many_lines)]
 fn find_var_type_in_body(var_name: &str, stmts: &[HirStmt]) -> Option<Type> {
     find_var_type_in_body_with_params(var_name, stmts, &std::collections::HashMap::new())
 }
@@ -277,6 +280,7 @@ fn find_var_type_in_body(var_name: &str, stmts: &[HirStmt]) -> Option<Type> {
 /// DEPYLER-0965: Looks at ALL assignments, not just the first one.
 /// When a variable has multiple assignments (e.g., `x = None` then `x = "hello"`),
 /// we should find the first assignment that gives us a concrete type.
+#[allow(clippy::match_same_arms, clippy::too_many_lines)]
 fn find_var_type_in_body_with_params(
     var_name: &str,
     stmts: &[HirStmt],
@@ -419,7 +423,7 @@ fn is_var_used_in_remaining_stmts(var_name: &str, stmts: &[HirStmt]) -> bool {
 }
 
 /// Check if a variable is used anywhere in a statement (recursive)
-#[allow(dead_code)]
+#[allow(dead_code, clippy::match_same_arms)]
 fn is_var_used_anywhere(var_name: &str, stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { target, value, .. } => {
@@ -481,7 +485,7 @@ fn is_var_used_in_target(var_name: &str, target: &AssignTarget) -> bool {
 }
 
 /// Check if a variable is used in an expression (recursive)
-#[allow(dead_code)]
+#[allow(dead_code, clippy::match_wildcard_for_single_variants, clippy::match_same_arms)]
 fn is_var_used_in_expr_any(var_name: &str, expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Var(name) => name == var_name,
@@ -567,6 +571,7 @@ fn is_var_used_in_expr_any(var_name: &str, expr: &HirExpr) -> bool {
 
 /// Process function body statements with proper scoping
 #[inline]
+#[allow(clippy::too_many_lines)]
 pub(crate) fn codegen_function_body(
     func: &HirFunction,
     can_fail: bool,
@@ -826,6 +831,7 @@ pub(crate) fn codegen_function_body(
 
 /// Convert function parameters with lifetime and borrowing analysis
 #[inline]
+#[allow(clippy::assigning_clones)]
 pub(crate) fn codegen_function_params(
     func: &HirFunction,
     lifetime_result: &crate::lifetime_analysis::LifetimeResult,
@@ -895,10 +901,10 @@ fn lookup_argparse_field_type(
             let arg_field_name = arg.rust_field_name();
             if arg_field_name == field {
                 // Found the argument - determine its type
-                if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+                if matches!(arg.action.as_deref(), Some("store_true" | "store_false")) {
                     return quote::quote! { #field_ident: bool };
                 }
-                if matches!(arg.nargs.as_deref(), Some("+") | Some("*")) {
+                if matches!(arg.nargs.as_deref(), Some("+" | "*")) {
                     return quote::quote! { #field_ident: &[String] };
                 }
                 if let Some(ref arg_type) = arg.arg_type {
@@ -919,10 +925,10 @@ fn lookup_argparse_field_type(
         for arg in &parser.arguments {
             let arg_field_name = arg.rust_field_name();
             if arg_field_name == field {
-                if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+                if matches!(arg.action.as_deref(), Some("store_true" | "store_false")) {
                     return quote::quote! { #field_ident: bool };
                 }
-                if matches!(arg.nargs.as_deref(), Some("+") | Some("*")) {
+                if matches!(arg.nargs.as_deref(), Some("+" | "*")) {
                     return quote::quote! { #field_ident: &[String] };
                 }
                 if let Some(ref arg_type) = arg.arg_type {
@@ -1019,6 +1025,7 @@ fn is_field_used_as_bool_condition(field: &str, body: &[crate::hir::HirStmt]) ->
 
 /// DEPYLER-0914: Infer numeric type from arithmetic operations on args.field
 /// Patterns: args.r / 255 → i32, args.h * 6.0 → f64
+#[allow(clippy::too_many_lines)]
 fn infer_numeric_type_from_arithmetic_usage(
     field: &str,
     body: &[crate::hir::HirStmt],
@@ -1034,6 +1041,7 @@ fn infer_numeric_type_from_arithmetic_usage(
         )
     }
 
+    #[allow(clippy::match_same_arms)]
     fn infer_from_expr(expr: &HirExpr, field: &str) -> Option<crate::hir::Type> {
         match expr {
             // Binary operation: args.field op value OR value op args.field
@@ -1106,6 +1114,7 @@ fn infer_numeric_type_from_arithmetic_usage(
         }
     }
 
+    #[allow(clippy::match_same_arms)]
     fn infer_from_stmt(stmt: &HirStmt, field: &str) -> Option<crate::hir::Type> {
         match stmt {
             HirStmt::Assign { value, .. } => infer_from_expr(value, field),
@@ -1170,6 +1179,7 @@ fn is_param_used_in_body(param_name: &str, body: &[HirStmt]) -> bool {
 }
 
 /// Check if a parameter is used in a statement (recursive)
+#[allow(clippy::match_same_arms)]
 fn is_param_used_in_stmt(param_name: &str, stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { target, value, .. } => {
@@ -1226,6 +1236,7 @@ fn is_param_used_in_stmt(param_name: &str, stmt: &HirStmt) -> bool {
 }
 
 /// Check if parameter is used in an expression
+#[allow(clippy::match_wildcard_for_single_variants, clippy::match_same_arms)]
 fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Var(name) => name == param_name,
@@ -1339,6 +1350,7 @@ fn is_param_used_in_assign_target(param_name: &str, target: &AssignTarget) -> bo
 }
 
 /// Convert a single parameter with all borrowing strategies
+#[allow(clippy::too_many_lines)]
 fn codegen_single_param(
     param: &HirParam,
     func: &HirFunction,
@@ -1357,7 +1369,7 @@ fn codegen_single_param(
 
     let param_ident = if param_name == "self" || param_name == "Self" {
         // self/Self are special - they cannot be raw identifiers, rename them
-        syn::Ident::new(&format!("{}_", param_name), proc_macro2::Span::call_site())
+        syn::Ident::new(&format!("{param_name}_"), proc_macro2::Span::call_site())
     } else if is_rust_keyword(&param_name) {
         syn::Ident::new_raw(&param_name, proc_macro2::Span::call_site())
     } else {
@@ -1616,7 +1628,8 @@ fn apply_param_borrowing_strategy(
 }
 
 /// Apply borrowing (&, &mut, with lifetime) to a type
-/// DEPYLER-0275: Added should_elide_lifetimes parameter to respect Rust elision rules
+/// DEPYLER-0275: Added `should_elide_lifetimes` parameter to respect Rust elision rules
+#[allow(clippy::unnecessary_wraps)]
 fn apply_borrowing_to_type(
     mut ty: syn::Type,
     rust_type: &crate::type_mapper::RustType,
@@ -1704,7 +1717,7 @@ fn apply_borrowing_to_type(
 enum StringMethodReturnType {
     /// Returns owned String (e.g., upper, lower, strip, replace)
     Owned,
-    /// Returns borrowed &str or bool (e.g., starts_with, is_digit)
+    /// Returns borrowed &str or bool (e.g., `starts_with`, `is_digit`)
     Borrowed,
 }
 
@@ -1728,7 +1741,8 @@ fn classify_string_method(method_name: &str) -> StringMethodReturnType {
 }
 
 /// Check if an expression contains a string method call that returns owned String
-/// DEPYLER-0598: Also detect string literals (which get .to_string() in codegen)
+/// DEPYLER-0598: Also detect string literals (which get .`to_string()` in codegen)
+#[allow(clippy::match_same_arms)]
 fn contains_owned_string_method(expr: &HirExpr) -> bool {
     match expr {
         HirExpr::MethodCall { method, .. } => {
@@ -1791,6 +1805,7 @@ fn stmt_block_returns_owned_string(stmts: &[HirStmt]) -> bool {
 }
 
 /// Check if a single statement returns an owned string (recursively checks nested blocks)
+#[allow(clippy::match_same_arms)]
 fn stmt_returns_owned_string(stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Return(Some(expr)) => contains_owned_string_method(expr),
@@ -1814,6 +1829,7 @@ fn stmt_returns_owned_string(stmt: &HirStmt) -> bool {
 // DEPYLER-0270: String Concatenation Detection
 
 /// Check if an expression contains string concatenation (which returns owned String)
+#[allow(clippy::match_same_arms)]
 fn contains_string_concatenation(expr: &HirExpr) -> bool {
     match expr {
         // String concatenation: a + b (Add operator generates format!() for strings)
@@ -1850,6 +1866,7 @@ pub(crate) fn function_returns_string_concatenation(func: &HirFunction) -> bool 
 }
 
 /// Check if a type expects float values (recursively checks Option, Result, etc.)
+#[allow(clippy::match_same_arms)]
 pub(crate) fn return_type_expects_float(ty: &Type) -> bool {
     match ty {
         Type::Float => true,
@@ -1861,8 +1878,9 @@ pub(crate) fn return_type_expects_float(ty: &Type) -> bool {
 }
 
 /// DEPYLER-1163: Check if a type expects int values (recursively checks Option, Result, etc.)
-/// Used to determine when py_div result should be cast from f64 to i32
+/// Used to determine when `py_div` result should be cast from f64 to i32
 /// DEPYLER-E0282-FIX: Also handle wrapped types like Result<Int>, Custom("Result<i32, _>")
+#[allow(clippy::match_same_arms)]
 pub(crate) fn return_type_expects_int(ty: &Type) -> bool {
     match ty {
         Type::Int => true,
@@ -1879,9 +1897,9 @@ pub(crate) fn return_type_expects_int(ty: &Type) -> bool {
 }
 
 /// DEPYLER-0936: Rewrite ADT child types to parent enum types
-/// When a Python ABC hierarchy is converted to a Rust enum (e.g., Iter with ListIter, RangeIter),
+/// When a Python ABC hierarchy is converted to a Rust enum (e.g., Iter with `ListIter`, `RangeIter`),
 /// return types mentioning child classes must be rewritten to parent enum names.
-/// Example: `ListIter[T]` → `Iter[T]` when ListIter is a variant of Iter
+/// Example: `ListIter[T]` → `Iter[T]` when `ListIter` is a variant of Iter
 pub(crate) fn rewrite_adt_child_type(
     ty: &Type,
     child_to_parent: &std::collections::HashMap<String, String>,
@@ -1894,7 +1912,7 @@ pub(crate) fn rewrite_adt_child_type(
             if let Some(parent_name) = child_to_parent.get(base_name) {
                 // Preserve generic params: "ListIter[T]" → "Iter[T]"
                 if let Some(generic_part) = name.strip_prefix(base_name) {
-                    Type::Custom(format!("{}{}", parent_name, generic_part))
+                    Type::Custom(format!("{parent_name}{generic_part}"))
                 } else {
                     Type::Custom(parent_name.clone())
                 }
@@ -1999,7 +2017,7 @@ fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
 }
 
 /// DEPYLER-0455 Bug 7: Infer return type from body including parameter types
-/// Wrapper for infer_return_type_from_body that includes function parameters in the type environment
+/// Wrapper for `infer_return_type_from_body` that includes function parameters in the type environment
 pub(crate) fn infer_return_type_from_body_with_params(
     func: &HirFunction,
     ctx: &CodeGenContext,
@@ -2135,6 +2153,7 @@ pub(crate) fn build_var_type_env(
 
 /// DEPYLER-1007: Build type environment with class constructor and method type awareness
 /// This version recognizes class constructor calls and method calls, assigns the correct types
+#[allow(clippy::too_many_lines)]
 pub(crate) fn build_var_type_env_with_classes(
     stmts: &[HirStmt],
     var_types: &mut std::collections::HashMap<String, Type>,
@@ -2150,6 +2169,7 @@ pub(crate) fn build_var_type_env_with_classes(
 }
 
 /// DEPYLER-1007: Full type environment builder with both constructor and method type awareness
+#[allow(clippy::match_same_arms, clippy::too_many_lines)]
 pub(crate) fn build_var_type_env_full(
     stmts: &[HirStmt],
     var_types: &mut std::collections::HashMap<String, Type>,
@@ -2276,6 +2296,7 @@ pub(crate) fn build_var_type_env_full(
 }
 
 /// Collect return types with access to variable type environment
+#[allow(clippy::match_same_arms)]
 pub(crate) fn collect_return_types_with_env(
     stmts: &[HirStmt],
     types: &mut Vec<Type>,
@@ -2327,6 +2348,7 @@ fn collect_returned_var_names(stmts: &[HirStmt]) -> std::collections::HashSet<St
     names
 }
 
+#[allow(clippy::match_same_arms)]
 fn collect_returned_var_names_impl(
     stmts: &[HirStmt],
     names: &mut std::collections::HashSet<String>,
@@ -2388,6 +2410,7 @@ pub(crate) fn propagate_return_type_to_vars(
 }
 
 /// Internal implementation of return type propagation
+#[allow(clippy::too_many_lines, clippy::match_same_arms)]
 fn propagate_return_type_impl(
     stmts: &[HirStmt],
     var_types: &mut std::collections::HashMap<String, Type>,
@@ -2507,6 +2530,7 @@ fn propagate_return_type_impl(
 }
 
 /// Infer expression type with access to variable type environment
+#[allow(clippy::if_not_else, clippy::match_same_arms, clippy::too_many_lines)]
 pub(crate) fn infer_expr_type_with_env(
     expr: &HirExpr,
     var_types: &std::collections::HashMap<String, Type>,
@@ -2611,7 +2635,7 @@ pub(crate) fn infer_expr_type_with_env(
                     // json module methods
                     // json.load/loads returns arbitrary JSON (dict, list, string, number, bool, null)
                     // which maps to serde_json::Value, not HashMap
-                    ("json", "load") | ("json", "loads") => {
+                    ("json", "load" | "loads") => {
                         return Type::Custom("serde_json::Value".to_string());
                     }
                     ("json", "dump") => return Type::None,
@@ -2626,26 +2650,23 @@ pub(crate) fn infer_expr_type_with_env(
                             Box::new(Type::String),
                         )));
                     }
-                    ("csv", "writer") | ("csv", "DictWriter") => return Type::Unknown,
+                    ("csv", "writer" | "DictWriter") => return Type::Unknown,
                     // DEPYLER-0646: subprocess.run() returns CompletedProcess struct
                     // Updated from tuple to struct per DEPYLER-0627
                     ("subprocess", "run") => {
                         return Type::Custom("CompletedProcess".to_string());
                     }
                     // DEPYLER-0532: regex module methods
-                    ("re", "findall") | ("regex", "findall") => {
+                    ("re" | "regex", "findall") => {
                         return Type::List(Box::new(Type::String));
                     }
-                    ("re", "match")
-                    | ("re", "search")
-                    | ("regex", "match")
-                    | ("regex", "search") => {
+                    ("re" | "regex", "match" | "search") => {
                         return Type::Optional(Box::new(Type::Custom("Match".to_string())));
                     }
-                    ("re", "split") | ("regex", "split") => {
+                    ("re" | "regex", "split") => {
                         return Type::List(Box::new(Type::String));
                     }
-                    ("re", "sub") | ("regex", "sub") | ("re", "replace") | ("regex", "replace") => {
+                    ("re" | "regex", "sub" | "replace") => {
                         return Type::String;
                     }
                     _ => {} // Fall through to regular method handling
@@ -2769,7 +2790,7 @@ pub(crate) fn infer_expr_type_with_env(
                         return Type::Dict(Box::new(Type::String), Box::new(Type::String))
                     }
                     ("os", "name") => return Type::String,
-                    ("os", "sep") | ("os", "pathsep") | ("os", "linesep") => return Type::String,
+                    ("os", "sep" | "pathsep" | "linesep") => return Type::String,
                     _ => {} // Fall through to existing handling
                 }
             }
@@ -2872,7 +2893,8 @@ pub(crate) fn infer_expr_type_with_class_methods(
 }
 
 /// DEPYLER-1007: Collect return types with class method return type awareness
-/// This version uses infer_expr_type_with_class_methods for proper class method return type inference
+/// This version uses `infer_expr_type_with_class_methods` for proper class method return type inference
+#[allow(clippy::too_many_lines, clippy::match_same_arms)]
 pub(crate) fn collect_return_types_with_class_methods(
     stmts: &[HirStmt],
     types: &mut Vec<Type>,
@@ -2962,7 +2984,8 @@ pub(crate) fn collect_return_types_with_class_methods(
 
 /// Simple expression type inference without context
 /// Handles common cases like literals, comparisons, and arithmetic
-/// DEPYLER-0600: Made pub(crate) for stmt_gen comprehension type tracking
+/// DEPYLER-0600: Made pub(crate) for `stmt_gen` comprehension type tracking
+#[allow(clippy::if_not_else, clippy::match_same_arms, clippy::too_many_lines)]
 pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
     match expr {
         HirExpr::Literal(lit) => literal_to_type(lit),

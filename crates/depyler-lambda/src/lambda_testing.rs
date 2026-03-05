@@ -1,4 +1,5 @@
 use anyhow::Result;
+use std::fmt::Write as _;
 use depyler_annotations::{LambdaAnnotations, LambdaEventType};
 // use lambda_runtime::{Context, LambdaEvent};
 // use serde::{Deserialize, Serialize};
@@ -93,6 +94,7 @@ impl Default for LambdaTestHarness {
 }
 
 impl LambdaTestHarness {
+    #[allow(clippy::too_many_lines, clippy::disallowed_methods)]
     pub fn new() -> Self {
         let mut test_events = HashMap::new();
 
@@ -237,11 +239,13 @@ impl LambdaTestHarness {
         }
     }
 
+    #[must_use]
     pub fn with_context(mut self, context: TestContext) -> Self {
         self.test_context = context;
         self
     }
 
+    #[must_use]
     pub fn with_benchmarks(mut self, benchmarks: PerformanceBenchmarks) -> Self {
         self.performance_benchmarks = benchmarks;
         self
@@ -256,7 +260,7 @@ impl LambdaTestHarness {
     pub fn generate_test_suite(&self, annotations: &LambdaAnnotations) -> Result<String> {
         let mut test_code = String::new();
 
-        test_code.push_str(&self.generate_test_imports());
+        test_code.push_str(&Self::generate_test_imports());
         test_code.push_str(&self.generate_test_helpers());
 
         if let Some(ref event_type) = annotations.event_type {
@@ -268,13 +272,13 @@ impl LambdaTestHarness {
         }
 
         test_code.push_str(&self.generate_performance_tests());
-        test_code.push_str(&self.generate_integration_tests());
+        test_code.push_str(&Self::generate_integration_tests());
 
         Ok(test_code)
     }
 
-    fn generate_test_imports(&self) -> String {
-        r#"#[cfg(test)]
+    fn generate_test_imports() -> String {
+        r"#[cfg(test)]
 mod tests {{
     use super::*;
     use lambda_runtime::{{Context, LambdaEvent}};
@@ -282,7 +286,7 @@ mod tests {{
     use std::time::Instant;
     // use tokio::time::timeout;
 
-"#
+"
         .to_string()
     }
 
@@ -359,14 +363,14 @@ mod tests {{
             test_code.push_str("        assert!(result.is_ok(), \"Test should succeed but failed: {:?}\", result.err());\n");
 
             if let Some(ref expected) = test_event.expected_response {
-                test_code.push_str(&format!(
+                write!(test_code,
                     r#"        
         let response = result.unwrap();
         let expected_response = {};
         assert_eq!(response, expected_response, "Response doesn't match expected");
 "#,
                     serde_json::to_string_pretty(expected)?
-                ));
+                    ).expect("write to String");
             }
         } else {
             test_code.push_str(
@@ -375,13 +379,13 @@ mod tests {{
         }
 
         // Add performance assertions
-        test_code.push_str(&format!(
+        write!(test_code,
             r#"        
         // Performance assertions
         assert!(duration.as_millis() < {}, "Test took too long: {{:?}}", duration);
 "#,
             self.performance_benchmarks.max_warm_start_ms
-        ));
+            ).expect("write to String");
 
         test_code.push_str("    }\n\n");
         Ok(test_code)
@@ -496,7 +500,7 @@ mod tests {{
         )
     }
 
-    fn generate_integration_tests(&self) -> String {
+    fn generate_integration_tests() -> String {
         r#"    #[tokio::test]
     async fn test_error_handling() {{
         // Test with invalid event data to ensure proper error handling
@@ -571,22 +575,20 @@ mod tests {{
         if let Some(ref event_type) = annotations.event_type {
             if let Some(events) = self.test_events.get(event_type) {
                 for event in events {
-                    script.push_str(&format!("echo \"Testing event: {}\"\n", event.name));
+                    writeln!(script, "echo \"Testing event: {}\"", event.name).expect("write to String");
 
                     // Create temporary event file
-                    script.push_str(&format!(
-                        "cat > /tmp/test_event_{}.json << 'EOF'\n{}\nEOF\n",
+                    writeln!(script, "cat > /tmp/test_event_{}.json << 'EOF'\n{}\nEOF",
                         event.name,
                         serde_json::to_string_pretty(&event.event_data)?
-                    ));
+                        ).expect("write to String");
 
                     // Invoke with cargo lambda
-                    script.push_str(&format!(
-                        "cargo lambda invoke --data-file /tmp/test_event_{}.json\n",
+                    writeln!(script, "cargo lambda invoke --data-file /tmp/test_event_{}.json",
                         event.name
-                    ));
+                    ).expect("write to String");
 
-                    script.push_str(&format!("rm /tmp/test_event_{}.json\n\n", event.name));
+                    writeln!(script, "rm /tmp/test_event_{}.json\n", event.name).expect("write to String");
                 }
             }
         }
@@ -712,11 +714,10 @@ jobs:
         if let Some(ref event_type) = annotations.event_type {
             if let Some(events) = self.test_events.get(event_type) {
                 for (i, event) in events.iter().enumerate() {
-                    yaml.push_str(&format!(
-                        "        cat > test_events/test_{}.json << 'EOF'\n{}\n        EOF\n",
+                    writeln!(yaml, "        cat > test_events/test_{}.json << 'EOF'\n{}\n        EOF",
                         i,
                         serde_json::to_string_pretty(&event.event_data)?
-                    ));
+                        ).expect("write to String");
                 }
             }
         }

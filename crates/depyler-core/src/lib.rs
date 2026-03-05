@@ -304,11 +304,13 @@ impl DepylerPipeline {
         }
     }
 
+    #[must_use]
     pub fn with_verification(mut self) -> Self {
         self.verifier = Some(PropertyVerifier { enable_quickcheck: true, enable_contracts: true });
         self
     }
 
+    #[must_use]
     pub fn with_debug(mut self, debug_config: debug::DebugConfig) -> Self {
         self.debug_config = Some(debug_config);
         self
@@ -332,6 +334,7 @@ impl DepylerPipeline {
     /// // Disable NASA mode to get csv crate output instead of std::io stubs
     /// let pipeline = DepylerPipeline::new().with_nasa_mode(false);
     /// ```
+    #[must_use]
     pub fn with_nasa_mode(mut self, enabled: bool) -> Self {
         self.transpiler.type_mapper.nasa_mode = enabled;
         self
@@ -404,7 +407,8 @@ impl DepylerPipeline {
     ///
     /// # Returns
     ///
-    /// Returns a tuple of (rust_code, dependencies) or an error if transpilation fails.
+    /// Returns a tuple of (`rust_code`, dependencies) or an error if transpilation fails.
+    #[allow(clippy::too_many_lines)]
     pub fn transpile_with_dependencies(
         &self,
         python_source: &str,
@@ -508,7 +512,7 @@ impl DepylerPipeline {
                 if let Ok(solution) = solver.solve() {
                     let applied = collector.apply_substitutions(&mut hir, &solution);
                     if applied > 0 {
-                        eprintln!("HM inference: applied {} type substitutions", applied);
+                        eprintln!("HM inference: applied {applied} type substitutions");
                     }
                 }
             }
@@ -518,7 +522,7 @@ impl DepylerPipeline {
         // Builds call graph and propagates types across function boundaries
         if let Err(e) = type_system::unify_module_types(&mut hir) {
             // Log but don't fail - type conflicts are informational
-            eprintln!("Type unification warning: {:?}", e);
+            eprintln!("Type unification warning: {e:?}");
         }
 
         // Apply optimization passes based on annotations
@@ -581,6 +585,7 @@ impl DepylerPipeline {
         rust_gen::generate_rust_file(&optimized_hir, &self.transpiler.type_mapper)
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn transpile(&self, python_source: &str) -> Result<String> {
         // Parse Python source
         let ast = self.parse_python(python_source)?;
@@ -681,7 +686,7 @@ impl DepylerPipeline {
                 if let Ok(solution) = solver.solve() {
                     let applied = collector.apply_substitutions(&mut hir, &solution);
                     if applied > 0 {
-                        eprintln!("HM inference: applied {} type substitutions", applied);
+                        eprintln!("HM inference: applied {applied} type substitutions");
                     }
                 }
             }
@@ -691,7 +696,7 @@ impl DepylerPipeline {
         // Builds call graph and propagates types across function boundaries
         if let Err(e) = type_system::unify_module_types(&mut hir) {
             // Log but don't fail - type conflicts are informational
-            eprintln!("Type unification warning: {:?}", e);
+            eprintln!("Type unification warning: {e:?}");
         }
 
         // Apply optimization passes based on annotations
@@ -797,7 +802,7 @@ impl DepylerPipeline {
             }
 
             // Override parameter types
-            for param in func.params.iter_mut() {
+            for param in &mut func.params {
                 if let Some(override_type) = type_overrides.get(&param.name) {
                     if !matches!(override_type, hir::Type::Unknown) {
                         eprintln!(
@@ -879,7 +884,7 @@ impl DepylerPipeline {
 
         // Inter-procedural type unification
         if let Err(e) = type_system::unify_module_types(&mut hir) {
-            eprintln!("Type unification warning: {:?}", e);
+            eprintln!("Type unification warning: {e:?}");
         }
 
         // Apply optimization passes
@@ -956,7 +961,7 @@ impl DepylerPipeline {
             }
 
             // Override parameter types
-            for param in func.params.iter_mut() {
+            for param in &mut func.params {
                 if let Some(override_type) = type_overrides.get(&param.name) {
                     if !matches!(override_type, hir::Type::Unknown) {
                         eprintln!(
@@ -1039,7 +1044,7 @@ impl DepylerPipeline {
 
         // Inter-procedural type unification
         if let Err(e) = type_system::unify_module_types(&mut hir) {
-            eprintln!("Type unification warning: {:?}", e);
+            eprintln!("Type unification warning: {e:?}");
         }
 
         // Apply optimization passes
@@ -1068,12 +1073,13 @@ impl DepylerPipeline {
         self.parse_to_hir(source)
     }
 
+    #[allow(clippy::default_trait_access)]
     pub fn parse_python(&self, source: &str) -> Result<rustpython_ast::Mod> {
         use rustpython_ast::Suite;
         use rustpython_parser::Parse;
 
         let statements = Suite::parse(source, "<input>")
-            .map_err(|e| anyhow::anyhow!("Python parse error: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Python parse error: {e}"))?;
 
         Ok(rustpython_ast::Mod::Module(rustpython_ast::ModModule {
             body: statements,
@@ -1099,6 +1105,7 @@ pub enum OptimizationLevel {
 }
 
 impl DepylerPipeline {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new_with_config(config: Config) -> Self {
         let mut pipeline = Self::new();
         pipeline.analyzer.metrics_enabled = config.enable_metrics;

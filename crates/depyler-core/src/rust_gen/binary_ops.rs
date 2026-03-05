@@ -1,7 +1,7 @@
 //! Binary operation code generation
 //!
 //! This module handles converting Python binary operations to Rust expressions.
-//! Extracted from expr_gen.rs for focused testing and maintainability.
+//! Extracted from `expr_gen.rs` for focused testing and maintainability.
 
 use crate::hir::{BinOp, HirExpr, Literal};
 use syn::parse_quote;
@@ -26,6 +26,7 @@ pub fn get_rust_op_precedence(op: &syn::BinOp) -> u8 {
 
 /// Get operator precedence for Python binary operators
 /// Mapped to Rust precedence values for comparison
+#[allow(clippy::match_same_arms)]
 pub fn get_python_op_precedence(op: BinOp) -> u8 {
     match op {
         BinOp::Or => 1,
@@ -120,11 +121,13 @@ pub fn is_logical_op(op: BinOp) -> bool {
 }
 
 /// Check if binary operation is bitwise
+#[allow(clippy::default_trait_access)]
 pub fn is_bitwise_op(op: BinOp) -> bool {
     matches!(op, BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::LShift | BinOp::RShift)
 }
 
 /// Convert Python binary operator to Rust binary operator
+#[allow(clippy::default_trait_access, clippy::needless_pass_by_value)]
 pub fn python_to_rust_binop(op: BinOp) -> syn::BinOp {
     match op {
         BinOp::Add => syn::BinOp::Add(Default::default()),
@@ -155,6 +158,7 @@ pub fn python_to_rust_binop(op: BinOp) -> syn::BinOp {
 /// Generate floor division expression
 /// Python: a // b (rounds toward negative infinity)
 /// Rust: needs special handling for negative numbers
+#[allow(clippy::needless_pass_by_value)]
 pub fn generate_floor_div(left: syn::Expr, right: syn::Expr) -> syn::Expr {
     parse_quote! {
         {
@@ -173,6 +177,7 @@ pub fn generate_floor_div(left: syn::Expr, right: syn::Expr) -> syn::Expr {
 
 /// Generate power expression with type awareness
 /// Handles integer and float exponents differently
+#[allow(clippy::needless_pass_by_value)]
 pub fn generate_pow_int_int(base: syn::Expr, exp: syn::Expr, exp_val: i64) -> syn::Expr {
     if exp_val < 0 {
         // Negative exponent: convert to float
@@ -189,6 +194,7 @@ pub fn generate_pow_int_int(base: syn::Expr, exp: syn::Expr, exp_val: i64) -> sy
 }
 
 /// Generate power expression for float base
+#[allow(clippy::needless_pass_by_value)]
 pub fn generate_pow_float(base: syn::Expr, exp: syn::Expr) -> syn::Expr {
     parse_quote! {
         (#base as f64).powf(#exp as f64)
@@ -196,11 +202,13 @@ pub fn generate_pow_float(base: syn::Expr, exp: syn::Expr) -> syn::Expr {
 }
 
 /// Generate modulo expression
+#[allow(clippy::needless_pass_by_value)]
 pub fn generate_modulo(left: syn::Expr, right: syn::Expr) -> syn::Expr {
     parse_quote! { #left % #right }
 }
 
 /// Generate string repetition (string * int)
+#[allow(clippy::needless_pass_by_value)]
 pub fn generate_string_repeat(string_expr: syn::Expr, count_expr: syn::Expr) -> syn::Expr {
     parse_quote! { #string_expr.repeat(#count_expr as usize) }
 }
@@ -211,6 +219,7 @@ pub fn is_likely_string_var_by_name(name: &str) -> bool {
 }
 
 /// Coerce an integer expression to float if needed
+#[allow(clippy::needless_pass_by_value)]
 pub fn coerce_to_float(expr: syn::Expr, use_f32: bool) -> syn::Expr {
     if use_f32 {
         parse_quote! { (#expr as f32) }
@@ -220,6 +229,7 @@ pub fn coerce_to_float(expr: syn::Expr, use_f32: bool) -> syn::Expr {
 }
 
 /// Generate integer literal as float
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 pub fn int_to_float_literal(n: i64, use_f32: bool) -> syn::Expr {
     if use_f32 {
         let val = n as f32;

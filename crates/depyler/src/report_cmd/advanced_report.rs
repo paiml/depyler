@@ -55,6 +55,7 @@ pub struct ReportSummary {
 }
 
 impl ReportSummary {
+    #[allow(clippy::cast_precision_loss)]
     pub fn from_counts(passed: usize, failed: usize) -> Self {
         let total_files = passed + failed;
         let pass_rate =
@@ -244,6 +245,7 @@ fn build_domain_stats(breakdown: &DomainBreakdown) -> Vec<DomainStats> {
 }
 
 /// Build error breakdown from taxonomy
+#[allow(clippy::cast_precision_loss)]
 fn build_error_breakdown(
     taxonomy: &HashMap<String, ErrorEntry>,
     total_failures: usize,
@@ -298,7 +300,7 @@ fn error_description(code: &str) -> String {
         "E0106" => "Missing lifetime specifier".to_string(),
         "TRANSPILE" => "Transpiler limitation".to_string(),
         "UNKNOWN" => "Unknown error".to_string(),
-        _ => format!("Rust error {}", code),
+        _ => format!("Rust error {code}"),
     }
 }
 

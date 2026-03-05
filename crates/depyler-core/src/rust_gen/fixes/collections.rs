@@ -1,6 +1,6 @@
 //! Collection-related fix functions for post-transpilation Rust code repair.
 //!
-//! These functions handle fixes for HashMap, Vec, and other collection types
+//! These functions handle fixes for `HashMap`, Vec, and other collection types
 //! in generated Rust code, including type annotation mismatches, method name
 //! corrections, and iterator/collect patterns.
 
@@ -35,7 +35,7 @@ pub(super) fn fix_hashmap_empty_value_type(code: &str) -> String {
         if trimmed.contains("HashMap<String, ()>") {
             if let Some(ref vtype) = current_return_value_type {
                 let fixed =
-                    line.replace("HashMap<String, ()>", &format!("HashMap<String, {}>", vtype));
+                    line.replace("HashMap<String, ()>", &format!("HashMap<String, {vtype}>"));
                 result.push(fixed);
                 continue;
             }
@@ -60,7 +60,7 @@ pub(super) fn fix_hashmap_contains(code: &str) -> String {
         let pattern = format!("{var}.contains(");
         let replacement = format!("{var}.contains_key(");
         if result.contains(&pattern) {
-            eprintln!("[DEBUG] Replacing '{}' with '{}'", pattern, replacement);
+            eprintln!("[DEBUG] Replacing '{pattern}' with '{replacement}'");
             result = result.replace(&pattern, &replacement);
         }
     }
@@ -72,7 +72,7 @@ fn is_valid_ident(name: &str) -> bool {
     !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_')
 }
 
-/// Try to extract a HashMap variable name from a parameter declaration line.
+/// Try to extract a `HashMap` variable name from a parameter declaration line.
 fn extract_hashmap_param_var(trimmed: &str) -> Option<String> {
     if !trimmed.contains("HashMap<") || !trimmed.contains(':') || trimmed.contains("Option<") {
         return None;
@@ -91,7 +91,7 @@ fn extract_hashmap_param_var(trimmed: &str) -> Option<String> {
     }
 }
 
-/// Try to extract a HashMap variable name from a `let` declaration line.
+/// Try to extract a `HashMap` variable name from a `let` declaration line.
 fn extract_hashmap_let_var(trimmed: &str) -> Option<String> {
     if !trimmed.starts_with("let ") || !trimmed.contains("HashMap<") || trimmed.contains("Option<")
     {
@@ -107,7 +107,7 @@ fn extract_hashmap_let_var(trimmed: &str) -> Option<String> {
     }
 }
 
-/// Extract variable names typed as HashMap from function signatures and local declarations.
+/// Extract variable names typed as `HashMap` from function signatures and local declarations.
 /// Handles multi-line function signatures where params span multiple lines.
 pub(super) fn extract_hashmap_typed_vars(code: &str) -> Vec<String> {
     let mut vars = Vec::new();
@@ -123,7 +123,7 @@ pub(super) fn extract_hashmap_typed_vars(code: &str) -> Vec<String> {
 }
 
 /// Extract the identifier following `.contains(&*` at the given position.
-/// Returns Some(var_name) if a valid identifier followed by `)` is found.
+/// Returns `Some(var_name)` if a valid identifier followed by `)` is found.
 fn extract_deref_contains_var(result: &str, pos: usize) -> Option<String> {
     let after = pos + ".contains(&*".len();
     let mut end = after;
@@ -138,6 +138,7 @@ fn extract_deref_contains_var(result: &str, pos: usize) -> Option<String> {
     }
 }
 
+#[allow(clippy::too_many_lines, clippy::manual_let_else, clippy::while_let_loop)]
 pub(super) fn fix_vec_contains_deref(code: &str) -> String {
     if !code.contains(".contains(&*") {
         return code.to_string();
@@ -149,8 +150,8 @@ pub(super) fn fix_vec_contains_deref(code: &str) -> String {
             None => break,
         };
         if let Some(var) = extract_deref_contains_var(&result, pos) {
-            let old = format!(".contains(&*{})", var);
-            let new = format!(".iter().any(|s| s == {})", var);
+            let old = format!(".contains(&*{var})");
+            let new = format!(".iter().any(|s| s == {var})");
             result = result.replacen(&old, &new, 1);
         } else {
             break;
@@ -163,6 +164,7 @@ pub(super) fn fix_vec_contains_deref(code: &str) -> String {
 ///
 /// The transpiler generates `VEC.get(&string_ref).is_some()` for `in` checks,
 /// but `Vec::get()` takes `usize`, not `&String`. Convert to `.iter().any()`.
+#[allow(clippy::manual_let_else, clippy::too_many_lines)]
 pub(super) fn fix_vec_get_membership(code: &str) -> String {
     if !code.contains(".get(&") || !code.contains(".is_some()") {
         return code.to_string();
@@ -271,8 +273,8 @@ pub(super) fn fix_vec_get_membership(code: &str) -> String {
             if suffix_start + 10 <= result.len()
                 && &result[suffix_start..suffix_start + 10] == ".is_some()"
             {
-                let old = format!(".get(&{}).is_some()", expr);
-                let new = format!(".contains(&{})", expr);
+                let old = format!(".get(&{expr}).is_some()");
+                let new = format!(".contains(&{expr})");
                 result = result.replacen(&old, &new, 1);
                 continue;
             }
@@ -302,7 +304,7 @@ pub(super) fn fix_vec_char_join(code: &str) -> String {
                 let fixed = lines[i].replace(".collect::<Vec<_>>()", ".collect::<String>()");
                 // If the join line has a trailing semicolon, append it
                 let suffix = next_trimmed.strip_prefix(".join(\"\")").unwrap_or("");
-                output.push(format!("{}{}", fixed, suffix));
+                output.push(format!("{fixed}{suffix}"));
                 skip_next = true;
                 continue;
             }
@@ -395,8 +397,8 @@ pub(super) fn fix_vec_to_string_debug(code: &str) -> String {
         if var.starts_with("_dv_") || var.len() <= 1 {
             continue;
         }
-        let old = format!("{}.to_string()", var);
-        let new = format!("{}.clone()", var);
+        let old = format!("{var}.to_string()");
+        let new = format!("{var}.clone()");
         result = result.replace(&old, &new);
     }
     result
@@ -438,8 +440,8 @@ fn process_keys_loop_body(
     loop_var: &str,
     result: &mut String,
 ) -> usize {
-    let get_pattern = format!(".get({})", loop_var);
-    let get_fixed = format!(".get(&{})", loop_var);
+    let get_pattern = format!(".get({loop_var})");
+    let get_fixed = format!(".get(&{loop_var})");
     let mut brace_depth: i32 = 1;
     let mut i = start;
     while i < lines.len() && brace_depth > 0 {
@@ -529,7 +531,7 @@ fn is_wrong_primitive_type(type_ann: &str) -> bool {
     matches!(type_ann, "bool" | "i32" | "f64" | "String")
 }
 
-/// Check if a type annotation is a DepylerValue collection type.
+/// Check if a type annotation is a `DepylerValue` collection type.
 fn is_depyler_collection_type(type_ann: &str) -> bool {
     type_ann.contains("DepylerValue")
         && (type_ann.contains("Vec")
@@ -584,7 +586,7 @@ pub(super) fn fix_collect_type_annotation_mismatch(code: &str) -> String {
 }
 
 /// Try to strip the type annotation from a let binding with a collect mismatch.
-/// Returns Some(new_line) if stripping should happen.
+/// Returns `Some(new_line)` if stripping should happen.
 fn try_strip_collect_type(
     line: &str,
     trimmed: &str,
@@ -605,7 +607,7 @@ fn try_strip_collect_type(
     let indent = &line[..line.len() - trimmed.len()];
     let before_colon = &trimmed[..offset + colon_rel];
     let after_type = &trimmed[offset + eq_rel..];
-    Some(format!("{}{}{}", indent, before_colon, after_type))
+    Some(format!("{indent}{before_colon}{after_type}"))
 }
 
 pub(super) fn fix_empty_vec_in_assert(code: &str) -> String {
@@ -681,7 +683,7 @@ pub(super) fn fix_empty_vec_in_assert(code: &str) -> String {
                                 let after = &trimmed[abs_pos + 6..];
                                 let indent = &line[..line.len() - trimmed.len()];
                                 new_line =
-                                    format!("{}{}Vec::<i32>::new(){}", indent, before, after);
+                                    format!("{indent}{before}Vec::<i32>::new(){after}");
                                 break;
                             }
                         }
@@ -827,7 +829,7 @@ fn find_fn_call_on_line<'a>(
     fn_names: impl Iterator<Item = &'a String>,
 ) -> Option<String> {
     for fn_name in fn_names {
-        if trimmed.contains(&format!("{}(", fn_name)) {
+        if trimmed.contains(&format!("{fn_name}(")) {
             return Some(fn_name.clone());
         }
     }
@@ -837,11 +839,11 @@ fn find_fn_call_on_line<'a>(
 /// Replace `Vec::<i32>::new()` with the correctly typed version for a given return type.
 fn replace_vec_i32_with_typed(line: &str, ret_type: &str) -> Option<String> {
     let inner = extract_non_i32_vec_inner(ret_type)?;
-    let replacement = format!("Vec::<{}>::new()", inner);
+    let replacement = format!("Vec::<{inner}>::new()");
     Some(line.replace("Vec::<i32>::new()", &replacement))
 }
 
-/// First pass of fix_nested_vec_type_in_assert: fix single-line assert_eq! with fn call.
+/// First pass of `fix_nested_vec_type_in_assert`: fix single-line `assert_eq`! with fn call.
 fn nested_vec_pass1(
     lines: &[&str],
     fn_return_types: &std::collections::HashMap<String, String>,
@@ -860,7 +862,7 @@ fn nested_vec_pass1(
     result
 }
 
-/// Try to replace Vec::<i32>::new() on a single assert line. Returns true if replaced.
+/// Try to replace `Vec::`<i32>`::new()` on a single assert line. Returns true if replaced.
 fn try_replace_on_assert_line(
     line: &str,
     trimmed: &str,
@@ -868,7 +870,7 @@ fn try_replace_on_assert_line(
     result: &mut String,
 ) -> bool {
     for (fn_name, ret_type) in fn_return_types {
-        if !trimmed.contains(&format!("{}(", fn_name)) {
+        if !trimmed.contains(&format!("{fn_name}(")) {
             continue;
         }
         if let Some(replaced) = replace_vec_i32_with_typed(line, ret_type) {
@@ -879,7 +881,7 @@ fn try_replace_on_assert_line(
     false
 }
 
-/// Second pass: handle multi-line assert blocks where Vec::<i32>::new() is on its own line.
+/// Second pass: handle multi-line assert blocks where `Vec::`<i32>`::new()` is on its own line.
 fn nested_vec_pass2(
     pass1: &str,
     fn_return_types: &std::collections::HashMap<String, String>,
@@ -934,7 +936,8 @@ fn update_assert_tracking(
     }
 }
 
-/// Try to replace Vec::<i32>::new() in a multi-line assert context. Returns true if replaced.
+/// Try to replace `Vec::`<i32>`::new()` in a multi-line assert context. Returns true if replaced.
+#[allow(clippy::manual_let_else)]
 fn try_replace_multiline_vec(
     line: &str,
     trimmed: &str,
@@ -967,9 +970,9 @@ fn try_replace_multiline_vec(
 
 /// DEPYLER-99MODE-S9: Fix empty vec in assert where nested type expected (E0277).
 ///
-/// When `Vec::<i32>::new()` was inserted by fix_empty_vec_in_assert, but
+/// When `Vec::<i32>::new()` was inserted by `fix_empty_vec_in_assert`, but
 /// the actual return type is `Vec<Vec<i32>>`, the assert fails.
-/// Detect: assert_eq!(fn_call(), Vec::<i32>::new()) where fn returns Vec<Vec<...>>
+/// Detect: `assert_eq!(fn_call()`, `Vec::`<i32>`::new()`) where fn returns Vec<Vec<...>>
 pub(super) fn fix_nested_vec_type_in_assert(code: &str) -> String {
     let lines: Vec<&str> = code.lines().collect();
     let fn_return_types = build_fn_return_type_map(&lines);
@@ -1100,7 +1103,7 @@ fn find_vec_literal_tuple_replacements(lines: &[&str]) -> Vec<(String, String)> 
         if in_vec_literal && trimmed == "];" {
             in_vec_literal = false;
             if let (Some(_), Some(ref tuple_type)) = (vec_type_line, &first_tuple) {
-                replacements.push(("Vec<()>".to_string(), format!("Vec<{}>", tuple_type)));
+                replacements.push(("Vec<()>".to_string(), format!("Vec<{tuple_type}>")));
             }
             vec_type_line = None;
             first_tuple = None;
@@ -1136,7 +1139,7 @@ fn find_param_tuple_replacements(lines: &[&str]) -> Vec<(String, String)> {
     }
     if has_tuple_access && field_types.len() >= 2 {
         let tuple_type = format!("({})", field_types.join(", "));
-        vec![("Vec<()>".to_string(), format!("Vec<{}>", tuple_type))]
+        vec![("Vec<()>".to_string(), format!("Vec<{tuple_type}>"))]
     } else {
         Vec::new()
     }
@@ -1158,7 +1161,7 @@ pub(super) fn fix_unit_vec_to_tuple_type(code: &str) -> String {
     code_str
 }
 
-/// DEPYLER-99MODE-S9: Fix HashMap type annotation mismatch with insert arg order (E0308).
+/// DEPYLER-99MODE-S9: Fix `HashMap` type annotation mismatch with insert arg order (E0308).
 ///
 /// When `HashMap<K, V>` type annotation has K/V swapped relative to the actual insert calls,
 /// fix the type annotation to match the inserts.
@@ -1206,8 +1209,8 @@ pub(super) fn fix_hashmap_type_annotation_mismatch(code: &str) -> String {
                             }
                         }
                         if inserts_suggest_swap {
-                            let old_type = format!("HashMap<{}, {}>", declared_k, declared_v);
-                            let new_type = format!("HashMap<{}, {}>", declared_v, declared_k);
+                            let old_type = format!("HashMap<{declared_k}, {declared_v}>");
+                            let new_type = format!("HashMap<{declared_v}, {declared_k}>");
                             fixes.push((i, old_type, new_type));
                         }
                     }
@@ -1258,7 +1261,7 @@ pub(super) fn fix_empty_vec_new_in_assert(code: &str) -> String {
             if content.starts_with("Vec::<") && content.ends_with(">::new()") {
                 let indent = &line[..line.len() - trimmed.len()];
                 let trailing = if trimmed.ends_with(',') { "," } else { "" };
-                result.push(format!("{}vec![]{}", indent, trailing));
+                result.push(format!("{indent}vec![]{trailing}"));
             } else {
                 result.push(line.to_string());
             }

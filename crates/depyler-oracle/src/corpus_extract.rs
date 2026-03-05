@@ -23,7 +23,7 @@ pub struct TrainingError {
     pub context: String,
     /// Source file path
     pub file: String,
-    /// Hash for deduplication (md5 of error_code + message)
+    /// Hash for deduplication (md5 of `error_code` + message)
     pub hash: String,
     /// Timestamp of extraction
     pub timestamp: String,
@@ -54,7 +54,7 @@ impl TrainingError {
         }
     }
 
-    /// Compute deduplication hash from error_code and message
+    /// Compute deduplication hash from `error_code` and message
     pub fn compute_hash(error_code: &str, message: &str) -> String {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
@@ -93,6 +93,7 @@ impl TrainingCorpus {
     }
 
     /// Save corpus to JSONL file
+    #[allow(clippy::disallowed_methods, clippy::unwrap_used)]
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
         use std::io::Write;
         let mut file = std::fs::File::create(path)?;

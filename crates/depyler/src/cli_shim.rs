@@ -27,6 +27,7 @@ impl CitlResult {
     }
 
     /// Create a result from compilation statistics
+    #[allow(clippy::cast_precision_loss)]
     pub fn from_stats(compiled: usize, total: usize, iterations: usize, fixes: usize) -> Self {
         let rate = if total == 0 { 1.0 } else { compiled as f64 / total as f64 };
         Self {
@@ -49,6 +50,7 @@ impl CitlResult {
     }
 
     /// Get compiled count
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
     pub fn compiled_count(&self) -> usize {
         (self.files_processed as f64 * self.compilation_rate).round() as usize
     }
@@ -129,7 +131,7 @@ impl QualityTargets {
 
     /// Check if coverage meets target
     pub fn coverage_ok(&self, coverage_percent: f64) -> bool {
-        coverage_percent >= self.min_coverage as f64
+        coverage_percent >= f64::from(self.min_coverage)
     }
 }
 
@@ -185,6 +187,7 @@ impl DoctestSummary {
     }
 
     /// Get extraction rate
+    #[allow(clippy::cast_precision_loss)]
     pub fn extraction_rate(&self) -> f64 {
         if self.files_processed == 0 {
             0.0
@@ -196,6 +199,7 @@ impl DoctestSummary {
 
 /// File filter configuration
 #[derive(Debug, Clone, Default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct FileFilter {
     pub skip_hidden: bool,
     pub skip_pycache: bool,
@@ -345,9 +349,10 @@ impl LambdaConfig {
     }
 
     /// Get estimated cost per million invocations (rough estimate)
+    #[allow(clippy::cast_precision_loss, clippy::unreadable_literal)]
     pub fn estimated_cost_per_million(&self, avg_duration_ms: u64) -> f64 {
         // Simplified pricing: $0.0000166667 per GB-second
-        let gb_seconds = (self.memory_mb as f64 / 1024.0) * (avg_duration_ms as f64 / 1000.0);
+        let gb_seconds = (f64::from(self.memory_mb) / 1024.0) * (avg_duration_ms as f64 / 1000.0);
         gb_seconds * 0.0000166667 * 1_000_000.0
     }
 }
@@ -386,6 +391,7 @@ impl BatchProgress {
     }
 
     /// Get completion percentage
+    #[allow(clippy::cast_precision_loss)]
     pub fn percent_complete(&self) -> f64 {
         if self.total == 0 {
             100.0
@@ -395,6 +401,7 @@ impl BatchProgress {
     }
 
     /// Get success rate
+    #[allow(clippy::cast_precision_loss)]
     pub fn success_rate(&self) -> f64 {
         let processed = self.succeeded + self.failed;
         if processed == 0 {
@@ -416,22 +423,24 @@ impl BatchProgress {
 }
 
 /// Format a duration in human-readable form
+#[allow(clippy::cast_precision_loss)]
 pub fn format_duration_ms(ms: u64) -> String {
     if ms < 1000 {
-        format!("{}ms", ms)
+        format!("{ms}ms")
     } else if ms < 60000 {
         format!("{:.2}s", ms as f64 / 1000.0)
     } else {
         let minutes = ms / 60000;
         let seconds = (ms % 60000) / 1000;
-        format!("{}m {}s", minutes, seconds)
+        format!("{minutes}m {seconds}s")
     }
 }
 
 /// Format a byte count in human-readable form
+#[allow(clippy::cast_precision_loss)]
 pub fn format_bytes(bytes: u64) -> String {
     if bytes < 1024 {
-        format!("{} B", bytes)
+        format!("{bytes} B")
     } else if bytes < 1024 * 1024 {
         format!("{:.1} KB", bytes as f64 / 1024.0)
     } else if bytes < 1024 * 1024 * 1024 {
@@ -443,7 +452,7 @@ pub fn format_bytes(bytes: u64) -> String {
 
 /// Format a percentage with color indication
 pub fn format_rate(rate: f64, threshold: f64) -> (String, bool) {
-    let formatted = format!("{:.1}%", rate);
+    let formatted = format!("{rate:.1}%");
     let passed = rate >= threshold;
     (formatted, passed)
 }
@@ -458,6 +467,7 @@ pub fn improvement_needed(current: f64, target: f64) -> f64 {
 }
 
 /// Calculate files to fix to reach target rate
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss)]
 pub fn files_to_fix(total: usize, current_passed: usize, target_rate: f64) -> usize {
     let target_passed = (total as f64 * target_rate / 100.0).ceil() as usize;
     target_passed.saturating_sub(current_passed)

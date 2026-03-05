@@ -38,6 +38,7 @@ impl ErrorFeatures {
 
     /// Extract features from an error message.
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn from_error_message(message: &str) -> Self {
         let lower = message.to_lowercase();
 
@@ -147,6 +148,7 @@ impl ErrorFeatures {
 }
 
 /// Count keyword occurrences (normalized).
+#[allow(clippy::cast_precision_loss)]
 fn count_keywords(text: &str, keywords: &[&str]) -> f32 {
     let count = keywords.iter().filter(|k| text.contains(*k)).count();
     (count as f32 / keywords.len() as f32).min(1.0)
@@ -202,7 +204,7 @@ pub const KEYWORD_CATEGORIES: [(&str, &[&str]); 9] = [
 /// Combines base features (12) + error code one-hot (25) + keyword counts (36)
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EnhancedErrorFeatures {
-    /// Base 12 features from ErrorFeatures
+    /// Base 12 features from `ErrorFeatures`
     pub base: ErrorFeatures,
     /// One-hot encoding for top 25 error codes
     pub error_code_onehot: Vec<f32>,
@@ -226,6 +228,7 @@ impl EnhancedErrorFeatures {
 
     /// Extract enhanced features from error message
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn from_error_message(message: &str) -> Self {
         let lower = message.to_lowercase();
 

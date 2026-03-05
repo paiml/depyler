@@ -120,10 +120,10 @@ impl CorpusAnalyzer {
         // Phase 5: Generate report
         let report = CorpusReport::new(
             &self.config,
-            transpile_results,
-            compile_results,
-            taxonomy,
-            statistics,
+            &transpile_results,
+            &compile_results,
+            &taxonomy,
+            &statistics,
         );
 
         Ok(report)

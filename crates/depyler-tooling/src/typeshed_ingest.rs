@@ -63,7 +63,7 @@ impl Default for TypeMappingConfig {
 /// Known Rust crate mappings for Python modules
 #[derive(Debug, Clone)]
 pub struct CrateMappingConfig {
-    /// Python module -> (Rust crate path, is_external, version)
+    /// Python module -> (Rust crate path, `is_external`, version)
     pub crate_map: HashMap<String, (String, bool, Option<String>)>,
 }
 
@@ -104,7 +104,7 @@ impl Default for CrateMappingConfig {
 /// This is the "semantic bridge" that maps Python function names to Rust equivalents
 #[derive(Debug, Clone)]
 pub struct FunctionMappingConfig {
-    /// (module, python_func) -> rust_func
+    /// (module, `python_func`) -> `rust_func`
     pub func_map: HashMap<(String, String), String>,
 }
 

@@ -91,6 +91,7 @@ impl CurriculumScheduler {
     }
 
     /// Calculate priority for an example
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap)]
     fn calculate_priority(example: &FailingExample) -> i32 {
         // Base priority from difficulty
         let base = match example.difficulty {
@@ -120,6 +121,7 @@ impl CurriculumScheduler {
     }
 
     /// Get current progress (0.0 to 1.0)
+    #[allow(clippy::cast_precision_loss)]
     pub fn progress(&self) -> f32 {
         let total = self.queue.len() + self.graduated.len();
         if total == 0 {

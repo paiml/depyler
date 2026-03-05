@@ -23,6 +23,7 @@ pub enum LambdaTemplate {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct OptimizationProfile {
     pub lto: bool,
     pub panic_abort: bool,
@@ -81,6 +82,7 @@ impl LambdaCodeGenerator {
         Self { templates, optimization_profile: OptimizationProfile::default() }
     }
 
+    #[must_use]
     pub fn with_optimization_profile(mut self, profile: OptimizationProfile) -> Self {
         self.optimization_profile = profile;
         self
@@ -101,7 +103,7 @@ impl LambdaCodeGenerator {
             build_script,
             sam_template: None,
             cdk_construct: None,
-            readme: self.generate_readme(context)?,
+            readme: Self::generate_readme(context),
         };
 
         // Generate deployment templates if needed
@@ -137,7 +139,7 @@ impl LambdaCodeGenerator {
 
         // Handle event type specific replacements
         if let Some(event_type) = &context.event_type {
-            let (event_module, event_rust_type) = self.get_event_type_mapping(event_type);
+            let (event_module, event_rust_type) = Self::get_event_type_mapping(event_type);
             code = code.replace("{{event_module}}", &event_module);
             code = code.replace("{{event_type}}", &event_rust_type);
         } else {
@@ -202,7 +204,7 @@ impl LambdaCodeGenerator {
         cargo_toml = cargo_toml.replace("{{profile}}", &profile_section);
 
         // Add Lambda metadata
-        let metadata_section = self.generate_lambda_metadata(context);
+        let metadata_section = Self::generate_lambda_metadata(context);
         cargo_toml = cargo_toml.replace("{{lambda_metadata}}", &metadata_section);
 
         Ok(cargo_toml)
@@ -266,9 +268,9 @@ impl LambdaCodeGenerator {
         Ok(cdk)
     }
 
-    fn generate_readme(&self, context: &LambdaGenerationContext) -> Result<String> {
-        Ok(format!(
-            r#"# {} Lambda Function
+    fn generate_readme(context: &LambdaGenerationContext) -> String {
+        format!(
+            r"# {} Lambda Function
 
 Generated Rust Lambda function from Python source.
 
@@ -296,16 +298,16 @@ cargo lambda deploy
 - Timeout: {}s
 - Architecture: {:?}
 - Event Type: {:?}
-"#,
+",
             context.function_name,
             context.annotations.memory_size,
             context.annotations.timeout.unwrap_or(15),
             context.annotations.architecture,
             context.event_type
-        ))
+        )
     }
 
-    fn get_event_type_mapping(&self, event_type: &LambdaEventType) -> (String, String) {
+    fn get_event_type_mapping(event_type: &LambdaEventType) -> (String, String) {
         match event_type {
             LambdaEventType::S3Event => ("s3".to_string(), "S3Event".to_string()),
             LambdaEventType::ApiGatewayProxyRequest => {
@@ -328,8 +330,8 @@ cargo lambda deploy
                 ("cloudwatch_events".to_string(), "CloudWatchEvent".to_string())
             }
             LambdaEventType::KinesisEvent => ("kinesis".to_string(), "KinesisEvent".to_string()),
-            LambdaEventType::Custom(name) => ("".to_string(), name.clone()),
-            LambdaEventType::Auto => ("".to_string(), "serde_json::Value".to_string()),
+            LambdaEventType::Custom(name) => (String::new(), name.clone()),
+            LambdaEventType::Auto => (String::new(), "serde_json::Value".to_string()),
         }
     }
 
@@ -354,7 +356,7 @@ incremental = false
         )
     }
 
-    fn generate_lambda_metadata(&self, context: &LambdaGenerationContext) -> String {
+    fn generate_lambda_metadata(context: &LambdaGenerationContext) -> String {
         let arch = match context.annotations.architecture {
             Architecture::Arm64 => "aarch64-unknown-linux-musl",
             Architecture::X86_64 => "x86_64-unknown-linux-musl",
@@ -539,7 +541,7 @@ cp target/lambda/${HANDLER_NAME}/bootstrap.zip ${HANDLER_NAME}.zip
 echo "Lambda package: ${HANDLER_NAME}.zip ($(du -h ${HANDLER_NAME}.zip | cut -f1))"
 "#;
 
-const SAM_TEMPLATE: &str = r#"AWSTemplateFormatVersion: '2010-09-09'
+const SAM_TEMPLATE: &str = r"AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
 Globals:
@@ -565,9 +567,9 @@ Resources:
           Properties:
             Path: /{proxy+}
             Method: ANY
-"#;
+";
 
-const CDK_CONSTRUCT_TEMPLATE: &str = r#"import * as lambda from 'aws-cdk-lib/aws-lambda';
+const CDK_CONSTRUCT_TEMPLATE: &str = r"import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as cdk from 'aws-cdk-lib';
 
 export class {{function_name}}Lambda extends cdk.Construct {
@@ -589,7 +591,7 @@ export class {{function_name}}Lambda extends cdk.Construct {
     });
   }
 }
-"#;
+";
 
 #[cfg(test)]
 mod tests {

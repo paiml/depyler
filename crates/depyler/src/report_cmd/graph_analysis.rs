@@ -48,7 +48,7 @@ pub struct ErrorEdge {
 pub struct ErrorCommunity {
     /// Community ID
     pub id: usize,
-    /// Auto-generated name (e.g., "The AsyncIO Cluster")
+    /// Auto-generated name (e.g., "The `AsyncIO` Cluster")
     pub name: String,
     /// Error codes in this community
     pub error_codes: Vec<String>,
@@ -91,6 +91,7 @@ impl ErrorGraph {
     }
 
     /// Build graph from analysis results (GH-209)
+    #[allow(clippy::cast_precision_loss, clippy::manual_let_else)]
     pub fn from_results(results: &[ExtendedAnalysisResult]) -> Self {
         let mut graph = Self::new();
 
@@ -171,6 +172,7 @@ impl ErrorGraph {
     }
 
     /// Calculate PageRank-style centrality for all nodes
+    #[allow(clippy::cast_precision_loss)]
     pub fn calculate_centrality(&mut self) {
         let n = self.nodes.len();
         if n == 0 {
@@ -195,7 +197,7 @@ impl ErrorGraph {
                 if let Some(neighbors) = self.adjacency.get(&i) {
                     for &(j, weight) in neighbors {
                         let out_degree =
-                            self.adjacency.get(&j).map(|n| n.len()).unwrap_or(1) as f64;
+                            self.adjacency.get(&j).map_or(1, std::vec::Vec::len) as f64;
                         sum += scores[j] * weight / out_degree;
                     }
                 }
@@ -305,11 +307,11 @@ fn find_dominant_domain(domains: &[SemanticDomain]) -> SemanticDomain {
     counts
         .into_iter()
         .max_by_key(|(_, count)| *count)
-        .map(|(domain, _)| domain)
-        .unwrap_or(SemanticDomain::Unknown)
+        .map_or(SemanticDomain::Unknown, |(domain, _)| domain)
 }
 
 /// Generate community name based on error types
+#[allow(clippy::disallowed_methods, clippy::unwrap_used)]
 fn generate_community_name(
     error_codes: &[String],
     nodes: &[ErrorNode],
@@ -319,8 +321,7 @@ fn generate_community_name(
     let top_error = component
         .iter()
         .max_by(|&&a, &&b| nodes[a].centrality.partial_cmp(&nodes[b].centrality).unwrap())
-        .map(|&i| &nodes[i].error_code)
-        .unwrap_or(&error_codes[0]);
+        .map_or(&error_codes[0], |&i| &nodes[i].error_code);
 
     let theme = match top_error.as_str() {
         "E0308" => "Type Mismatch",
@@ -336,9 +337,9 @@ fn generate_community_name(
 
     let size = component.len();
     if size == 1 {
-        format!("Isolated {} Error", theme)
+        format!("Isolated {theme} Error")
     } else {
-        format!("The {} Cluster ({} errors)", theme, size)
+        format!("The {theme} Cluster ({size} errors)")
     }
 }
 
@@ -357,6 +358,7 @@ pub struct GraphAnalysis {
 
 impl GraphAnalysis {
     /// Build full analysis from results
+    #[allow(clippy::cast_precision_loss)]
     pub fn from_results(results: &[ExtendedAnalysisResult]) -> Self {
         let graph = ErrorGraph::from_results(results);
         let communities = graph.find_communities();

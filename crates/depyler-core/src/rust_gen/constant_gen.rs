@@ -8,7 +8,7 @@
 //! - Path constant detection (pathlib support)
 //! - Homogeneous collection type inference for concrete typing
 
-use crate::hir::*;
+use crate::hir::{HirConstant, HirExpr, Type, Literal, BinOp, UnaryOp};
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::func_gen;
 use crate::rust_gen::type_gen;
@@ -20,6 +20,7 @@ use quote::quote;
 /// Used for complex constants like Dict/List that need runtime initialization.
 /// Complexity: 6 (nested if-else with match arms)
 /// DEPYLER-0846: Convert impl Fn to Box<dyn Fn> to avoid E0666 nested impl Trait
+#[allow(clippy::too_many_lines, clippy::unwrap_used, clippy::disallowed_methods, clippy::needless_pass_by_value)]
 pub(super) fn generate_lazy_constant(
     constant: &HirConstant,
     name_ident: syn::Ident,
@@ -134,9 +135,10 @@ pub(super) fn generate_lazy_constant(
 
 /// DEPYLER-0107: Infer type for Lazy constants based on value expression
 ///
-/// Most complex constants default to serde_json::Value for compatibility.
-/// DEPYLER-0188: Path expressions return std::path::PathBuf.
+/// Most complex constants default to `serde_json::Value` for compatibility.
+/// DEPYLER-0188: Path expressions return `std::path::PathBuf`.
 /// DEPYLER-0714: Function calls use the function's return type (unwrapped if Result).
+#[allow(clippy::match_same_arms, clippy::too_many_lines)]
 pub(super) fn infer_lazy_constant_type(
     value: &HirExpr,
     ctx: &mut CodeGenContext,
@@ -364,7 +366,7 @@ pub(super) fn infer_lazy_constant_type(
 /// DEPYLER-1128: Infer type for homogeneous list literals
 ///
 /// Returns `Some(type)` if all elements are the same primitive type,
-/// `None` if heterogeneous (requires DepylerValue).
+/// `None` if heterogeneous (requires `DepylerValue`).
 pub(super) fn infer_homogeneous_list_type(elems: &[HirExpr]) -> Option<proc_macro2::TokenStream> {
     if elems.is_empty() {
         // Empty list defaults to Vec<i32> for simplicity
@@ -405,6 +407,7 @@ pub(super) fn infer_homogeneous_list_type(elems: &[HirExpr]) -> Option<proc_macr
 }
 
 /// DEPYLER-1128: Infer type for binary expressions
+#[allow(clippy::match_same_arms, clippy::trivially_copy_pass_by_ref)]
 pub(super) fn infer_binary_expr_type(
     op: &crate::hir::BinOp,
     left: &HirExpr,
@@ -456,6 +459,7 @@ pub(super) fn infer_binary_expr_type(
 }
 
 /// DEPYLER-1128: Infer type for unary expressions
+#[allow(clippy::trivially_copy_pass_by_ref)]
 pub(super) fn infer_unary_expr_type(
     op: &crate::hir::UnaryOp,
     operand: &HirExpr,
@@ -478,6 +482,7 @@ pub(super) fn infer_unary_expr_type(
 /// Analyzes the comprehension element expression to determine output type.
 /// `[x*2 for x in range(10)]` -> i32 (integer arithmetic on loop variable)
 /// `[str(x) for x in items]` -> String (string conversion)
+#[allow(clippy::match_same_arms)]
 pub(super) fn infer_comprehension_element_type(
     element: &HirExpr,
 ) -> Option<proc_macro2::TokenStream> {
@@ -530,7 +535,7 @@ pub(super) fn infer_comprehension_element_type(
 
 /// DEPYLER-1145: Infer element type from list/set literal for module-level constant tracking
 ///
-/// Returns the HIR Type of list elements, used to track concrete types in var_types.
+/// Returns the HIR Type of list elements, used to track concrete types in `var_types`.
 /// This enables proper type inference when indexing into homogeneous lists.
 pub(super) fn infer_list_element_type(elems: &[HirExpr]) -> Type {
     if elems.is_empty() {
@@ -551,7 +556,7 @@ pub(super) fn infer_list_element_type(elems: &[HirExpr]) -> Type {
         HirExpr::Literal(Literal::Float(_)) => {
             // Verify all elements are floats (or ints - promote to float)
             if elems.iter().all(|e| {
-                matches!(e, HirExpr::Literal(Literal::Float(_)) | HirExpr::Literal(Literal::Int(_)))
+                matches!(e, HirExpr::Literal(Literal::Float(_) | Literal::Int(_)))
             }) {
                 Type::Float
             } else {
@@ -577,6 +582,7 @@ pub(super) fn infer_list_element_type(elems: &[HirExpr]) -> Type {
 }
 
 /// DEPYLER-1128: Infer type for tuple literals
+#[allow(clippy::unwrap_used, clippy::disallowed_methods)]
 pub(super) fn infer_tuple_type(elems: &[HirExpr]) -> Option<proc_macro2::TokenStream> {
     if elems.is_empty() {
         return Some(quote! { () });
@@ -596,7 +602,7 @@ pub(super) fn infer_tuple_type(elems: &[HirExpr]) -> Option<proc_macro2::TokenSt
         .collect();
 
     // If all elements have known types, return the tuple type
-    if elem_types.iter().all(|t| t.is_some()) {
+    if elem_types.iter().all(std::option::Option::is_some) {
         let types: Vec<_> = elem_types.into_iter().map(|t| t.unwrap()).collect();
         Some(quote! { (#(#types),*) })
     } else {
@@ -639,8 +645,9 @@ pub(super) fn infer_homogeneous_set_type(elems: &[HirExpr]) -> Option<proc_macro
 
 /// DEPYLER-1128: Check if expression contains operations that can't be const-evaluated
 ///
-/// Returns true if expression uses methods like .to_string() or comparisons
+/// Returns true if expression uses methods like .`to_string()` or comparisons
 /// that generate non-const code.
+#[allow(clippy::match_same_arms)]
 pub(super) fn expr_contains_non_const_ops(expr: &HirExpr) -> bool {
     match expr {
         // String comparisons with != or == generate .to_string() calls
@@ -673,6 +680,7 @@ pub(super) fn expr_contains_non_const_ops(expr: &HirExpr) -> bool {
 ///
 /// DEPYLER-0599: Resolved string literal const type mismatch.
 /// String literals at module level should be `&str` without `.to_string()`.
+#[allow(clippy::needless_pass_by_value)]
 pub(super) fn generate_simple_constant(
     constant: &HirConstant,
     name_ident: syn::Ident,
@@ -712,6 +720,7 @@ pub(super) fn generate_simple_constant(
 ///
 /// Determines the Rust type for module-level constant expressions.
 /// Complexity: 7 (match with 6 arms + default)
+#[allow(clippy::if_not_else)]
 pub(super) fn infer_constant_type(
     value: &HirExpr,
     ctx: &mut CodeGenContext,
@@ -854,8 +863,9 @@ pub(super) fn is_path_constant_expr(value: &HirExpr) -> bool {
 ///
 /// Handles type inference for unary operations like -1, +1, --1, -1.5, !True, ~0xFF, etc.
 /// DEPYLER-1022: Uses NASA mode aware fallback type
-/// DEPYLER-1040b: Handles Not and BitNot correctly (no fallthrough to String)
+/// DEPYLER-1040b: Handles Not and `BitNot` correctly (no fallthrough to String)
 /// Complexity: 7 (recursive pattern matching with early returns)
+#[allow(clippy::match_same_arms, clippy::trivially_copy_pass_by_ref)]
 pub(super) fn infer_unary_type(
     op: &UnaryOp,
     operand: &HirExpr,
@@ -912,10 +922,10 @@ pub(super) fn infer_unary_type(
 ///
 /// Generates `pub const` declarations for module-level constants.
 /// For simple literal values (int, float, string, bool), generates const.
-/// For complex expressions (Dict, List), uses once_cell::Lazy for runtime init.
+/// For complex expressions (Dict, List), uses `once_cell::Lazy` for runtime init.
 ///
 /// # DEPYLER-REARCH-001: Phase 3.2 - Fix const initialization
-/// HashMap::new() and .insert() are not const-evaluable, so we use Lazy for
+/// `HashMap::new()` and .`insert()` are not const-evaluable, so we use Lazy for
 /// complex collections.
 pub(super) fn generate_constant_tokens(
     constants: &[HirConstant],

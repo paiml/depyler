@@ -84,7 +84,7 @@ pub struct HirModule {
     pub constants: Vec<HirConstant>,
     /// DEPYLER-1216: Top-level statements for script-style Python files.
     /// These are non-declarative statements (expressions, loops, etc.) that
-    /// appear at module scope and should be wrapped into a synthetic main().
+    /// appear at module scope and should be wrapped into a synthetic `main()`.
     #[serde(default)]
     pub top_level_stmts: Vec<HirStmt>,
 }
@@ -207,6 +207,7 @@ pub struct HirClass {
 
 /// A method within a Python class, transpiled to an `impl` method on the corresponding struct.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct HirMethod {
     pub name: String,
     pub params: SmallVec<[HirParam; 4]>,
@@ -296,6 +297,7 @@ pub struct HirFunction {
 
 /// Static analysis properties inferred for a function (purity, termination, error behavior).
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct FunctionProperties {
     pub is_pure: bool,
     pub max_stack_depth: Option<usize>,
@@ -412,7 +414,7 @@ pub enum HirExpr {
         func: Symbol,
         args: Vec<HirExpr>,
         /// DEPYLER-0364: Keyword arguments preserved from Python AST
-        /// Format: Vec<(arg_name, value_expr)>
+        /// Format: Vec<(`arg_name`, `value_expr`)>
         /// Empty for calls without kwargs
         kwargs: Vec<(Symbol, HirExpr)>,
     },
@@ -421,7 +423,7 @@ pub enum HirExpr {
         method: Symbol,
         args: Vec<HirExpr>,
         /// DEPYLER-0364: Keyword arguments preserved from Python AST
-        /// Format: Vec<(arg_name, value_expr)>
+        /// Format: Vec<(`arg_name`, `value_expr`)>
         /// Empty for calls without kwargs
         kwargs: Vec<(Symbol, HirExpr)>,
     },
@@ -598,7 +600,7 @@ pub enum ConstGeneric {
 /// Tracks whether code is executing inside a try/except block to determine
 /// appropriate error handling strategy:
 /// - Unhandled: Exceptions propagate to caller (use ? operator or Result return)
-/// - TryCaught: Exceptions are caught by handlers (use .unwrap_or() or control flow)
+/// - `TryCaught`: Exceptions are caught by handlers (use .`unwrap_or()` or control flow)
 /// - Handler: Inside except/finally block (exceptions may propagate)
 ///
 /// # Complexity
@@ -611,9 +613,9 @@ pub enum ExceptionScope {
 
     /// Code inside try block - exceptions are caught by handlers
     /// Contains list of exception types that are handled
-    /// e.g., `try: ... except ValueError: ...` → TryCaught { handled_types: ["ValueError"] }
+    /// e.g., `try: ... except ValueError: ...` maps to `TryCaught` with `handled_types` = \[`ValueError`\]
     TryCaught {
-        /// Exception types caught by handlers (e.g., ["ValueError", "ZeroDivisionError"])
+        /// Exception types caught by handlers (e.g., \[`ValueError`, `ZeroDivisionError`\])
         /// Empty list means bare except clause (catches all)
         handled_types: Vec<String>,
     },
@@ -698,10 +700,7 @@ impl Type {
             Type::Int | Type::Float | Type::Bool | Type::None => true,
 
             // Tuples are Copy if all elements are Copy
-            Type::Tuple(elems) => elems.iter().all(|t| t.is_copy()),
-
-            // String, collections are NOT Copy
-            Type::String | Type::List(_) | Type::Dict(_, _) | Type::Set(_) => false,
+            Type::Tuple(elems) => elems.iter().all(Type::is_copy),
 
             // Optional<Copy> is still Copy in Rust
             Type::Optional(inner) => inner.is_copy(),
@@ -710,12 +709,9 @@ impl Type {
             Type::Array { element_type, .. } => element_type.is_copy(),
 
             // Union types are Copy only if ALL variants are Copy
-            Type::Union(types) => types.iter().all(|t| t.is_copy()),
+            Type::Union(types) => types.iter().all(Type::is_copy),
 
-            // Custom types - assume not Copy unless we know otherwise
-            Type::Custom(_) => false,
-
-            // Unknown, Function, TypeVar, etc. - assume not Copy (defensive)
+            // String, collections, custom, unknown, etc. - not Copy
             _ => false,
         }
     }

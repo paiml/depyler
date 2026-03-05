@@ -9,6 +9,7 @@ pub(super) fn fix_str_params_in_new_calls(code: &str) -> String {
     apply_to_string_in_new_calls(code, &str_params)
 }
 
+#[allow(clippy::manual_let_else)]
 pub(super) fn collect_str_param_names(lines: &[&str]) -> Vec<String> {
     let mut params = Vec::new();
     for line in lines {
@@ -40,18 +41,18 @@ fn update_ops_impl_state(line: &str, trimmed: &str, in_ops_impl: &mut bool) {
     }
 }
 
-/// Replace bare str param references with .to_string() variants in a new-call line.
+/// Replace bare str param references with .`to_string()` variants in a new-call line.
 fn apply_param_to_string(line: &str, params: &[String]) -> String {
     let mut fixed = line.to_string();
     for param in params {
-        let trailing_comma = format!("{},", param);
-        let trailing_paren = format!("{})", param);
+        let trailing_comma = format!("{param},");
+        let trailing_paren = format!("{param})");
         if fixed.contains(&trailing_comma) {
-            let repl = format!("{}.to_string(),", param);
+            let repl = format!("{param}.to_string(),");
             fixed = fixed.replace(&trailing_comma, &repl);
         }
         if fixed.contains(&trailing_paren) {
-            let repl = format!("{}.to_string())", param);
+            let repl = format!("{param}.to_string())");
             fixed = fixed.replace(&trailing_paren, &repl);
         }
     }
@@ -121,7 +122,7 @@ pub(super) fn fix_string_array_contains(code: &str) -> String {
         let arg = result[after_contains..after_contains + close_paren].trim();
         // Build replacement: ["x", "y"].contains(&arg)
         let old_end = after_contains + close_paren + 1;
-        let new_expr = format!("[{}].contains(&{})", stripped, arg);
+        let new_expr = format!("[{stripped}].contains(&{arg})");
         result = format!("{}{}{}", &result[..open_bracket], new_expr, &result[old_end..]);
     }
     result
@@ -150,7 +151,8 @@ pub(super) fn fix_regex_match_string_arg(code: &str) -> String {
     }
 }
 
-/// Fix a single line with DepylerRegexMatch::new(x.to_string(), ...).
+/// Fix a single line with `DepylerRegexMatch::new(x.to_string()`, ...).
+#[allow(clippy::manual_let_else)]
 pub(super) fn fix_regex_match_line(line: &str, target: &str) -> String {
     let idx = match line.find(target) {
         Some(i) => i,
@@ -175,7 +177,7 @@ pub(super) fn fix_regex_match_line(line: &str, target: &str) -> String {
 }
 
 /// Try to fix a multi-line format!(...)\n.expect("...") pattern.
-/// Returns Some(fixed_line, lines_consumed) on success.
+/// Returns `Some(fixed_line`, `lines_consumed`) on success.
 fn try_fix_multiline_format_expect(cur: &str, next: &str) -> Option<(String, usize)> {
     let next_trimmed = next.trim();
     let expect_rest = next_trimmed.strip_prefix(".expect(")?;
@@ -195,7 +197,7 @@ fn try_fix_multiline_format_expect(cur: &str, next: &str) -> Option<(String, usi
 }
 
 /// Try to fix a single-line format!(...).expect("...") pattern.
-/// Returns Some(fixed_line) on success.
+/// Returns `Some(fixed_line)` on success.
 fn try_fix_single_line_format_expect(line: &str) -> Option<String> {
     if !line.contains("format!(") || !line.contains(").expect(") {
         return None;
@@ -208,7 +210,7 @@ fn try_fix_single_line_format_expect(line: &str) -> Option<String> {
     let in_expect = after_close.strip_prefix(".expect(")?;
     let exp_close = find_matching_paren(in_expect)?;
     let rest = &in_expect[exp_close + 1..];
-    Some(format!("{}{}", &line[..abs_close + 1], rest))
+    Some(format!("{}{}", &line[..=abs_close], rest))
 }
 
 pub(super) fn fix_format_expect(code: &str) -> String {
@@ -250,6 +252,7 @@ pub(super) fn fix_format_expect(code: &str) -> String {
 /// Advance the paren-matching state machine by one character.
 /// Returns `Some(true)` if the matching close paren is found,
 /// `Some(false)` to continue, or updates state in place.
+#[allow(clippy::unnecessary_wraps)]
 fn advance_paren_state(
     c: char,
     depth: &mut i32,
@@ -314,6 +317,7 @@ fn try_extract_str_param_name(param_fragment: &str) -> Option<String> {
 }
 
 /// Extract &str parameter names from a function signature line.
+#[allow(clippy::manual_let_else)]
 fn extract_str_params_from_sig(trimmed: &str) -> Vec<String> {
     let start = match trimmed.find('(') {
         Some(s) => s,
@@ -331,13 +335,13 @@ fn extract_str_params_from_sig(trimmed: &str) -> Vec<String> {
 fn try_fix_bare_return(line: &str, trimmed: &str, params: &[String]) -> Option<String> {
     let indent = &line[..line.len() - trimmed.len()];
     for param in params {
-        if trimmed == param.as_str() || trimmed == format!("{};", param) {
+        if trimmed == param.as_str() || trimmed == format!("{param};") {
             return Some(format!("{}{}.to_string()", indent, trimmed.trim_end_matches(';')));
         }
-        let ret_pattern = format!("return {};", param);
-        let ret_bare = format!("return {}", param);
+        let ret_pattern = format!("return {param};");
+        let ret_bare = format!("return {param}");
         if trimmed == ret_pattern || trimmed == ret_bare {
-            return Some(format!("{}return {}.to_string();", indent, param));
+            return Some(format!("{indent}return {param}.to_string();"));
         }
     }
     None
@@ -415,8 +419,8 @@ pub(super) fn fix_from_utf8_lossy_string_arg(code: &str) -> String {
     }
     let mut result = code.to_string();
     for var in &format_string_vars {
-        let bad = format!("from_utf8_lossy(&{})", var);
-        let good = format!("from_utf8_lossy({}.as_bytes())", var);
+        let bad = format!("from_utf8_lossy(&{var})");
+        let good = format!("from_utf8_lossy({var}.as_bytes())");
         result = result.replace(&bad, &good);
     }
     result
@@ -431,7 +435,8 @@ fn is_simple_int_literal(expr: &str) -> bool {
     !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit())
 }
 
-/// Update vec_block tracking state and return whether we are inside a vec block.
+/// Update `vec_block` tracking state and return whether we are inside a vec block.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 fn update_vec_block_state(trimmed: &str, in_vec_block: &mut bool, vec_depth: &mut i32) {
     if trimmed.contains("vec![") {
         *in_vec_block = true;
@@ -448,6 +453,7 @@ fn update_vec_block_state(trimmed: &str, in_vec_block: &mut bool, vec_depth: &mu
 }
 
 /// Replace format!("{:?}", N) with N for integer literals in a line.
+#[allow(clippy::manual_let_else)]
 fn strip_debug_format_ints(line: &str) -> String {
     let pattern_start = "format!(\"{:?}\", ";
     let mut new_line = line.to_string();
@@ -488,6 +494,7 @@ pub(super) fn fix_format_debug_in_int_vec(code: &str) -> String {
 }
 
 /// Extract &str parameter names from a function definition line.
+#[allow(clippy::manual_let_else)]
 fn extract_str_param_names(trimmed: &str) -> Vec<String> {
     let mut params = Vec::new();
     let paren_start = match trimmed.find('(') {
@@ -533,8 +540,8 @@ pub(super) fn fix_str_clone_to_string(code: &str) -> String {
         if needs_clone_to_string_fix(trimmed, &str_params) {
             let mut new_line = line.to_string();
             for param in &str_params {
-                let pat = format!("{}.clone()", param);
-                let rep = format!("{}.to_string()", param);
+                let pat = format!("{param}.clone()");
+                let rep = format!("{param}.to_string()");
                 new_line = new_line.replace(&pat, &rep);
             }
             result.push_str(&new_line);

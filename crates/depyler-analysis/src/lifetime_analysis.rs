@@ -53,6 +53,7 @@ pub enum LifetimeSource {
 
 /// How a parameter is used in a function
 #[derive(Debug, Clone, Default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct ParamUsage {
     /// Parameter is mutated
     pub is_mutated: bool,
@@ -240,6 +241,7 @@ impl LifetimeInference {
 
     /// Recursively analyze statements for parameter usage
     #[allow(dead_code)]
+    #[allow(clippy::too_many_lines)]
     fn analyze_stmt_for_param(
         &self,
         param: &str,
@@ -414,7 +416,10 @@ impl LifetimeInference {
     }
 
     /// Analyze expressions for parameter usage
-    #[allow(dead_code, clippy::only_used_in_recursion)]
+    #[allow(dead_code, clippy::self_only_used_in_recursion)]
+    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::self_only_used_in_recursion)]
+    #[allow(clippy::match_same_arms)]
     fn analyze_expr_for_param(
         &self,
         param: &str,
@@ -510,9 +515,9 @@ impl LifetimeInference {
                 for gen in generators {
                     // Check if any generator target shadows our parameter
                     let target_shadows = gen.target == param
-                        || gen.target.contains(&format!("({})", param))
-                        || gen.target.contains(&format!("{},", param))
-                        || gen.target.contains(&format!(", {}", param));
+                        || gen.target.contains(&format!("({param})"))
+                        || gen.target.contains(&format!("{param},"))
+                        || gen.target.contains(&format!(", {param}"));
 
                     if !target_shadows {
                         // Only analyze if the comprehension target doesn't shadow our parameter
@@ -542,9 +547,9 @@ impl LifetimeInference {
                 for gen in generators {
                     // Check if any generator target shadows our parameter
                     let target_shadows = gen.target == param
-                        || gen.target.contains(&format!("({})", param))
-                        || gen.target.contains(&format!("{},", param))
-                        || gen.target.contains(&format!(", {}", param));
+                        || gen.target.contains(&format!("({param})"))
+                        || gen.target.contains(&format!("{param},"))
+                        || gen.target.contains(&format!(", {param}"));
 
                     if !target_shadows {
                         // Only analyze if the comprehension target doesn't shadow our parameter
@@ -564,9 +569,9 @@ impl LifetimeInference {
                 for gen in generators {
                     // Check if any generator target shadows our parameter
                     let target_shadows = gen.target == param
-                        || gen.target.contains(&format!("({})", param))
-                        || gen.target.contains(&format!("{},", param))
-                        || gen.target.contains(&format!(", {}", param));
+                        || gen.target.contains(&format!("({param})"))
+                        || gen.target.contains(&format!("{param},"))
+                        || gen.target.contains(&format!(", {param}"));
 
                     if !target_shadows {
                         // Only analyze if the comprehension target doesn't shadow our parameter
@@ -727,7 +732,8 @@ impl LifetimeInference {
     }
 
     /// Check if a type needs lifetime parameters
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::self_only_used_in_recursion)]
+    #[allow(clippy::match_same_arms)]
     fn return_type_needs_lifetime(&self, rust_type: &RustType) -> bool {
         match rust_type {
             RustType::Str { .. } => true,
@@ -819,7 +825,7 @@ impl LifetimeInference {
 
     /// Check if a type is a reference type
     #[allow(dead_code)]
-    fn is_reference_type(&self, rust_type: &RustType) -> bool {
+    fn is_reference_type(rust_type: &RustType) -> bool {
         matches!(
             rust_type,
             RustType::Str { .. } | RustType::Reference { .. } | RustType::Cow { .. }

@@ -6,13 +6,13 @@
 //! Coverage target: 100% line coverage, 100% branch coverage
 //!
 //! ## Supported Classes
-//! - `datetime.datetime` → chrono::DateTime or DepylerDateTime (NASA mode)
-//! - `datetime.date` → chrono::NaiveDate or DepylerDate (NASA mode)
-//! - `datetime.time` → chrono::NaiveTime
-//! - `datetime.timedelta` → chrono::Duration or DepylerTimeDelta (NASA mode)
+//! - `datetime.datetime` → `chrono::DateTime` or `DepylerDateTime` (NASA mode)
+//! - `datetime.date` → `chrono::NaiveDate` or `DepylerDate` (NASA mode)
+//! - `datetime.time` → `chrono::NaiveTime`
+//! - `datetime.timedelta` → `chrono::Duration` or `DepylerTimeDelta` (NASA mode)
 //!
 //! ## Design Principles
-//! 1. NASA Mode: Use std library only (DepylerDateTime struct)
+//! 1. NASA Mode: Use std library only (`DepylerDateTime` struct)
 //! 2. Non-NASA Mode: Use chrono crate for full datetime support
 //! 3. Strategic Cloning: Clone when ownership required
 
@@ -80,7 +80,7 @@ pub fn convert_datetime_method(
             convert_timedelta_new(args, &arg_exprs, nasa_mode, ctx)?
         }
 
-        _ => bail!("datetime.{}.{} not implemented yet", class_name, method),
+        _ => bail!("datetime.{class_name}.{method} not implemented yet"),
     };
 
     Ok(Some(result))
@@ -109,7 +109,7 @@ pub fn convert_datetime_instance_method(
         "year" | "month" | "day" | "hour" | "minute" | "second" | "microsecond" => {
             convert_instance_component(method, nasa_mode, ctx)?
         }
-        _ => bail!("datetime instance method '{}' not implemented", method),
+        _ => bail!("datetime instance method '{method}' not implemented"),
     };
 
     Ok(Some(result))
@@ -119,6 +119,7 @@ pub fn convert_datetime_instance_method(
 // datetime.datetime class methods
 // =============================================================================
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_datetime_now(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if nasa_mode {
         ctx.needs_depyler_datetime = true;
@@ -129,6 +130,7 @@ fn convert_datetime_now(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<syn
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_datetime_utcnow(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if nasa_mode {
         ctx.needs_depyler_datetime = true;
@@ -139,6 +141,7 @@ fn convert_datetime_utcnow(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_datetime_today(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if nasa_mode {
         ctx.needs_depyler_datetime = true;
@@ -245,6 +248,7 @@ fn convert_datetime_strptime(
 // datetime.date class methods
 // =============================================================================
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_date_today(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if nasa_mode {
         ctx.needs_depyler_date = true;
@@ -329,6 +333,7 @@ fn convert_time_fromisoformat(
 // datetime.timedelta
 // =============================================================================
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_timedelta_new(
     _args: &[HirExpr],
     arg_exprs: &[syn::Expr],
@@ -376,6 +381,7 @@ fn convert_timedelta_new(
 // Instance methods (called on datetime/date objects)
 // =============================================================================
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_instance_date(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if nasa_mode {
         ctx.needs_depyler_date = true;
@@ -387,6 +393,7 @@ fn convert_instance_date(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<sy
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_instance_time(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if nasa_mode {
         Ok(parse_quote! { self.time() })
@@ -396,6 +403,7 @@ fn convert_instance_time(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<sy
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_instance_timestamp(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if nasa_mode {
         Ok(parse_quote! { self.timestamp() })
@@ -405,6 +413,7 @@ fn convert_instance_timestamp(nasa_mode: bool, ctx: &mut CodeGenContext) -> Resu
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_instance_isoformat(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if nasa_mode {
         Ok(parse_quote! { self.isoformat() })
@@ -434,6 +443,7 @@ fn convert_instance_strftime(
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_instance_replace(
     _args: &[HirExpr],
     _arg_exprs: &[syn::Expr],
@@ -451,6 +461,7 @@ fn convert_instance_replace(
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_instance_weekday(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if nasa_mode {
         Ok(parse_quote! { self.weekday() })
@@ -461,6 +472,7 @@ fn convert_instance_weekday(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_instance_isoweekday(nasa_mode: bool, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if nasa_mode {
         Ok(parse_quote! { self.isoweekday() })
@@ -494,7 +506,7 @@ fn convert_instance_component(
                 Ok(parse_quote! { (self.nanosecond() / 1000) as u32 })
             }
         }
-        _ => bail!("Unknown datetime component: {}", component),
+        _ => bail!("Unknown datetime component: {component}"),
     }
 }
 

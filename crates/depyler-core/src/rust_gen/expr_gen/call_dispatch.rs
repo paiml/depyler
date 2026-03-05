@@ -1,12 +1,12 @@
-//! Call dispatch helpers for ExpressionConverter
+//! Call dispatch helpers for `ExpressionConverter`
 //!
-//! Contains try_convert_stdlib_type_call, try_convert_numeric_type_call,
-//! try_convert_iterator_util_call, print/sum/minmax/any_all call handlers,
-//! and helper methods (needs_debug_format, is_pathbuf_expr, infer_numeric_type_token).
+//! Contains `try_convert_stdlib_type_call`, `try_convert_numeric_type_call`,
+//! `try_convert_iterator_util_call`, `print/sum/minmax/any_all` call handlers,
+//! and helper methods (`needs_debug_format`, `is_pathbuf_expr`, `infer_numeric_type_token`).
 
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
-use crate::hir::*;
+use crate::hir::{HirExpr, Literal, Type};
 use crate::rust_gen::context::ToRustExpr;
 use anyhow::Result;
 use quote::quote;
@@ -14,7 +14,8 @@ use syn::{self, parse_quote};
 
 use super::ExpressionConverter;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn try_convert_stdlib_type_call(
         &mut self,
         func: &str,
@@ -37,14 +38,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             self.ctx
                                 .argparser_tracker
                                 .get_first_parser()
-                                .map(|p| {
+                                .is_some_and(|p| {
                                     p.arguments
                                         .iter()
                                         .find(|a| a.rust_field_name() == *attr)
-                                        .map(|a| a.rust_type().starts_with("Option<"))
-                                        .unwrap_or(false)
+                                        .is_some_and(|a| a.rust_type().starts_with("Option<"))
                                 })
-                                .unwrap_or(false)
                         } else {
                             false
                         }
@@ -147,11 +146,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-1025/1066: date(year, month, day) - NASA mode uses DepylerDate struct
             "date" if args.len() == 3 => {
                 let nasa_mode = self.ctx.type_mapper.nasa_mode;
-                if !nasa_mode {
-                    self.ctx.needs_chrono = true;
-                } else {
+                if nasa_mode {
                     // DEPYLER-1066: Mark that we need the DepylerDate struct
                     self.ctx.needs_depyler_date = true;
+                } else {
+                    self.ctx.needs_chrono = true;
                 }
                 let year = match args[0].to_rust_expr(self.ctx) {
                     Ok(e) => e,
@@ -252,10 +251,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-1025/1068: timedelta(days=..., seconds=...) - NASA mode uses DepylerTimeDelta
             "timedelta" => {
                 let nasa_mode = self.ctx.type_mapper.nasa_mode;
-                if !nasa_mode {
-                    self.ctx.needs_chrono = true;
-                } else {
+                if nasa_mode {
                     self.ctx.needs_depyler_timedelta = true;
+                } else {
+                    self.ctx.needs_chrono = true;
                 }
                 if args.is_empty() {
                     if nasa_mode {
@@ -515,8 +514,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-REFACTOR-001 Phase 2.15: Extracted debug format detection helper
     ///
-    /// Determines if a HirExpr needs {:?} debug formatting instead of {} display formatting.
-    /// Used by print() handler to select appropriate format specifiers.
+    /// Determines if a `HirExpr` needs {:?} debug formatting instead of {} display formatting.
+    /// Used by `print()` handler to select appropriate format specifiers.
     ///
     /// Returns true for:
     /// - Collection types (List, Dict, Set, Optional, Unknown)
@@ -525,6 +524,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// - Variables named "value" (heuristic for Option<T>)
     ///
     /// # Complexity: 4
+    #[allow(clippy::match_same_arms)]
     pub(crate) fn needs_debug_format(&self, hir_arg: &HirExpr) -> bool {
         match hir_arg {
             HirExpr::Var(name) => {
@@ -533,7 +533,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .ctx
                     .var_types
                     .get(name)
-                    .map(|t| {
+                    .is_some_and(|t| {
                         matches!(
                             t,
                             Type::List(_)
@@ -542,8 +542,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 | Type::Optional(_)
                                 | Type::Unknown
                         )
-                    })
-                    .unwrap_or(false);
+                    });
 
                 // Heuristic: "value" often comes from functions returning Option<T>
                 let name_based = name == "value";
@@ -565,10 +564,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-0930: Check if expression is a PathBuf type that needs .display()
+    /// DEPYLER-0930: Check if expression is a `PathBuf` type that needs .`display()`
     ///
-    /// PathBuf doesn't implement Display trait, so we need to detect it and wrap
-    /// with .display() when used in print statements or format strings.
+    /// `PathBuf` doesn't implement Display trait, so we need to detect it and wrap
+    /// with .`display()` when used in print statements or format strings.
     ///
     /// # Complexity: 4
     pub(crate) fn is_pathbuf_expr(&self, hir_arg: &HirExpr) -> bool {
@@ -578,8 +577,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 self.ctx
                     .var_types
                     .get(name)
-                    .map(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
-                    .unwrap_or(false)
+                    .is_some_and(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
             }
             HirExpr::MethodCall { object, method, .. } => {
                 // Methods that return PathBuf - only match when receiver is PathBuf
@@ -596,10 +594,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             .ctx
                             .var_types
                             .get(var_name)
-                            .map(|t| {
+                            .is_some_and(|t| {
                                 matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path")
-                            })
-                            .unwrap_or(false);
+                            });
                     }
                 }
                 false
@@ -611,10 +608,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         self.ctx
                             .var_types
                             .get(var_name)
-                            .map(|t| {
+                            .is_some_and(|t| {
                                 matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path")
                             })
-                            .unwrap_or(false)
                     } else {
                         false
                     }
@@ -651,12 +647,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-REFACTOR-001 Phase 2.17: Extracted print call handler
     ///
-    /// Handles Python print() function conversion to Rust println!/eprintln!.
+    /// Handles Python `print()` function conversion to Rust println!/eprintln!.
     ///
     /// Features:
-    /// - print() with no args → println!()
-    /// - print(single_arg) → println!("{}", arg) or println!("{:?}", arg) for debug types
-    /// - print(multiple_args) → println!("{} {} ...", arg1, arg2, ...)
+    /// - `print()` with no args → println!()
+    /// - `print(single_arg)` → println!("{}", arg) or println!("{:?}", arg) for debug types
+    /// - `print(multiple_args)` → println!("{} {} ...", arg1, arg2, ...)
     /// - file=sys.stderr kwarg → eprintln! variants
     ///
     /// Returns Some(Ok(expr)) if handled, None if not a print call.
@@ -705,7 +701,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         } else if args.len() == 1 {
             // Single argument print
-            let needs_debug = args.first().map(|a| self.needs_debug_format(a)).unwrap_or(false);
+            let needs_debug = args.first().is_some_and(|a| self.needs_debug_format(a));
 
             // DEPYLER-1365: Check if argument is a Result-returning call that needs unwrapping
             let is_result_call = matches!(&args[0], HirExpr::Call { func, .. }
@@ -766,13 +762,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-REFACTOR-001 Phase 2.18: Extracted sum call handler
     ///
-    /// Handles Python sum() function conversion to Rust iterator patterns.
+    /// Handles Python `sum()` function conversion to Rust iterator patterns.
     ///
     /// Variants:
-    /// - sum(generator_exp) → gen_expr.sum::<T>()
-    /// - sum(range(...)) → (range_expr).sum::<T>()
+    /// - `sum(generator_exp)` → `gen_expr.sum::`<T>()
+    /// - sum(range(...)) → (`range_expr).sum::`<T>()
     /// - sum(d.values()) / sum(d.keys()) → optimized iterator chain
-    /// - sum(iterable) → iterable.iter().sum::<T>()
+    /// - sum(iterable) → `iterable.iter().sum::`<T>()
     ///
     /// Returns Some(Ok(expr)) if handled, None if not a sum call.
     ///
@@ -856,15 +852,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-REFACTOR-001 Phase 2.19: Extracted min/max call handler
     ///
-    /// Handles Python min()/max() function conversion to Rust.
+    /// Handles Python `min()/max()` function conversion to Rust.
     ///
     /// Variants:
-    /// - max(a, b) / min(a, b) → std::cmp::max/min or f64.max/min for floats
-    /// - max(iterable) / min(iterable) → iter.max/min().unwrap()
+    /// - max(a, b) / min(a, b) → `std::cmp::max/min` or f64.max/min for floats
+    /// - max(iterable) / min(iterable) → `iter.max/min().unwrap()`
     ///
     /// Returns Some(Ok(expr)) if handled, None if not a min/max call.
     ///
     /// # Complexity: 5
+    #[allow(clippy::similar_names)]
     pub(crate) fn try_convert_minmax_call(
         &mut self,
         func: &str,
@@ -929,10 +926,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-REFACTOR-001 Phase 2.20: Extracted any/all call handler
     ///
-    /// Handles Python any()/all() function conversion to Rust.
+    /// Handles Python `any()/all()` function conversion to Rust.
     ///
     /// Variants:
-    /// - any(generator_exp) / all(generator_exp) → gen.any/all(|x| x)
+    /// - `any(generator_exp)` / `all(generator_exp)` → gen.any/all(|x| x)
     /// - any(iterable) / all(iterable) → iter.any/all(|&x| x)
     ///
     /// Returns Some(Ok(expr)) if handled, None if not an any/all call.

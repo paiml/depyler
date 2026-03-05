@@ -1,18 +1,18 @@
 //! HIR Type to Rust Token Conversion
 //!
-//! This module handles converting HIR Type variants to Rust proc_macro2::TokenStream.
-//! Extracted from stmt_gen.rs for better testability.
+//! This module handles converting HIR Type variants to Rust `proc_macro2::TokenStream`.
+//! Extracted from `stmt_gen.rs` for better testability.
 //!
 //! DEPYLER-0759: Type mapping consistency
 //! DEPYLER-0770: Callable type handling
-//! DEPYLER-1022: NASA mode support (uses String instead of serde_json::Value)
+//! DEPYLER-1022: NASA mode support (uses String instead of `serde_json::Value`)
 
 use crate::hir::Type;
 use quote::quote;
 
-/// Convert HIR Type to Rust proc_macro2::TokenStream (NASA mode - default)
+/// Convert HIR Type to Rust `proc_macro2::TokenStream` (NASA mode - default)
 ///
-/// DEPYLER-1022: Default to NASA mode which uses String instead of serde_json::Value
+/// DEPYLER-1022: Default to NASA mode which uses String instead of `serde_json::Value`
 /// for object/Any types. This ensures single-shot compilation without external crates.
 ///
 /// Maps Python types to their Rust equivalents:
@@ -22,20 +22,22 @@ use quote::quote;
 /// - Bool -> bool
 /// - None/Unknown -> ()
 /// - List(T) -> Vec<T>
-/// - Dict(K, V) -> HashMap<K, V>
+/// - Dict(K, V) -> `HashMap`<K, V>
 /// - Tuple(T...) -> (T, ...)
 /// - Optional(T) -> Option<T>
 /// - Custom types with special mappings (object, Any -> String in NASA mode)
 /// - Callable[[T...], R] -> &dyn Fn(T...) -> R
+#[allow(clippy::too_many_lines)]
 pub fn hir_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
     // DEPYLER-1022: Default to NASA mode (true) for single-shot compilation
     hir_type_to_tokens_with_mode(ty, true)
 }
 
-/// Convert HIR Type to Rust proc_macro2::TokenStream with explicit NASA mode flag
+/// Convert HIR Type to Rust `proc_macro2::TokenStream` with explicit NASA mode flag
 ///
-/// When `nasa_mode` is true, uses String instead of serde_json::Value for object/Any types.
+/// When `nasa_mode` is true, uses String instead of `serde_json::Value` for object/Any types.
 /// This allows code to compile with `rustc --crate-type lib` without external dependencies.
+#[allow(clippy::match_same_arms, clippy::too_many_lines)]
 pub fn hir_type_to_tokens_with_mode(ty: &Type, nasa_mode: bool) -> proc_macro2::TokenStream {
     match ty {
         // DEPYLER-0759: Use i32 to match all other type mappers in the codebase

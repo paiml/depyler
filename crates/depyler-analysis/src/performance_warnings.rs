@@ -1,6 +1,7 @@
 use colored::Colorize;
 /// Performance warning system for identifying inefficient patterns
 use depyler_hir::hir::{BinOp, HirExpr, HirFunction, HirProgram, HirStmt, Type};
+use std::fmt::Write as _;
 
 /// Performance analyzer that identifies potentially inefficient patterns
 pub struct PerformanceAnalyzer {
@@ -13,6 +14,7 @@ pub struct PerformanceAnalyzer {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct PerformanceConfig {
     /// Warn about string concatenation in loops
     pub warn_string_concat: bool,
@@ -139,7 +141,7 @@ impl PerformanceAnalyzer {
     fn check_function_level_issues(&mut self, func: &HirFunction) {
         // Check for large parameter passing
         for param in &func.params {
-            if self.is_large_type(&param.ty) && !self.is_reference_type(&param.ty) {
+            if Self::is_large_type(&param.ty) && !Self::is_reference_type(&param.ty) {
                 self.add_warning(PerformanceWarning {
                     category: WarningCategory::MemoryAllocation,
                     severity: WarningSeverity::Medium,
@@ -214,7 +216,7 @@ impl PerformanceAnalyzer {
     fn analyze_assignment(&mut self, value: &HirExpr, func: &HirFunction, line: usize) {
         self.analyze_expr(value, func, line);
 
-        if self.current_loop_depth > 0 && self.is_string_concatenation(value) {
+        if self.current_loop_depth > 0 && Self::is_string_concatenation(value) {
             self.warn_string_concat_in_loop(func, line);
         }
     }
@@ -286,6 +288,7 @@ impl PerformanceAnalyzer {
         }
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn analyze_binary_expr(
         &mut self,
         left: &HirExpr,
@@ -309,7 +312,7 @@ impl PerformanceAnalyzer {
         func: &HirFunction,
         line: usize,
     ) {
-        if self.current_loop_depth > 0 && self.is_expensive_function(fname) {
+        if self.current_loop_depth > 0 && Self::is_expensive_function(fname) {
             self.warn_expensive_function_in_loop(fname, func, line);
         }
 
@@ -371,7 +374,7 @@ impl PerformanceAnalyzer {
         self.add_warning(PerformanceWarning {
             category: WarningCategory::RedundantComputation,
             severity: WarningSeverity::Medium,
-            message: format!("Expensive function '{}' called in loop", fname),
+            message: format!("Expensive function '{fname}' called in loop"),
             explanation: "Calling expensive functions repeatedly can impact performance"
                 .to_string(),
             suggestion: "Cache the result if the inputs don't change".to_string(),
@@ -481,7 +484,7 @@ impl PerformanceAnalyzer {
                 self.add_warning(PerformanceWarning {
                     category: WarningCategory::RedundantComputation,
                     severity: WarningSeverity::Medium,
-                    message: format!("Aggregate function '{}' in nested loop", fname),
+                    message: format!("Aggregate function '{fname}' in nested loop"),
                     explanation: "Computing aggregates repeatedly is inefficient".to_string(),
                     suggestion: "Compute once and cache the result".to_string(),
                     impact: PerformanceImpact {
@@ -566,7 +569,7 @@ impl PerformanceAnalyzer {
         self.add_warning(PerformanceWarning {
             category: WarningCategory::AlgorithmComplexity,
             severity: WarningSeverity::Medium,
-            message: format!("Linear search method '{}' in loop", method),
+            message: format!("Linear search method '{method}' in loop"),
             explanation: "Linear search in loops can lead to quadratic complexity".to_string(),
             suggestion: "Consider using a HashMap/HashSet for O(1) lookups".to_string(),
             impact: PerformanceImpact {
@@ -585,7 +588,7 @@ impl PerformanceAnalyzer {
 
     // Helper methods
 
-    fn is_large_type(&self, ty: &Type) -> bool {
+    fn is_large_type(ty: &Type) -> bool {
         match ty {
             Type::List(_) | Type::Dict(_, _) | Type::String => true,
             Type::Custom(name) => {
@@ -596,13 +599,13 @@ impl PerformanceAnalyzer {
         }
     }
 
-    fn is_reference_type(&self, _ty: &Type) -> bool {
+    fn is_reference_type(_ty: &Type) -> bool {
         // In the current HIR, we don't track references explicitly
         // This would need enhancement to properly detect &T types
         false
     }
 
-    fn is_string_concatenation(&self, expr: &HirExpr) -> bool {
+    fn is_string_concatenation(expr: &HirExpr) -> bool {
         if let HirExpr::Binary { op: BinOp::Add, left, right } = expr {
             // Check if either operand might be a string
             matches!(left.as_ref(), HirExpr::Var(_)) || matches!(right.as_ref(), HirExpr::Var(_))
@@ -611,7 +614,7 @@ impl PerformanceAnalyzer {
         }
     }
 
-    fn is_expensive_function(&self, fname: &str) -> bool {
+    fn is_expensive_function(fname: &str) -> bool {
         // List of known expensive functions
         let expensive = [
             "sorted", "sort", "reverse", "compile", "eval", "exec", "deepcopy", "copy", "hash",
@@ -631,90 +634,86 @@ impl PerformanceAnalyzer {
         }
 
         let mut output = String::new();
-        self.append_header(&mut output);
-        self.append_warning_details(&mut output, warnings);
-        self.append_summary(&mut output, warnings);
+        Self::append_header(&mut output);
+        Self::append_warning_details(&mut output, warnings);
+        Self::append_summary(&mut output, warnings);
         output
     }
 
-    fn append_header(&self, output: &mut String) {
-        output.push_str(&format!("\n{}\n", "Performance Warnings".bold().yellow()));
-        output.push_str(&format!("{}\n\n", "═".repeat(50)));
+    fn append_header(output: &mut String) {
+        let _ = writeln!(output, "\n{}", "Performance Warnings".bold().yellow());
+        let _ = writeln!(output, "{}\n", "═".repeat(50));
     }
 
-    fn append_warning_details(&self, output: &mut String, warnings: &[PerformanceWarning]) {
+    fn append_warning_details(output: &mut String, warnings: &[PerformanceWarning]) {
         for (idx, warning) in warnings.iter().enumerate() {
-            self.append_single_warning(output, idx, warning);
+            Self::append_single_warning(output, idx, warning);
         }
     }
 
-    fn append_single_warning(&self, output: &mut String, idx: usize, warning: &PerformanceWarning) {
-        self.append_warning_header(output, idx, warning);
-        self.append_warning_location(output, warning);
-        self.append_warning_impact(output, warning);
-        self.append_warning_explanation(output, warning);
-        self.append_warning_suggestion(output, warning);
+    fn append_single_warning(output: &mut String, idx: usize, warning: &PerformanceWarning) {
+        Self::append_warning_header(output, idx, warning);
+        Self::append_warning_location(output, warning);
+        Self::append_warning_impact(output, warning);
+        Self::append_warning_explanation(output, warning);
+        Self::append_warning_suggestion(output, warning);
         output.push('\n');
     }
 
-    fn append_warning_header(&self, output: &mut String, idx: usize, warning: &PerformanceWarning) {
-        let severity_color = self.get_severity_color(warning.severity);
-        output.push_str(&format!(
-            "{} {} {}\n",
+    fn append_warning_header(output: &mut String, idx: usize, warning: &PerformanceWarning) {
+        let severity_color = Self::get_severity_color(warning.severity);
+        let _ = writeln!(output, "{} {} {}",
             format!("[{}]", idx + 1).dimmed(),
             format!("[{:?}]", warning.severity).color(severity_color).bold(),
             warning.message.bold()
-        ));
+        );
     }
 
-    fn append_warning_location(&self, output: &mut String, warning: &PerformanceWarning) {
+    fn append_warning_location(output: &mut String, warning: &PerformanceWarning) {
         if let Some(loc) = &warning.location {
-            let loop_info = self.format_loop_info(loc);
-            output.push_str(&format!(
-                "   {} {}, line {}{}\n",
+            let loop_info = Self::format_loop_info(loc);
+            let _ = writeln!(output, "   {} {}, line {}{}",
                 "Location:".dimmed(),
                 loc.function,
                 loc.line,
                 loop_info
-            ));
+            );
         }
     }
 
-    fn append_warning_impact(&self, output: &mut String, warning: &PerformanceWarning) {
-        output.push_str(&format!(
-            "   {} Complexity: {}, Scales: {}, Hot path: {}\n",
+    fn append_warning_impact(output: &mut String, warning: &PerformanceWarning) {
+        let _ = writeln!(output, "   {} Complexity: {}, Scales: {}, Hot path: {}",
             "Impact:".dimmed(),
             warning.impact.complexity.yellow(),
-            self.format_yes_no(warning.impact.scales_with_input),
-            self.format_yes_no(warning.impact.in_hot_path)
-        ));
+            Self::format_yes_no(warning.impact.scales_with_input),
+            Self::format_yes_no(warning.impact.in_hot_path)
+        );
     }
 
-    fn append_warning_explanation(&self, output: &mut String, warning: &PerformanceWarning) {
-        output.push_str(&format!("   {} {}\n", "Why:".dimmed(), warning.explanation));
+    fn append_warning_explanation(output: &mut String, warning: &PerformanceWarning) {
+        let _ = writeln!(output, "   {} {}", "Why:".dimmed(), warning.explanation);
     }
 
-    fn append_warning_suggestion(&self, output: &mut String, warning: &PerformanceWarning) {
-        output.push_str(&format!("   {} {}\n", "Fix:".green(), warning.suggestion.green()));
+    fn append_warning_suggestion(output: &mut String, warning: &PerformanceWarning) {
+        let _ = writeln!(output, "   {} {}", "Fix:".green(), warning.suggestion.green());
     }
 
-    fn append_summary(&self, output: &mut String, warnings: &[PerformanceWarning]) {
-        let (critical, high) = self.count_severity_levels(warnings);
+    fn append_summary(output: &mut String, warnings: &[PerformanceWarning]) {
+        let (critical, high) = Self::count_severity_levels(warnings);
 
-        output.push_str(&format!(
-            "{} Found {} warnings ({} critical, {} high severity)\n",
+        let _ = writeln!(output, "{} Found {} warnings ({} critical, {} high severity)",
             "Summary:".bold(),
             warnings.len(),
             critical,
             high
-        ));
+        );
 
         if critical > 0 || high > 0 {
-            self.append_critical_warning_notice(output);
+            Self::append_critical_warning_notice(output);
         }
     }
 
-    fn get_severity_color(&self, severity: WarningSeverity) -> &'static str {
+    fn get_severity_color(severity: WarningSeverity) -> &'static str {
         match severity {
             WarningSeverity::Critical => "red",
             WarningSeverity::High => "bright red",
@@ -723,7 +722,7 @@ impl PerformanceAnalyzer {
         }
     }
 
-    fn format_loop_info(&self, loc: &Location) -> String {
+    fn format_loop_info(loc: &Location) -> String {
         if loc.in_loop {
             format!(" (in loop, depth: {})", loc.loop_depth).red().to_string()
         } else {
@@ -731,7 +730,7 @@ impl PerformanceAnalyzer {
         }
     }
 
-    fn format_yes_no(&self, value: bool) -> colored::ColoredString {
+    fn format_yes_no(value: bool) -> colored::ColoredString {
         if value {
             "Yes".red()
         } else {
@@ -739,13 +738,13 @@ impl PerformanceAnalyzer {
         }
     }
 
-    fn count_severity_levels(&self, warnings: &[PerformanceWarning]) -> (usize, usize) {
+    fn count_severity_levels(warnings: &[PerformanceWarning]) -> (usize, usize) {
         let critical = warnings.iter().filter(|w| w.severity == WarningSeverity::Critical).count();
         let high = warnings.iter().filter(|w| w.severity == WarningSeverity::High).count();
         (critical, high)
     }
 
-    fn append_critical_warning_notice(&self, output: &mut String) {
+    fn append_critical_warning_notice(output: &mut String) {
         output.push_str(
             &"⚠️  Address critical and high severity warnings for better performance\n"
                 .red()

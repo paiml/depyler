@@ -3,8 +3,8 @@
 //! Extracts the ~265-line context initialization block from `generate_rust_file_internal`
 //! in `rust_gen.rs` into composable functions:
 //!
-//! 1. [`analyze_module`] - Pre-analyzes HirModule to extract metadata (owned, no lifetimes)
-//! 2. [`build_codegen_context`] - Constructs CodeGenContext from analysis + borrowed type_mapper
+//! 1. [`analyze_module`] - Pre-analyzes `HirModule` to extract metadata (owned, no lifetimes)
+//! 2. [`build_codegen_context`] - Constructs `CodeGenContext` from analysis + borrowed `type_mapper`
 //! 3. [`populate_context_from_module`] - Populates function/class metadata into context
 //!
 //! # Integration
@@ -36,11 +36,12 @@ use super::import_gen;
 /// Pre-analyzed module metadata for context initialization
 ///
 /// All fields are owned -- no lifetime constraints. This allows the caller
-/// to create the owned type_mapper clone on their own stack before borrowing
+/// to create the owned `type_mapper` clone on their own stack before borrowing
 /// it into `CodeGenContext<'a>`.
 ///
 /// # Complexity
 /// N/A (data structure)
+#[allow(clippy::struct_excessive_bools)]
 pub(super) struct ModuleAnalysis {
     // Import processing results
     pub imported_modules: HashMap<String, crate::module_mapper::ModuleMapping>,
@@ -68,15 +69,15 @@ pub(super) struct ModuleAnalysis {
 }
 
 impl ModuleAnalysis {
-    /// Resolve the type_mapper for async code
+    /// Resolve the `type_mapper` for async code
     ///
     /// If async code is detected and NASA mode is enabled, returns a cloned
-    /// type_mapper with NASA mode disabled. Otherwise returns a plain clone.
+    /// `type_mapper` with NASA mode disabled. Otherwise returns a plain clone.
     /// The caller should bind the result to a local variable and borrow it.
     ///
     /// # Complexity
     /// 2 (branch + clone)
-    pub fn resolve_type_mapper(
+    pub(super) fn resolve_type_mapper(
         &self,
         type_mapper: &crate::type_mapper::TypeMapper,
     ) -> crate::type_mapper::TypeMapper {
@@ -90,7 +91,7 @@ impl ModuleAnalysis {
     }
 }
 
-/// Analyze a HirModule to extract all metadata needed for context initialization
+/// Analyze a `HirModule` to extract all metadata needed for context initialization
 ///
 /// This performs import processing, async detection, and class metadata extraction.
 /// All results are owned (no lifetimes), allowing flexible composition with
@@ -98,7 +99,7 @@ impl ModuleAnalysis {
 ///
 /// # Arguments
 /// * `module` - The HIR module to analyze
-/// * `type_mapper` - Used only to read the module_mapper (not borrowed long-term)
+/// * `type_mapper` - Used only to read the `module_mapper` (not borrowed long-term)
 ///
 /// # Complexity
 /// 8 (import processing + async scan + class loops)
@@ -227,7 +228,7 @@ fn extract_class_field_defaults(module: &HirModule) -> HashMap<String, Vec<Optio
 // Phase 2: Build CodeGenContext from analysis + borrowed type_mapper
 // ============================================================================
 
-/// Construct a CodeGenContext from pre-analyzed module data
+/// Construct a `CodeGenContext` from pre-analyzed module data
 ///
 /// The caller must own the `type_mapper` on their stack (possibly modified
 /// by [`ModuleAnalysis::resolve_type_mapper`]) and pass a borrow here.
@@ -237,15 +238,16 @@ fn extract_class_field_defaults(module: &HirModule) -> HashMap<String, Vec<Optio
 /// # Arguments
 /// * `analysis` - Pre-analyzed module metadata from [`analyze_module`]
 /// * `type_mapper` - Borrowed type mapper (caller owns the clone)
-/// * `initial_var_types` - Pre-seeded var_types from Oracle (DEPYLER-1133)
+/// * `initial_var_types` - Pre-seeded `var_types` from Oracle (DEPYLER-1133)
 ///
 /// # Complexity
 /// 3 (struct init + conditional + alias check)
-pub(super) fn build_codegen_context<'a>(
+#[allow(clippy::too_many_lines)]
+pub(super) fn build_codegen_context(
     analysis: ModuleAnalysis,
-    type_mapper: &'a crate::type_mapper::TypeMapper,
+    type_mapper: &crate::type_mapper::TypeMapper,
     initial_var_types: HashMap<String, Type>,
-) -> (CodeGenContext<'a>, Vec<import_gen::UnresolvedImport>) {
+) -> (CodeGenContext<'_>, Vec<import_gen::UnresolvedImport>) {
     let module_mapper = crate::module_mapper::ModuleMapper::new();
 
     let mut ctx = CodeGenContext {

@@ -44,6 +44,7 @@ const MAX_ORACLE_RETRIES: usize = 2;
 /// Path to the compiled binary
 ///
 /// Complexity: 9 (within ≤10 target)
+#[allow(clippy::too_many_lines)]
 pub fn compile_python_to_binary(
     input: &Path,
     output: Option<&Path>,
@@ -138,7 +139,7 @@ pub fn compile_python_to_binary(
             pb.inc(1);
 
             let success_msg = if attempt > 0 {
-                format!("✅ Compilation complete (after {} Oracle Loop retries)!", attempt)
+                format!("✅ Compilation complete (after {attempt} Oracle Loop retries)!")
             } else if is_binary {
                 "✅ Compilation complete!".to_string()
             } else {
@@ -195,7 +196,7 @@ pub fn compile_python_to_binary(
 /// Create a Cargo project with the transpiled Rust code
 ///
 /// DEPYLER-0384: Now accepts dependencies for automatic Cargo.toml generation
-/// DEPYLER-0763: Returns (project_dir, is_binary) - is_binary is true if code has main()
+/// DEPYLER-0763: Returns (`project_dir`, `is_binary`) - `is_binary` is true if code has `main()`
 ///
 /// Complexity: 4 (within ≤10 target)
 fn create_cargo_project(
@@ -206,7 +207,7 @@ fn create_cargo_project(
     let project_name = input.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
 
     let temp_dir = std::env::temp_dir();
-    let project_dir = temp_dir.join(format!("depyler_{}", project_name));
+    let project_dir = temp_dir.join(format!("depyler_{project_name}"));
 
     // Create project structure
     // DEPYLER-0763: Clean existing src directory to avoid stale files
@@ -243,7 +244,7 @@ fn create_cargo_project(
 
     // Write source file (main.rs or lib.rs based on crate type)
     fs::write(project_dir.join(rs_filename), rust_code)
-        .with_context(|| format!("Failed to write {}", rs_filename))?;
+        .with_context(|| format!("Failed to write {rs_filename}"))?;
 
     // DEPYLER-0763: Return whether this is a binary (has main) so caller knows what to finalize
     Ok((project_dir, has_main))
@@ -263,7 +264,7 @@ pub struct BuildResult {
 /// DEPYLER-0380-FIX: Explicitly set target-dir to avoid inheriting parent project's
 /// .cargo/config.toml target-dir setting which would cause builds to go to wrong location.
 ///
-/// DEPYLER-1102: Returns BuildResult instead of bailing to allow Oracle Loop retry.
+/// DEPYLER-1102: Returns `BuildResult` instead of bailing to allow Oracle Loop retry.
 ///
 /// Complexity: 3 (within ≤10 target)
 fn build_cargo_project(project_dir: &Path, profile: &str) -> Result<BuildResult> {
@@ -335,7 +336,7 @@ fn finalize_binary(
     // Determine binary location in target directory
     let profile_dir = if profile == "release" { "release" } else { "debug" };
     let binary_name =
-        if cfg!(windows) { format!("{}.exe", project_name) } else { project_name.to_string() };
+        if cfg!(windows) { format!("{project_name}.exe") } else { project_name.to_string() };
     let built_binary = project_dir.join("target").join(profile_dir).join(&binary_name);
 
     // Determine output location

@@ -133,6 +133,7 @@ impl EphemeralWorkspace {
     /// Clears LLVM coverage environment variables to prevent interference
     /// when running under cargo-llvm-cov. These vars cause compilation
     /// issues in spawned cargo subprocesses.
+    #[allow(clippy::unnecessary_wraps)]
     pub fn check(&self) -> Result<CheckResult> {
         let output = Command::new("cargo")
             .arg("check")
@@ -154,6 +155,7 @@ impl EphemeralWorkspace {
     }
 
     /// Parse cargo check JSON output into structured results
+    #[allow(clippy::needless_pass_by_value, clippy::unnecessary_wraps)]
     fn parse_cargo_output(&self, output: Output) -> Result<CheckResult> {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -178,6 +180,7 @@ impl EphemeralWorkspace {
     }
 
     /// Parse a single compiler message
+    #[allow(clippy::ref_option, clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss, clippy::unused_self)]
     fn parse_compiler_message(
         &self,
         message: &serde_json::Value,
@@ -190,18 +193,18 @@ impl EphemeralWorkspace {
             .get("code")
             .and_then(|c| c.get("code"))
             .and_then(|c| c.as_str())
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
 
         // Parse span if available
         let span =
             message.get("spans").and_then(|s| s.as_array()).and_then(|arr| arr.first()).map(|s| {
                 ErrorSpan {
                     file: s.get("file_name").and_then(|f| f.as_str()).unwrap_or("").to_string(),
-                    line_start: s.get("line_start").and_then(|l| l.as_u64()).unwrap_or(0) as u32,
-                    line_end: s.get("line_end").and_then(|l| l.as_u64()).unwrap_or(0) as u32,
-                    column_start: s.get("column_start").and_then(|c| c.as_u64()).unwrap_or(0)
+                    line_start: s.get("line_start").and_then(serde_json::Value::as_u64).unwrap_or(0) as u32,
+                    line_end: s.get("line_end").and_then(serde_json::Value::as_u64).unwrap_or(0) as u32,
+                    column_start: s.get("column_start").and_then(serde_json::Value::as_u64).unwrap_or(0)
                         as u32,
-                    column_end: s.get("column_end").and_then(|c| c.as_u64()).unwrap_or(0) as u32,
+                    column_end: s.get("column_end").and_then(serde_json::Value::as_u64).unwrap_or(0) as u32,
                 }
             });
 
@@ -223,6 +226,7 @@ impl EphemeralWorkspace {
     /// These errors are automatically resolved by Cargo-First approach:
     /// - E0432: unresolved import (missing crate)
     /// - E0433: failed to resolve (missing crate path)
+    #[allow(clippy::match_same_arms, clippy::ref_option)]
     fn is_dependency_error(code: &Option<String>, message: &str) -> bool {
         match code.as_deref() {
             Some("E0432") => true, // unresolved import
@@ -253,7 +257,7 @@ impl EphemeralWorkspace {
 /// * `cargo_toml` - Optional pre-generated Cargo.toml (uses minimal if None)
 ///
 /// # Returns
-/// Result with CheckResult containing success status and any errors
+/// Result with `CheckResult` containing success status and any errors
 pub fn compile_with_cargo(
     name: &str,
     rust_code: &str,

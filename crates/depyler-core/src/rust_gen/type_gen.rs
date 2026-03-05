@@ -1,7 +1,7 @@
 //! Type conversion utilities
 //!
-//! This module provides conversion functions from internal RustType representation
-//! to syn::Type tokens used for code generation.
+//! This module provides conversion functions from internal `RustType` representation
+//! to `syn::Type` tokens used for code generation.
 
 use crate::hir::BinOp;
 use crate::rust_gen::CodeGenContext;
@@ -9,23 +9,24 @@ use crate::type_mapper::{PrimitiveType, RustType};
 use anyhow::{bail, Result};
 use syn::{self, parse_quote};
 
-/// Check if a RustType is a float type (F32 or F64)
+/// Check if a `RustType` is a float type (F32 or F64)
 /// DEPYLER-1073: Float types don't implement Hash/Eq in Rust
 #[inline]
 fn is_float_type(rust_type: &RustType) -> bool {
     matches!(
         rust_type,
-        RustType::Primitive(PrimitiveType::F64) | RustType::Primitive(PrimitiveType::F32)
+        RustType::Primitive(PrimitiveType::F64 | PrimitiveType::F32)
     )
 }
 
-/// Convert logical and bitwise binary operators to syn::BinOp
+/// Convert logical and bitwise binary operators to `syn::BinOp`
 ///
 /// # Complexity
 /// 8 (match with 7 arms)
 #[inline]
+#[allow(clippy::default_trait_access)]
 fn convert_logical_bitwise_binop(op: BinOp) -> Option<Result<syn::BinOp>> {
-    use BinOp::*;
+    use BinOp::{And, Or, BitAnd, BitOr, BitXor, LShift, RShift};
 
     // DEPYLER-1005: Use syn::BinOp variants directly to avoid tokenization issues
     // parse_quote! for compound operators can produce incorrect spacing when re-quoted
@@ -45,26 +46,27 @@ fn convert_logical_bitwise_binop(op: BinOp) -> Option<Result<syn::BinOp>> {
     }))
 }
 
-/// Convert binary operator to syn::BinOp
+/// Convert binary operator to `syn::BinOp`
 ///
 /// Maps Python binary operators to their Rust equivalents.
-/// Special operators like FloorDiv and Pow are handled separately
-/// in convert_binary with Python semantics.
+/// Special operators like `FloorDiv` and Pow are handled separately
+/// in `convert_binary` with Python semantics.
 ///
 /// # Arguments
 /// * `op` - The HIR binary operator
 ///
 /// # Returns
-/// The corresponding syn::BinOp token
+/// The corresponding `syn::BinOp` token
 ///
 /// # Errors
-/// Returns error for special operators (FloorDiv, Pow, In, NotIn) that
-/// require custom handling in convert_binary
+/// Returns error for special operators (`FloorDiv`, Pow, In, `NotIn`) that
+/// require custom handling in `convert_binary`
 ///
 /// # Complexity
 /// 10 (main match + logical/bitwise helper)
-pub fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
-    use BinOp::*;
+#[allow(clippy::default_trait_access)]
+pub(super) fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
+    use BinOp::{Add, Sub, Mul, Div, Mod, FloorDiv, Pow, Eq, NotEq, Lt, LtEq, Gt, GtEq, In, NotIn, And, Or, BitAnd, BitOr, BitXor, LShift, RShift};
 
     // Try logical/bitwise operators first
     if let Some(result) = convert_logical_bitwise_binop(op) {
@@ -105,12 +107,13 @@ pub fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
     }
 }
 
-/// Convert Str type with optional lifetime to syn::Type
+/// Convert Str type with optional lifetime to `syn::Type`
 ///
 /// Handles both `&str` and `&'a str` variants.
 ///
 /// # Complexity
 /// 2 (single if/else branch)
+#[allow(clippy::ref_option)]
 fn str_type_to_syn(lifetime: &Option<String>) -> syn::Type {
     if let Some(lt) = lifetime {
         let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
@@ -120,13 +123,14 @@ fn str_type_to_syn(lifetime: &Option<String>) -> syn::Type {
     }
 }
 
-/// Convert Reference type with mutable and lifetime to syn::Type
+/// Convert Reference type with mutable and lifetime to `syn::Type`
 ///
 /// Handles all 4 combinations of mutable × lifetime:
 /// - `&T`, `&mut T`, `&'a T`, `&'a mut T`
 ///
 /// # Complexity
 /// 5 (nested if/else for mutable and lifetime)
+#[allow(clippy::ref_option)]
 fn reference_type_to_syn(
     lifetime: &Option<String>,
     mutable: bool,
@@ -149,7 +153,7 @@ fn reference_type_to_syn(
     })
 }
 
-/// Convert Array type with const generic size to syn::Type
+/// Convert Array type with const generic size to `syn::Type`
 ///
 /// Handles 3 const generic size variants:
 /// - Literal: `[T; 10]`
@@ -182,7 +186,7 @@ fn array_type_to_syn(
     })
 }
 
-/// Convert collection types (Vec, HashMap, HashSet, Option, Result, Tuple)
+/// Convert collection types (Vec, `HashMap`, `HashSet`, Option, Result, Tuple)
 ///
 /// # Complexity
 /// 7 (match with 6 arms + recursive call)
@@ -233,22 +237,23 @@ fn collection_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<Op
     }))
 }
 
-/// Convert RustType to syn::Type
+/// Convert `RustType` to `syn::Type`
 ///
-/// Main type conversion function that recursively converts internal RustType
-/// representation to syn::Type tokens for code generation.
+/// Main type conversion function that recursively converts internal `RustType`
+/// representation to `syn::Type` tokens for code generation.
 ///
 /// # Arguments
-/// * `rust_type` - The internal RustType to convert
+/// * `rust_type` - The internal `RustType` to convert
 ///
 /// # Returns
-/// The corresponding syn::Type token
+/// The corresponding `syn::Type` token
 ///
 /// # Errors
 /// Returns error for unsupported types or invalid custom type strings
 ///
 /// # Complexity
 /// 10 (main match + collection helper)
+#[allow(clippy::match_same_arms)]
 pub fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn::Type> {
     use crate::type_mapper::RustType;
 
@@ -276,7 +281,7 @@ pub fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn:
             let ty: syn::Type = syn::parse_str(name)?;
             ty
         }
-        RustType::Unsupported(reason) => bail!("Unsupported Rust type: {}", reason),
+        RustType::Unsupported(reason) => bail!("Unsupported Rust type: {reason}"),
         RustType::TypeParam(name) => {
             let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
             parse_quote! { #ident }
@@ -306,7 +311,7 @@ pub fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn:
 
 /// Updates import needs for custom type names
 ///
-/// Detects specific custom types (FnvHashMap, AHashMap, Arc, Rc, HashMap)
+/// Detects specific custom types (`FnvHashMap`, `AHashMap`, Arc, Rc, `HashMap`)
 /// and sets appropriate import flags.
 ///
 /// # Complexity
@@ -332,7 +337,7 @@ fn update_custom_type_imports(ctx: &mut CodeGenContext, name: &str) {
 /// Updates the import needs based on the rust type being used
 ///
 /// Recursively walks through type structure to determine which imports
-/// are needed (HashMap, Cow, Arc, Rc, etc.)
+/// are needed (`HashMap`, Cow, Arc, Rc, etc.)
 ///
 /// # Arguments
 /// * `ctx` - Code generation context to update import flags
@@ -340,7 +345,8 @@ fn update_custom_type_imports(ctx: &mut CodeGenContext, name: &str) {
 ///
 /// # Complexity
 /// 9 (match with 8 arms + helper function)
-pub fn update_import_needs(ctx: &mut CodeGenContext, rust_type: &crate::type_mapper::RustType) {
+#[allow(clippy::match_same_arms)]
+pub(super) fn update_import_needs(ctx: &mut CodeGenContext, rust_type: &crate::type_mapper::RustType) {
     match rust_type {
         crate::type_mapper::RustType::HashMap(_, _) => ctx.needs_hashmap = true,
         crate::type_mapper::RustType::HashSet(inner) => {

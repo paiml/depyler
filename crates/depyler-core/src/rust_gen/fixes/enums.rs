@@ -1,8 +1,8 @@
 //! Enum and LazyLock-related post-transpilation fix functions.
 //!
 //! These functions perform text-level repairs on generated Rust code to fix
-//! enum path separators, LazyLock static declarations, enum constructors,
-//! Display impls, and orphaned LazyLock bodies.
+//! enum path separators, `LazyLock` static declarations, enum constructors,
+//! Display impls, and orphaned `LazyLock` bodies.
 
 pub(super) fn fix_enum_path_separator(code: &str) -> String {
     let lines: Vec<&str> = code.lines().collect();
@@ -21,7 +21,7 @@ pub(super) fn fix_enum_path_separator(code: &str) -> String {
                 let type_name = current.trim();
                 // Join: TypeName::method(...)
                 let method_part = &next_trimmed[1..]; // skip the dot
-                result.push(format!("{}{}::{}", indent, type_name, method_part));
+                result.push(format!("{indent}{type_name}::{method_part}"));
                 i += 2;
                 continue;
             }
@@ -33,7 +33,7 @@ pub(super) fn fix_enum_path_separator(code: &str) -> String {
     result.join("\n") + "\n"
 }
 
-/// Check if a line ends with a PascalCase identifier (UpperCamelCase).
+/// Check if a line ends with a `PascalCase` identifier (`UpperCamelCase`).
 pub(super) fn is_trailing_pascal_case(line: &str) -> bool {
     let trimmed = line.trim();
     if trimmed.is_empty() {
@@ -65,8 +65,8 @@ pub(super) fn fix_enum_dot_to_path_separator(code: &str) -> String {
         "Shutdown",
     ];
     for ty in &enum_types {
-        let dot_prefix = format!("{}.", ty);
-        let path_prefix = format!("{}::", ty);
+        let dot_prefix = format!("{ty}.");
+        let path_prefix = format!("{ty}::");
         result = result.replace(&dot_prefix, &path_prefix);
     }
     result
@@ -84,7 +84,7 @@ pub(super) fn fix_lazylock_static_as_type(code: &str) -> String {
         if trimmed.starts_with("pub static ") && trimmed.contains("std::sync::LazyLock<") {
             let name = extract_static_name(trimmed);
             if !name.is_empty() && is_pascal_case(&name) {
-                result.push(format!("pub type {} = String;", name));
+                result.push(format!("pub type {name} = String;"));
                 i = skip_block(i, &lines);
                 continue;
             }
@@ -96,7 +96,7 @@ pub(super) fn fix_lazylock_static_as_type(code: &str) -> String {
         {
             let name = extract_static_name(trimmed);
             if !name.is_empty() && is_pascal_case(&name) {
-                result.push(format!("pub type {} = String;", name));
+                result.push(format!("pub type {name} = String;"));
                 i = skip_block(i, &lines);
                 continue;
             }
@@ -107,9 +107,9 @@ pub(super) fn fix_lazylock_static_as_type(code: &str) -> String {
     result.join("\n")
 }
 
-/// DEPYLER-CONVERGE-MULTI-ITER9: Repair malformed LazyLock initializers.
+/// DEPYLER-CONVERGE-MULTI-ITER9: Repair malformed `LazyLock` initializers.
 ///
-/// SCREAMING_SNAKE LazyLock statics have invalid enum::iter() and Arc.unwrap().
+/// `SCREAMING_SNAKE` `LazyLock` statics have invalid `enum::iter()` and `Arc.unwrap()`.
 /// Replace body with empty Vec.
 pub(super) fn fix_broken_lazylock_initializers(code: &str) -> String {
     if !code.contains("std::sync::LazyLock<") {
@@ -129,8 +129,7 @@ pub(super) fn fix_broken_lazylock_initializers(code: &str) -> String {
             let name = extract_static_name(trimmed);
             if !name.is_empty() && is_screaming_snake(&name) {
                 result.push(format!(
-                    "pub static {}: std::sync::LazyLock<Vec<String>> = std::sync::LazyLock::new(|| Vec::new());",
-                    name
+                    "pub static {name}: std::sync::LazyLock<Vec<String>> = std::sync::LazyLock::new(|| Vec::new());"
                 ));
                 i = skip_block(i, &lines);
                 continue;
@@ -144,8 +143,7 @@ pub(super) fn fix_broken_lazylock_initializers(code: &str) -> String {
             let name = extract_static_name(trimmed);
             if !name.is_empty() && is_screaming_snake(&name) {
                 result.push(format!(
-                    "pub static {}: std::sync::LazyLock<Vec<String>> = std::sync::LazyLock::new(|| Vec::new());",
-                    name
+                    "pub static {name}: std::sync::LazyLock<Vec<String>> = std::sync::LazyLock::new(|| Vec::new());"
                 ));
                 i = skip_block(i, &lines);
                 continue;
@@ -157,7 +155,7 @@ pub(super) fn fix_broken_lazylock_initializers(code: &str) -> String {
     result.join("\n")
 }
 
-/// DEPYLER-CONVERGE-MULTI-ITER9: Fix Literal.clone().py_index(...) blocks.
+/// DEPYLER-CONVERGE-MULTI-ITER9: Fix `Literal.clone().py_index`(...) blocks.
 ///
 /// Python `typing.Literal["a","b"]` generates an invalid `Literal.clone().py_index(...)` pattern.
 /// Replace with empty string since it's typically a default value.
@@ -172,7 +170,7 @@ pub(super) fn fix_literal_clone_pattern(code: &str) -> String {
         let trimmed = lines[i].trim();
         if trimmed.contains("Literal.clone().py_index(") {
             let indent = &lines[i][..lines[i].len() - trimmed.len()];
-            result.push(format!("{}String::new()", indent));
+            result.push(format!("{indent}String::new()"));
             // Skip multi-line Literal block until closing paren
             let mut depth = count_parens_open(trimmed) - count_parens_close(trimmed);
             i += 1;
@@ -189,6 +187,7 @@ pub(super) fn fix_literal_clone_pattern(code: &str) -> String {
     result.join("\n")
 }
 
+#[allow(clippy::manual_let_else)]
 pub(super) fn fix_enum_new_constructor(code: &str) -> String {
     if !code.contains("pub fn value(&self) -> &str") {
         return code.to_string();
@@ -221,12 +220,9 @@ pub(super) fn fix_enum_new_constructor(code: &str) -> String {
         }
 
         // Find the match block inside value()
-        let match_start = match result[abs_pos..].find("match self {") {
-            Some(p) => abs_pos + p + "match self {".len(),
-            None => {
-                search_from = abs_pos + marker.len();
-                continue;
-            }
+        let match_start = if let Some(p) = result[abs_pos..].find("match self {") { abs_pos + p + "match self {".len() } else {
+            search_from = abs_pos + marker.len();
+            continue;
         };
 
         // Find closing brace of match
@@ -279,9 +275,10 @@ pub(super) fn extract_enum_name_from_impl(block: &str) -> String {
     String::new()
 }
 
+#[allow(clippy::manual_let_else)]
 pub(super) fn parse_enum_value_arms(match_body: &str, enum_name: &str) -> Vec<(String, String)> {
     let mut arms = Vec::new();
-    let prefix = format!("{}::", enum_name);
+    let prefix = format!("{enum_name}::");
     for line in match_body.lines() {
         let trimmed = line.trim();
         let rest = match trimmed.strip_prefix(&*prefix) {
@@ -308,6 +305,7 @@ pub(super) fn parse_enum_value_arms(match_body: &str, enum_name: &str) -> Vec<(S
     arms
 }
 
+#[allow(clippy::format_push_string)]
 pub(super) fn generate_enum_new_method(enum_name: &str, arms: &[(String, String)]) -> String {
     let mut method = String::new();
     method.push_str("    pub fn new(s: impl Into<String>) -> Self {\n");
@@ -315,17 +313,18 @@ pub(super) fn generate_enum_new_method(enum_name: &str, arms: &[(String, String)
     method.push_str("        match s.as_str() {\n");
     for (variant, string_val) in arms {
         method
-            .push_str(&format!("            \"{}\" => {}::{},\n", string_val, enum_name, variant));
+            .push_str(&format!("            \"{string_val}\" => {enum_name}::{variant},\n"));
     }
     // Default to first variant
     if let Some((first_variant, _)) = arms.first() {
-        method.push_str(&format!("            _ => {}::{},\n", enum_name, first_variant));
+        method.push_str(&format!("            _ => {enum_name}::{first_variant},\n"));
     }
     method.push_str("        }\n");
     method.push_str("    }\n");
     method
 }
 
+#[allow(clippy::manual_let_else)]
 pub(super) fn fix_enum_new_call_args(code: &str) -> String {
     if !code.contains("pub enum ") {
         return code.to_string();
@@ -350,7 +349,7 @@ pub(super) fn fix_enum_new_call_args(code: &str) -> String {
 
     let mut result = code.to_string();
     for enum_name in &enum_names {
-        let pattern = format!("{}::new(", enum_name);
+        let pattern = format!("{enum_name}::new(");
         let mut search_from = 0;
         loop {
             let haystack = &result[search_from..];
@@ -392,8 +391,8 @@ pub(super) fn fix_enum_new_call_args(code: &str) -> String {
             if let Some(comma_pos) = first_comma {
                 // Keep only first arg
                 let first_arg = args_str[..comma_pos].trim();
-                let old = format!("{}{})", pattern, args_str);
-                let new = format!("{}{})", pattern, first_arg);
+                let old = format!("{pattern}{args_str})");
+                let new = format!("{pattern}{first_arg})");
                 result = result.replacen(&old, &new, 1);
                 search_from = abs_pos + new.len();
             } else {
@@ -420,6 +419,7 @@ pub(super) fn find_top_level_comma(s: &str) -> Option<usize> {
 /// DEPYLER-CONVERGE-MULTI-ITER9: Add Display impl for enums.
 ///
 /// Many generated enums need Display for string formatting.
+#[allow(clippy::format_push_string)]
 pub(super) fn fix_enum_display(code: &str) -> String {
     if !code.contains("pub enum ") {
         return code.to_string();
@@ -451,11 +451,10 @@ pub(super) fn fix_enum_display(code: &str) -> String {
                     i += 1;
                 }
                 if !variants.is_empty()
-                    && !code.contains(&format!("impl std::fmt::Display for {}", name))
+                    && !code.contains(&format!("impl std::fmt::Display for {name}"))
                 {
                     enum_impls.push_str(&format!(
-                        "\nimpl std::fmt::Display for {} {{\n    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{\n        match self {{\n",
-                        name
+                        "\nimpl std::fmt::Display for {name} {{\n    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{\n        match self {{\n"
                     ));
                     for v in &variants {
                         let (vname, has_payload) = if let Some(paren) = v.find('(') {
@@ -465,13 +464,11 @@ pub(super) fn fix_enum_display(code: &str) -> String {
                         };
                         if has_payload {
                             enum_impls.push_str(&format!(
-                                "            {}::{}(..) => write!(f, \"{}\"),\n",
-                                name, vname, vname
+                                "            {name}::{vname}(..) => write!(f, \"{vname}\"),\n"
                             ));
                         } else {
                             enum_impls.push_str(&format!(
-                                "            {}::{} => write!(f, \"{}\"),\n",
-                                name, vname, vname
+                                "            {name}::{vname} => write!(f, \"{vname}\"),\n"
                             ));
                         }
                     }
@@ -484,7 +481,7 @@ pub(super) fn fix_enum_display(code: &str) -> String {
     if enum_impls.is_empty() {
         code.to_string()
     } else {
-        format!("{}{}", code, enum_impls)
+        format!("{code}{enum_impls}")
     }
 }
 
@@ -495,7 +492,7 @@ pub(super) fn fix_add_enum_from_impls(code: &str) -> String {
     }
     let mut impls_to_add = Vec::new();
     for name in &enum_names {
-        let from_marker = format!("impl From<{}> for DepylerValue", name);
+        let from_marker = format!("impl From<{name}> for DepylerValue");
         if code.contains(&from_marker) {
             continue;
         }
@@ -515,7 +512,7 @@ pub(super) fn fix_add_enum_from_impls(code: &str) -> String {
     let mut result = code.to_string();
     if let Some(main_pos) = result.find("\npub fn main()") {
         let insert = impls_to_add.join("\n");
-        result.insert_str(main_pos, &format!("\n{}", insert));
+        result.insert_str(main_pos, &format!("\n{insert}"));
     } else {
         result.push_str(&impls_to_add.join("\n"));
     }
@@ -593,9 +590,9 @@ pub(super) fn skip_block(start: usize, lines: &[&str]) -> usize {
     i
 }
 
-/// DEPYLER-CONVERGE-MULTI-ITER9: Remove orphaned LazyLock initializer bodies.
+/// DEPYLER-CONVERGE-MULTI-ITER9: Remove orphaned `LazyLock` initializer bodies.
 ///
-/// After type-alias and malformed-init corrections, multi-line LazyLock bodies
+/// After type-alias and malformed-init corrections, multi-line `LazyLock` bodies
 /// can remain as top-level code (not inside any `pub static`). Remove them.
 pub(super) fn fix_orphaned_lazylock_bodies(code: &str) -> String {
     let lines: Vec<&str> = code.lines().collect();
@@ -640,7 +637,7 @@ pub(super) fn fix_orphaned_lazylock_bodies(code: &str) -> String {
     result.join("\n")
 }
 
-/// Check if a line looks like an orphaned LazyLock body statement at the top level.
+/// Check if a line looks like an orphaned `LazyLock` body statement at the top level.
 pub(super) fn is_orphaned_lazylock_body_line(trimmed: &str) -> bool {
     if trimmed.is_empty() {
         return false;
@@ -684,7 +681,7 @@ pub(super) fn is_orphaned_lazylock_body_line(trimmed: &str) -> bool {
         || trimmed == "vec!["
 }
 
-/// Check if a LazyLock::new line is a continuation of a pub static on the previous line.
+/// Check if a `LazyLock::new` line is a continuation of a pub static on the previous line.
 pub(super) fn is_continuation_of_static(idx: usize, lines: &[&str]) -> bool {
     if idx == 0 {
         return false;
@@ -693,10 +690,12 @@ pub(super) fn is_continuation_of_static(idx: usize, lines: &[&str]) -> bool {
     prev.contains("pub static ") && prev.ends_with('=')
 }
 
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 fn count_parens_open(s: &str) -> i32 {
     s.chars().filter(|&c| c == '(').count() as i32
 }
 
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss)]
 fn count_parens_close(s: &str) -> i32 {
     s.chars().filter(|&c| c == ')').count() as i32
 }

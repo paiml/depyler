@@ -1,14 +1,14 @@
 //! Python Builtin Functions Code Generation - EXTREME TDD
 //!
 //! Handles Python builtin function conversions to Rust.
-//! Extracted from expr_gen.rs for testability and maintainability.
+//! Extracted from `expr_gen.rs` for testability and maintainability.
 //!
 //! Coverage target: 100% line coverage, 100% branch coverage
 
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-/// all(iterable) → iterable.into_iter().all(|x| x)
+/// all(iterable) → `iterable.into_iter().all(|x`| x)
 pub fn convert_all_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() != 1 {
         bail!("all() requires exactly 1 argument");
@@ -17,7 +17,7 @@ pub fn convert_all_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { #iterable.into_iter().all(|x| x) })
 }
 
-/// any(iterable) → iterable.into_iter().any(|x| x)
+/// any(iterable) → `iterable.into_iter().any(|x`| x)
 pub fn convert_any_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() != 1 {
         bail!("any() requires exactly 1 argument");
@@ -52,7 +52,7 @@ pub fn convert_enumerate_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     }
 }
 
-/// zip(iter1, iter2, ...) → iter1.into_iter().zip(iter2.into_iter())
+/// zip(iter1, iter2, ...) → `iter1.into_iter().zip(iter2.into_iter())`
 pub fn convert_zip_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() < 2 {
         bail!("zip() requires at least 2 arguments");
@@ -70,7 +70,7 @@ pub fn convert_zip_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     }
 }
 
-/// reversed(iterable) → iterable.iter().cloned().rev()
+/// reversed(iterable) → `iterable.iter().cloned().rev()`
 pub fn convert_reversed_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() != 1 {
         bail!("reversed() requires exactly 1 argument");
@@ -79,7 +79,7 @@ pub fn convert_reversed_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { #iterable.iter().cloned().rev() })
 }
 
-/// sorted(iterable) → sorted Vec with partial_cmp for float support
+/// sorted(iterable) → sorted Vec with `partial_cmp` for float support
 pub fn convert_sorted_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.is_empty() || args.len() > 2 {
         bail!("sorted() requires 1 or 2 arguments");
@@ -108,7 +108,7 @@ pub fn convert_sum_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     }
 }
 
-/// round(value) → (value as f64).round() as i32
+/// round(value) → (value as `f64).round()` as i32
 pub fn convert_round_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.is_empty() || args.len() > 2 {
         bail!("round() requires 1 or 2 arguments");
@@ -117,7 +117,7 @@ pub fn convert_round_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { (#value as f64).round() as i32 })
 }
 
-/// abs(value) → value.abs()
+/// abs(value) → `value.abs()`
 pub fn convert_abs_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() != 1 {
         bail!("abs() requires exactly 1 argument");
@@ -127,7 +127,7 @@ pub fn convert_abs_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
 }
 
 /// min(iterable) or min(a, b, c, ...)
-/// DEPYLER-1062: Updated to use depyler_min helper for safe f64/NaN handling
+/// DEPYLER-1062: Updated to use `depyler_min` helper for safe f64/NaN handling
 pub fn convert_min_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.is_empty() {
         bail!("min() requires at least 1 argument");
@@ -149,7 +149,7 @@ pub fn convert_min_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
 }
 
 /// max(iterable) or max(a, b, c, ...)
-/// DEPYLER-1062: Updated to use depyler_max helper for safe f64/NaN handling
+/// DEPYLER-1062: Updated to use `depyler_max` helper for safe f64/NaN handling
 pub fn convert_max_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.is_empty() {
         bail!("max() requires at least 1 argument");
@@ -207,9 +207,9 @@ pub fn convert_oct_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { format!("0o{:o}", #value) })
 }
 
-/// chr(code) → char::from_u32(code).unwrap().to_string()
+/// chr(code) → `char::from_u32(code).unwrap().to_string()`
 /// DEPYLER-1045: Wrap code in parentheses to handle arithmetic expressions correctly
-/// e.g., chr(base + shifted) → char::from_u32((base + shifted) as u32)
+/// e.g., chr(base + shifted) → `char::from_u32((base` + shifted) as u32)
 pub fn convert_chr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() != 1 {
         bail!("chr() requires exactly 1 argument");
@@ -221,7 +221,7 @@ pub fn convert_chr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     })
 }
 
-/// hash(value) → DefaultHasher hash
+/// hash(value) → `DefaultHasher` hash
 pub fn convert_hash_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() != 1 {
         bail!("hash() requires exactly 1 argument");
@@ -248,7 +248,7 @@ pub fn convert_repr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
 }
 
 /// next(iterator) or next(iterator, default)
-/// DEPYLER-1078: Handle next(iter, None) correctly - just return .next()
+/// DEPYLER-1078: Handle next(iter, None) correctly - just return .`next()`
 pub fn convert_next_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.is_empty() || args.len() > 2 {
         bail!("next() requires 1 or 2 arguments (iterator, optional default)");
@@ -275,7 +275,7 @@ pub fn convert_next_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     }
 }
 
-/// iter(iterable) → iterable.into_iter()
+/// iter(iterable) → `iterable.into_iter()`
 pub fn convert_iter_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() != 1 {
         bail!("iter() requires exactly 1 argument");
@@ -284,7 +284,7 @@ pub fn convert_iter_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { #iterable.into_iter() })
 }
 
-/// type(value) → std::any::type_name_of_val(&value)
+/// type(value) → `std::any::type_name_of_val(&value)`
 pub fn convert_type_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() != 1 {
         bail!("type() requires exactly 1 argument");
@@ -298,9 +298,9 @@ pub fn convert_type_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
 // Add input(), hasattr(), super() builtins
 // ============================================
 
-/// input() or input(prompt) → Read line from stdin
-/// Python: input() reads stdin, input("prompt: ") prints prompt first
-/// Rust: Uses std::io::stdin().read_line() with prompt support
+/// `input()` or input(prompt) → Read line from stdin
+/// Python: `input()` reads stdin, input("prompt: ") prints prompt first
+/// Rust: Uses `std::io::stdin().read_line()` with prompt support
 pub fn convert_input_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() > 1 {
         bail!("input() requires 0 or 1 arguments");
@@ -348,6 +348,7 @@ pub fn convert_hasattr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
 /// getattr(obj, name) or getattr(obj, name, default)
 /// Python: getattr(obj, "attr") or getattr(obj, "attr", default)
 /// Rust: Direct field access or default value
+#[allow(clippy::no_effect_underscore_binding)]
 pub fn convert_getattr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() < 2 || args.len() > 3 {
         bail!("getattr() requires 2 or 3 arguments");
@@ -367,6 +368,7 @@ pub fn convert_getattr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
 /// setattr(obj, name, value) → Set attribute on object
 /// Python: setattr(obj, "attr", value)
 /// Rust: Direct field assignment (requires &mut)
+#[allow(clippy::no_effect_underscore_binding)]
 pub fn convert_setattr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() != 3 {
         bail!("setattr() requires exactly 3 arguments (object, name, value)");
@@ -407,7 +409,7 @@ pub fn convert_id_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
 }
 
 /// ascii(obj) → Return ASCII representation with escapes
-/// Python: ascii(obj) like repr() but escapes non-ASCII
+/// Python: ascii(obj) like `repr()` but escapes non-ASCII
 /// Rust: Uses Debug formatting with escape sequences
 pub fn convert_ascii_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() != 1 {
@@ -417,7 +419,7 @@ pub fn convert_ascii_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { format!("{:?}", #value).escape_default().to_string() })
 }
 
-/// format(value, format_spec) → Format a value
+/// format(value, `format_spec`) → Format a value
 /// Python: format(value, ".2f") formats with spec
 /// Rust: Uses format! macro with appropriate spec
 pub fn convert_format_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
@@ -435,7 +437,7 @@ pub fn convert_format_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
 
 /// vars(obj) → Return __dict__ attribute
 /// Python: vars(obj) returns object's attribute dict
-/// Rust: Returns empty HashMap as placeholder
+/// Rust: Returns empty `HashMap` as placeholder
 pub fn convert_vars_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() > 1 {
         bail!("vars() requires 0 or 1 arguments");
@@ -455,9 +457,9 @@ pub fn convert_dir_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { Vec::<String>::new() })
 }
 
-/// globals() → Return global namespace dict
-/// Python: globals() returns global symbol table
-/// Rust: Returns empty HashMap (no equivalent in Rust)
+/// `globals()` → Return global namespace dict
+/// Python: `globals()` returns global symbol table
+/// Rust: Returns empty `HashMap` (no equivalent in Rust)
 pub fn convert_globals_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if !args.is_empty() {
         bail!("globals() takes no arguments");
@@ -465,9 +467,9 @@ pub fn convert_globals_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { std::collections::HashMap::<String, String>::new() })
 }
 
-/// locals() → Return local namespace dict
-/// Python: locals() returns local symbol table
-/// Rust: Returns empty HashMap (no equivalent in Rust)
+/// `locals()` → Return local namespace dict
+/// Python: `locals()` returns local symbol table
+/// Rust: Returns empty `HashMap` (no equivalent in Rust)
 pub fn convert_locals_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if !args.is_empty() {
         bail!("locals() takes no arguments");
@@ -522,8 +524,8 @@ pub fn convert_property_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { #fget })
 }
 
-/// breakpoint() → Drop into debugger
-/// Python: breakpoint() invokes debugger
+/// `breakpoint()` → Drop into debugger
+/// Python: `breakpoint()` invokes debugger
 /// Rust: Uses panic for debugging (or could use dbg!)
 pub fn convert_breakpoint_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if !args.is_empty() {
@@ -535,7 +537,7 @@ pub fn convert_breakpoint_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
 
 /// exit(code) → Exit program
 /// Python: exit(0) or sys.exit(0)
-/// Rust: std::process::exit(code)
+/// Rust: `std::process::exit(code)`
 pub fn convert_exit_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() > 1 {
         bail!("exit() requires 0 or 1 arguments");
@@ -548,7 +550,7 @@ pub fn convert_exit_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     }
 }
 
-/// quit() → Alias for exit()
+/// `quit()` → Alias for `exit()`
 pub fn convert_quit_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     convert_exit_builtin(args)
 }

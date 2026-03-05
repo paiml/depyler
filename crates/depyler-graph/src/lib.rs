@@ -95,6 +95,7 @@ pub struct GraphAnalysis {
 }
 
 /// Main entry point for graph-based error analysis
+#[allow(clippy::similar_names)]
 pub fn analyze_with_graph(
     python_source: &str,
     rust_errors: &[(String, String, usize)], // (code, message, line)

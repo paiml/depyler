@@ -214,12 +214,13 @@ impl PreconditionChecker {
     }
 
     /// Parse @requires annotations from docstring
+    #[allow(clippy::unused_self)]
     pub fn parse_requires_annotations(&mut self, docstring: &str) -> Vec<PreconditionRule> {
         let mut rules = Vec::new();
 
         for line in docstring.lines() {
             if let Some(annotation) = line.trim().strip_prefix("@requires") {
-                if let Some(rule) = self.parse_precondition_rule(annotation.trim()) {
+                if let Some(rule) = Self::parse_precondition_rule(annotation.trim()) {
                     rules.push(rule);
                 }
             }
@@ -229,7 +230,7 @@ impl PreconditionChecker {
     }
 
     /// Parse a single precondition rule
-    fn parse_precondition_rule(&self, annotation: &str) -> Option<PreconditionRule> {
+    fn parse_precondition_rule(annotation: &str) -> Option<PreconditionRule> {
         // Simple parser for expressions like "param > 0" or "items is not None"
         let parts: Vec<&str> = annotation.split_whitespace().collect();
 
@@ -251,7 +252,7 @@ impl PreconditionChecker {
             };
 
             Some(PreconditionRule {
-                name: format!("{}_constraint", var),
+                name: format!("{var}_constraint"),
                 predicate,
                 params: vec![var],
                 description: annotation.to_string(),
@@ -297,7 +298,7 @@ impl PreconditionChecker {
                                 condition: rule.description.clone(),
                                 location: format!("parameter '{}'", param.name),
                                 counterexample: Some(counterexample),
-                                suggestion: self.suggest_fix(&rule.predicate),
+                                suggestion: Self::suggest_fix(&rule.predicate),
                             });
                             result.success = false;
                         }
@@ -317,6 +318,7 @@ impl PreconditionChecker {
     }
 
     /// Check type-based preconditions
+    #[allow(clippy::unused_self)]
     fn check_type_precondition(
         &self,
         param_name: &str,
@@ -325,19 +327,18 @@ impl PreconditionChecker {
         match param_type {
             Type::List(_) | Type::Dict(_, _) => {
                 // Lists and dicts should not be null in safe code
-                if !self.has_null_check(param_name) {
+                if self.has_null_check(param_name) {
+                    None
+                } else {
                     Some(ContractViolation {
                         kind: ViolationKind::PreconditionFailed,
-                        condition: format!("{} is not None", param_name),
-                        location: format!("parameter '{}'", param_name),
+                        condition: format!("{param_name} is not None"),
+                        location: format!("parameter '{param_name}'"),
                         counterexample: None,
                         suggestion: format!(
-                            "Add null check: if {} is None: raise ValueError",
-                            param_name
+                            "Add null check: if {param_name} is None: raise ValueError"
                         ),
                     })
-                } else {
-                    None
                 }
             }
             _ => None,
@@ -345,12 +346,14 @@ impl PreconditionChecker {
     }
 
     /// Check if parameter has null check in function body
+    #[allow(clippy::unused_self)]
     fn has_null_check(&self, _param_name: &str) -> bool {
         // Simplified - in real implementation would analyze function body
         false
     }
 
     /// Verify a predicate
+    #[allow(clippy::unused_self)]
     fn verify_predicate(&self, predicate: &Predicate, _func: &HirFunction) -> PredicateResult {
         match predicate {
             Predicate::NotNull(_) => {
@@ -370,22 +373,23 @@ impl PreconditionChecker {
     }
 
     /// Suggest fix for failed precondition
-    fn suggest_fix(&self, predicate: &Predicate) -> String {
+    fn suggest_fix(predicate: &Predicate) -> String {
         match predicate {
             Predicate::NotNull(var) => {
-                format!("Add null check at function start: if {} is None: raise ValueError('{}cannot be None')", var, var)
+                format!("Add null check at function start: if {var} is None: raise ValueError('{var}cannot be None')")
             }
             Predicate::Compare { var, op, value } => {
-                format!("Add validation: if not ({} {:?} {:?}): raise ValueError", var, op, value)
+                format!("Add validation: if not ({var} {op:?} {value:?}): raise ValueError")
             }
             Predicate::InBounds { array, index } => {
-                format!("Add bounds check: if {} >= len({}): raise IndexError", index, array)
+                format!("Add bounds check: if {index} >= len({array}): raise IndexError")
             }
             _ => "Add appropriate validation for this condition".to_string(),
         }
     }
 
     /// Generate runtime assertions for preconditions
+    #[allow(clippy::format_push_string, clippy::self_only_used_in_recursion)]
     pub fn generate_runtime_assertions(&self, contract: &Contract) -> String {
         let mut assertions = String::new();
 
@@ -403,10 +407,11 @@ impl PreconditionChecker {
     }
 
     /// Convert predicate to Rust assertion code
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::match_same_arms, clippy::only_used_in_recursion)]
+    #[allow(clippy::self_only_used_in_recursion)]
     fn predicate_to_assertion(&self, predicate: &Predicate) -> String {
         match predicate {
-            Predicate::NotNull(var) => format!("!{}.is_none()", var),
+            Predicate::NotNull(var) => format!("!{var}.is_none()"),
             Predicate::Compare { var, op, value } => {
                 let op_str = match op {
                     CompareOp::Eq => "==",
@@ -435,7 +440,7 @@ impl PreconditionChecker {
             }
             Predicate::Not(p) => format!("!({})", self.predicate_to_assertion(p)),
             Predicate::InBounds { array, index } => {
-                format!("{} < {}.len()", index, array)
+                format!("{index} < {array}.len()")
             }
             _ => "true".to_string(),
         }
@@ -463,6 +468,7 @@ impl PostconditionVerifier {
     }
 
     /// Parse a postcondition expression
+    #[allow(clippy::unused_self)]
     fn parse_postcondition(&self, annotation: &str) -> Option<Predicate> {
         // Handle special keywords
         if annotation.contains("old(") {
@@ -470,7 +476,7 @@ impl PostconditionVerifier {
             self.parse_old_state_predicate(annotation)
         } else if annotation.starts_with("result") {
             // Return value constraint
-            self.parse_result_predicate(annotation)
+            Self::parse_result_predicate(annotation)
         } else {
             // Regular predicate
             parse_simple_predicate(annotation)
@@ -478,6 +484,7 @@ impl PostconditionVerifier {
     }
 
     /// Parse predicates referencing old state
+    #[allow(clippy::unused_self)]
     fn parse_old_state_predicate(&self, _annotation: &str) -> Option<Predicate> {
         // Example: "result == old(x) + 1"
         // Would parse and create appropriate predicate
@@ -485,7 +492,7 @@ impl PostconditionVerifier {
     }
 
     /// Parse predicates about return value
-    fn parse_result_predicate(&self, annotation: &str) -> Option<Predicate> {
+    fn parse_result_predicate(annotation: &str) -> Option<Predicate> {
         let parts: Vec<&str> = annotation.split_whitespace().collect();
         if parts.len() >= 3 && parts[0] == "result" {
             if let Some(op) = parse_compare_op(parts[1]) {
@@ -541,6 +548,7 @@ impl PostconditionVerifier {
     }
 
     /// Generate runtime postcondition checks
+    #[allow(clippy::format_push_string)]
     pub fn generate_postcondition_checks(&self, contract: &Contract) -> String {
         let mut checks = String::new();
 
@@ -566,6 +574,7 @@ impl InvariantChecker {
     }
 
     /// Check all invariants
+    #[allow(clippy::self_only_used_in_recursion)]
     pub fn check_invariants(&self, func: &HirFunction) -> Vec<ContractViolation> {
         let mut violations = Vec::new();
 
@@ -585,7 +594,8 @@ impl InvariantChecker {
     }
 
     /// Check invariants in a statement
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::match_same_arms, clippy::only_used_in_recursion)]
+    #[allow(clippy::self_only_used_in_recursion)]
     fn check_stmt_invariants(&self, stmt: &HirStmt) -> Vec<ContractViolation> {
         let mut violations = Vec::new();
 
@@ -611,6 +621,7 @@ impl InvariantChecker {
     /// Generate invariant preservation checks
     /// Note: Currently only generates documentation comments.
     /// Full invariant preservation checking is not yet implemented.
+    #[allow(clippy::format_push_string)]
     pub fn generate_invariant_checks(&self) -> String {
         let mut checks = String::new();
 
@@ -641,6 +652,7 @@ impl ContractInheritance {
     }
 
     /// Get inherited contract for a function
+    #[allow(clippy::unused_self)]
     pub fn get_inherited_contract(&self, func_name: &str) -> Option<Contract> {
         // First check direct contract
         if let Some(contract) = self.base_contracts.get(func_name) {
@@ -653,7 +665,7 @@ impl ContractInheritance {
                 if let Some(base_contract) = self.base_contracts.get(base) {
                     // Apply refinements if any
                     if let Some(refinement) = self.refinements.get(func_name) {
-                        return Some(self.apply_refinement(base_contract, refinement));
+                        return Some(Self::apply_refinement(base_contract, refinement));
                     }
                     return Some(base_contract.clone());
                 }
@@ -664,7 +676,7 @@ impl ContractInheritance {
     }
 
     /// Apply contract refinement (Liskov substitution principle)
-    fn apply_refinement(&self, base: &Contract, refinement: &ContractRefinement) -> Contract {
+    fn apply_refinement(base: &Contract, refinement: &ContractRefinement) -> Contract {
         let mut refined = base.clone();
 
         // Weaken preconditions (can accept more)
@@ -684,16 +696,17 @@ impl ContractInheritance {
     }
 
     /// Verify Liskov substitution principle
+    #[allow(clippy::unused_self)]
     pub fn verify_lsp(&self, derived: &str, base: &str) -> Result<(), String> {
         let base_contract = self
             .base_contracts
             .get(base)
-            .ok_or_else(|| format!("Base contract '{}' not found", base))?;
+            .ok_or_else(|| format!("Base contract '{base}' not found"))?;
 
         let derived_contract = self
             .base_contracts
             .get(derived)
-            .ok_or_else(|| format!("Derived contract '{}' not found", derived))?;
+            .ok_or_else(|| format!("Derived contract '{derived}' not found"))?;
 
         // Check preconditions are not strengthened
         for base_pre in &base_contract.preconditions {
@@ -714,7 +727,7 @@ impl ContractInheritance {
             let has_stronger = derived_contract
                 .postconditions
                 .iter()
-                .any(|d| self.is_stronger_than(&d.expression, &base_post.expression));
+                .any(|d| Self::is_stronger_than(&d.expression, &base_post.expression));
             if !has_stronger {
                 return Err(format!(
                     "Postcondition '{}' is weakened in derived contract",
@@ -727,6 +740,7 @@ impl ContractInheritance {
     }
 
     /// Check if one predicate is weaker than another
+    #[allow(clippy::unused_self)]
     fn is_weaker_than(&self, pred1: &str, pred2: &str) -> bool {
         // Simplified - would use SMT solver in real implementation
         // x >= 0 is weaker than x > 0 (accepts more values)
@@ -735,12 +749,12 @@ impl ContractInheritance {
         }
 
         // Check for >= being weaker than >
-        if pred1.contains(">=") && pred2.contains(">") && !pred2.contains("=") {
+        if pred1.contains(">=") && pred2.contains('>') && !pred2.contains('=') {
             return true;
         }
 
         // Check for <= being weaker than <
-        if pred1.contains("<=") && pred2.contains("<") && !pred2.contains("=") {
+        if pred1.contains("<=") && pred2.contains('<') && !pred2.contains('=') {
             return true;
         }
 
@@ -748,9 +762,9 @@ impl ContractInheritance {
     }
 
     /// Check if one predicate is stronger than another
-    fn is_stronger_than(&self, pred1: &str, pred2: &str) -> bool {
+    fn is_stronger_than(pred1: &str, pred2: &str) -> bool {
         // Simplified - would use SMT solver in real implementation
-        pred1 == pred2 || pred1.contains("<") && pred2.contains("<")
+        pred1 == pred2 || pred1.contains('<') && pred2.contains('<')
     }
 }
 
@@ -763,6 +777,7 @@ enum PredicateResult {
 }
 
 /// Parse a comparison operator
+#[allow(clippy::unnecessary_wraps)]
 fn parse_compare_op(s: &str) -> Option<CompareOp> {
     match s {
         "==" => Some(CompareOp::Eq),
@@ -777,6 +792,7 @@ fn parse_compare_op(s: &str) -> Option<CompareOp> {
 }
 
 /// Parse a value from string
+#[allow(clippy::unnecessary_wraps)]
 fn parse_value(s: &str) -> Option<Value> {
     if let Ok(n) = s.parse::<i64>() {
         Some(Value::Int(n))
@@ -800,7 +816,7 @@ fn value_to_rust(value: &Value) -> String {
     match value {
         Value::Int(n) => n.to_string(),
         Value::Float(f) => f.to_string(),
-        Value::String(s) => format!("\"{}\"", s),
+        Value::String(s) => format!("\"{s}\""),
         Value::Bool(b) => b.to_string(),
         Value::Var(v) => v.clone(),
         Value::Null => "None".to_string(),

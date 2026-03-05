@@ -111,7 +111,7 @@ impl std::str::FromStr for TranspilationTarget {
             "rust" | "rs" => Ok(Self::Rust),
             #[cfg(feature = "ruchy")]
             "ruchy" | "ruc" => Ok(Self::Ruchy),
-            _ => Err(format!("Unknown transpilation target: {}", s)),
+            _ => Err(format!("Unknown transpilation target: {s}")),
         }
     }
 }

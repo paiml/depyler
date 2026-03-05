@@ -83,6 +83,7 @@ impl LspServer {
     }
 
     /// Handle document close
+    #[allow(clippy::needless_pass_by_value)]
     pub fn did_close(&mut self, uri: String) {
         self.documents.remove(&uri);
     }
@@ -184,6 +185,7 @@ impl LspServer {
     }
 
     /// Find references
+    #[allow(clippy::unused_self, clippy::needless_pass_by_value)]
     pub fn find_references(&self, uri: &str, position: Position) -> Vec<LocationResponse> {
         if let Some(doc) = self.documents.get(uri) {
             let offset = self.position_to_offset(&doc.content, position);
@@ -206,6 +208,7 @@ impl LspServer {
     }
 
     // Helper methods
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss, clippy::unused_self, clippy::needless_pass_by_value)]
     fn position_to_offset(&self, text: &str, position: Position) -> TextSize {
         let mut line = 0;
         let mut col = 0;
@@ -228,6 +231,7 @@ impl LspServer {
         TextSize::from(offset as u32)
     }
 
+    #[allow(clippy::unused_self)]
     fn offset_to_position(&self, text: &str, offset: TextSize) -> Position {
         let mut line = 0;
         let mut col = 0;
@@ -251,12 +255,12 @@ impl LspServer {
         Position { line, character: col }
     }
 
+    #[allow(clippy::unused_self)]
     fn get_prefix_at_position(&self, text: &str, offset: TextSize) -> String {
         let offset_usize: usize = offset.into();
         let start = text[..offset_usize]
             .rfind(|c: char| !c.is_alphanumeric() && c != '_')
-            .map(|i| i + 1)
-            .unwrap_or(0);
+            .map_or(0, |i| i + 1);
 
         text[start..offset_usize].to_string()
     }

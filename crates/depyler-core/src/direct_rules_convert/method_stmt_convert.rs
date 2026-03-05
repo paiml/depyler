@@ -1,22 +1,23 @@
 //! Method body statement conversion for direct rules
 //!
-//! Contains convert_method_body_block, convert_method_body_stmts, convert_method_stmt.
+//! Contains `convert_method_body_block`, `convert_method_body_stmts`, `convert_method_stmt`.
 
 use crate::direct_rules::make_ident;
-use crate::hir::*;
+use crate::hir::{HirStmt, Type, HirExpr, Literal, AssignTarget};
 use crate::type_mapper::TypeMapper;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-use super::body_convert::*;
-use super::stmt_convert::*;
+use super::body_convert::{find_mutable_vars_in_body, convert_assign_stmt_with_mutable_vars, is_pure_expression_direct};
+use super::stmt_convert::convert_stmt_with_context;
 use super::{
     convert_condition_expr_with_class_fields, convert_expr_with_class_fields, ExprConverter,
 };
 
 /// DEPYLER-0720: Convert method body block with class field type awareness
 /// This is used for class methods where we know the field types
-/// DEPYLER-1037: Added ret_type parameter for Optional wrapping in return statements
+/// DEPYLER-1037: Added `ret_type` parameter for Optional wrapping in return statements
+#[allow(clippy::default_trait_access)]
 pub(crate) fn convert_method_body_block(
     stmts: &[HirStmt],
     type_mapper: &TypeMapper,
@@ -39,7 +40,8 @@ pub(crate) fn convert_method_body_block(
 }
 
 /// DEPYLER-0720: Convert method body statements with class field type awareness
-/// DEPYLER-1037: Added ret_type parameter for Optional wrapping in return statements
+/// DEPYLER-1037: Added `ret_type` parameter for Optional wrapping in return statements
+#[allow(clippy::too_many_lines)]
 pub(crate) fn convert_method_body_stmts(
     stmts: &[HirStmt],
     type_mapper: &TypeMapper,
@@ -70,8 +72,8 @@ pub(crate) fn convert_method_body_stmts(
 }
 
 /// DEPYLER-0720: Convert a single statement with class field type awareness
-/// DEPYLER-1037: Added ret_type parameter for Optional wrapping in return statements
-#[allow(clippy::too_many_arguments)]
+/// DEPYLER-1037: Added `ret_type` parameter for Optional wrapping in return statements
+#[allow(clippy::default_trait_access, clippy::match_same_arms, clippy::too_many_arguments, clippy::too_many_lines)]
 pub(crate) fn convert_method_stmt(
     stmt: &HirStmt,
     type_mapper: &TypeMapper,

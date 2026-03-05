@@ -78,7 +78,7 @@ impl TypeExtractor {
             }
             // DEPYLER-0512: Handle module-qualified types (module.Class)
             ast::Expr::Attribute(attr) => Self::extract_module_qualified_type(attr),
-            _ => bail!("Unsupported type annotation: {:?}", expr),
+            _ => bail!("Unsupported type annotation: {expr:?}"),
         }
     }
 
@@ -95,7 +95,7 @@ impl TypeExtractor {
         }
 
         // Check for type variables (single uppercase letter)
-        if name.len() == 1 && name.chars().next().is_some_and(|c| c.is_uppercase()) {
+        if name.len() == 1 && name.chars().next().is_some_and(char::is_uppercase) {
             return Ok(Type::TypeVar(name.to_string()));
         }
 
@@ -139,13 +139,13 @@ impl TypeExtractor {
     }
 
     /// DEPYLER-0836: Parse a type parameter that might contain union syntax (T | None)
-    /// Converts "T | None" or "None | T" to Optional[T] (which becomes Type::Optional)
+    /// Converts "T | None" or "None | T" to Optional[T] (which becomes `Type::Optional`)
     fn parse_forward_ref_type_param(s: &str) -> Result<Type> {
         let s = s.trim();
 
         // Check for PEP 604 union syntax: T | U
         if s.contains('|') {
-            let parts: Vec<&str> = s.split('|').map(|p| p.trim()).collect();
+            let parts: Vec<&str> = s.split('|').map(str::trim).collect();
 
             // Check for Optional pattern: T | None or None | T
             if parts.len() == 2 {
@@ -212,6 +212,7 @@ impl TypeExtractor {
         }
     }
 
+    #[allow(clippy::match_same_arms)]
     fn extract_named_generic_type(name: &str, s: &ast::ExprSubscript) -> Result<Type> {
         match name {
             // Uppercase (from typing module)
@@ -383,7 +384,7 @@ impl TypeExtractor {
     }
 
     fn is_type_var_name(name: &str) -> bool {
-        name.len() == 1 && name.chars().next().is_some_and(|c| c.is_uppercase())
+        name.len() == 1 && name.chars().next().is_some_and(char::is_uppercase)
     }
 
     /// DEPYLER-0512: Extract module-qualified type (module.Class or module.submodule.Class)
@@ -396,6 +397,7 @@ impl TypeExtractor {
     ///
     /// Strategy: Extract the final attribute name and map known types, otherwise treat as custom.
     /// Module prefix is discarded since Rust types don't include module qualification.
+    #[allow(clippy::unnecessary_wraps)]
     fn extract_module_qualified_type(attr: &ast::ExprAttribute) -> Result<Type> {
         // Extract the final attribute name (e.g., "Namespace" from "argparse.Namespace")
         let type_name = attr.attr.as_str();

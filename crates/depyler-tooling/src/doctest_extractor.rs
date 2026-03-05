@@ -86,18 +86,20 @@ pub struct DoctestExtractor {
 }
 
 impl DoctestExtractor {
-    /// Creates a new DoctestExtractor with default settings
+    /// Creates a new `DoctestExtractor` with default settings
     pub fn new() -> Self {
         Self { include_module_doctests: true, include_class_methods: true }
     }
 
     /// Configure whether to include module-level doctests
+    #[must_use]
     pub fn with_module_doctests(mut self, include: bool) -> Self {
         self.include_module_doctests = include;
         self
     }
 
     /// Configure whether to include class method doctests
+    #[must_use]
     pub fn with_class_methods(mut self, include: bool) -> Self {
         self.include_class_methods = include;
         self
@@ -125,23 +127,11 @@ impl DoctestExtractor {
             }
 
             // Track docstring boundaries
-            if !in_docstring {
-                if trimmed.starts_with("\"\"\"") || trimmed.starts_with("'''") {
-                    in_docstring = true;
-                    docstring_delim =
-                        Some(if trimmed.starts_with("\"\"\"") { "\"\"\"" } else { "'''" });
-                    // Check if docstring ends on same line
-                    let rest = &trimmed[3..];
-                    if rest.contains(docstring_delim.unwrap()) {
-                        in_docstring = false;
-                        docstring_delim = None;
-                    }
-                }
-            } else {
+            if in_docstring {
                 // Inside docstring - look for >>> lines
                 if trimmed.starts_with(">>>") {
                     let (doctest, consumed) =
-                        self.parse_doctest(&lines, i, current_function.as_deref())?;
+                        Self::parse_doctest(&lines, i, current_function.as_deref())?;
                     if let Some(dt) = doctest {
                         doctests.push(dt);
                     }
@@ -154,6 +144,16 @@ impl DoctestExtractor {
                         in_docstring = false;
                         docstring_delim = None;
                     }
+                }
+            } else if trimmed.starts_with("\"\"\"") || trimmed.starts_with("'''") {
+                in_docstring = true;
+                docstring_delim =
+                    Some(if trimmed.starts_with("\"\"\"") { "\"\"\"" } else { "'''" });
+                // Check if docstring ends on same line
+                let rest = &trimmed[3..];
+                if rest.contains(docstring_delim.expect("docstring_delim should be set")) {
+                    in_docstring = false;
+                    docstring_delim = None;
                 }
             }
 
@@ -173,14 +173,13 @@ impl DoctestExtractor {
 
     /// Parse a single doctest starting at the given line
     fn parse_doctest(
-        &self,
-        lines: &[&str],
+                lines: &[&str],
         start_line: usize,
         function: Option<&str>,
     ) -> Result<(Option<Doctest>, usize)> {
         let first_line = lines
             .get(start_line)
-            .ok_or_else(|| anyhow::anyhow!("Invalid line index: {}", start_line))?;
+            .ok_or_else(|| anyhow::anyhow!("Invalid line index: {start_line}"))?;
 
         let trimmed = first_line.trim();
         if !trimmed.starts_with(">>>") {

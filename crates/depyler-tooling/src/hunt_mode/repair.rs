@@ -117,7 +117,7 @@ impl JidokaRepairEngine {
             }
 
             if let Some(mut fix) = mutator.apply(repro) {
-                let confidence = self.evaluate_fix_confidence(&fix, repro);
+                let confidence = Self::evaluate_fix_confidence(&fix, repro);
                 fix.confidence = confidence;
 
                 // Jidoka: Only proceed if quality is assured
@@ -142,7 +142,7 @@ impl JidokaRepairEngine {
     }
 
     /// Evaluate confidence in a fix
-    fn evaluate_fix_confidence(&self, fix: &Fix, _repro: &ReproCase) -> f64 {
+    fn evaluate_fix_confidence(fix: &Fix, _repro: &ReproCase) -> f64 {
         // Base confidence from mutator
         let base = fix.confidence;
 
@@ -165,7 +165,7 @@ impl JidokaRepairEngine {
         if self.total_attempts == 0 {
             return 0.0;
         }
-        self.successful_fixes as f64 / self.total_attempts as f64
+        f64::from(self.successful_fixes) / f64::from(self.total_attempts)
     }
 }
 
@@ -176,7 +176,7 @@ impl JidokaRepairEngine {
 struct ImportMutator;
 
 impl Mutator for ImportMutator {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "ImportMutator"
     }
 
@@ -210,7 +210,7 @@ impl Mutator for ImportMutator {
 struct TypeCoercionMutator;
 
 impl Mutator for TypeCoercionMutator {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "TypeCoercionMutator"
     }
 
@@ -239,12 +239,12 @@ impl Mutator for TypeCoercionMutator {
     }
 }
 
-/// Mutator that falls back to serde_json::Value for untyped data
+/// Mutator that falls back to `serde_json::Value` for untyped data
 #[derive(Debug)]
 struct SerdeValueFallbackMutator;
 
 impl Mutator for SerdeValueFallbackMutator {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "SerdeValueFallbackMutator"
     }
 
@@ -280,12 +280,12 @@ impl Mutator for SerdeValueFallbackMutator {
     }
 }
 
-/// Mutator that adds .to_string() for string conversion
+/// Mutator that adds .`to_string()` for string conversion
 #[derive(Debug)]
 struct ToStringMutator;
 
 impl Mutator for ToStringMutator {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "ToStringMutator"
     }
 
@@ -303,12 +303,12 @@ impl Mutator for ToStringMutator {
     }
 }
 
-/// Mutator that adds .clone() for ownership issues
+/// Mutator that adds .`clone()` for ownership issues
 #[derive(Debug)]
 struct CloneMutator;
 
 impl Mutator for CloneMutator {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "CloneMutator"
     }
 

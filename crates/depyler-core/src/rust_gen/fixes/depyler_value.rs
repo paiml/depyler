@@ -28,7 +28,7 @@ pub(super) fn fix_heterogeneous_dict_inserts(code: &str) -> String {
             continue;
         }
         // End of map block when map is returned or semicolon-terminated
-        if in_depyler_map && (trimmed == "map" || trimmed == "map;" || trimmed.starts_with("}")) {
+        if in_depyler_map && (trimmed == "map" || trimmed == "map;" || trimmed.starts_with('}')) {
             in_depyler_map = false;
         }
         // Reset on new map declaration with different type
@@ -40,7 +40,7 @@ pub(super) fn fix_heterogeneous_dict_inserts(code: &str) -> String {
     result.join("\n")
 }
 
-/// Wrap a map.insert value in the appropriate DepylerValue variant.
+/// Wrap a map.insert value in the appropriate `DepylerValue` variant.
 pub(super) fn wrap_map_insert_value(line: &str) -> String {
     let trimmed = line.trim();
     // Parse: map.insert("key".to_string(), VALUE);
@@ -50,13 +50,13 @@ pub(super) fn wrap_map_insert_value(line: &str) -> String {
             let value = value_part.trim_end_matches(");");
             // Determine value type and wrap
             let wrapped = if value.parse::<i64>().is_ok() {
-                format!("DepylerValue::Int({})", value)
+                format!("DepylerValue::Int({value})")
             } else if value.parse::<f64>().is_ok() {
-                format!("DepylerValue::Float({})", value)
+                format!("DepylerValue::Float({value})")
             } else if value == "vec![]" || value.starts_with("vec![") {
-                format!("DepylerValue::List({})", value)
+                format!("DepylerValue::List({value})")
             } else if value == "true" || value == "false" {
-                format!("DepylerValue::Bool({})", value)
+                format!("DepylerValue::Bool({value})")
             } else if value.starts_with('"') || value.ends_with(".to_string()") {
                 format!("DepylerValue::Str({}.to_string())", value.trim_end_matches(".to_string()"))
             } else {
@@ -64,7 +64,7 @@ pub(super) fn wrap_map_insert_value(line: &str) -> String {
             };
             let indent = &line[..line.len() - trimmed.len()];
             let key = &rest[..comma_pos];
-            return format!("{}map.insert({}, {});", indent, key, wrapped);
+            return format!("{indent}map.insert({key}, {wrapped});");
         }
     }
     line.to_string()
@@ -84,7 +84,7 @@ pub(super) fn fix_depyler_value_inserts_generalized(code: &str) -> String {
         let trimmed = line.trim();
         let mut matched = false;
         for var in &dv_map_vars {
-            let prefix = format!("{}.insert(", var);
+            let prefix = format!("{var}.insert(");
             if trimmed.starts_with(&prefix) {
                 result.push(wrap_generic_insert_value(line, var));
                 matched = true;
@@ -127,10 +127,10 @@ pub(super) fn fix_depyler_value_vec_join(code: &str) -> String {
     let mut result = code.to_string();
     for var in &dv_vec_vars {
         // Replace var.join("...") with var.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("...")
-        let pattern = format!("{}.join(", var);
+        let pattern = format!("{var}.join(");
         if result.contains(&pattern) {
             let replacement =
-                format!("{}.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", var);
+                format!("{var}.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(");
             result = result.replace(&pattern, &replacement);
         }
     }
@@ -148,6 +148,7 @@ pub(super) fn fix_string_to_depyler_value_insert(code: &str) -> String {
     wrap_string_inserts_in_dv_maps(code, &dv_map_vars)
 }
 
+#[allow(clippy::manual_let_else)]
 pub(super) fn collect_depyler_value_map_names(code: &str) -> Vec<String> {
     let mut names = Vec::new();
     for line in code.lines() {
@@ -180,7 +181,7 @@ fn try_wrap_single_insert(result: &mut String, abs: usize, after_insert: usize) 
     if value_part.starts_with("DepylerValue::") || !is_field_access(value_part) {
         return None;
     }
-    let new_val = format!("DepylerValue::Str({})", value_part);
+    let new_val = format!("DepylerValue::Str({value_part})");
     let old_full = format!("{}{}", &result[abs..after_insert], args);
     let new_args = format!("{}, {}", &args[..comma], new_val);
     let new_full = format!("{}{}", &result[abs..after_insert], new_args);
@@ -191,7 +192,7 @@ fn try_wrap_single_insert(result: &mut String, abs: usize, after_insert: usize) 
 pub(super) fn wrap_string_inserts_in_dv_maps(code: &str, vars: &[String]) -> String {
     let mut result = code.to_string();
     for var in vars {
-        let insert_pat = format!("{}.insert(", var);
+        let insert_pat = format!("{var}.insert(");
         let mut search_from = 0;
         while search_from < result.len() {
             let Some(pos) = result[search_from..].find(&insert_pat) else {
@@ -249,8 +250,8 @@ pub(super) fn fix_depyler_value_str_clone(code: &str) -> String {
                 && !arg.ends_with(".clone()")
                 && arg.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.')
             {
-                let old = format!("DepylerValue::Str({})", arg);
-                let new = format!("DepylerValue::Str({}.clone())", arg);
+                let old = format!("DepylerValue::Str({arg})");
+                let new = format!("DepylerValue::Str({arg}.clone())");
                 result = result.replacen(&old, &new, 1);
                 search_from = abs + new.len();
                 continue;
@@ -268,7 +269,7 @@ pub(super) fn fix_depyler_value_from_enum(code: &str) -> String {
     }
     let mut result = code.to_string();
     for name in &enum_names {
-        let prefix = format!("DepylerValue::from({}::", name);
+        let prefix = format!("DepylerValue::from({name}::");
         while let Some(start) = result.find(&prefix) {
             let paren_start = start + "DepylerValue::from".len();
             let after_paren = paren_start + 1;
@@ -276,8 +277,8 @@ pub(super) fn fix_depyler_value_from_enum(code: &str) -> String {
                 if let Some(rel_close) = find_matching_close(&result[after_paren..]) {
                     let close = after_paren + rel_close;
                     let inner = result[after_paren..close].to_string();
-                    let old = format!("DepylerValue::from({})", inner);
-                    let new = format!("DepylerValue::Str(format!(\"{{:?}}\", {}))", inner);
+                    let old = format!("DepylerValue::from({inner})");
+                    let new = format!("DepylerValue::Str(format!(\"{{:?}}\", {inner}))");
                     result = result.replacen(&old, &new, 1);
                 } else {
                     break;
@@ -319,9 +320,9 @@ pub(super) fn fix_depyler_value_str_match_arm(code: &str) -> String {
         // DEPYLER-99MODE-S9: Only apply inside DepylerValue match arms
         if in_depyler_value_match && trimmed == ".collect::<Vec<_>>()" && i + 1 < lines.len() {
             let next = lines[i + 1].trim();
-            if next.starts_with("_ =>") || next.starts_with("}") {
+            if next.starts_with("_ =>") || next.starts_with('}') {
                 let indent = &lines[i][..lines[i].len() - trimmed.len()];
-                result.push(format!("{}.collect::<Vec<_>>().into_iter(),", indent));
+                result.push(format!("{indent}.collect::<Vec<_>>().into_iter(),"));
                 i += 1;
                 continue;
             }
@@ -410,19 +411,19 @@ pub(super) fn extract_depyler_value_map_vars(code: &str) -> Vec<String> {
 
 pub(super) fn wrap_generic_insert_value(line: &str, var_name: &str) -> String {
     let trimmed = line.trim();
-    let prefix = format!("{}.insert(", var_name);
+    let prefix = format!("{var_name}.insert(");
     if let Some(rest) = trimmed.strip_prefix(&prefix) {
         if let Some(comma_pos) = rest.find(", ") {
             let value_part = &rest[comma_pos + 2..];
             let value = value_part.trim_end_matches(");");
             let wrapped = if value.parse::<i64>().is_ok() {
-                format!("DepylerValue::Int({})", value)
+                format!("DepylerValue::Int({value})")
             } else if value.parse::<f64>().is_ok() {
-                format!("DepylerValue::Float({})", value)
+                format!("DepylerValue::Float({value})")
             } else if value == "vec![]" || value.starts_with("vec![") {
-                format!("DepylerValue::List({})", value)
+                format!("DepylerValue::List({value})")
             } else if value == "true" || value == "false" {
-                format!("DepylerValue::Bool({})", value)
+                format!("DepylerValue::Bool({value})")
             } else if value.starts_with('"') || value.ends_with(".to_string()") {
                 format!("DepylerValue::Str({}.to_string())", value.trim_end_matches(".to_string()"))
             } else {
@@ -430,7 +431,7 @@ pub(super) fn wrap_generic_insert_value(line: &str, var_name: &str) -> String {
             };
             let indent = &line[..line.len() - trimmed.len()];
             let key = &rest[..comma_pos];
-            return format!("{}{}.insert({}, {});", indent, var_name, key, wrapped);
+            return format!("{indent}{var_name}.insert({key}, {wrapped});");
         }
     }
     line.to_string()
@@ -450,6 +451,7 @@ fn strip_let_prefix(trimmed: &str) -> Option<&str> {
 
 /// If the line is a `let` declaration with a concrete type annotation, insert the
 /// variable name into `typed_vars`.
+#[allow(clippy::manual_let_else)]
 fn track_typed_var_declaration(trimmed: &str, typed_vars: &mut std::collections::HashSet<String>) {
     let after_let = match strip_let_prefix(trimmed) {
         Some(rest) => rest,
@@ -471,10 +473,11 @@ fn track_typed_var_declaration(trimmed: &str, typed_vars: &mut std::collections:
 
 /// Return `true` (and write the fixed line to `result`) when the line is a
 /// single-line `let` binding whose RHS ends with a DV terminator.
+#[allow(clippy::format_push_string)]
 fn try_fix_single_line_let(line: &str, trimmed: &str, result: &mut String) -> bool {
     let has_typed_ann = TYPED_TYPES
         .iter()
-        .any(|t| trimmed.contains(&format!(": {} ", t)) || trimmed.contains(&format!(": {} =", t)));
+        .any(|t| trimmed.contains(&format!(": {t} ")) || trimmed.contains(&format!(": {t} =")));
     if !has_typed_ann || !trimmed.ends_with(';') {
         return false;
     }
@@ -482,7 +485,7 @@ fn try_fix_single_line_let(line: &str, trimmed: &str, result: &mut String) -> bo
     for term in DV_TERMINATORS {
         if before_semi.ends_with(term) {
             let indent = &line[..line.len() - trimmed.len()];
-            result.push_str(&format!("{}{}.into();\n", indent, before_semi));
+            result.push_str(&format!("{indent}{before_semi}.into();\n"));
             return true;
         }
     }
@@ -523,6 +526,7 @@ fn is_typed_assignment_in_context(
 
 /// Return `true` (and write the fixed line) when the line ends with a DV
 /// terminator and belongs to a typed assignment.
+#[allow(clippy::format_push_string)]
 fn try_fix_multiline_dv_terminator(
     line: &str,
     trimmed: &str,
@@ -539,7 +543,7 @@ fn try_fix_multiline_dv_terminator(
         if before_semi.ends_with(term.trim_start_matches('.')) || before_semi.ends_with(term) {
             if is_typed_assignment_in_context(trimmed, i, lines, typed_vars) {
                 let indent = &line[..line.len() - trimmed.len()];
-                result.push_str(&format!("{}{}.into();\n", indent, before_semi));
+                result.push_str(&format!("{indent}{before_semi}.into();\n"));
                 return true;
             }
             break;
@@ -550,6 +554,7 @@ fn try_fix_multiline_dv_terminator(
 
 /// Return `true` (and write the fixed line) when the line is `var = expr.clone();`
 /// and `var` was previously declared with a concrete type.
+#[allow(clippy::format_push_string)]
 fn try_fix_clone_for_typed_var(
     line: &str,
     trimmed: &str,
@@ -564,7 +569,7 @@ fn try_fix_clone_for_typed_var(
         if typed_vars.contains(var_part) {
             let indent = &line[..line.len() - trimmed.len()];
             let before_semi = &trimmed[..trimmed.len() - 1];
-            result.push_str(&format!("{}{}.into();\n", indent, before_semi));
+            result.push_str(&format!("{indent}{before_semi}.into();\n"));
             return true;
         }
     }
@@ -605,7 +610,7 @@ pub(super) fn fix_depyler_value_to_typed_assignment(code: &str) -> String {
     result
 }
 
-/// Parse a function signature line, returning (return_type, dv_param_names).
+/// Parse a function signature line, returning (`return_type`, `dv_param_names`).
 /// Returns `None` if the function has no concrete return type we care about.
 fn parse_fn_sig_for_dv_return(trimmed: &str) -> Option<(&str, Vec<String>)> {
     let arrow = trimmed.find("-> ")?;
@@ -634,6 +639,7 @@ fn parse_fn_sig_for_dv_return(trimmed: &str) -> Option<(&str, Vec<String>)> {
 }
 
 /// Try to rewrite `return VAR;` to `return VAR.into();` for a DV param.
+#[allow(clippy::format_push_string)]
 fn try_rewrite_return_stmt(
     line: &str,
     trimmed: &str,
@@ -646,7 +652,7 @@ fn try_rewrite_return_stmt(
     let expr = trimmed[7..trimmed.len() - 1].trim();
     if dv_params.iter().any(|p| p == expr) {
         let indent = &line[..line.len() - trimmed.len()];
-        result.push_str(&format!("{}return {}.into();", indent, expr));
+        result.push_str(&format!("{indent}return {expr}.into();"));
         result.push('\n');
         return true;
     }
@@ -654,6 +660,7 @@ fn try_rewrite_return_stmt(
 }
 
 /// Try to rewrite a tail expression (DV param name before closing `}`) with `.into()`.
+#[allow(clippy::format_push_string)]
 fn try_rewrite_tail_expr(
     line: &str,
     trimmed: &str,
@@ -669,10 +676,10 @@ fn try_rewrite_tail_expr(
     {
         return false;
     }
-    let is_tail = next_line.map(|nl| nl.trim() == "}").unwrap_or(false);
+    let is_tail = next_line.is_some_and(|nl| nl.trim() == "}");
     if is_tail && dv_params.iter().any(|p| p == trimmed) {
         let indent = &line[..line.len() - trimmed.len()];
-        result.push_str(&format!("{}{}.into()", indent, trimmed));
+        result.push_str(&format!("{indent}{trimmed}.into()"));
         result.push('\n');
         return true;
     }
@@ -770,13 +777,13 @@ pub(super) fn fix_depyler_value_str_literal(code: &str) -> String {
                     let literal = &after[..close];
                     // Check if .to_string() is already there
                     let after_close = &after[close + 2..];
-                    if !literal.contains(".to_string()") {
+                    if literal.contains(".to_string()") {
                         new_line.push_str(literal);
-                        new_line.push_str("\".to_string())");
+                        new_line.push_str("\")");
                         rest = after_close;
                     } else {
                         new_line.push_str(literal);
-                        new_line.push_str("\")");
+                        new_line.push_str("\".to_string())");
                         rest = after_close;
                     }
                 } else {
@@ -794,6 +801,7 @@ pub(super) fn fix_depyler_value_str_literal(code: &str) -> String {
     result
 }
 
+#[allow(clippy::format_push_string)]
 pub(super) fn fix_pyindex_depyler_value_wrapper(code: &str) -> String {
     // Work on the full code string to handle multi-line patterns
     let needle = "py_index(DepylerValue::Int(";
@@ -832,7 +840,7 @@ pub(super) fn fix_pyindex_depyler_value_wrapper(code: &str) -> String {
             if end + 1 < bytes.len() && bytes[end + 1] == b')' {
                 // Replace: py_index(DepylerValue::Int(EXPR)) -> py_index((EXPR) as i64).unwrap_or_default()
                 // Vec<T>::py_index returns Option<T>, so we need to unwrap
-                result.push_str(&format!("py_index(({}) as i64).unwrap_or_default()", inner_expr));
+                result.push_str(&format!("py_index(({inner_expr}) as i64).unwrap_or_default()"));
                 rest = &rest[end + 2..]; // skip past both `)`
             } else {
                 // Outer `)` not immediately after -- just copy and advance
@@ -891,7 +899,7 @@ pub(super) fn fix_into_in_depyler_value_chain(code: &str) -> String {
 ///
 /// Only applies when the `DepylerValue::from()` appears as a standalone expression
 /// in a tuple, function argument, or assignment to a concrete-typed variable.
-#[allow(dead_code)]
+#[allow(dead_code, clippy::doc_lazy_continuation)]
 pub(super) fn fix_depyler_value_from_in_concrete_tuple(code: &str) -> String {
     if !code.contains("DepylerValue::from(") {
         return code.to_string();
@@ -910,7 +918,7 @@ pub(super) fn fix_depyler_value_from_in_concrete_tuple(code: &str) -> String {
                                                          // Only unwrap if the inner expression is simple (no nested DepylerValue)
             if !inner.contains("DepylerValue") && !inner.contains("vec!") {
                 let indent = &line[..line.len() - trimmed.len()];
-                result.push(format!("{}{}{}", indent, inner, end_char));
+                result.push(format!("{indent}{inner}{end_char}"));
                 continue;
             }
         }
@@ -927,6 +935,7 @@ pub(super) fn fix_depyler_value_from_in_concrete_tuple(code: &str) -> String {
 /// - The function body doesn't use DepylerValue-specific methods
 /// - There's a matching call site with a concrete vector type
 /// Extract function name and `&Vec<DepylerValue>` param names from a fn signature line.
+#[allow(clippy::doc_lazy_continuation)]
 fn extract_dv_vec_fn_params(trimmed: &str) -> Option<(String, Vec<String>)> {
     let after_fn = trimmed.strip_prefix("pub fn ").or_else(|| trimmed.strip_prefix("fn "))?;
     let paren_pos = after_fn.find('(')?;
@@ -966,7 +975,7 @@ fn collect_dv_vec_fn_params(code: &str) -> std::collections::HashMap<String, Vec
     fn_params
 }
 
-/// Collect concrete `Vec<T>` variable declarations (excluding DepylerValue).
+/// Collect concrete `Vec<T>` variable declarations (excluding `DepylerValue`).
 fn collect_concrete_vec_var_types(code: &str) -> std::collections::HashMap<String, String> {
     let mut var_types = std::collections::HashMap::new();
     for line in code.lines() {
@@ -992,7 +1001,7 @@ fn collect_concrete_vec_var_types(code: &str) -> std::collections::HashMap<Strin
     var_types
 }
 
-/// Match call sites to functions, returning fn_name -> concrete element type.
+/// Match call sites to functions, returning `fn_name` -> concrete element type.
 fn match_callsite_types(
     code: &str,
     fn_params: &std::collections::HashMap<String, Vec<String>>,
@@ -1002,7 +1011,7 @@ fn match_callsite_types(
     for line in code.lines() {
         let trimmed = line.trim();
         for fn_name in fn_params.keys() {
-            let call_pattern = format!("{}(&", fn_name);
+            let call_pattern = format!("{fn_name}(&");
             if let Some(call_pos) = trimmed.find(&call_pattern) {
                 let after_call = &trimmed[call_pos + call_pattern.len()..];
                 if let Some(paren_end) = after_call.find(')') {
@@ -1024,14 +1033,14 @@ fn apply_vec_signature_replacements(
 ) -> String {
     let mut result = code.to_string();
     for (fn_name, elem_type) in fn_replacements {
-        let search = format!("fn {}(", fn_name);
+        let search = format!("fn {fn_name}(");
         if let Some(fn_pos) = result.find(&search) {
             let after = &result[fn_pos..];
             if let Some(sig_end) = after.find('{') {
                 let sig = &after[..sig_end];
                 if sig.contains("&Vec<DepylerValue>") {
                     let new_sig =
-                        sig.replace("&Vec<DepylerValue>", &format!("&Vec<{}>", elem_type));
+                        sig.replace("&Vec<DepylerValue>", &format!("&Vec<{elem_type}>"));
                     let fn_end = fn_pos + sig_end;
                     result = format!("{}{}{}", &result[..fn_pos], new_sig, &result[fn_end..]);
                 }

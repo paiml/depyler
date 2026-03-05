@@ -1,7 +1,7 @@
 //! Math Module Code Generation - EXTREME TDD
 //!
 //! Handles Python `math` module method conversions to Rust f64 methods.
-//! Extracted from expr_gen.rs for testability and maintainability.
+//! Extracted from `expr_gen.rs` for testability and maintainability.
 //!
 //! Coverage target: 100% line coverage, 100% branch coverage
 
@@ -40,7 +40,7 @@ pub fn convert_math_method(
 
     match result {
         Some(r) => Ok(Some(r?)),
-        None => bail!("math.{} not implemented yet", method),
+        None => bail!("math.{method} not implemented yet"),
     }
 }
 
@@ -114,7 +114,7 @@ fn dispatch_other(method: &str, args: &[syn::Expr]) -> Option<Result<syn::Expr>>
 /// Trigonometric: sin, cos, tan, asin, acos, atan
 fn convert_trig(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
-        bail!("math.{}() requires exactly 1 argument", method);
+        bail!("math.{method}() requires exactly 1 argument");
     }
     let arg = &arg_exprs[0];
     let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
@@ -134,7 +134,7 @@ fn convert_atan2(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
 /// Hyperbolic: sinh, cosh, tanh, asinh, acosh, atanh
 fn convert_hyperbolic(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
-        bail!("math.{}() requires exactly 1 argument", method);
+        bail!("math.{method}() requires exactly 1 argument");
     }
     let arg = &arg_exprs[0];
     let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
@@ -144,7 +144,7 @@ fn convert_hyperbolic(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr
 /// Power/Log: sqrt, exp, ln, log2, log10
 fn convert_power_log(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
-        bail!("math.{}() requires exactly 1 argument", method);
+        bail!("math.{method}() requires exactly 1 argument");
     }
     let arg = &arg_exprs[0];
     let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
@@ -190,7 +190,7 @@ fn convert_expm1(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
 /// Returning f64 is compatible with both (f64 can be used where i64 expected via coercion)
 fn convert_rounding(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
-        bail!("math.{}() requires exactly 1 argument", method);
+        bail!("math.{method}() requires exactly 1 argument");
     }
     let arg = &arg_exprs[0];
     let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());

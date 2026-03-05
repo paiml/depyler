@@ -135,6 +135,7 @@ impl PerformanceOptimizer {
         self.constant_folding(body);
     }
 
+    #[allow(clippy::self_only_used_in_recursion)]
     fn fold_constants_expr(&self, expr: &mut HirExpr) {
         if let HirExpr::Binary { op, left, right } = expr {
             // Recursively fold constants in operands
@@ -145,7 +146,7 @@ impl PerformanceOptimizer {
             if let (HirExpr::Literal(left_lit), HirExpr::Literal(right_lit)) =
                 (left.as_ref(), right.as_ref())
             {
-                if let Some(folded) = self.evaluate_binary_op(*op, left_lit, right_lit) {
+                if let Some(folded) = Self::evaluate_binary_op(*op, left_lit, right_lit) {
                     *expr = HirExpr::Literal(folded);
                 }
             }
@@ -153,8 +154,7 @@ impl PerformanceOptimizer {
     }
 
     fn evaluate_binary_op(
-        &self,
-        op: BinOp,
+                op: BinOp,
         left: &depyler_hir::hir::Literal,
         right: &depyler_hir::hir::Literal,
     ) -> Option<depyler_hir::hir::Literal> {
@@ -200,10 +200,10 @@ impl PerformanceOptimizer {
         for stmt in stmts {
             match stmt {
                 HirStmt::Assign { value, .. } => {
-                    self.reduce_strength_expr(value);
+                    Self::reduce_strength_expr(value);
                 }
                 HirStmt::Return(Some(expr)) => {
-                    self.reduce_strength_expr(expr);
+                    Self::reduce_strength_expr(expr);
                 }
                 _ => {}
             }
@@ -212,7 +212,7 @@ impl PerformanceOptimizer {
         self.optimizations_applied.push("strength_reduction".to_string());
     }
 
-    fn reduce_strength_expr(&self, expr: &mut HirExpr) {
+    fn reduce_strength_expr(expr: &mut HirExpr) {
         match expr {
             HirExpr::Binary { op: BinOp::Mul, left: _, right } => {
                 // DISABLED: Replace multiplication by power of 2 with left shift

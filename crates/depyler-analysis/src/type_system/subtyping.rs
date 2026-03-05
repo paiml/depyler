@@ -48,7 +48,7 @@ impl SubtypeChecker {
             return if result {
                 Ok(())
             } else {
-                Err(format!("{:?} is not a subtype of {:?}", lhs, rhs))
+                Err(format!("{lhs:?} is not a subtype of {rhs:?}"))
             };
         }
 
@@ -61,6 +61,7 @@ impl SubtypeChecker {
     }
 
     /// Check subtype relation without cache
+    #[allow(clippy::match_same_arms)]
     fn check_subtype_uncached(&self, lhs: &Type, rhs: &Type) -> Result<(), String> {
         // Reflexivity: T <: T
         if lhs == rhs {
@@ -86,7 +87,7 @@ impl SubtypeChecker {
             }
 
             // No subtyping relationship
-            _ => Err(format!("{:?} is not a subtype of {:?}", lhs, rhs)),
+            _ => Err(format!("{lhs:?} is not a subtype of {rhs:?}")),
         }
     }
 

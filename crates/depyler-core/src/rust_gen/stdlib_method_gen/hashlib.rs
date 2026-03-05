@@ -21,7 +21,7 @@
 //! ## Design Principles
 //! 1. Use Digest trait for unified interface
 //! 2. Strategic Cloning: Clone hasher when needed for multiple updates
-//! 3. Hex encoding via hex crate for hexdigest()
+//! 3. Hex encoding via hex crate for `hexdigest()`
 
 use crate::hir::{HirExpr, Literal};
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
@@ -76,7 +76,7 @@ fn dispatch_hashlib_constructor(
         "blake2b" => convert_blake2b(arg_exprs, ctx),
         "blake2s" => convert_blake2s(arg_exprs, ctx),
         "new" => convert_new(args, arg_exprs, ctx),
-        _ => bail!("hashlib.{} not implemented yet", method),
+        _ => bail!("hashlib.{method} not implemented yet"),
     }
 }
 
@@ -84,9 +84,9 @@ fn dispatch_hashlib_constructor(
 ///
 /// # Supported Methods
 /// - `.update(data)` → hasher.update(data)
-/// - `.digest()` → hasher.finalize()
-/// - `.hexdigest()` → hex::encode(hasher.finalize())
-/// - `.copy()` → hasher.clone()
+/// - `.digest()` → `hasher.finalize()`
+/// - `.hexdigest()` → `hex::encode(hasher.finalize())`
+/// - `.copy()` → `hasher.clone()`
 pub fn convert_hashlib_instance_method(
     method: &str,
     args: &[HirExpr],
@@ -103,7 +103,7 @@ pub fn convert_hashlib_instance_method(
         "name" => convert_name()?,
         "digest_size" => convert_digest_size()?,
         "block_size" => convert_block_size()?,
-        _ => bail!("hashlib hash object method '{}' not implemented", method),
+        _ => bail!("hashlib hash object method '{method}' not implemented"),
     };
 
     Ok(Some(result))
@@ -113,6 +113,7 @@ pub fn convert_hashlib_instance_method(
 // Hash Algorithm Constructors
 // =============================================================================
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_md5(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_md5 = true;
     ctx.needs_digest = true;
@@ -132,6 +133,7 @@ fn convert_md5(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn:
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_sha1(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_sha1 = true;
     ctx.needs_digest = true;
@@ -151,6 +153,7 @@ fn convert_sha1(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_sha224(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_sha2 = true;
     ctx.needs_digest = true;
@@ -170,6 +173,7 @@ fn convert_sha224(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<s
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_sha256(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_sha2 = true;
     ctx.needs_digest = true;
@@ -189,6 +193,7 @@ fn convert_sha256(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<s
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_sha384(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_sha2 = true;
     ctx.needs_digest = true;
@@ -208,6 +213,7 @@ fn convert_sha384(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<s
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_sha512(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_sha2 = true;
     ctx.needs_digest = true;
@@ -227,6 +233,7 @@ fn convert_sha512(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<s
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_sha3_224(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_sha3 = true;
     ctx.needs_digest = true;
@@ -246,6 +253,7 @@ fn convert_sha3_224(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_sha3_256(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_sha3 = true;
     ctx.needs_digest = true;
@@ -265,6 +273,7 @@ fn convert_sha3_256(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_sha3_384(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_sha3 = true;
     ctx.needs_digest = true;
@@ -284,6 +293,7 @@ fn convert_sha3_384(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_sha3_512(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_sha3 = true;
     ctx.needs_digest = true;
@@ -303,6 +313,7 @@ fn convert_sha3_512(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_blake2b(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_blake2 = true;
     ctx.needs_digest = true;
@@ -322,6 +333,7 @@ fn convert_blake2b(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_blake2s(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_blake2 = true;
     ctx.needs_digest = true;
@@ -382,11 +394,12 @@ fn convert_new_static(
         "sha3_512" | "sha3-512" => convert_sha3_512(&args, ctx),
         "blake2b" => convert_blake2b(&args, ctx),
         "blake2s" => convert_blake2s(&args, ctx),
-        _ => bail!("hashlib.new(): unsupported algorithm '{}'", alg_name),
+        _ => bail!("hashlib.new(): unsupported algorithm '{alg_name}'"),
     }
 }
 
 /// Dynamic dispatch: algorithm name not known at compile time
+#[allow(clippy::unnecessary_wraps)]
 fn convert_new_dynamic(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_digest = true;
     ctx.needs_sha2 = true;
@@ -415,12 +428,14 @@ fn convert_update(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<s
     Ok(parse_quote! { self.update(#data.as_bytes()) })
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_digest(ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_digest = true;
     // finalize() consumes self, so we need clone() for Python semantics
     Ok(parse_quote! { self.clone().finalize().to_vec() })
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_hexdigest(ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     ctx.needs_digest = true;
     ctx.needs_hex = true;
@@ -428,19 +443,23 @@ fn convert_hexdigest(ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     Ok(parse_quote! { hex::encode(self.clone().finalize()) })
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_copy() -> Result<syn::Expr> {
     Ok(parse_quote! { self.clone() })
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_name() -> Result<syn::Expr> {
     // Would need runtime type info; provide static name where possible
     Ok(parse_quote! { self.name() })
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_digest_size() -> Result<syn::Expr> {
     Ok(parse_quote! { self.output_size() })
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn convert_block_size() -> Result<syn::Expr> {
     Ok(parse_quote! { self.block_size() })
 }

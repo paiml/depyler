@@ -26,7 +26,7 @@ pub struct TypeMapper {
     pub width_preference: IntWidth,
     pub string_type: StringStrategy,
     /// DEPYLER-1015: NASA single-shot compile mode - use std-only types
-    /// When true, uses String instead of serde_json::Value for unknown types
+    /// When true, uses String instead of `serde_json::Value` for unknown types
     #[serde(default = "default_nasa_mode")]
     pub nasa_mode: bool,
 }
@@ -125,17 +125,20 @@ impl TypeMapper {
         Self::default()
     }
 
+    #[must_use]
     pub fn with_i64(mut self) -> Self {
         self.width_preference = IntWidth::I64;
         self
     }
 
+    #[must_use]
     pub fn with_string_strategy(mut self, strategy: StringStrategy) -> Self {
         self.string_type = strategy;
         self
     }
 
     /// DEPYLER-1015: Enable/disable NASA single-shot compile mode
+    #[must_use]
     pub fn with_nasa_mode(mut self, enabled: bool) -> Self {
         self.nasa_mode = enabled;
         self
@@ -143,7 +146,7 @@ impl TypeMapper {
 
     /// DEPYLER-1015: Get the fallback type for unknown values
     /// In NASA mode: String (std-only, always compiles with rustc)
-    /// In normal mode: serde_json::Value (requires cargo/external crate)
+    /// In normal mode: `serde_json::Value` (requires cargo/external crate)
     fn unknown_fallback(&self) -> RustType {
         if self.nasa_mode {
             RustType::Custom("DepylerValue".to_string())
@@ -161,6 +164,8 @@ impl TypeMapper {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::match_same_arms)]
     pub fn map_type(&self, py_type: &PythonType) -> RustType {
         // CITL: Trace Python→Rust type mapping decision
         trace_decision!(
@@ -226,7 +231,7 @@ impl TypeMapper {
             }
             PythonType::Custom(name) => {
                 // Check if this is a single uppercase letter (type parameter)
-                if name.len() == 1 && name.chars().next().unwrap().is_uppercase() {
+                if name.len() == 1 && name.chars().next().expect("name is non-empty").is_uppercase() {
                     RustType::TypeParam(name.clone())
                 } else {
                     // Handle common typing imports when used without parameters
@@ -491,7 +496,7 @@ impl TypeMapper {
                 // For now, map Union to an enum or use dynamic typing
                 if types.len() == 2 && types.iter().any(|t| matches!(t, PythonType::None)) {
                     // Union[T, None] is Optional[T]
-                    let non_none = types.iter().find(|t| !matches!(t, PythonType::None)).unwrap();
+                    let non_none = types.iter().find(|t| !matches!(t, PythonType::None)).expect("non-None type should exist");
                     RustType::Option(Box::new(self.map_type(non_none)))
                 } else {
                     // For non-optional unions, we'll need to generate an enum
@@ -508,7 +513,7 @@ impl TypeMapper {
                                     PythonType::String => "Text".to_string(),
                                     PythonType::Bool => "Boolean".to_string(),
                                     PythonType::None => "None".to_string(),
-                                    _ => format!("Variant{}", i),
+                                    _ => format!("Variant{i}"),
                                 };
                                 (variant_name, self.map_type(t))
                             })
@@ -539,6 +544,7 @@ impl TypeMapper {
         }
     }
 
+    #[allow(clippy::match_same_arms)]
     pub fn map_return_type(&self, py_type: &PythonType) -> RustType {
         // CITL: Trace return type mapping decision
         trace_decision!(
@@ -556,6 +562,7 @@ impl TypeMapper {
         }
     }
 
+    #[allow(clippy::match_same_arms)]
     pub fn needs_reference(&self, rust_type: &RustType) -> bool {
         // CITL: Trace reference need decision
         trace_decision!(
@@ -574,7 +581,7 @@ impl TypeMapper {
         }
     }
 
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::self_only_used_in_recursion)]
     pub fn can_copy(&self, rust_type: &RustType) -> bool {
         match rust_type {
             RustType::Primitive(_) | RustType::Unit => true,
@@ -601,6 +608,7 @@ impl TypeMapper {
 }
 
 impl RustType {
+    #[allow(clippy::match_same_arms)]
     pub fn to_rust_string(&self) -> String {
         match self {
             RustType::Primitive(p) => p.to_rust_string().to_string(),
@@ -634,7 +642,7 @@ impl RustType {
                 if types.is_empty() {
                     "()".to_string()
                 } else {
-                    let type_strs: Vec<String> = types.iter().map(|t| t.to_rust_string()).collect();
+                    let type_strs: Vec<String> = types.iter().map(RustType::to_rust_string).collect();
                     format!("({})", type_strs.join(", "))
                 }
             }
@@ -643,7 +651,7 @@ impl RustType {
             RustType::Unsupported(desc) => format!("/* unsupported: {desc} */"),
             RustType::TypeParam(name) => name.clone(),
             RustType::Generic { base, params } => {
-                let param_strs: Vec<String> = params.iter().map(|p| p.to_rust_string()).collect();
+                let param_strs: Vec<String> = params.iter().map(RustType::to_rust_string).collect();
                 format!("{}<{}>", base, param_strs.join(", "))
             }
             RustType::Enum { name, .. } => name.clone(),

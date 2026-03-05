@@ -157,6 +157,7 @@ fn check_append_stmt(container_name: &str, stmt: &HirStmt) -> Option<Type> {
 /// Find builtin calls that imply element type.
 ///
 /// Pattern: `sum(lst)` → `List(Int)`, `",".join(lst)` → `List(String)`
+#[allow(clippy::match_same_arms)]
 fn infer_element_from_builtin(container_name: &str, body: &[HirStmt]) -> Option<Type> {
     for stmt in body {
         let expr = match stmt {
@@ -251,6 +252,7 @@ fn check_dict_index_assign(dict_name: &str, stmt: &HirStmt) -> Option<Type> {
 }
 
 /// Find `d.get(k, default)` patterns and infer value type from the default.
+#[allow(clippy::match_same_arms)]
 fn infer_dict_value_from_get(dict_name: &str, body: &[HirStmt]) -> Option<Type> {
     for stmt in body {
         let expr = match stmt {
@@ -337,6 +339,7 @@ fn check_comparison_in_stmt(var_name: &str, stmt: &HirStmt) -> Option<Type> {
 }
 
 /// Extract the primary expression from a statement, if any.
+#[allow(clippy::match_same_arms)]
 fn extract_stmt_expr(stmt: &HirStmt) -> Option<&HirExpr> {
     match stmt {
         HirStmt::Expr(e) | HirStmt::Assign { value: e, .. } => Some(e),
@@ -415,6 +418,7 @@ fn infer_type_from_literal_or_expr(expr: &HirExpr) -> Option<Type> {
 /// Iterate all variable types entries with unknown inner types and refine them.
 ///
 /// This is the main entry point for local variable refinement.
+#[allow(clippy::implicit_hasher)]
 pub fn refine_container_types_from_usage(body: &[HirStmt], var_types: &mut HashMap<String, Type>) {
     let refinements: Vec<(String, Type)> = var_types
         .iter()
@@ -430,6 +434,7 @@ pub fn refine_container_types_from_usage(body: &[HirStmt], var_types: &mut HashM
 }
 
 /// Helper to recurse into compound statement bodies.
+#[allow(clippy::match_same_arms)]
 fn recurse_into_stmt<F>(stmt: &HirStmt, f: F) -> Option<Type>
 where
     F: Fn(&[HirStmt]) -> Option<Type>,

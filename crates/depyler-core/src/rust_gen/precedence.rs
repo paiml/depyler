@@ -1,7 +1,7 @@
 //! Operator Precedence Helpers
 //!
 //! This module contains helpers for managing operator precedence during
-//! code generation. Extracted from expr_gen.rs for better testability.
+//! code generation. Extracted from `expr_gen.rs` for better testability.
 //!
 //! DEPYLER-0582: Precedence preservation for correct Rust output
 
@@ -30,6 +30,7 @@ pub fn get_rust_op_precedence(op: &syn::BinOp) -> u8 {
 }
 
 /// Get precedence of Python binary operator for our HIR
+#[allow(clippy::match_same_arms)]
 pub fn get_python_op_precedence(op: BinOp) -> u8 {
     match op {
         BinOp::Pow => 14,

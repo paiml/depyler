@@ -6,6 +6,7 @@
 //! Reference: Ohno, T. (1988). Toyota Production System, pp. 17-20
 
 use super::hansei::CycleOutcome;
+use std::fmt::Write as _;
 
 /// A single "Why" step in the analysis chain
 #[derive(Debug, Clone)]
@@ -29,7 +30,7 @@ impl WhyStep {
     pub fn new(depth: u8, description: &str) -> Self {
         Self {
             depth,
-            question: format!("Why #{}?", depth),
+            question: format!("Why #{depth}?"),
             description: description.to_string(),
             is_root_cause: false,
             preventive_measure: String::new(),
@@ -38,6 +39,7 @@ impl WhyStep {
     }
 
     /// Mark this as the root cause with a preventive measure
+    #[must_use]
     pub fn mark_as_root(mut self, preventive_measure: &str) -> Self {
         self.is_root_cause = true;
         self.preventive_measure = preventive_measure.to_string();
@@ -45,6 +47,7 @@ impl WhyStep {
     }
 
     /// Set the deeper cause
+    #[must_use]
     pub fn with_deeper_cause(mut self, cause: &str) -> Self {
         self.deeper_cause = Some(cause.to_string());
         self
@@ -90,15 +93,14 @@ impl RootCauseChain {
 
         for why in &self.whys {
             let marker = if why.is_root_cause { "🎯 " } else { "" };
-            md.push_str(&format!("### {}Why #{}: {}\n\n", marker, why.depth, why.description));
+            let _ = writeln!(md, "### {}Why #{}: {}\n", marker, why.depth, why.description);
 
             if why.is_root_cause {
-                md.push_str(&format!(
-                    "**Root Cause Identified**\n\n**Preventive Measure:** {}\n\n",
+                let _ = writeln!(md, "**Root Cause Identified**\n\n**Preventive Measure:** {}\n",
                     why.preventive_measure
-                ));
+                );
             } else if let Some(ref deeper) = why.deeper_cause {
-                md.push_str(&format!("*Leads to:* {}\n\n", deeper));
+                let _ = writeln!(md, "*Leads to:* {deeper}\n");
             }
         }
 
@@ -291,7 +293,7 @@ impl FiveWhysAnalyzer {
         }
 
         // Build generic chain for unknown errors
-        self.build_generic_chain(error_code, error_message)
+        Self::build_generic_chain(error_code, error_message)
     }
 
     /// Analyze from a cycle outcome
@@ -300,11 +302,11 @@ impl FiveWhysAnalyzer {
     }
 
     /// Build a generic chain for unknown errors
-    fn build_generic_chain(&self, error_code: &str, error_message: &str) -> RootCauseChain {
+    fn build_generic_chain(error_code: &str, error_message: &str) -> RootCauseChain {
         let mut chain = RootCauseChain::new();
 
         chain.add_why(
-            WhyStep::new(1, &format!("Compilation error {}: {}", error_code, error_message))
+            WhyStep::new(1, &format!("Compilation error {error_code}: {error_message}"))
                 .with_deeper_cause("Generated Rust code invalid"),
         );
 

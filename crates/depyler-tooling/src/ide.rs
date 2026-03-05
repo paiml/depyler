@@ -10,6 +10,7 @@ use depyler_hir::error::ErrorKind;
 use depyler_hir::hir::{HirClass, HirFunction, HirMethod, HirModule};
 use rustpython_parser::text_size::{TextRange, TextSize};
 use std::collections::HashMap;
+use std::fmt::Write as _;
 
 /// Symbol information for IDE features
 #[derive(Debug, Clone)]
@@ -95,6 +96,7 @@ impl IdeIntegration {
         self.symbols.entry(func.name.clone()).or_default().push(symbol);
     }
 
+    #[allow(clippy::used_underscore_binding)]
     fn index_class(&mut self, class: &HirClass, _source: &str) {
         // Create a placeholder range
         let range = TextRange::new(TextSize::from(0), TextSize::from(100));
@@ -172,6 +174,7 @@ impl IdeIntegration {
     }
 
     /// Get completion suggestions at position
+    #[allow(clippy::match_same_arms)]
     pub fn completions_at_position(
         &self,
         _position: TextSize,
@@ -262,7 +265,7 @@ pub fn generate_hover_info(symbol: &Symbol) -> String {
 
     // Add symbol type and signature
     if let Some(detail) = &symbol.detail {
-        hover.push_str(&format!("```rust\n{}\n```\n\n", detail));
+        let _ = writeln!(hover, "```rust\n{detail}\n```\n");
     }
 
     // Add documentation if available

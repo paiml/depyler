@@ -14,6 +14,7 @@ use crate::report::CorpusReport;
 use crate::semantic::SemanticClassification;
 use std::io::Write;
 use std::path::Path;
+use std::fmt::Write as _;
 
 /// Rich text report generator - pure Rust, no JavaScript.
 pub struct HtmlReportGenerator {
@@ -36,6 +37,7 @@ impl HtmlReportGenerator {
     }
 
     /// Disable colored output.
+    #[must_use]
     pub fn without_color(mut self) -> Self {
         self.colored = false;
         self
@@ -52,37 +54,37 @@ impl HtmlReportGenerator {
         let mut out = String::new();
 
         // Header
-        out.push_str(&self.generate_header(report));
+        out.push_str(&Self::generate_header(report));
 
         // Executive Summary
         out.push_str(&self.generate_summary(report));
 
         // Domain breakdown (if available)
         if let Some(sem) = semantic {
-            out.push_str(&self.generate_domain_section(sem));
+            out.push_str(&Self::generate_domain_section(sem));
         }
 
         // Error distribution with ASCII bar chart
-        out.push_str(&self.generate_error_distribution(report));
+        out.push_str(&Self::generate_error_distribution(report));
 
         // Cluster analysis (if available)
         if let Some(clust) = clusters {
-            out.push_str(&self.generate_cluster_section(clust));
+            out.push_str(&Self::generate_cluster_section(clust));
         }
 
         // Graph analysis (if available)
         if let Some(g) = graph {
-            out.push_str(&self.generate_graph_section(g));
+            out.push_str(&Self::generate_graph_section(g));
         }
 
         // Blockers section
-        out.push_str(&self.generate_blockers_section(report));
+        out.push_str(&Self::generate_blockers_section(report));
 
         // Toyota Way metrics
-        out.push_str(&self.generate_toyota_section(report));
+        out.push_str(&Self::generate_toyota_section(report));
 
         // Footer
-        out.push_str(&self.generate_footer());
+        out.push_str(&Self::generate_footer());
 
         out
     }
@@ -102,7 +104,7 @@ impl HtmlReportGenerator {
         Ok(())
     }
 
-    fn generate_header(&self, report: &CorpusReport) -> String {
+    fn generate_header(report: &CorpusReport) -> String {
         let andon = if report.summary.single_shot_rate >= 80.0 {
             "GREEN"
         } else if report.summary.single_shot_rate >= 50.0 {
@@ -112,7 +114,7 @@ impl HtmlReportGenerator {
         };
 
         format!(
-            r#"
+            r"
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                     DEPYLER CORPUS ANALYSIS REPORT                           ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -122,7 +124,7 @@ impl HtmlReportGenerator {
 ║  Andon:     {:<64} ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
-"#,
+",
             report.metadata.corpus_name,
             report.metadata.generated_at,
             report.metadata.depyler_version,
@@ -132,10 +134,10 @@ impl HtmlReportGenerator {
 
     fn generate_summary(&self, report: &CorpusReport) -> String {
         let rate = report.summary.single_shot_rate;
-        let bar = self.ascii_bar(rate / 100.0, self.bar_width);
+        let bar = Self::ascii_bar(rate / 100.0, self.bar_width);
 
         format!(
-            r#"┌─────────────────────────────────────────────────────────────────────────────┐
+            r"┌─────────────────────────────────────────────────────────────────────────────┐
 │                            EXECUTIVE SUMMARY                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  Single-Shot Rate:  {:<6.1}%                                                  │
@@ -148,7 +150,7 @@ impl HtmlReportGenerator {
 │  95% CI:            [{:.1}%, {:.1}%]                                            │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-"#,
+",
             rate,
             bar,
             rate,
@@ -160,30 +162,30 @@ impl HtmlReportGenerator {
         )
     }
 
-    fn generate_domain_section(&self, semantic: &SemanticClassification) -> String {
+    #[allow(clippy::cast_precision_loss)]
+    fn generate_domain_section(semantic: &SemanticClassification) -> String {
         let mut out = String::new();
 
         out.push_str(
-            r#"┌─────────────────────────────────────────────────────────────────────────────┐
+            r"┌─────────────────────────────────────────────────────────────────────────────┐
 │                         DOMAIN CLASSIFICATION                                │
 ├──────────────┬────────┬────────┬────────────┬───────────────────────────────┤
 │ Domain       │ Total  │ Passed │ Pass Rate  │ Distribution                  │
 ├──────────────┼────────┼────────┼────────────┼───────────────────────────────┤
-"#,
+",
         );
 
         let max_total = semantic.by_domain.values().map(|s| s.total).max().unwrap_or(1);
 
         for (domain, stats) in &semantic.by_domain {
-            let bar = self.ascii_bar(stats.total as f64 / max_total as f64, 25);
-            out.push_str(&format!(
-                "│ {:<12} │ {:>6} │ {:>6} │ {:>8.1}%  │ {} │\n",
+            let bar = Self::ascii_bar(stats.total as f64 / max_total as f64, 25);
+            writeln!(out, "│ {:<12} │ {:>6} │ {:>6} │ {:>8.1}%  │ {} │",
                 format!("{:?}", domain),
                 stats.total,
                 stats.passed,
                 stats.pass_rate,
                 bar
-            ));
+                ).expect("write to String");
         }
 
         out.push_str(
@@ -193,24 +195,25 @@ impl HtmlReportGenerator {
         out
     }
 
-    fn generate_error_distribution(&self, report: &CorpusReport) -> String {
+    #[allow(clippy::cast_precision_loss)]
+    fn generate_error_distribution(report: &CorpusReport) -> String {
         let mut out = String::new();
 
         out.push_str(
-            r#"┌─────────────────────────────────────────────────────────────────────────────┐
+            r"┌─────────────────────────────────────────────────────────────────────────────┐
 │                         ERROR DISTRIBUTION                                   │
 ├──────────┬────────┬────────────────────────────────────────────────────────┤
 │ Code     │ Count  │ Bar                                                    │
 ├──────────┼────────┼────────────────────────────────────────────────────────┤
-"#,
+",
         );
 
         let max_count =
             report.error_distribution.by_error_code.iter().map(|e| e.count).max().unwrap_or(1);
 
         for err in report.error_distribution.by_error_code.iter().take(10) {
-            let bar = self.ascii_bar(err.count as f64 / max_count as f64, 50);
-            out.push_str(&format!("│ {:<8} │ {:>6} │ {} │\n", err.code, err.count, bar));
+            let bar = Self::ascii_bar(err.count as f64 / max_count as f64, 50);
+            writeln!(out, "│ {:<8} │ {:>6} │ {} │", err.code, err.count, bar).expect("write to String");
         }
 
         out.push_str(
@@ -220,28 +223,27 @@ impl HtmlReportGenerator {
         out
     }
 
-    fn generate_cluster_section(&self, clusters: &ClusteringResult) -> String {
+    fn generate_cluster_section(clusters: &ClusteringResult) -> String {
         let mut out = String::new();
 
-        out.push_str(&format!(
-            r#"┌─────────────────────────────────────────────────────────────────────────────┐
+        write!(out,
+            r"┌─────────────────────────────────────────────────────────────────────────────┐
 │                         ERROR CLUSTERING (K={})                               │
 │  Silhouette Score: {:.3}                                                      │
 ├──────────────────────────────┬────────┬──────────┬─────────────────────────┤
 │ Cluster                      │ Size   │ Dominant │ Variance                │
 ├──────────────────────────────┼────────┼──────────┼─────────────────────────┤
-"#,
+",
             clusters.k, clusters.silhouette_score
-        ));
+            ).expect("write to String");
 
         for cluster in &clusters.clusters {
-            out.push_str(&format!(
-                "│ {:<28} │ {:>6} │ {:<8} │ {:>21.3} │\n",
+            writeln!(out, "│ {:<28} │ {:>6} │ {:<8} │ {:>21.3} │",
                 truncate(&cluster.label, 28),
                 cluster.size,
                 cluster.dominant_code,
                 cluster.variance
-            ));
+                ).expect("write to String");
         }
 
         out.push_str(
@@ -251,11 +253,11 @@ impl HtmlReportGenerator {
         out
     }
 
-    fn generate_graph_section(&self, graph: &ErrorGraph) -> String {
+    fn generate_graph_section(graph: &ErrorGraph) -> String {
         let mut out = String::new();
 
-        out.push_str(&format!(
-            r#"┌─────────────────────────────────────────────────────────────────────────────┐
+        write!(out,
+            r"┌─────────────────────────────────────────────────────────────────────────────┐
 │                         GRAPH ANALYSIS                                       │
 │  Modularity: {:.3}  |  Communities: {}                                         │
 ├───────────────────────────────────────────────────────────────────────────────┤
@@ -263,20 +265,19 @@ impl HtmlReportGenerator {
 ├─────┬──────────┬────────┬────────────────────────────────────────────────────┤
 │ #   │ Error    │ Count  │ PageRank                                           │
 ├─────┼──────────┼────────┼────────────────────────────────────────────────────┤
-"#,
+",
             graph.modularity,
             graph.communities.len()
-        ));
+            ).expect("write to String");
 
         for (i, node) in graph.nodes.iter().take(5).enumerate() {
-            let bar = self.ascii_bar(node.pagerank * 10.0, 45);
-            out.push_str(&format!(
-                "│ {:>3} │ {:<8} │ {:>6} │ {} │\n",
+            let bar = Self::ascii_bar(node.pagerank * 10.0, 45);
+            writeln!(out, "│ {:>3} │ {:<8} │ {:>6} │ {} │",
                 i + 1,
                 node.code,
                 node.count,
                 bar
-            ));
+            ).expect("write to String");
         }
 
         out.push_str(
@@ -296,13 +297,12 @@ impl HtmlReportGenerator {
         );
 
         for comm in &graph.communities {
-            out.push_str(&format!(
-                "│ {:<30} │ {:>7} │ {:>10} │ {:<20} │\n",
+            writeln!(out, "│ {:<30} │ {:>7} │ {:>10} │ {:<20} │",
                 truncate(&comm.label, 30),
                 comm.members.len(),
                 comm.total_count,
                 comm.dominant
-            ));
+                ).expect("write to String");
         }
 
         out.push_str(
@@ -312,43 +312,40 @@ impl HtmlReportGenerator {
         out
     }
 
-    fn generate_blockers_section(&self, report: &CorpusReport) -> String {
+    fn generate_blockers_section(report: &CorpusReport) -> String {
         let mut out = String::new();
 
         out.push_str(
-            r#"┌─────────────────────────────────────────────────────────────────────────────┐
+            r"┌─────────────────────────────────────────────────────────────────────────────┐
 │                         BLOCKERS ANALYSIS                                    │
 ├──────────┬──────────┬────────┬───────────────────────────────────────────────┤
 │ Priority │ Error    │ Count  │ Root Cause                                    │
 ├──────────┼──────────┼────────┼───────────────────────────────────────────────┤
-"#,
+",
         );
 
         for b in &report.blocker_analysis.p0_critical {
-            out.push_str(&format!(
-                "│ P0-CRIT  │ {:<8} │ {:>6} │ {:<45} │\n",
+            writeln!(out, "│ P0-CRIT  │ {:<8} │ {:>6} │ {:<45} │",
                 b.error_code,
                 b.count,
                 truncate(&b.root_cause, 45)
-            ));
+                ).expect("write to String");
         }
 
         for b in &report.blocker_analysis.p1_high {
-            out.push_str(&format!(
-                "│ P1-HIGH  │ {:<8} │ {:>6} │ {:<45} │\n",
+            writeln!(out, "│ P1-HIGH  │ {:<8} │ {:>6} │ {:<45} │",
                 b.error_code,
                 b.count,
                 truncate(&b.root_cause, 45)
-            ));
+                ).expect("write to String");
         }
 
         for b in &report.blocker_analysis.p2_medium {
-            out.push_str(&format!(
-                "│ P2-MED   │ {:<8} │ {:>6} │ {:<45} │\n",
+            writeln!(out, "│ P2-MED   │ {:<8} │ {:>6} │ {:<45} │",
                 b.error_code,
                 b.count,
                 truncate(&b.root_cause, 45)
-            ));
+                ).expect("write to String");
         }
 
         if report.blocker_analysis.p0_critical.is_empty()
@@ -367,11 +364,11 @@ impl HtmlReportGenerator {
         out
     }
 
-    fn generate_toyota_section(&self, report: &CorpusReport) -> String {
+    fn generate_toyota_section(report: &CorpusReport) -> String {
         let mut out = String::new();
 
-        out.push_str(&format!(
-            r#"┌─────────────────────────────────────────────────────────────────────────────┐
+        write!(out,
+            r"┌─────────────────────────────────────────────────────────────────────────────┐
 │                         TOYOTA WAY METRICS                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  Jidoka Alerts:        {:>4}                                                  │
@@ -379,11 +376,11 @@ impl HtmlReportGenerator {
 │  Kaizen Opportunities: {:>4}                                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  Hansei (Lessons Learned):                                                   │
-"#,
+",
             report.toyota_way_metrics.jidoka_alerts,
             report.toyota_way_metrics.andon_triggers,
             report.toyota_way_metrics.kaizen_opportunities
-        ));
+            ).expect("write to String");
 
         if report.toyota_way_metrics.hansei_items.is_empty() {
             out.push_str(
@@ -391,7 +388,7 @@ impl HtmlReportGenerator {
             );
         } else {
             for item in &report.toyota_way_metrics.hansei_items {
-                out.push_str(&format!("│    - {:<70} │\n", truncate(item, 70)));
+                writeln!(out, "│    - {:<70} │", truncate(item, 70)).expect("write to String");
             }
         }
 
@@ -402,16 +399,19 @@ impl HtmlReportGenerator {
         out
     }
 
-    fn generate_footer(&self) -> String {
-        r#"═══════════════════════════════════════════════════════════════════════════════
+    #[allow(clippy::cast_precision_loss)]
+    fn generate_footer() -> String {
+        r"═══════════════════════════════════════════════════════════════════════════════
   Generated by Depyler Corpus Analyzer | https://github.com/paiml/depyler
 ═══════════════════════════════════════════════════════════════════════════════
-"#
+"
         .to_string()
     }
 
     /// Generate ASCII progress bar.
-    fn ascii_bar(&self, ratio: f64, width: usize) -> String {
+    #[allow(clippy::cast_precision_loss)]
+    fn ascii_bar(ratio: f64, width: usize) -> String {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let filled = (ratio.clamp(0.0, 1.0) * width as f64).round() as usize;
         let empty = width.saturating_sub(filled);
         format!("{}{}", "█".repeat(filled), "░".repeat(empty))
@@ -460,7 +460,7 @@ mod tests {
             total_errors: 25,
         };
 
-        CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics)
+        CorpusReport::new(&config, &transpile_results, &compile_results, &taxonomy, &statistics)
     }
 
     #[test]

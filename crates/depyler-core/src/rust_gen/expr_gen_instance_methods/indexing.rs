@@ -1,17 +1,18 @@
-//! Indexing handlers for ExpressionConverter
+//! Indexing handlers for `ExpressionConverter`
 //!
 //! Extracted from mod.rs to reduce file size. Contains `convert_index`.
-//! Type-checking helpers (is_string_index, is_string_base, etc.) live in type_helpers.rs.
+//! Type-checking helpers (`is_string_index`, `is_string_base`, etc.) live in `type_helpers.rs`.
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
-use crate::hir::*;
+use crate::hir::{HirExpr, Literal, Type, UnaryOp};
 use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use crate::trace_decision;
 use anyhow::Result;
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::cast_precision_loss, clippy::match_same_arms, clippy::too_many_lines)]
     pub(crate) fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
         // CITL: Trace subscript/indexing strategy decision
         trace_decision!(
@@ -217,106 +218,102 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // This enables type coercion: dict["key"] → DepylerValue → primitive type
             let needs_into = base_is_depyler_value || self.dict_has_depyler_value_values(base);
 
-            match index {
-                HirExpr::Literal(Literal::String(s)) => {
-                    // String literal - use it directly without .to_string()
-                    if base_is_depyler_value && self.ctx.type_mapper.nasa_mode {
-                        // DEPYLER-1316: DepylerValue has get_str(&str) method for string keys
-                        // DEPYLER-1319: Add .into() for type conversion
-                        Ok(parse_quote! {
-                            #base_expr.get_str(#s).cloned().unwrap_or_default().into()
-                        })
-                    } else if needs_into {
-                        // DEPYLER-1319: Dict has DepylerValue values - add .into()
-                        Ok(parse_quote! {
-                            #base_expr.get(#s).cloned().unwrap_or_default().into()
-                        })
-                    } else {
-                        Ok(parse_quote! {
-                            #base_expr.get(#s).cloned().unwrap_or_default()
-                        })
-                    }
+            if let HirExpr::Literal(Literal::String(s)) = index {
+                // String literal - use it directly without .to_string()
+                if base_is_depyler_value && self.ctx.type_mapper.nasa_mode {
+                    // DEPYLER-1316: DepylerValue has get_str(&str) method for string keys
+                    // DEPYLER-1319: Add .into() for type conversion
+                    Ok(parse_quote! {
+                        #base_expr.get_str(#s).cloned().unwrap_or_default().into()
+                    })
+                } else if needs_into {
+                    // DEPYLER-1319: Dict has DepylerValue values - add .into()
+                    Ok(parse_quote! {
+                        #base_expr.get(#s).cloned().unwrap_or_default().into()
+                    })
+                } else {
+                    Ok(parse_quote! {
+                        #base_expr.get(#s).cloned().unwrap_or_default()
+                    })
                 }
-                _ => {
-                    // DEPYLER-1320: Defensive check for string literals that reach this branch
-                    // In classmethods, string literals may not match the earlier pattern due to
-                    // differences in HIR construction. Handle them here to ensure correct codegen.
-                    if let HirExpr::Literal(Literal::String(s)) = index {
-                        if base_is_depyler_value && self.ctx.type_mapper.nasa_mode {
-                            // DepylerValue with string key - use get_str + .into()
-                            return Ok(parse_quote! {
-                                #base_expr.get_str(#s).cloned().unwrap_or_default().into()
-                            });
-                        } else if needs_into {
-                            // Dict with DepylerValue values - add .into()
-                            return Ok(parse_quote! {
-                                #base_expr.get(#s).cloned().unwrap_or_default().into()
-                            });
-                        } else {
-                            return Ok(parse_quote! {
-                                #base_expr.get(#s).cloned().unwrap_or_default()
-                            });
-                        }
-                    }
-
-                    // String variable - needs proper referencing
-                    // HashMap.get() expects &K, so we need to borrow the key
-                    // DEPYLER-0521: Don't add & if variable is already &str type
-                    // DEPYLER-0528: Borrow logic - owned String NEEDS borrow, &str does NOT
-                    let index_expr = index.to_rust_expr(self.ctx)?;
-                    // DEPYLER-0539: Fix dict key borrowing for &str parameters
-                    // Check is_borrowed_str_param FIRST - &str params are tracked as Type::String
-                    // but should NOT be borrowed again
-                    let needs_borrow = if let HirExpr::Var(var_name) = index {
-                        if self.is_borrowed_str_param(var_name) {
-                            false // Already &str from function parameter, no borrow needed
-                        } else if matches!(
-                            self.ctx.var_types.get(var_name),
-                            Some(Type::String) // owned String → needs &
-                        ) {
-                            true // Owned String needs borrow
-                        } else {
-                            // Unknown type - default to borrowing for safety
-                            true
-                        }
-                    } else {
-                        true // Non-variable expressions typically need borrowing
-                    };
-
+            } else {
+                // DEPYLER-1320: Defensive check for string literals that reach this branch
+                // In classmethods, string literals may not match the earlier pattern due to
+                // differences in HIR construction. Handle them here to ensure correct codegen.
+                if let HirExpr::Literal(Literal::String(s)) = index {
                     if base_is_depyler_value && self.ctx.type_mapper.nasa_mode {
-                        // DEPYLER-1316: Use get_str for DepylerValue with string variable keys
-                        // DEPYLER-1319: Add .into() for type conversion
-                        if needs_borrow {
-                            Ok(parse_quote! {
-                                #base_expr.get_str(&#index_expr).cloned().unwrap_or_default().into()
-                            })
-                        } else {
-                            Ok(parse_quote! {
-                                #base_expr.get_str(#index_expr).cloned().unwrap_or_default().into()
-                            })
-                        }
+                        // DepylerValue with string key - use get_str + .into()
+                        return Ok(parse_quote! {
+                            #base_expr.get_str(#s).cloned().unwrap_or_default().into()
+                        });
                     } else if needs_into {
-                        // DEPYLER-1319: Dict has DepylerValue values - add .into()
-                        if needs_borrow {
-                            // DEPYLER-99MODE-S9: Wrap index_expr in parens so & applies to full expression
-                            Ok(parse_quote! {
-                                #base_expr.get(&(#index_expr)).cloned().unwrap_or_default().into()
-                            })
-                        } else {
-                            Ok(parse_quote! {
-                                #base_expr.get(#index_expr).cloned().unwrap_or_default().into()
-                            })
-                        }
-                    } else if needs_borrow {
+                        // Dict with DepylerValue values - add .into()
+                        return Ok(parse_quote! {
+                            #base_expr.get(#s).cloned().unwrap_or_default().into()
+                        });
+                    }
+                    return Ok(parse_quote! {
+                        #base_expr.get(#s).cloned().unwrap_or_default()
+                    });
+                }
+
+                // String variable - needs proper referencing
+                // HashMap.get() expects &K, so we need to borrow the key
+                // DEPYLER-0521: Don't add & if variable is already &str type
+                // DEPYLER-0528: Borrow logic - owned String NEEDS borrow, &str does NOT
+                let index_expr = index.to_rust_expr(self.ctx)?;
+                // DEPYLER-0539: Fix dict key borrowing for &str parameters
+                // Check is_borrowed_str_param FIRST - &str params are tracked as Type::String
+                // but should NOT be borrowed again
+                let needs_borrow = if let HirExpr::Var(var_name) = index {
+                    if self.is_borrowed_str_param(var_name) {
+                        false // Already &str from function parameter, no borrow needed
+                    } else if matches!(
+                        self.ctx.var_types.get(var_name),
+                        Some(Type::String) // owned String → needs &
+                    ) {
+                        true // Owned String needs borrow
+                    } else {
+                        // Unknown type - default to borrowing for safety
+                        true
+                    }
+                } else {
+                    true // Non-variable expressions typically need borrowing
+                };
+
+                if base_is_depyler_value && self.ctx.type_mapper.nasa_mode {
+                    // DEPYLER-1316: Use get_str for DepylerValue with string variable keys
+                    // DEPYLER-1319: Add .into() for type conversion
+                    if needs_borrow {
+                        Ok(parse_quote! {
+                            #base_expr.get_str(&#index_expr).cloned().unwrap_or_default().into()
+                        })
+                    } else {
+                        Ok(parse_quote! {
+                            #base_expr.get_str(#index_expr).cloned().unwrap_or_default().into()
+                        })
+                    }
+                } else if needs_into {
+                    // DEPYLER-1319: Dict has DepylerValue values - add .into()
+                    if needs_borrow {
                         // DEPYLER-99MODE-S9: Wrap index_expr in parens so & applies to full expression
                         Ok(parse_quote! {
-                            #base_expr.get(&(#index_expr)).cloned().unwrap_or_default()
+                            #base_expr.get(&(#index_expr)).cloned().unwrap_or_default().into()
                         })
                     } else {
                         Ok(parse_quote! {
-                            #base_expr.get(#index_expr).cloned().unwrap_or_default()
+                            #base_expr.get(#index_expr).cloned().unwrap_or_default().into()
                         })
                     }
+                } else if needs_borrow {
+                    // DEPYLER-99MODE-S9: Wrap index_expr in parens so & applies to full expression
+                    Ok(parse_quote! {
+                        #base_expr.get(&(#index_expr)).cloned().unwrap_or_default()
+                    })
+                } else {
+                    Ok(parse_quote! {
+                        #base_expr.get(#index_expr).cloned().unwrap_or_default()
+                    })
                 }
             }
         } else if is_string_base {
@@ -411,7 +408,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // Concrete typed keys: use native key types directly
                 match &key_type {
-                    Some(Type::Int) | Some(Type::Bool) => {
+                    Some(Type::Int | Type::Bool) => {
                         // DEPYLER-99MODE-S9: Wrap in parens so & applies to full expression (e.g., i-1)
                         return Ok(parse_quote! {
                             #base_expr.get(&(#index_expr)).cloned().unwrap_or_default()
@@ -434,11 +431,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             return Ok(parse_quote! {
                                 #base_expr.get(&DepylerValue::Float(#index_expr as f64)).cloned().unwrap_or_default()
                             });
-                        } else {
-                            return Ok(parse_quote! {
-                                #base_expr.get(&DepylerValue::from(#index_expr)).cloned().unwrap_or_default()
-                            });
                         }
+                        return Ok(parse_quote! {
+                            #base_expr.get(&DepylerValue::from(#index_expr)).cloned().unwrap_or_default()
+                        });
                     }
                     _ => {
                         // Unknown or DepylerValue keys: wrap with DepylerValue::Int

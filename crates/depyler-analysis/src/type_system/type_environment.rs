@@ -1,12 +1,12 @@
-//! DEPYLER-0499: TypeEnvironment - Single Source of Truth for Type Information
+//! DEPYLER-0499: `TypeEnvironment` - Single Source of Truth for Type Information
 //!
-//! Unified type tracking replacing 7 fragmented HashMaps.
+//! Unified type tracking replacing 7 fragmented `HashMaps`.
 //!
 //! # Design Principles
 //!
 //! 1. **Single Source of Truth** (一元管理): One unified structure
-//! 2. **O(1) Lookups**: Indexed HashMap access
-//! 3. **SSA Form**: Variable reassignments create new versions (x_0, x_1)
+//! 2. **O(1) Lookups**: Indexed `HashMap` access
+//! 3. **SSA Form**: Variable reassignments create new versions (`x_0`, `x_1`)
 //! 4. **Bidirectional Typing**: Synthesis (⇒) and Checking (⇐)
 //!
 //! # Example
@@ -37,26 +37,26 @@ pub type VarId = usize;
 pub struct TypeInfo {
     /// Variable name (e.g., "x")
     pub name: String,
-    /// SSA version (e.g., x_0, x_1)
+    /// SSA version (e.g., `x_0`, `x_1`)
     pub version: usize,
     /// Type of this binding
     pub ty: Type,
 }
 
-/// TypeEnvironment - unified type tracking system
+/// `TypeEnvironment` - unified type tracking system
 ///
-/// Replaces 7 fragmented HashMaps with single source of truth.
+/// Replaces 7 fragmented `HashMaps` with single source of truth.
 pub struct TypeEnvironment {
-    /// All variable bindings: VarId → TypeInfo
+    /// All variable bindings: `VarId` → `TypeInfo`
     bindings: HashMap<VarId, TypeInfo>,
 
-    /// Index: variable name → current VarId
+    /// Index: variable name → current `VarId`
     current_bindings: HashMap<String, VarId>,
 
     /// Index: variable name → version counter
     version_counters: HashMap<String, usize>,
 
-    /// Next available VarId
+    /// Next available `VarId`
     next_var_id: VarId,
 }
 
@@ -86,10 +86,11 @@ impl TypeEnvironment {
     ///
     /// assert_ne!(x_0, x_1);
     /// ```
+    #[allow(clippy::needless_pass_by_value)]
     pub fn bind_var(&mut self, name: &str, ty: Type) -> VarId {
         // Check if variable exists with different type
         let needs_new_version = if let Some(&existing_id) = self.current_bindings.get(name) {
-            let existing_info = self.bindings.get(&existing_id).unwrap();
+            let existing_info = self.bindings.get(&existing_id).expect("binding should exist");
             existing_info.ty != ty // Type changed - need new version (SSA)
         } else {
             true // First binding
@@ -112,7 +113,7 @@ impl TypeEnvironment {
             var_id
         } else {
             // Same type - reuse existing binding
-            *self.current_bindings.get(name).unwrap()
+            *self.current_bindings.get(name).expect("binding should exist")
         }
     }
 
@@ -123,7 +124,7 @@ impl TypeEnvironment {
         Some(&info.ty)
     }
 
-    /// Get type by VarId (O(1))
+    /// Get type by `VarId` (O(1))
     pub fn get_type_by_id(&self, var_id: VarId) -> Option<&Type> {
         self.bindings.get(&var_id).map(|info| &info.ty)
     }
@@ -138,6 +139,7 @@ impl TypeEnvironment {
     /// Synthesize type from expression (bidirectional typing: ⇒)
     ///
     /// Infers type bottom-up from expression structure.
+    #[allow(clippy::match_same_arms)]
     pub fn synthesize_type(&mut self, expr: &HirExpr) -> Result<Type, String> {
         match expr {
             HirExpr::Literal(lit) => {
@@ -154,7 +156,7 @@ impl TypeEnvironment {
             HirExpr::Var(name) => self
                 .get_var_type(name)
                 .cloned()
-                .ok_or_else(|| format!("Undefined variable: {}", name)),
+                .ok_or_else(|| format!("Undefined variable: {name}")),
 
             _ => Ok(Type::Unknown), // Simplified for now
         }
@@ -170,7 +172,7 @@ impl TypeEnvironment {
         let checker = SubtypeChecker::new();
 
         // Check if inferred <: expected (subtyping)
-        checker.check_subtype(&inferred, expected).map_err(|e| format!("Type check failed: {}", e))
+        checker.check_subtype(&inferred, expected).map_err(|e| format!("Type check failed: {e}"))
     }
 }
 

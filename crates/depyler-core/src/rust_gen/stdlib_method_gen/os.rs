@@ -1,7 +1,7 @@
 //! OS Module Code Generation - EXTREME TDD
 //!
-//! Handles Python `os` module method conversions to Rust std::env/std::fs.
-//! Extracted from expr_gen.rs for testability and maintainability.
+//! Handles Python `os` module method conversions to Rust `std::env/std::fs`.
+//! Extracted from `expr_gen.rs` for testability and maintainability.
 //!
 //! Coverage target: 100% line coverage, 100% branch coverage
 
@@ -72,16 +72,16 @@ fn convert_getenv(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     }
 }
 
-/// os.unlink(path) / os.remove(path) → std::fs::remove_file(path)
+/// os.unlink(path) / os.remove(path) → `std::fs::remove_file(path)`
 fn convert_unlink(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
-        bail!("os.{}() requires exactly 1 argument", method);
+        bail!("os.{method}() requires exactly 1 argument");
     }
     let path = &arg_exprs[0];
     Ok(parse_quote! { std::fs::remove_file(#path).expect("filesystem operation failed") })
 }
 
-/// os.mkdir(path) → std::fs::create_dir(path)
+/// os.mkdir(path) → `std::fs::create_dir(path)`
 fn convert_mkdir(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.is_empty() {
         bail!("os.mkdir() requires at least 1 argument");
@@ -90,7 +90,7 @@ fn convert_mkdir(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { std::fs::create_dir(#path).expect("filesystem operation failed") })
 }
 
-/// os.makedirs(path) → std::fs::create_dir_all(path)
+/// os.makedirs(path) → `std::fs::create_dir_all(path)`
 fn convert_makedirs(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.is_empty() {
         bail!("os.makedirs() requires at least 1 argument");
@@ -99,7 +99,7 @@ fn convert_makedirs(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { std::fs::create_dir_all(#path).expect("filesystem operation failed") })
 }
 
-/// os.rmdir(path) → std::fs::remove_dir(path)
+/// os.rmdir(path) → `std::fs::remove_dir(path)`
 fn convert_rmdir(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("os.rmdir() requires exactly 1 argument");
@@ -108,7 +108,7 @@ fn convert_rmdir(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { std::fs::remove_dir(#path).expect("filesystem operation failed") })
 }
 
-/// os.rename(src, dst) → std::fs::rename(src, dst)
+/// os.rename(src, dst) → `std::fs::rename(src`, dst)
 fn convert_rename(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 2 {
         bail!("os.rename() requires exactly 2 arguments");
@@ -118,7 +118,7 @@ fn convert_rename(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { std::fs::rename(#src, #dst).expect("filesystem operation failed") })
 }
 
-/// os.getcwd() → std::env::current_dir()
+/// `os.getcwd()` → `std::env::current_dir()`
 fn convert_getcwd(arg_exprs: &[syn::Expr], ctx: &CodeGenContext) -> Result<syn::Expr> {
     if !arg_exprs.is_empty() {
         bail!("os.getcwd() takes no arguments");
@@ -132,7 +132,7 @@ fn convert_getcwd(arg_exprs: &[syn::Expr], ctx: &CodeGenContext) -> Result<syn::
     }
 }
 
-/// os.chdir(path) → std::env::set_current_dir(path)
+/// os.chdir(path) → `std::env::set_current_dir(path)`
 fn convert_chdir(arg_exprs: &[syn::Expr], ctx: &CodeGenContext) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("os.chdir() requires exactly 1 argument");
@@ -145,7 +145,8 @@ fn convert_chdir(arg_exprs: &[syn::Expr], ctx: &CodeGenContext) -> Result<syn::E
     }
 }
 
-/// os.listdir(path) → std::fs::read_dir(path)
+/// os.listdir(path) → `std::fs::read_dir(path)`
+#[allow(clippy::unnecessary_wraps)]
 fn convert_listdir(arg_exprs: &[syn::Expr], ctx: &CodeGenContext) -> Result<syn::Expr> {
     if arg_exprs.is_empty() {
         // os.listdir() with no args uses current directory
@@ -184,7 +185,7 @@ fn convert_listdir(arg_exprs: &[syn::Expr], ctx: &CodeGenContext) -> Result<syn:
     }
 }
 
-/// os.walk(path) → walkdir::WalkDir::new(path)
+/// os.walk(path) → `walkdir::WalkDir::new(path)`
 fn convert_walk(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.is_empty() {
         bail!("os.walk() requires at least 1 argument");

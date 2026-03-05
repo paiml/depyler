@@ -1,4 +1,4 @@
-//! ArgumentParser → Clap transformation (DEPYLER-0363)
+//! `ArgumentParser` → Clap transformation (DEPYLER-0363)
 //!
 //! This module handles the structural transformation of Python argparse
 //! patterns to Rust clap derive macros.
@@ -31,7 +31,7 @@
 //! 2. Accumulate all `parser.add_argument(...)` method calls
 //! 3. Detect `args = parser.parse_args()` assignment
 //! 4. Generate struct definition with clap derives
-//! 5. Replace parse_args() call with `Args::parse()`
+//! 5. Replace `parse_args()` call with `Args::parse()`
 
 use crate::emit_decision;
 use crate::hir::{HirExpr, Type};
@@ -44,12 +44,13 @@ use std::collections::HashMap;
 /// Maps Python types to idiomatic Rust types for CLI arguments:
 /// - int → i32
 /// - str → String
-/// - Path → PathBuf
+/// - Path → `PathBuf`
 /// - bool → bool
 /// - float → f64
 ///
 /// # Complexity
 /// 3 (pattern match on Type enum)
+#[allow(clippy::match_same_arms)]
 fn type_to_rust_string(ty: &Type) -> String {
     match ty {
         Type::Int => "i32".to_string(),
@@ -71,13 +72,13 @@ fn type_to_rust_string(ty: &Type) -> String {
     }
 }
 
-/// Tracks an ArgumentParser instance being built
+/// Tracks an `ArgumentParser` instance being built
 ///
 /// # Complexity
 /// N/A (data structure)
 #[derive(Debug, Clone, PartialEq)]
 pub struct ArgParserInfo {
-    /// Variable name assigned to ArgumentParser (e.g., "parser")
+    /// Variable name assigned to `ArgumentParser` (e.g., "parser")
     pub parser_var: String,
 
     /// Description from ArgumentParser(description="...")
@@ -86,15 +87,15 @@ pub struct ArgParserInfo {
     /// Epilog from ArgumentParser(epilog="...")
     pub epilog: Option<String>,
 
-    /// All arguments added via add_argument()
+    /// All arguments added via `add_argument()`
     pub arguments: Vec<ArgParserArgument>,
 
-    /// Variable name for parse_args() result (e.g., "args")
+    /// Variable name for `parse_args()` result (e.g., "args")
     pub args_var: Option<String>,
 }
 
 impl ArgParserInfo {
-    /// Create new ArgParser tracker
+    /// Create new `ArgParser` tracker
     ///
     /// # Complexity
     /// 1 (struct initialization)
@@ -102,7 +103,7 @@ impl ArgParserInfo {
         Self { parser_var, description: None, epilog: None, arguments: Vec::new(), args_var: None }
     }
 
-    /// Add an argument from add_argument() call
+    /// Add an argument from `add_argument()` call
     ///
     /// # Complexity
     /// 1 (vec push)
@@ -110,16 +111,17 @@ impl ArgParserInfo {
         self.arguments.push(arg);
     }
 
-    /// Set the args variable name from parse_args() assignment
+    /// Set the args variable name from `parse_args()` assignment
     ///
     /// # Complexity
     /// 1 (field assignment)
+    #[allow(clippy::doc_link_with_quotes)]
     pub fn set_args_var(&mut self, var: String) {
         self.args_var = Some(var);
     }
 }
 
-/// Represents a single argument definition from add_argument()
+/// Represents a single argument definition from `add_argument()`
 ///
 /// # Complexity
 /// N/A (data structure)
@@ -137,7 +139,7 @@ pub struct ArgParserArgument {
     /// Type annotation (e.g., Path, int, str)
     pub arg_type: Option<Type>,
 
-    /// Action: "store_true", "store_false", "store", "append"
+    /// Action: "`store_true`", "`store_false`", "store", "append"
     pub action: Option<String>,
 
     /// Default value
@@ -152,16 +154,16 @@ pub struct ArgParserArgument {
     /// DEPYLER-0367: Whether this flag is required (required=True)
     pub required: Option<bool>,
 
-    /// DEPYLER-0371: Custom destination variable name (dest="var_name")
+    /// DEPYLER-0371: Custom destination variable name (`dest="var_name`")
     pub dest: Option<String>,
 
     /// DEPYLER-0372: Metavar for help display (metavar="FILE")
     pub metavar: Option<String>,
 
-    /// DEPYLER-0373: Restricted value choices (choices=["a", "b", "c"])
+    /// DEPYLER-0373: Restricted value choices (`choices=["a", "b", "c"]`)
     pub choices: Option<Vec<String>>,
 
-    /// DEPYLER-0374: Constant value for action="store_const" or nargs="?" with const
+    /// DEPYLER-0374: Constant value for `action="store_const`" or nargs="?" with const
     pub const_value: Option<HirExpr>,
 }
 
@@ -170,6 +172,7 @@ impl ArgParserArgument {
     ///
     /// # Complexity
     /// 2 (string check + struct initialization)
+    #[allow(clippy::doc_link_with_quotes)]
     pub fn new(name: String) -> Self {
         let is_positional = !name.starts_with('-');
         Self {
@@ -236,20 +239,16 @@ impl ArgParserArgument {
         if self.action.as_deref() == Some("append") {
             let inner_type = self
                 .arg_type
-                .as_ref()
-                .map(type_to_rust_string)
-                .unwrap_or_else(|| "String".to_string());
-            return format!("Vec<{}>", inner_type);
+                .as_ref().map_or_else(|| "String".to_string(), type_to_rust_string);
+            return format!("Vec<{inner_type}>");
         }
 
         // nargs="+" or nargs="*" → Vec<T>
         if self.nargs.as_deref() == Some("+") || self.nargs.as_deref() == Some("*") {
             let inner_type = self
                 .arg_type
-                .as_ref()
-                .map(type_to_rust_string)
-                .unwrap_or_else(|| "String".to_string());
-            return format!("Vec<{}>", inner_type);
+                .as_ref().map_or_else(|| "String".to_string(), type_to_rust_string);
+            return format!("Vec<{inner_type}>");
         }
 
         // DEPYLER-0370: nargs=N (specific number) → Vec<T>
@@ -257,10 +256,8 @@ impl ArgParserArgument {
             if nargs_str.parse::<usize>().is_ok() {
                 let inner_type = self
                     .arg_type
-                    .as_ref()
-                    .map(type_to_rust_string)
-                    .unwrap_or_else(|| "String".to_string());
-                return format!("Vec<{}>", inner_type);
+                    .as_ref().map_or_else(|| "String".to_string(), type_to_rust_string);
+                return format!("Vec<{inner_type}>");
             }
         }
 
@@ -269,10 +266,8 @@ impl ArgParserArgument {
         if self.nargs.as_deref() == Some("?") {
             let inner_type = self
                 .arg_type
-                .as_ref()
-                .map(type_to_rust_string)
-                .unwrap_or_else(|| "String".to_string());
-            return format!("Option<{}>", inner_type);
+                .as_ref().map_or_else(|| "String".to_string(), type_to_rust_string);
+            return format!("Option<{inner_type}>");
         }
 
         // DEPYLER-0527: Optional flags (--arg without required=True) → Option<T>
@@ -286,18 +281,16 @@ impl ArgParserArgument {
         {
             let inner_type = self
                 .arg_type
-                .as_ref()
-                .map(type_to_rust_string)
-                .unwrap_or_else(|| "String".to_string());
-            return format!("Option<{}>", inner_type);
+                .as_ref().map_or_else(|| "String".to_string(), type_to_rust_string);
+            return format!("Option<{inner_type}>");
         }
 
         // Use explicit type or default to String
-        self.arg_type.as_ref().map(type_to_rust_string).unwrap_or_else(|| "String".to_string())
+        self.arg_type.as_ref().map_or_else(|| "String".to_string(), type_to_rust_string)
     }
 }
 
-/// DEPYLER-0399: Information about a subparser collection (from add_subparsers())
+/// DEPYLER-0399: Information about a subparser collection (from `add_subparsers()`)
 ///
 /// # Complexity
 /// N/A (data structure)
@@ -335,18 +328,18 @@ pub struct SubcommandInfo {
     pub subparsers_var: String,
 }
 
-/// Container for ArgumentParser tracking in CodeGenContext
+/// Container for `ArgumentParser` tracking in `CodeGenContext`
 ///
 /// # Complexity
 /// N/A (data structure)
 #[derive(Debug, Clone, Default)]
 pub struct ArgParserTracker {
-    /// Currently active ArgumentParser instances (keyed by variable name)
+    /// Currently active `ArgumentParser` instances (keyed by variable name)
     pub parsers: HashMap<String, ArgParserInfo>,
 
     /// DEPYLER-0396: Map argument group variables to their parent parser
-    /// e.g., "input_group" → "parser"
-    /// This allows tracking add_argument() calls on groups
+    /// e.g., "`input_group`" → "parser"
+    /// This allows tracking `add_argument()` calls on groups
     pub group_to_parser: HashMap<String, String>,
 
     /// DEPYLER-0399: Subparser collections (variable → info)
@@ -354,11 +347,11 @@ pub struct ArgParserTracker {
     pub subparsers: HashMap<String, SubparserInfo>,
 
     /// DEPYLER-0399: Subcommands (parser variable → info)
-    /// Maps subcommand parser variable (e.g., "parser_clone") to subcommand details
+    /// Maps subcommand parser variable (e.g., "`parser_clone`") to subcommand details
     pub subcommands: HashMap<String, SubcommandInfo>,
 
     /// DEPYLER-0822: Maps subcommand parser variable to command name
-    /// e.g., "top_parser" → "top" (for looking up SubcommandInfo when processing add_argument)
+    /// e.g., "`top_parser`" → "top" (for looking up `SubcommandInfo` when processing `add_argument`)
     pub subcommand_var_to_cmd: HashMap<String, String>,
 
     /// Whether we've generated the Args struct for current function
@@ -374,7 +367,7 @@ impl ArgParserTracker {
         Self::default()
     }
 
-    /// Register a new ArgumentParser assignment
+    /// Register a new `ArgumentParser` assignment
     ///
     /// # Complexity
     /// 2 (struct creation + hashmap insert)
@@ -422,7 +415,7 @@ impl ArgParserTracker {
 
     /// DEPYLER-0396: Get parser variable name for a group variable
     /// Returns the parent parser if this variable is an argument group
-    /// Recursively resolves nested groups (e.g., format_group → output_group → parser)
+    /// Recursively resolves nested groups (e.g., `format_group` → `output_group` → parser)
     ///
     /// # Complexity
     /// O(depth) where depth is the nesting level of groups (typically 1-3)
@@ -453,7 +446,7 @@ impl ArgParserTracker {
     }
 
     /// DEPYLER-0399: Register a subparser collection
-    /// Pattern: subparsers = parser.add_subparsers(dest="command", required=True)
+    /// Pattern: subparsers = `parser.add_subparsers(dest="command`", required=True)
     ///
     /// # Complexity
     /// 1 (hashmap insert)
@@ -478,7 +471,7 @@ impl ArgParserTracker {
     }
 
     /// DEPYLER-0399: Register a subcommand
-    /// Pattern: parser_clone = subparsers.add_parser("clone", help="...")
+    /// Pattern: `parser_clone` = `subparsers.add_parser("clone`", help="...")
     ///
     /// # Complexity
     /// 1 (hashmap insert)
@@ -502,7 +495,7 @@ impl ArgParserTracker {
         self.subcommands.get_mut(subcommand_var)
     }
 
-    /// Check if any ArgumentParser was detected
+    /// Check if any `ArgumentParser` was detected
     ///
     /// # Complexity
     /// 1 (hashmap empty check)
@@ -617,10 +610,11 @@ pub fn generate_commands_enum(tracker: &ArgParserTracker) -> proc_macro2::TokenS
     }
 }
 
-/// Convert string to PascalCase (e.g., "clone" -> "Clone", "git-pull" -> "GitPull")
+/// Convert string to `PascalCase` (e.g., "clone" -> "Clone", "git-pull" -> "`GitPull`")
 ///
 /// # Complexity
 /// 5 (string operations)
+#[allow(clippy::too_many_lines)]
 fn to_pascal_case(s: &str) -> String {
     s.split(&['-', '_'][..])
         .map(|word| {
@@ -633,10 +627,11 @@ fn to_pascal_case(s: &str) -> String {
         .collect()
 }
 
-/// Generate clap Args struct definition from ArgumentParser info
+/// Generate clap Args struct definition from `ArgumentParser` info
 ///
 /// # Complexity
 /// 8 (multiple loops and quote operations)
+#[allow(clippy::too_many_lines)]
 pub fn generate_args_struct(
     parser_info: &ArgParserInfo,
     tracker: &ArgParserTracker,
@@ -666,15 +661,11 @@ pub fn generate_args_struct(
             // - DEPYLER-0375: Has action="store_const" (bool with implicit default)
             let has_implicit_default = matches!(
                 arg.action.as_deref(),
-                Some("store_true")
-                    | Some("store_false")
-                    | Some("count")
-                    | Some("append")
-                    | Some("store_const")
+                Some("store_true" | "store_false" | "count" | "append" | "store_const")
             );
             // DEPYLER-0370: nargs="+" or nargs=N (specific number) are required
             let is_required_nargs = arg.nargs.as_deref() == Some("+")
-                || arg.nargs.as_deref().map(|s| s.parse::<usize>().is_ok()).unwrap_or(false);
+                || arg.nargs.as_deref().is_some_and(|s| s.parse::<usize>().is_ok());
 
             let field_type: syn::Type = if !arg.is_positional
                 && arg.required != Some(true)
@@ -684,7 +675,7 @@ pub fn generate_args_struct(
                 && !is_required_nargs
             {
                 // Wrap in Option for optional flags
-                syn::parse_str(&format!("Option<{}>", base_type_str))
+                syn::parse_str(&format!("Option<{base_type_str}>"))
                     .unwrap_or_else(|_| parse_quote! { Option<String> })
             } else {
                 syn::parse_str(&base_type_str).unwrap_or_else(|_| parse_quote! { String })
@@ -780,7 +771,7 @@ pub fn generate_args_struct(
             if let Some(nargs_str) = arg.nargs.as_deref() {
                 if let Ok(n) = nargs_str.parse::<usize>() {
                     // Create a literal integer token
-                    let n_lit = syn::LitInt::new(&format!("{}", n), proc_macro2::Span::call_site());
+                    let n_lit = syn::LitInt::new(&format!("{n}"), proc_macro2::Span::call_site());
                     attrs.push(quote! {
                         #[arg(num_args = #n_lit)]
                     });
@@ -886,11 +877,12 @@ pub fn generate_args_struct(
 
 /// DEPYLER-0425: Analyze which subcommand fields are accessed in a function
 ///
-/// Returns: Option<(variant_name, Vec<field_names>)>
+/// Returns: Option<(`variant_name`, Vec<`field_names`>)>
 ///
 /// # Complexity
 /// 7 (recursive walk of HIR expressions)
-pub fn analyze_subcommand_field_access(
+#[allow(clippy::too_many_lines)]
+pub(super) fn analyze_subcommand_field_access(
     func: &crate::hir::HirFunction,
     tracker: &ArgParserTracker,
 ) -> Option<(String, Vec<String>)> {
@@ -929,6 +921,7 @@ pub fn analyze_subcommand_field_access(
     let mut detected_variant: Option<String> = None;
 
     // Recursive function to walk expressions
+    #[allow(clippy::items_after_statements, clippy::match_same_arms, clippy::too_many_lines)]
     fn walk_expr(
         expr: &HirExpr,
         args_param: &str,
@@ -1135,6 +1128,7 @@ pub fn analyze_subcommand_field_access(
     }
 
     // Walk all statements in function body
+    #[allow(clippy::items_after_statements, clippy::match_same_arms)]
     fn walk_stmt(
         stmt: &HirStmt,
         args_param: &str,
@@ -1144,13 +1138,13 @@ pub fn analyze_subcommand_field_access(
     ) {
         match stmt {
             HirStmt::Expr(expr) => {
-                walk_expr(expr, args_param, field_to_variant, accessed_fields, detected_variant)
+                walk_expr(expr, args_param, field_to_variant, accessed_fields, detected_variant);
             }
             HirStmt::Assign { value, .. } => {
-                walk_expr(value, args_param, field_to_variant, accessed_fields, detected_variant)
+                walk_expr(value, args_param, field_to_variant, accessed_fields, detected_variant);
             }
             HirStmt::Return(Some(expr)) => {
-                walk_expr(expr, args_param, field_to_variant, accessed_fields, detected_variant)
+                walk_expr(expr, args_param, field_to_variant, accessed_fields, detected_variant);
             }
             HirStmt::If { condition, then_body, else_body } => {
                 walk_expr(
@@ -1288,7 +1282,7 @@ pub fn analyze_subcommand_field_access(
 ///
 /// # Complexity
 /// 4 (iteration + quote)
-pub fn generate_option_precompute(parser_info: &ArgParserInfo) -> Vec<proc_macro2::TokenStream> {
+pub(super) fn generate_option_precompute(parser_info: &ArgParserInfo) -> Vec<proc_macro2::TokenStream> {
     use quote::{format_ident, quote};
 
     let args_var = match &parser_info.args_var {
@@ -1319,7 +1313,8 @@ pub fn generate_option_precompute(parser_info: &ArgParserInfo) -> Vec<proc_macro
 ///
 /// # Complexity
 /// 5 (quote operations + iteration)
-pub fn wrap_body_with_subcommand_pattern(
+#[allow(clippy::needless_pass_by_value)]
+pub(super) fn wrap_body_with_subcommand_pattern(
     body_stmts: Vec<proc_macro2::TokenStream>,
     variant_name: &str,
     fields: &[String],
@@ -1339,12 +1334,13 @@ pub fn wrap_body_with_subcommand_pattern(
     }]
 }
 
-/// DEPYLER-0456 Bug #1: Pre-scan HIR function body to register all add_parser() calls
+/// DEPYLER-0456 Bug #1: Pre-scan HIR function body to register all `add_parser()` calls
 /// This must run BEFORE body codegen so Commands enum includes expression statement subcommands
 ///
 /// # Complexity
 /// 8 (recursive HIR walk)
-pub fn preregister_subcommands_from_hir(
+#[allow(clippy::too_many_lines)]
+pub(super) fn preregister_subcommands_from_hir(
     func: &crate::hir::HirFunction,
     tracker: &mut ArgParserTracker,
 ) {
@@ -1359,11 +1355,13 @@ pub fn preregister_subcommands_from_hir(
     }
 
     // Helper to extract keyword argument string value
+    #[allow(clippy::too_many_lines)]
     fn extract_kwarg_string_from_hir(kwargs: &[(String, HirExpr)], key: &str) -> Option<String> {
         kwargs.iter().find(|(k, _)| k == key).map(|(_, v)| extract_string_from_hir(v))
     }
 
     // Recursive walker for expressions
+    #[allow(clippy::too_many_lines)]
     fn walk_expr(expr: &HirExpr, tracker: &mut ArgParserTracker) {
         match expr {
             HirExpr::MethodCall { object, method, args, kwargs } if method == "add_parser" => {
@@ -1440,15 +1438,15 @@ pub fn preregister_subcommands_from_hir(
                                             match type_name.as_str() {
                                                 "int" => arg.arg_type = Some(crate::hir::Type::Int),
                                                 "float" => {
-                                                    arg.arg_type = Some(crate::hir::Type::Float)
+                                                    arg.arg_type = Some(crate::hir::Type::Float);
                                                 }
                                                 "str" => {
-                                                    arg.arg_type = Some(crate::hir::Type::String)
+                                                    arg.arg_type = Some(crate::hir::Type::String);
                                                 }
                                                 "Path" => {
                                                     arg.arg_type = Some(crate::hir::Type::Custom(
                                                         "PathBuf".to_string(),
-                                                    ))
+                                                    ));
                                                 }
                                                 _ => {}
                                             }
@@ -1562,6 +1560,7 @@ pub fn preregister_subcommands_from_hir(
     }
 
     // Recursive walker for statements
+    #[allow(clippy::match_same_arms)]
     fn walk_stmt(stmt: &HirStmt, tracker: &mut ArgParserTracker) {
         match stmt {
             HirStmt::Expr(expr) => walk_expr(expr, tracker),
@@ -1621,8 +1620,7 @@ pub fn preregister_subcommands_from_hir(
                                         .unwrap_or_else(|| "command".to_string());
                                     let required =
                                         extract_kwarg_string_from_hir(kwargs, "required")
-                                            .map(|s| s == "true" || s == "True")
-                                            .unwrap_or(false);
+                                            .is_some_and(|s| s == "true" || s == "True");
                                     let help = extract_kwarg_string_from_hir(kwargs, "help");
 
                                     let subparser_info = SubparserInfo {

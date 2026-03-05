@@ -1,6 +1,6 @@
 //! Hunt Mode Shim - pure logic separated from I/O
 //!
-//! Extracts testable logic from hunt_mode components
+//! Extracts testable logic from `hunt_mode` components
 
 use std::collections::HashMap;
 
@@ -78,7 +78,7 @@ impl KaizenSnapshot {
         if total == 0 {
             0.0
         } else {
-            self.fixes_applied as f64 / total as f64
+            f64::from(self.fixes_applied) / f64::from(total)
         }
     }
 
@@ -116,6 +116,7 @@ impl WhyAnalysis {
         Self { level, question: question.into(), answer: answer.into(), is_root_cause: false }
     }
 
+    #[must_use]
     pub fn mark_root_cause(mut self) -> Self {
         self.is_root_cause = true;
         self
@@ -215,8 +216,9 @@ impl ErrorClusterStats {
         }
     }
 
+    #[allow(clippy::cast_precision_loss)]
     pub fn priority_score(&self) -> f64 {
-        let base = self.pattern_class.priority() as f64;
+        let base = f64::from(self.pattern_class.priority());
         let count_factor = (self.count as f64).log2().max(1.0);
         count_factor / base
     }
@@ -238,6 +240,7 @@ pub fn cluster_errors(
 }
 
 /// Select highest priority cluster
+#[allow(clippy::implicit_hasher)]
 pub fn select_priority_cluster(
     clusters: &HashMap<PatternClass, ErrorClusterStats>,
 ) -> Option<&ErrorClusterStats> {

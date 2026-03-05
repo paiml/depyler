@@ -204,8 +204,9 @@ fn add_type_inference_samples(dataset: &mut TrainingDataset) {
     ]);
 }
 
-/// DEPYLER-0559: Real errors from stdlib_integration + log_analyzer examples
+/// DEPYLER-0559: Real errors from `stdlib_integration` + `log_analyzer` examples
 /// These are actual compilation errors encountered during transpilation.
+#[allow(clippy::too_many_lines)]
 fn add_stdlib_real_errors(dataset: &mut TrainingDataset) {
     // Add reprorusted-python-cli corpus errors first
     add_reprorusted_corpus_errors(dataset);
@@ -484,7 +485,7 @@ pub fn build_combined_corpus() -> TrainingDataset {
     real
 }
 
-/// Additional BorrowChecker samples to balance corpus (Issue #106)
+/// Additional `BorrowChecker` samples to balance corpus (Issue #106)
 fn add_borrow_checker_samples(dataset: &mut TrainingDataset) {
     dataset.add_many(vec![
         TrainingSample::with_fix(
@@ -550,7 +551,7 @@ fn add_borrow_checker_samples(dataset: &mut TrainingDataset) {
     ]);
 }
 
-/// Additional SyntaxError samples to balance corpus (Issue #106)
+/// Additional `SyntaxError` samples to balance corpus (Issue #106)
 fn add_syntax_error_samples(dataset: &mut TrainingDataset) {
     dataset.add_many(vec![
         TrainingSample::with_fix(
@@ -616,7 +617,7 @@ fn add_syntax_error_samples(dataset: &mut TrainingDataset) {
     ]);
 }
 
-/// Additional MissingImport samples to balance corpus (Issue #106)
+/// Additional `MissingImport` samples to balance corpus (Issue #106)
 fn add_missing_import_samples(dataset: &mut TrainingDataset) {
     dataset.add_many(vec![
         TrainingSample::with_fix(
@@ -684,6 +685,7 @@ fn add_missing_import_samples(dataset: &mut TrainingDataset) {
 
 /// REPRORUSTED-CLI corpus: Real errors from transpiled Python CLI examples
 /// Captured 2025-11-27 from examples that don't yet compile.
+#[allow(clippy::too_many_lines)]
 fn add_reprorusted_corpus_errors(dataset: &mut TrainingDataset) {
     dataset.add_many(vec![
         // === LOG_ANALYZER (27 errors) - Generator + Regex patterns ===
@@ -861,7 +863,7 @@ fn add_reprorusted_corpus_errors(dataset: &mut TrainingDataset) {
     ]);
 }
 
-/// Get error-fix pairs formatted for NgramFixPredictor training.
+/// Get error-fix pairs formatted for `NgramFixPredictor` training.
 /// Uses combined corpus (real + synthetic).
 #[must_use]
 pub fn get_training_pairs() -> Vec<(String, String, ErrorCategory)> {
@@ -907,8 +909,10 @@ use crate::moe_oracle::{MoeClassificationResult, MoeOracle};
 
 /// Load real error corpus from file (collected from reprorusted-python-cli)
 ///
-/// This function parses compilation errors collected by scripts/collect_errors.sh
-/// Returns samples suitable for MoE Oracle training.
+/// This function parses compilation errors collected by `scripts/collect_errors.sh`
+/// Returns samples suitable for `MoE` Oracle training.
+#[allow(clippy::similar_names)]
+#[allow(clippy::manual_let_else)]
 pub fn load_real_corpus(path: &str) -> Vec<(String, String, ErrorCategory)> {
     let content = match std::fs::read_to_string(path) {
         Ok(c) => c,
@@ -935,7 +939,8 @@ pub fn load_real_corpus(path: &str) -> Vec<(String, String, ErrorCategory)> {
     samples
 }
 
-/// Categorize error code to ErrorCategory
+/// Categorize error code to `ErrorCategory`
+#[allow(clippy::match_same_arms)]
 fn categorize_error_code(code: &str) -> ErrorCategory {
     match code {
         // TypeSystem expert
@@ -955,7 +960,7 @@ fn categorize_error_code(code: &str) -> ErrorCategory {
     }
 }
 
-/// Train MoE Oracle on real + synthetic corpus
+/// Train `MoE` Oracle on real + synthetic corpus
 pub fn train_moe_on_real_corpus() -> crate::Result<MoeOracle> {
     let mut oracle = MoeOracle::new();
 
@@ -981,7 +986,7 @@ pub fn train_moe_on_real_corpus() -> crate::Result<MoeOracle> {
     Ok(oracle)
 }
 
-/// Classify a compilation error using the MoE Oracle.
+/// Classify a compilation error using the `MoE` Oracle.
 ///
 /// Uses the Mixture of Experts model to:
 /// 1. Route error to appropriate specialist expert
@@ -998,9 +1003,9 @@ pub fn classify_with_moe(error_code: &str, context: &str) -> MoeClassificationRe
     oracle.classify(error_code, context)
 }
 
-/// Train MoE Oracle on the depyler training corpus.
+/// Train `MoE` Oracle on the depyler training corpus.
 ///
-/// Returns a trained MoE Oracle that can classify errors and suggest fixes.
+/// Returns a trained `MoE` Oracle that can classify errors and suggest fixes.
 pub fn train_moe_oracle() -> crate::Result<MoeOracle> {
     let mut oracle = MoeOracle::new();
     let corpus = build_combined_corpus();

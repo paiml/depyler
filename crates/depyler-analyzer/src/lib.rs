@@ -62,6 +62,7 @@ impl Analyzer {
         Self { enable_type_inference: true }
     }
 
+    #[allow(clippy::unnecessary_wraps, clippy::unused_self)]
     pub fn analyze(&self, module: &HirModule) -> Result<AnalysisResult> {
         let function_metrics: Vec<FunctionMetrics> = module
             .functions
@@ -70,11 +71,13 @@ impl Analyzer {
             .collect::<Result<Vec<_>>>()?;
 
         let module_metrics = self.calculate_module_metrics(&function_metrics);
-        let type_coverage = self.calculate_type_coverage(module);
+        let type_coverage = Self::calculate_type_coverage(module);
 
         Ok(AnalysisResult { module_metrics, function_metrics, type_coverage })
     }
 
+    #[allow(clippy::unused_self)]
+    #[allow(clippy::unnecessary_wraps)]
     fn analyze_function(&self, func: &HirFunction) -> Result<FunctionMetrics> {
         let cyclomatic = complexity::calculate_cyclomatic(&func.body);
         let cognitive = complexity::calculate_cognitive(&func.body);
@@ -97,12 +100,13 @@ impl Analyzer {
         })
     }
 
+    #[allow(clippy::cast_precision_loss, clippy::unused_self)]
     fn calculate_module_metrics(&self, functions: &[FunctionMetrics]) -> ModuleMetrics {
         let total_functions = functions.len();
         let total_lines: usize = functions.iter().map(|f| f.lines_of_code).sum();
 
         let avg_cyclomatic = if total_functions > 0 {
-            functions.iter().map(|f| f.cyclomatic_complexity as f64).sum::<f64>()
+            functions.iter().map(|f| f64::from(f.cyclomatic_complexity)).sum::<f64>()
                 / total_functions as f64
         } else {
             0.0
@@ -111,7 +115,7 @@ impl Analyzer {
         let max_cyclomatic = functions.iter().map(|f| f.cyclomatic_complexity).max().unwrap_or(0);
 
         let avg_cognitive = if total_functions > 0 {
-            functions.iter().map(|f| f.cognitive_complexity as f64).sum::<f64>()
+            functions.iter().map(|f| f64::from(f.cognitive_complexity)).sum::<f64>()
                 / total_functions as f64
         } else {
             0.0
@@ -129,7 +133,8 @@ impl Analyzer {
         }
     }
 
-    fn calculate_type_coverage(&self, module: &HirModule) -> TypeCoverage {
+    #[allow(clippy::cast_precision_loss)]
+    fn calculate_type_coverage(module: &HirModule) -> TypeCoverage {
         let mut total_parameters = 0;
         let mut annotated_parameters = 0;
         let mut functions_with_return_type = 0;

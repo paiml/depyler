@@ -2,7 +2,7 @@
 //!
 //! This module contains pure helper functions for generating Rust code
 //! for control flow statements (pass, break, continue).
-//! Extracted from stmt_gen.rs for better testability.
+//! Extracted from `stmt_gen.rs` for better testability.
 //!
 //! DEPYLER-0140: Statement code generation helpers
 
@@ -25,7 +25,7 @@ pub fn codegen_pass_stmt() -> Result<proc_macro2::TokenStream> {
 pub fn codegen_break_stmt(label: &Option<String>) -> Result<proc_macro2::TokenStream> {
     if let Some(label_name) = label {
         let label_ident =
-            syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
+            syn::Lifetime::new(&format!("'{label_name}"), proc_macro2::Span::call_site());
         Ok(quote! { break #label_ident; })
     } else {
         Ok(quote! { break; })
@@ -40,7 +40,7 @@ pub fn codegen_break_stmt(label: &Option<String>) -> Result<proc_macro2::TokenSt
 pub fn codegen_continue_stmt(label: &Option<String>) -> Result<proc_macro2::TokenStream> {
     if let Some(label_name) = label {
         let label_ident =
-            syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
+            syn::Lifetime::new(&format!("'{label_name}"), proc_macro2::Span::call_site());
         Ok(quote! { continue #label_ident; })
     } else {
         Ok(quote! { continue; })

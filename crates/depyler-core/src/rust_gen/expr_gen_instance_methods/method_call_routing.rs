@@ -1,18 +1,19 @@
-//! Method call routing for ExpressionConverter
+//! Method call routing for `ExpressionConverter`
 //!
-//! Contains convert_dynamic_call and convert_method_call - routing method calls
+//! Contains `convert_dynamic_call` and `convert_method_call` - routing method calls
 //! to appropriate handlers based on receiver type and method name.
 
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
-use crate::hir::*;
+use crate::hir::{HirExpr, Type, Literal};
 use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use crate::trace_decision;
 use anyhow::Result;
 use syn::{self, parse_quote};
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn convert_dynamic_call(
         &mut self,
         callee: &HirExpr,
@@ -29,6 +30,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    #[allow(clippy::match_same_arms, clippy::too_many_lines)]
     pub(crate) fn convert_method_call(
         &mut self,
         object: &HirExpr,
@@ -58,10 +60,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-1211: Recursive Type Propagation for append
                     // If .append(arg) is called, infer the element type from arg
                     "append" => {
-                        let element_type = if !args.is_empty() {
-                            self.infer_type_from_hir_expr(&args[0])
-                        } else {
+                        let element_type = if args.is_empty() {
                             Type::Unknown
+                        } else {
+                            self.infer_type_from_hir_expr(&args[0])
                         };
                         self.ctx
                             .var_types
@@ -206,11 +208,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 return Ok(
                                     parse_quote! { #var_ident.as_ref().expect("value is None").#method_ident() },
                                 );
-                            } else {
-                                return Ok(
-                                    parse_quote! { #var_ident.as_ref().expect("value is None").#method_ident(#(#arg_exprs),*) },
-                                );
                             }
+                            return Ok(
+                                parse_quote! { #var_ident.as_ref().expect("value is None").#method_ident(#(#arg_exprs),*) },
+                            );
                         }
                     }
                 }
@@ -241,12 +242,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             return Ok(parse_quote! {
                                 #var_ident.as_ref().expect("value is None").get(&#key_expr).cloned().unwrap_or(#default_expr)
                             });
-                        } else {
-                            // Single arg form - return Option<&V>
-                            return Ok(parse_quote! {
-                                #var_ident.as_ref().expect("value is None").get(&#key_expr).cloned()
-                            });
                         }
+                        // Single arg form - return Option<&V>
+                        return Ok(parse_quote! {
+                            #var_ident.as_ref().expect("value is None").get(&#key_expr).cloned()
+                        });
                     }
                     "contains_key" | "__contains__" => {
                         if !args.is_empty() {
@@ -288,14 +288,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if let HirExpr::Var(_) = value.as_ref() {
                     // Check if this field has been precomputed
                     if self.ctx.precomputed_option_fields.contains(attr) {
-                        let has_var_name = format!("has_{}", attr);
+                        let has_var_name = format!("has_{attr}");
                         let has_ident =
                             syn::Ident::new(&has_var_name, proc_macro2::Span::call_site());
                         if method == "is_some" {
                             return Ok(parse_quote! { #has_ident });
-                        } else {
-                            return Ok(parse_quote! { !#has_ident });
                         }
+                        return Ok(parse_quote! { !#has_ident });
                     }
                 }
             }
@@ -341,11 +340,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             return Ok(parse_quote! {
                                 #var_ident.as_mut().expect("value is None").wait().ok().and_then(|s| s.code()).unwrap_or(-1)
                             });
-                        } else {
-                            return Ok(parse_quote! {
-                                #var_ident.wait().ok().and_then(|s| s.code()).unwrap_or(-1)
-                            });
                         }
+                        return Ok(parse_quote! {
+                            #var_ident.wait().ok().and_then(|s| s.code()).unwrap_or(-1)
+                        });
                     }
                 }
             }
@@ -549,16 +547,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             return Ok(parse_quote! {
                                 std::thread::sleep(std::time::Duration::from_secs(0))
                             });
-                        } else {
-                            if let Some(arg) = arg_exprs.first() {
-                                return Ok(parse_quote! {
-                                    tokio::time::sleep(std::time::Duration::from_secs_f64(#arg as f64))
-                                });
-                            }
+                        }
+                        if let Some(arg) = arg_exprs.first() {
                             return Ok(parse_quote! {
-                                tokio::time::sleep(std::time::Duration::from_secs(0))
+                                tokio::time::sleep(std::time::Duration::from_secs_f64(#arg as f64))
                             });
                         }
+                        return Ok(parse_quote! {
+                            tokio::time::sleep(std::time::Duration::from_secs(0))
+                        });
                     }
                     "run" => {
                         if nasa_mode {
@@ -769,16 +766,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 arr
                             })
                         });
-                    } else {
-                        return Ok(parse_quote! {
-                            i64::from_le_bytes({
-                                let mut arr = [0u8; 8];
-                                let bytes: &[u8] = #bytes_expr.as_ref();
-                                arr[..bytes.len().min(8)].copy_from_slice(&bytes[..bytes.len().min(8)]);
-                                arr
-                            })
-                        });
                     }
+                    return Ok(parse_quote! {
+                        i64::from_le_bytes({
+                            let mut arr = [0u8; 8];
+                            let bytes: &[u8] = #bytes_expr.as_ref();
+                            arr[..bytes.len().min(8)].copy_from_slice(&bytes[..bytes.len().min(8)]);
+                            arr
+                        })
+                    });
                 }
             }
         }
@@ -815,16 +811,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         entries.into_iter().take(#n_arg as usize).collect::<Vec<_>>()
                     }
                 });
-            } else {
-                // No argument: return all sorted
-                return Ok(parse_quote! {
-                    {
-                        let mut entries: Vec<_> = #object_expr.iter().map(|(k, v)| (k.clone(), *v)).collect();
-                        entries.sort_by(|a, b| b.1.cmp(&a.1));
-                        entries
-                    }
-                });
             }
+            // No argument: return all sorted
+            return Ok(parse_quote! {
+                {
+                    let mut entries: Vec<_> = #object_expr.iter().map(|(k, v)| (k.clone(), *v)).collect();
+                    entries.sort_by(|a, b| b.1.cmp(&a.1));
+                    entries
+                }
+            });
         }
 
         // DEPYLER-0728: hasher.update() handler should NOT intercept dict/set.update()
@@ -986,7 +981,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if let HirExpr::Var(class_name) = object {
             let is_const = class_name.chars().all(|c| c.is_uppercase() || c == '_');
             let starts_uppercase =
-                class_name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
+                class_name.chars().next().is_some_and(char::is_uppercase);
 
             if starts_uppercase && !is_const {
                 // DEPYLER-0900: Rename class if it shadows stdlib type (e.g., Box -> PyBox)
@@ -1092,7 +1087,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         } else if !rust_path.is_empty() {
                             // Regular function call with full path
                             let full_path: syn::Path =
-                                syn::parse_str(&format!("{}::{}", rust_path, rust_name))?;
+                                syn::parse_str(&format!("{rust_path}::{rust_name}"))?;
 
                             let arg_exprs: Vec<syn::Expr> = args
                                 .iter()

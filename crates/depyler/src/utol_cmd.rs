@@ -11,6 +11,7 @@ use depyler_oracle::utol::{
 
 /// Handle the `depyler utol` command
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::needless_pass_by_value)]
 pub fn handle_utol_command(
     corpus: Option<PathBuf>,
     target_rate: f64,
@@ -47,6 +48,7 @@ fn run_single_utol(config: &UtolConfig, output: Option<PathBuf>) -> Result<()> {
 }
 
 /// Build UTOL configuration from CLI arguments
+#[allow(clippy::match_same_arms)]
 pub fn build_config(
     corpus: Option<PathBuf>,
     target_rate: f64,
@@ -106,7 +108,7 @@ fn run_utol_loop(config: &UtolConfig) -> Result<UtolResult> {
 pub fn print_final_summary(result: &UtolResult, config: &UtolConfig) {
     if matches!(config.display.mode, DisplayMode::Json) {
         if let Ok(json) = serde_json::to_string_pretty(result) {
-            println!("{}", json);
+            println!("{json}");
         }
         return;
     }

@@ -1,26 +1,26 @@
 //! Collection constructor code generation
 //!
-//! This module handles Python collection constructors: set(), frozenset(), dict(),
-//! list(), deque(), Counter()
+//! This module handles Python collection constructors: `set()`, `frozenset()`, `dict()`,
+//! `list()`, `deque()`, `Counter()`
 //!
-//! Extracted from expr_gen.rs as part of DEPYLER-REFACTOR-001 (God File split)
+//! Extracted from `expr_gen.rs` as part of DEPYLER-REFACTOR-001 (God File split)
 //!
 //! # DEPYLER-REFACTOR-001 Traceability
-//! - Original location: expr_gen.rs lines 1816-1951, 2330-2381
+//! - Original location: `expr_gen.rs` lines 1816-1951, 2330-2381
 //! - Extraction date: 2025-11-25
-//! - Tests: tests/refactor_collection_constructors_test.rs
+//! - Tests: `tests/refactor_collection_constructors_test.rs`
 
 use crate::rust_gen::context::CodeGenContext;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-/// Convert Python set() constructor to Rust HashSet
+/// Convert Python `set()` constructor to Rust `HashSet`
 ///
 /// - `set()` → `HashSet::<i32>::new()` (DEPYLER-0409: default type for inference)
 /// - `set(iterable)` → `iterable.into_iter().collect::<HashSet<_>>()`
 ///
 /// # Complexity: 4
-pub fn convert_set_constructor(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
+pub(super) fn convert_set_constructor(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
     ctx.needs_hashset = true;
     if args.is_empty() {
         // Empty set: set()
@@ -51,13 +51,13 @@ pub fn convert_set_constructor(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> 
     }
 }
 
-/// Convert Python frozenset() constructor to Rust Arc<HashSet>
+/// Convert Python `frozenset()` constructor to Rust Arc<HashSet>
 ///
 /// - `frozenset()` → `Arc::new(HashSet::<i32>::new())`
 /// - `frozenset(iterable)` → `Arc::new(iterable.into_iter().collect::<HashSet<_>>())`
 ///
 /// # Complexity: 4
-pub fn convert_frozenset_constructor(
+pub(super) fn convert_frozenset_constructor(
     ctx: &mut CodeGenContext,
     args: &[syn::Expr],
 ) -> Result<syn::Expr> {
@@ -89,15 +89,15 @@ pub fn convert_frozenset_constructor(
     }
 }
 
-/// Convert Python Counter() to Rust HashMap with fold counting
+/// Convert Python `Counter()` to Rust `HashMap` with fold counting
 ///
 /// DEPYLER-0171: Counter(iterable) counts elements
 ///
 /// - `Counter()` → `HashMap::new()`
-/// - `Counter(iterable)` → fold with entry().or_insert()
+/// - `Counter(iterable)` → fold with `entry().or_insert()`
 ///
 /// # Complexity: 4
-pub fn convert_counter_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
+pub(super) fn convert_counter_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
     ctx.needs_hashmap = true;
     if args.is_empty() {
         // GH-204: Use default type parameters for empty Counter to avoid E0282
@@ -116,9 +116,9 @@ pub fn convert_counter_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> 
     }
 }
 
-/// Convert Python defaultdict() to Rust HashMap
+/// Convert Python `defaultdict()` to Rust `HashMap`
 ///
-/// DEPYLER-0556: defaultdict(factory) creates HashMap with default values
+/// DEPYLER-0556: defaultdict(factory) creates `HashMap` with default values
 ///
 /// - `defaultdict(int)` → `HashMap::new()` (use entry API for default 0)
 /// - `defaultdict(list)` → `HashMap::new()` (use entry API for default vec)
@@ -128,7 +128,8 @@ pub fn convert_counter_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> 
 /// the entry API: `map.entry(key).or_insert_with(factory)` or `.or_default()`
 ///
 /// # Complexity: 3
-pub fn convert_defaultdict_builtin(
+#[allow(clippy::unnecessary_wraps)]
+pub(super) fn convert_defaultdict_builtin(
     ctx: &mut CodeGenContext,
     _args: &[syn::Expr],
 ) -> Result<syn::Expr> {
@@ -139,15 +140,15 @@ pub fn convert_defaultdict_builtin(
     Ok(parse_quote! { HashMap::<String, i32>::new() })
 }
 
-/// Convert Python dict() constructor to Rust HashMap
+/// Convert Python `dict()` constructor to Rust `HashMap`
 ///
-/// DEPYLER-0172: dict() converts mapping/iterable to HashMap
+/// DEPYLER-0172: `dict()` converts mapping/iterable to `HashMap`
 ///
 /// - `dict()` → `HashMap::new()`
 /// - `dict(mapping)` → `mapping.into_iter().collect::<HashMap<_, _>>()`
 ///
 /// # Complexity: 4
-pub fn convert_dict_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
+pub(super) fn convert_dict_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
     ctx.needs_hashmap = true;
     if args.is_empty() {
         Ok(parse_quote! { std::collections::HashMap::new() })
@@ -161,17 +162,17 @@ pub fn convert_dict_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Res
     }
 }
 
-/// Convert Python deque() to Rust VecDeque
+/// Convert Python `deque()` to Rust `VecDeque`
 ///
-/// DEPYLER-0173: deque(iterable) creates VecDeque from iterable
-/// DEPYLER-1185: Don't wrap elements in DepylerValue - use native types
-/// This fixes E0308 errors when users expect VecDeque<i32> but get VecDeque<DepylerValue>
+/// DEPYLER-0173: deque(iterable) creates `VecDeque` from iterable
+/// DEPYLER-1185: Don't wrap elements in `DepylerValue` - use native types
+/// This fixes E0308 errors when users expect `VecDeque`<i32> but get `VecDeque`<DepylerValue>
 ///
 /// - `deque()` → `VecDeque::new()`
 /// - `deque(iterable)` → `VecDeque::from(iterable)`
 ///
 /// # Complexity: 4
-pub fn convert_deque_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
+pub(super) fn convert_deque_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
     ctx.needs_vecdeque = true;
     if args.is_empty() {
         // GH-204: Use default type parameter for empty deque to avoid E0282
@@ -189,10 +190,10 @@ pub fn convert_deque_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Re
     }
 }
 
-/// Check if expression already ends with .collect()
+/// Check if expression already ends with .`collect()`
 ///
 /// # Complexity: 2
-pub fn already_collected(expr: &syn::Expr) -> bool {
+pub(super) fn already_collected(expr: &syn::Expr) -> bool {
     if let syn::Expr::MethodCall(method_call) = expr {
         method_call.method == "collect"
     } else {
@@ -203,14 +204,14 @@ pub fn already_collected(expr: &syn::Expr) -> bool {
 /// Check if expression is a range (0..5, start..end, etc.)
 ///
 /// # Complexity: 1
-pub fn is_range_expr(expr: &syn::Expr) -> bool {
+pub(super) fn is_range_expr(expr: &syn::Expr) -> bool {
     matches!(expr, syn::Expr::Range(_))
 }
 
 /// Check if expression is an iterator-producing expression
 ///
 /// # Complexity: 4
-pub fn is_iterator_expr(expr: &syn::Expr) -> bool {
+pub(super) fn is_iterator_expr(expr: &syn::Expr) -> bool {
     if let syn::Expr::MethodCall(method_call) = expr {
         let method_name = method_call.method.to_string();
         matches!(
@@ -238,7 +239,7 @@ pub fn is_iterator_expr(expr: &syn::Expr) -> bool {
 /// DEPYLER-0452: Uses heuristic name-based detection
 ///
 /// # Complexity: 4
-pub fn is_csv_reader_var(expr: &syn::Expr) -> bool {
+pub(super) fn is_csv_reader_var(expr: &syn::Expr) -> bool {
     if let syn::Expr::Path(path) = expr {
         if let Some(ident) = path.path.get_ident() {
             let var_name = ident.to_string();
@@ -251,7 +252,7 @@ pub fn is_csv_reader_var(expr: &syn::Expr) -> bool {
     false
 }
 
-/// Convert Python list() to Rust Vec with smart handling
+/// Convert Python `list()` to Rust Vec with smart handling
 ///
 /// DEPYLER-0174: list(iterable) converts iterable to Vec
 ///
@@ -260,11 +261,11 @@ pub fn is_csv_reader_var(expr: &syn::Expr) -> bool {
 /// - Already collected: return as-is
 /// - Range: `list(range(5))` → `(0..5).collect::<Vec<_>>()`
 /// - Iterator: `list(iter)` → `iter.collect::<Vec<_>>()`
-/// - CSV reader: special handling for DictReader
+/// - CSV reader: special handling for `DictReader`
 /// - Default: `list(x)` → `x.into_iter().collect::<Vec<_>>()`
 ///
 /// # Complexity: 9 (within limit)
-pub fn convert_list_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
+pub(super) fn convert_list_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.is_empty() {
         return Ok(parse_quote! { Vec::new() });
     }

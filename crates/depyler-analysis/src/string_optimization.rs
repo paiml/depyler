@@ -61,6 +61,7 @@ impl StringOptimizer {
     }
 
     /// Get the optimal string type for a given context
+    #[allow(clippy::match_same_arms)]
     pub fn get_optimal_type(&self, context: &StringContext) -> OptimalStringType {
         match context {
             StringContext::Literal(s) => {
@@ -126,6 +127,7 @@ impl StringOptimizer {
         self.analyze_expr(value, false);
     }
 
+    #[allow(clippy::ref_option)]
     fn analyze_if_stmt(
         &mut self,
         condition: &HirExpr,
@@ -208,7 +210,7 @@ impl StringOptimizer {
 
         // Group strings by their base constant name
         for s in &self.interned_strings {
-            let base_name = self.generate_base_const_name(s);
+            let base_name = Self::generate_base_const_name(s);
             name_map.entry(base_name).or_default().push(s.clone());
         }
 
@@ -228,7 +230,7 @@ impl StringOptimizer {
     }
 
     /// Generate base constant name from string content (may have collisions)
-    fn generate_base_const_name(&self, s: &str) -> String {
+    fn generate_base_const_name(s: &str) -> String {
         // Convert to uppercase, replace non-alphanumeric with underscore
         let name = s
             .chars()
@@ -240,7 +242,7 @@ impl StringOptimizer {
 
         let base_name = if name.is_empty() { "EMPTY".to_string() } else { name };
 
-        format!("STR_{}", base_name)
+        format!("STR_{base_name}")
     }
 
     fn analyze_var_usage(&mut self, name: &str, is_returned: bool) {
@@ -249,6 +251,7 @@ impl StringOptimizer {
         }
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn analyze_binary_expr(
         &mut self,
         op: &depyler_hir::hir::BinOp,
@@ -266,7 +269,7 @@ impl StringOptimizer {
     }
 
     fn analyze_call_expr(&mut self, func: &str, args: &[HirExpr]) {
-        if self.is_mutating_method(func) && !args.is_empty() {
+        if Self::is_mutating_method(func) && !args.is_empty() {
             if let HirExpr::Var(name) = &args[0] {
                 self.immutable_params.remove(name);
             }
@@ -325,7 +328,7 @@ impl StringOptimizer {
     }
 
     /// Check if a method call mutates the string
-    fn is_mutating_method(&self, method: &str) -> bool {
+    fn is_mutating_method(method: &str) -> bool {
         matches!(
             method,
             "push_str" | "push" | "insert" | "insert_str" | "replace_range" | "clear" | "truncate"
@@ -376,8 +379,8 @@ pub enum StringContext {
 impl std::fmt::Display for StringContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            StringContext::Literal(s) => write!(f, "\"{}\"", s),
-            StringContext::Parameter(name) => write!(f, "{}", name),
+            StringContext::Literal(s) => write!(f, "\"{s}\""),
+            StringContext::Parameter(name) => write!(f, "{name}"),
             StringContext::Return => write!(f, "<return>"),
             StringContext::Concatenation => write!(f, "<concat>"),
         }
@@ -397,7 +400,7 @@ pub fn generate_optimized_string(optimizer: &StringOptimizer, context: &StringCo
 fn generate_static_str(context: &StringContext) -> String {
     match context {
         StringContext::Literal(s) => format!("\"{}\"", escape_string(s)),
-        _ => format!("{}.to_string()", context),
+        _ => format!("{context}.to_string()"),
     }
 }
 
@@ -405,14 +408,14 @@ fn generate_borrowed_str(context: &StringContext) -> String {
     match context {
         StringContext::Parameter(name) => name.clone(),
         StringContext::Literal(s) => format!("\"{}\"", escape_string(s)),
-        _ => format!("{}.as_str()", context),
+        _ => format!("{context}.as_str()"),
     }
 }
 
 fn generate_owned_string(context: &StringContext) -> String {
     match context {
         StringContext::Literal(s) => format!("\"{}\".to_string()", escape_string(s)),
-        StringContext::Parameter(name) => format!("{}.to_string()", name),
+        StringContext::Parameter(name) => format!("{name}.to_string()"),
         StringContext::Concatenation | StringContext::Return => "String::new()".to_string(),
     }
 }
@@ -420,7 +423,7 @@ fn generate_owned_string(context: &StringContext) -> String {
 fn generate_cow_str(context: &StringContext) -> String {
     match context {
         StringContext::Literal(s) => format!("Cow::Borrowed(\"{}\")", escape_string(s)),
-        StringContext::Parameter(name) => format!("Cow::Borrowed({})", name),
+        StringContext::Parameter(name) => format!("Cow::Borrowed({name})"),
         StringContext::Concatenation | StringContext::Return => {
             "Cow::Owned(String::new())".to_string()
         }

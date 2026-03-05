@@ -7,6 +7,7 @@
 use colored::Colorize;
 use depyler_hir::hir::{HirExpr, HirFunction, HirProgram, HirStmt};
 use std::collections::HashMap;
+use std::fmt::Write as _;
 
 /// Profiling configuration and results collector
 pub struct Profiler {
@@ -21,6 +22,7 @@ pub struct Profiler {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct ProfileConfig {
     /// Enable instruction counting
     pub count_instructions: bool,
@@ -138,6 +140,7 @@ impl Profiler {
     }
 
     /// Analyze a program for profiling insights
+    #[allow(clippy::cast_precision_loss)]
     pub fn analyze_program(&mut self, program: &HirProgram) -> ProfilingReport {
         // Clear previous results
         self.metrics.clear();
@@ -180,6 +183,7 @@ impl Profiler {
         }
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn analyze_function(&self, func: &HirFunction) -> FunctionMetrics {
         let mut instruction_count = 0;
         let mut allocation_count = 0;
@@ -207,11 +211,12 @@ impl Profiler {
         }
     }
 
+    #[allow(clippy::match_same_arms)]
     fn analyze_stmt(&self, stmt: &HirStmt, loop_depth: usize) -> (usize, usize, f64) {
         match stmt {
-            HirStmt::Assign { value, .. } => self.analyze_assign(value),
-            HirStmt::Expr(expr) => self.analyze_expr_stmt(expr),
-            HirStmt::Return(Some(expr)) => self.analyze_return_with_value(expr),
+            HirStmt::Assign { value, .. } => Self::analyze_assign(value),
+            HirStmt::Expr(expr) => Self::analyze_expr_stmt(expr),
+            HirStmt::Return(Some(expr)) => Self::analyze_return_with_value(expr),
             HirStmt::Return(None) => (1, 0, 1.0),
             HirStmt::If { condition, then_body, else_body } => {
                 self.analyze_if(condition, then_body, else_body.as_deref(), loop_depth)
@@ -222,18 +227,18 @@ impl Profiler {
         }
     }
 
-    fn analyze_assign(&self, value: &HirExpr) -> (usize, usize, f64) {
-        let (inst, alloc) = self.analyze_expr(value);
+    fn analyze_assign(value: &HirExpr) -> (usize, usize, f64) {
+        let (inst, alloc) = Self::analyze_expr(value);
         (inst + 1, alloc, 1.0)
     }
 
-    fn analyze_expr_stmt(&self, expr: &HirExpr) -> (usize, usize, f64) {
-        let (inst, alloc) = self.analyze_expr(expr);
+    fn analyze_expr_stmt(expr: &HirExpr) -> (usize, usize, f64) {
+        let (inst, alloc) = Self::analyze_expr(expr);
         (inst, alloc, 1.0)
     }
 
-    fn analyze_return_with_value(&self, expr: &HirExpr) -> (usize, usize, f64) {
-        let (inst, alloc) = self.analyze_expr(expr);
+    fn analyze_return_with_value(expr: &HirExpr) -> (usize, usize, f64) {
+        let (inst, alloc) = Self::analyze_expr(expr);
         (inst + 1, alloc, 1.0)
     }
 
@@ -244,7 +249,7 @@ impl Profiler {
         else_body: Option<&[HirStmt]>,
         loop_depth: usize,
     ) -> (usize, usize, f64) {
-        let (cond_inst, cond_alloc) = self.analyze_expr(condition);
+        let (cond_inst, cond_alloc) = Self::analyze_expr(condition);
         let mut total_inst = cond_inst + 1;
         let mut total_alloc = cond_alloc;
 
@@ -265,25 +270,27 @@ impl Profiler {
         (total_inst, total_alloc, 1.0)
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap)]
     fn analyze_while(
         &self,
         condition: &HirExpr,
         body: &[HirStmt],
         loop_depth: usize,
     ) -> (usize, usize, f64) {
-        let (cond_inst, cond_alloc) = self.analyze_expr(condition);
+        let (cond_inst, cond_alloc) = Self::analyze_expr(condition);
         let (body_inst, body_alloc) = self.analyze_body(body, loop_depth + 1);
         let loop_factor = 10.0_f64.powi(loop_depth as i32);
         (cond_inst + (body_inst * 10), cond_alloc + (body_alloc * 10), loop_factor)
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap)]
     fn analyze_for(
         &self,
         iter: &HirExpr,
         body: &[HirStmt],
         loop_depth: usize,
     ) -> (usize, usize, f64) {
-        let (iter_inst, iter_alloc) = self.analyze_expr(iter);
+        let (iter_inst, iter_alloc) = Self::analyze_expr(iter);
         let (body_inst, body_alloc) = self.analyze_body(body, loop_depth + 1);
         let loop_factor = 10.0_f64.powi(loop_depth as i32);
         (iter_inst + (body_inst * 10), iter_alloc + (body_alloc * 10), loop_factor)
@@ -300,7 +307,7 @@ impl Profiler {
         (body_inst, body_alloc)
     }
 
-    fn analyze_expr(&self, expr: &HirExpr) -> (usize, usize) {
+    fn analyze_expr(expr: &HirExpr) -> (usize, usize) {
         analyze_expr_inner(expr)
     }
 
@@ -322,6 +329,7 @@ impl Profiler {
         }
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn generate_predictions(&mut self, program: &HirProgram) {
         // Type system optimization prediction
         let type_checks_removed = self.count_type_checks(program);
@@ -331,15 +339,14 @@ impl Profiler {
                 confidence: 0.9,
                 speedup_factor: 1.0 + (type_checks_removed as f64 * 0.1),
                 explanation: format!(
-                    "Rust's type system eliminates {} runtime type checks",
-                    type_checks_removed
+                    "Rust's type system eliminates {type_checks_removed} runtime type checks"
                 ),
                 functions: vec![],
             });
         }
 
         // Iterator optimization prediction
-        let iterator_opportunities = self.count_iterator_opportunities(program);
+        let iterator_opportunities = Self::count_iterator_opportunities(program);
         if iterator_opportunities > 0 {
             self.predictions.push(PerformancePrediction {
                 category: PredictionCategory::IteratorOptimization,
@@ -370,11 +377,12 @@ impl Profiler {
         count
     }
 
+    #[allow(clippy::self_only_used_in_recursion)]
     fn count_type_checks_in_stmt(&self, stmt: &HirStmt) -> usize {
         match stmt {
             HirStmt::If { condition, then_body, else_body } => {
                 let mut count = 0;
-                if self.is_type_check_expr(condition) {
+                if Self::is_type_check_expr(condition) {
                     count += 1;
                 }
                 for s in then_body {
@@ -391,7 +399,7 @@ impl Profiler {
         }
     }
 
-    fn is_type_check_expr(&self, expr: &HirExpr) -> bool {
+    fn is_type_check_expr(expr: &HirExpr) -> bool {
         if let HirExpr::Call { func, .. } = expr {
             func == "isinstance" || func == "type"
         } else {
@@ -399,7 +407,7 @@ impl Profiler {
         }
     }
 
-    fn count_iterator_opportunities(&self, program: &HirProgram) -> usize {
+    fn count_iterator_opportunities(program: &HirProgram) -> usize {
         let mut count = 0;
         for func in &program.functions {
             for stmt in &func.body {
@@ -420,7 +428,7 @@ impl Profiler {
                 annotations.push(ProfilingAnnotation {
                     kind: AnnotationKind::TimingProbe,
                     target: name.clone(),
-                    value: format!("hot_function_{}", name),
+                    value: format!("hot_function_{name}"),
                 });
             }
         }
@@ -461,7 +469,7 @@ impl ProfilingReport {
     /// Format the report for display
     pub fn format_report(&self) -> String {
         let mut output = String::new();
-        self.format_header(&mut output);
+        Self::format_header(&mut output);
         self.format_summary(&mut output);
         self.format_hot_paths(&mut output);
         self.format_function_metrics(&mut output);
@@ -470,45 +478,41 @@ impl ProfilingReport {
         output
     }
 
-    fn format_header(&self, output: &mut String) {
-        output.push_str(&format!("\n{}\n", "Profiling Report".bold().blue()));
-        output.push_str(&format!("{}\n\n", "═".repeat(50)));
+    fn format_header(output: &mut String) {
+        let _ = writeln!(output, "\n{}", "Profiling Report".bold().blue());
+        let _ = writeln!(output, "{}\n", "═".repeat(50));
     }
 
     fn format_summary(&self, output: &mut String) {
-        output.push_str(&format!("{}\n", "Summary".bold()));
-        output.push_str(&format!(
-            "  Total estimated instructions: {}\n",
+        let _ = writeln!(output, "{}", "Summary".bold());
+        let _ = writeln!(output, "  Total estimated instructions: {}",
             self.total_instructions.to_string().yellow()
-        ));
-        output.push_str(&format!(
-            "  Total estimated allocations: {}\n",
+        );
+        let _ = writeln!(output, "  Total estimated allocations: {}",
             self.total_allocations.to_string().yellow()
-        ));
-        output.push_str(&format!(
-            "  Functions analyzed: {}\n\n",
+        );
+        let _ = writeln!(output, "  Functions analyzed: {}\n",
             self.metrics.len().to_string().yellow()
-        ));
+        );
     }
 
     fn format_hot_paths(&self, output: &mut String) {
         if self.hot_paths.is_empty() {
             return;
         }
-        output.push_str(&format!("{}\n", "Hot Paths".bold().red()));
+        let _ = writeln!(output, "{}", "Hot Paths".bold().red());
         for (idx, path) in self.hot_paths.iter().enumerate() {
-            output.push_str(&format!(
-                "  [{}] {} ({:.1}% of execution time)\n",
+            let _ = writeln!(output, "  [{}] {} ({:.1}% of execution time)",
                 idx + 1,
                 path.call_chain.join(" → "),
                 path.time_percentage
-            ));
+            );
         }
         output.push('\n');
     }
 
     fn format_function_metrics(&self, output: &mut String) {
-        output.push_str(&format!("{}\n", "Function Metrics".bold()));
+        let _ = writeln!(output, "{}", "Function Metrics".bold());
         let mut sorted_metrics: Vec<_> = self.metrics.values().collect();
         sorted_metrics.sort_by(|a, b| {
             b.time_percentage.partial_cmp(&a.time_percentage).unwrap_or(std::cmp::Ordering::Equal)
@@ -516,14 +520,13 @@ impl ProfilingReport {
 
         for metrics in sorted_metrics.iter().take(10) {
             let hot_marker = if metrics.is_hot { "🔥" } else { "  " };
-            output.push_str(&format!(
-                "{} {:<30} {:>6.1}% time | {:>6} inst | {:>4} alloc\n",
+            let _ = writeln!(output, "{} {:<30} {:>6.1}% time | {:>6} inst | {:>4} alloc",
                 hot_marker,
                 metrics.name,
                 metrics.time_percentage,
                 metrics.instruction_count,
                 metrics.allocation_count
-            ));
+            );
         }
         output.push('\n');
     }
@@ -532,14 +535,13 @@ impl ProfilingReport {
         if self.predictions.is_empty() {
             return;
         }
-        output.push_str(&format!("{}\n", "Performance Predictions".bold().green()));
+        let _ = writeln!(output, "{}", "Performance Predictions".bold().green());
         for pred in &self.predictions {
-            output.push_str(&format!(
-                "  • {} ({}x speedup, {:.0}% confidence)\n",
+            let _ = writeln!(output, "  • {} ({}x speedup, {:.0}% confidence)",
                 pred.explanation,
                 format!("{:.1}", pred.speedup_factor).green(),
                 pred.confidence * 100.0
-            ));
+            );
         }
         output.push('\n');
     }
@@ -547,15 +549,15 @@ impl ProfilingReport {
     fn format_overall_speedup(&self, output: &mut String) {
         let total_speedup: f64 = self.predictions.iter().map(|p| p.speedup_factor).product();
         if total_speedup > 1.0 {
-            output.push_str(&format!(
-                "{} Estimated overall speedup: {}x\n",
+            let _ = writeln!(output, "{} Estimated overall speedup: {}x",
                 "🚀".green(),
-                format!("{:.1}", total_speedup).bold().green()
-            ));
+                format!("{total_speedup:.1}").bold().green()
+            );
         }
     }
 
     /// Generate flame graph data in collapsed format
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_possible_wrap)]
     pub fn generate_flamegraph_data(&self) -> String {
         let mut lines = Vec::new();
 
@@ -563,7 +565,7 @@ impl ProfilingReport {
             // Simple format: function_name sample_count
             let sample_count = (metrics.time_percentage * 100.0) as usize;
             if sample_count > 0 {
-                lines.push(format!("{} {}", func_name, sample_count));
+                lines.push(format!("{func_name} {sample_count}"));
             }
         }
 
@@ -573,40 +575,41 @@ impl ProfilingReport {
     /// Generate perf-compatible annotations
     pub fn generate_perf_annotations(&self) -> String {
         let annotations: Vec<String> =
-            self.annotations.iter().map(|annotation| self.format_annotation(annotation)).collect();
+            self.annotations.iter().map(Self::format_annotation).collect();
         annotations.join("\n")
     }
 
-    fn format_annotation(&self, annotation: &ProfilingAnnotation) -> String {
+    fn format_annotation(annotation: &ProfilingAnnotation) -> String {
         match annotation.kind {
-            AnnotationKind::TimingProbe => self.format_timing_probe(&annotation.target),
+            AnnotationKind::TimingProbe => Self::format_timing_probe(&annotation.target),
             AnnotationKind::AllocationCounter => {
-                self.format_allocation_counter(&annotation.target, &annotation.value)
+                Self::format_allocation_counter(&annotation.target, &annotation.value)
             }
-            AnnotationKind::HotPathMarker => self.format_hot_path_marker(&annotation.target),
+            AnnotationKind::HotPathMarker => Self::format_hot_path_marker(&annotation.target),
             AnnotationKind::PerformanceHint => {
-                self.format_performance_hint(&annotation.target, &annotation.value)
+                Self::format_performance_hint(&annotation.target, &annotation.value)
             }
         }
     }
 
-    fn format_timing_probe(&self, target: &str) -> String {
-        format!("# @probe {}: timing probe", target)
+    fn format_timing_probe(target: &str) -> String {
+        format!("# @probe {target}: timing probe")
     }
 
-    fn format_allocation_counter(&self, target: &str, value: &str) -> String {
-        format!("# @probe {}: allocation counter = {}", target, value)
+    fn format_allocation_counter(target: &str, value: &str) -> String {
+        format!("# @probe {target}: allocation counter = {value}")
     }
 
-    fn format_hot_path_marker(&self, target: &str) -> String {
-        format!("# @hot {}: hot path marker", target)
+    fn format_hot_path_marker(target: &str) -> String {
+        format!("# @hot {target}: hot path marker")
     }
 
-    fn format_performance_hint(&self, target: &str, value: &str) -> String {
-        format!("# @hint {}: {}", target, value)
+    fn format_performance_hint(target: &str, value: &str) -> String {
+        format!("# @hint {target}: {value}")
     }
 }
 
+#[allow(clippy::match_same_arms)]
 fn analyze_expr_inner(expr: &HirExpr) -> (usize, usize) {
     match expr {
         HirExpr::Literal(_) => (1, 0),

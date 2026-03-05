@@ -39,7 +39,7 @@ fn generate_state_fields(
         .collect()
 }
 
-/// DEPYLER-0772: Convert TypeParam to concrete type for struct fields
+/// DEPYLER-0772: Convert `TypeParam` to concrete type for struct fields
 ///
 /// Generator state structs cannot use bare type parameters like `T` without
 /// declaring them. When a state variable has unknown type that maps to `T`,
@@ -77,12 +77,12 @@ fn box_impl_trait_for_field(
         RustType::Custom(s) if s.starts_with("impl Iterator") => {
             // impl Iterator<Item=T> -> Box<dyn Iterator<Item=T>>
             let boxed = s.replace("impl Iterator", "Box<dyn Iterator");
-            RustType::Custom(format!("{}>", boxed))
+            RustType::Custom(format!("{boxed}>"))
         }
         RustType::Custom(s) if s.starts_with("impl IntoIterator") => {
             // impl IntoIterator<Item=T> -> Box<dyn IntoIterator<Item=T>>
             let boxed = s.replace("impl IntoIterator", "Box<dyn IntoIterator");
-            RustType::Custom(format!("{}>", boxed))
+            RustType::Custom(format!("{boxed}>"))
         }
         other => other.clone(),
     }
@@ -119,8 +119,8 @@ fn generate_param_fields(
 
 /// Extract the Item type for the Iterator from generator return type
 ///
-/// DEPYLER-0263 FIX: Infer yield type from yield analysis, not func.ret_type.
-/// func.ret_type is often Type::Unknown for generators, which maps to DynamicType.
+/// DEPYLER-0263 FIX: Infer yield type from yield analysis, not `func.ret_type`.
+/// `func.ret_type` is often `Type::Unknown` for generators, which maps to `DynamicType`.
 /// Instead, we analyze the actual yield expressions to infer the concrete type.
 ///
 /// # Complexity
@@ -161,6 +161,7 @@ fn extract_generator_item_type(
 ///
 /// # Complexity: 4 (nested match + recursion for tuples)
 #[inline]
+#[allow(clippy::match_same_arms)]
 fn infer_yield_type(expr: &HirExpr) -> Type {
     match expr {
         HirExpr::Literal(lit) => match lit {
@@ -213,6 +214,7 @@ fn generate_state_initializers(state_info: &GeneratorStateInfo) -> Vec<proc_macr
 ///
 /// # Complexity
 /// 4 (iter + filter + map + collect)
+#[allow(clippy::match_same_arms)]
 fn generate_param_initializers(
     func: &HirFunction,
     state_info: &GeneratorStateInfo,
@@ -314,10 +316,10 @@ fn get_default_value_for_type(ty: &Type) -> proc_macro2::TokenStream {
     }
 }
 
-/// Generate state struct name by converting snake_case to PascalCase
+/// Generate state struct name by converting `snake_case` to `PascalCase`
 ///
-/// DEPYLER-0259: Converts snake_case to PascalCase properly
-/// Examples: count_up → CountUpState, counter → CounterState
+/// DEPYLER-0259: Converts `snake_case` to `PascalCase` properly
+/// Examples: `count_up` → `CountUpState`, counter → `CounterState`
 ///
 /// # Complexity: 6 (within ≤10 target)
 #[inline]
@@ -336,7 +338,7 @@ fn generate_state_struct_name(name: &syn::Ident) -> syn::Ident {
         })
         .collect::<String>();
 
-    let state_struct_name = format!("{}State", pascal_case);
+    let state_struct_name = format!("{pascal_case}State");
     syn::Ident::new(&state_struct_name, name.span())
 }
 
@@ -388,7 +390,7 @@ fn generate_generator_body(
     Ok(generator_body_stmts)
 }
 
-/// Convert HirExpr to syn::Expr for code generation
+/// Convert `HirExpr` to `syn::Expr` for code generation
 ///
 /// # Complexity: 1 (direct conversion)
 #[inline]
@@ -631,7 +633,7 @@ fn generate_loop_body_stmts(
 /// 5 (delegated to helper functions)
 #[inline]
 #[allow(clippy::too_many_arguments)] // Generator needs all metadata for complex transformation
-pub fn codegen_generator_function(
+pub(super) fn codegen_generator_function(
     func: &HirFunction,
     name: &syn::Ident,
     generic_params: &proc_macro2::TokenStream,
@@ -652,8 +654,8 @@ pub fn codegen_generator_function(
             if p_str.contains("impl Iterator") && !p_str.contains("'static") {
                 // DEPYLER-1082: Add 'static bound for boxed iterator params
                 // impl Iterator<Item=T> -> impl Iterator<Item=T> + 'static
-                let modified = if p_str.contains(">") {
-                    p_str.replace(">", "> + 'static")
+                let modified = if p_str.contains('>') {
+                    p_str.replace('>', "> + 'static")
                 } else {
                     p_str.clone()
                 };

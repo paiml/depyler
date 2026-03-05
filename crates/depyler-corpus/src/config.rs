@@ -91,6 +91,7 @@ impl Default for CorpusConfig {
 
 impl CorpusConfig {
     /// Create a new config with the specified corpus path.
+    #[must_use]
     pub fn with_corpus_path(mut self, path: PathBuf) -> Self {
         self.corpus_name =
             path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown").to_string();
@@ -99,24 +100,28 @@ impl CorpusConfig {
     }
 
     /// Set the output directory.
+    #[must_use]
     pub fn with_output_dir(mut self, path: PathBuf) -> Self {
         self.output_dir = path;
         self
     }
 
     /// Skip the artifact cleaning phase.
+    #[must_use]
     pub fn with_skip_clean(mut self, skip: bool) -> Self {
         self.skip_clean = skip;
         self
     }
 
     /// Set the target single-shot rate.
+    #[must_use]
     pub fn with_target_rate(mut self, rate: f64) -> Self {
         self.target_rate = rate;
         self
     }
 
     /// Set the depyler binary path.
+    #[must_use]
     pub fn with_depyler_path(mut self, path: PathBuf) -> Self {
         self.depyler_path = Some(path);
         self

@@ -32,7 +32,7 @@ pub struct ErrorFeatures {
     pub code: String,
     /// Frequency count.
     pub count: usize,
-    /// Category index (0-8 for ErrorCategory variants).
+    /// Category index (0-8 for `ErrorCategory` variants).
     pub category_idx: usize,
     /// Is type-related error (E03xx).
     pub is_type_error: bool,
@@ -46,6 +46,7 @@ pub struct ErrorFeatures {
 
 impl ErrorFeatures {
     /// Convert to feature vector for clustering.
+    #[allow(clippy::cast_precision_loss)]
     pub fn to_vector(&self) -> Vec<f64> {
         vec![
             self.count as f64,
@@ -58,6 +59,7 @@ impl ErrorFeatures {
     }
 
     /// Create from error code and count.
+    #[allow(clippy::cast_precision_loss)]
     pub fn from_error(code: &str, count: usize, total_errors: usize) -> Self {
         let category_idx = Self::category_index(code);
         let severity =
@@ -125,6 +127,7 @@ impl ClusterAnalyzer {
     }
 
     /// Set maximum K for elbow method.
+    #[must_use]
     pub fn with_max_k(mut self, max_k: usize) -> Self {
         self.max_k = max_k;
         self
@@ -149,7 +152,7 @@ impl ClusterAnalyzer {
             .map(|(code, &count)| ErrorFeatures::from_error(code, count, total_errors))
             .collect();
 
-        let data: Vec<Vec<f64>> = features.iter().map(|f| f.to_vector()).collect();
+        let data: Vec<Vec<f64>> = features.iter().map(ErrorFeatures::to_vector).collect();
 
         // Determine optimal K using elbow method
         let optimal_k = self.find_optimal_k(&data);
@@ -158,10 +161,10 @@ impl ClusterAnalyzer {
         let (assignments, centroids) = self.kmeans(&data, optimal_k);
 
         // Build clusters
-        let clusters = self.build_clusters(&features, &assignments, &centroids);
+        let clusters = Self::build_clusters(&features, &assignments, &centroids);
 
         // Calculate silhouette score
-        let silhouette = self.calculate_silhouette(&data, &assignments);
+        let silhouette = Self::calculate_silhouette(&data, &assignments);
 
         ClusteringResult {
             clusters,
@@ -184,7 +187,7 @@ impl ClusterAnalyzer {
 
         for k in 2..=max_k {
             let (assignments, centroids) = self.kmeans(data, k);
-            let inertia = self.calculate_inertia(data, &assignments, &centroids);
+            let inertia = Self::calculate_inertia(data, &assignments, &centroids);
 
             if prev_inertia < f64::MAX {
                 let improvement = (prev_inertia - inertia) / prev_inertia;
@@ -200,6 +203,7 @@ impl ClusterAnalyzer {
     }
 
     /// Simple K-means implementation.
+    #[allow(clippy::cast_precision_loss)]
     fn kmeans(&self, data: &[Vec<f64>], k: usize) -> (Vec<usize>, Vec<Vec<f64>>) {
         if data.is_empty() || k == 0 {
             return (vec![], vec![]);
@@ -217,7 +221,7 @@ impl ClusterAnalyzer {
             // Assignment step
             let mut changed = false;
             for (i, point) in data.iter().enumerate() {
-                let nearest = self.nearest_centroid(point, &centroids);
+                let nearest = Self::nearest_centroid(point, &centroids);
                 if assignments[i] != nearest {
                     assignments[i] = nearest;
                     changed = true;
@@ -265,7 +269,7 @@ impl ClusterAnalyzer {
         (assignments, centroids)
     }
 
-    fn nearest_centroid(&self, point: &[f64], centroids: &[Vec<f64>]) -> usize {
+    fn nearest_centroid(point: &[f64], centroids: &[Vec<f64>]) -> usize {
         centroids
             .iter()
             .enumerate()
@@ -273,13 +277,11 @@ impl ClusterAnalyzer {
                 let dist: f64 = point.iter().zip(c.iter()).map(|(a, b)| (a - b).powi(2)).sum();
                 (i, dist)
             })
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap_or(0)
+            .min_by(|a, b| a.1.partial_cmp(&b.1).expect("NaN in distances"))
+            .map_or(0, |(i, _)| i)
     }
 
     fn calculate_inertia(
-        &self,
         data: &[Vec<f64>],
         assignments: &[usize],
         centroids: &[Vec<f64>],
@@ -300,8 +302,8 @@ impl ClusterAnalyzer {
             .sum()
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn build_clusters(
-        &self,
         features: &[ErrorFeatures],
         assignments: &[usize],
         centroids: &[Vec<f64>],
@@ -329,7 +331,9 @@ impl ClusterAnalyzer {
                 // Calculate variance
                 let centroid = if id < centroids.len() { centroids[id].clone() } else { vec![] };
 
-                let variance = if !centroid.is_empty() {
+                let variance = if centroid.is_empty() {
+                    0.0
+                } else {
                     members
                         .iter()
                         .map(|f| {
@@ -341,12 +345,10 @@ impl ClusterAnalyzer {
                         })
                         .sum::<f64>()
                         / members.len() as f64
-                } else {
-                    0.0
                 };
 
                 // Generate label
-                let label = self.generate_cluster_label(&dominant, &members);
+                let label = Self::generate_cluster_label(&dominant, &members);
 
                 ErrorCluster {
                     id,
@@ -361,7 +363,7 @@ impl ClusterAnalyzer {
             .collect()
     }
 
-    fn generate_cluster_label(&self, dominant: &str, members: &[&ErrorFeatures]) -> String {
+    fn generate_cluster_label(dominant: &str, members: &[&ErrorFeatures]) -> String {
         let type_count = members.iter().filter(|f| f.is_type_error).count();
         let resolution_count = members.iter().filter(|f| f.is_resolution_error).count();
         let borrow_count = members.iter().filter(|f| f.is_borrow_error).count();
@@ -373,11 +375,12 @@ impl ClusterAnalyzer {
         } else if borrow_count > members.len() / 2 {
             "Ownership Errors".to_string()
         } else {
-            format!("Mixed Errors (dominant: {})", dominant)
+            format!("Mixed Errors (dominant: {dominant})")
         }
     }
 
-    fn calculate_silhouette(&self, data: &[Vec<f64>], assignments: &[usize]) -> f64 {
+    #[allow(clippy::cast_precision_loss)]
+    fn calculate_silhouette(data: &[Vec<f64>], assignments: &[usize]) -> f64 {
         if data.len() < 2 {
             return 0.0;
         }
@@ -398,7 +401,7 @@ impl ClusterAnalyzer {
             let a = if same_cluster.is_empty() {
                 0.0
             } else {
-                same_cluster.iter().map(|p| self.euclidean_distance(point, p)).sum::<f64>()
+                same_cluster.iter().map(|p| Self::euclidean_distance(point, p)).sum::<f64>()
                     / same_cluster.len() as f64
             };
 
@@ -420,12 +423,13 @@ impl ClusterAnalyzer {
 
                 if !other_points.is_empty() {
                     let avg_dist =
-                        other_points.iter().map(|p| self.euclidean_distance(point, p)).sum::<f64>()
+                        other_points.iter().map(|p| Self::euclidean_distance(point, p)).sum::<f64>()
                             / other_points.len() as f64;
                     min_b = min_b.min(avg_dist);
                 }
             }
 
+            #[allow(clippy::float_cmp)]
             let s = if min_b == f64::MAX || a.max(min_b) == 0.0 {
                 0.0
             } else {
@@ -438,7 +442,7 @@ impl ClusterAnalyzer {
         total_silhouette / data.len() as f64
     }
 
-    fn euclidean_distance(&self, a: &[f64], b: &[f64]) -> f64 {
+    fn euclidean_distance(a: &[f64], b: &[f64]) -> f64 {
         a.iter().zip(b.iter()).map(|(x, y)| (x - y).powi(2)).sum::<f64>().sqrt()
     }
 }

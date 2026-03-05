@@ -86,6 +86,7 @@ impl FixTemplate {
 
     /// Calculate match score for an error message.
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn match_score(&self, error_message: &str) -> f32 {
         let lower = error_message.to_lowercase();
         let matched =
@@ -247,7 +248,7 @@ impl FixTemplateRegistry {
     /// Total template count.
     #[must_use]
     pub fn template_count(&self) -> usize {
-        self.templates.values().map(|v| v.len()).sum()
+        self.templates.values().map(std::vec::Vec::len).sum()
     }
 }
 
@@ -302,7 +303,7 @@ fn register_type_mismatch_templates(registry: &mut FixTemplateRegistry) {
             .with_transform(CodeTransform::new(
                 "Convert &str to String",
                 r#"(".*")"#,
-                r#"$1.to_string()"#,
+                r"$1.to_string()",
                 r#"let s: String = "hello";"#,
                 r#"let s: String = "hello".to_string();"#,
             ))
@@ -620,6 +621,7 @@ fn register_syntax_templates(registry: &mut FixTemplateRegistry) {
 // Bootstrap the top 50 error patterns from corpus analysis
 // ============================================
 
+#[allow(clippy::too_many_lines)]
 fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
     // === E0599: No method found patterns ===
 

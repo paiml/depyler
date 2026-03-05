@@ -1,7 +1,7 @@
 //! Expression Analysis Helpers for Code Generation
 //!
 //! This module contains pure functions for analyzing HIR expressions.
-//! These are extracted from stmt_gen.rs for better testability and reuse.
+//! These are extracted from `stmt_gen.rs` for better testability and reuse.
 //!
 //! PMAT Strategy: 100% unit test coverage for these pure functions.
 
@@ -214,6 +214,7 @@ pub fn needs_type_conversion(target_type: &Type, expr: &HirExpr) -> bool {
 }
 
 /// Check if expression is a pure expression (no side effects)
+#[allow(clippy::match_same_arms)]
 pub fn is_pure_expression(expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Literal(_) | HirExpr::Var(_) => true,
@@ -233,8 +234,8 @@ pub fn is_pure_expression(expr: &HirExpr) -> bool {
 ///
 /// Detects patterns like:
 /// - dict.get(key) without default → Option
-/// - result.ok() → Option
-/// - Chained calls like std::env::var(...).ok()
+/// - `result.ok()` → Option
+/// - Chained calls like `std::env::var(...).ok()`
 /// - Collection methods like first/last/pop/next
 ///
 /// DEPYLER-0455: Enhanced to detect chained method calls
@@ -272,8 +273,8 @@ pub fn looks_like_option_expr(expr: &HirExpr) -> bool {
 ///
 /// Detects patterns like:
 /// - open("file.txt")
-/// - File::create("file.txt")
-/// - File::open("file.txt")
+/// - <File::create("file.txt>")
+/// - <File::open("file.txt>")
 pub fn is_file_creating_expr(expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Call { func, .. } => func == "open",
@@ -329,8 +330,8 @@ pub fn extract_kwarg_bool(kwargs: &[(String, HirExpr)], key: &str) -> Option<boo
     })
 }
 
-/// DEPYLER-E0282-FIX: Check if expression contains chained PyOps (binary operations)
-/// When we have chains like ((a).py_add(b)).py_add(c), Rust can't infer intermediate types.
+/// DEPYLER-E0282-FIX: Check if expression contains chained `PyOps` (binary operations)
+/// When we have chains like ((`a).py_add(b)).py_add(c`), Rust can't infer intermediate types.
 /// This detects expressions with 2+ nested Binary operations using arithmetic operators.
 /// Also looks through Call wrappers like Ok(...) and Some(...) to find nested chains.
 pub fn has_chained_pyops(expr: &HirExpr) -> bool {
@@ -356,7 +357,7 @@ pub fn has_chained_pyops(expr: &HirExpr) -> bool {
 }
 
 /// DEPYLER-E0282-FIX: Extract inner type from Optional<T>
-/// For returns with chained PyOps wrapped in Some, we need to know the inner type T.
+/// For returns with chained `PyOps` wrapped in Some, we need to know the inner type T.
 /// Note: HIR Type enum doesn't have a Result variant (yet), only Optional.
 #[allow(dead_code)]
 pub fn get_inner_optional_type(ty: &Type) -> Option<&Type> {
@@ -366,7 +367,7 @@ pub fn get_inner_optional_type(ty: &Type) -> Option<&Type> {
     }
 }
 
-/// DEPYLER-E0282-FIX: Check if expression is Ok(expr) or Some(expr) with chained PyOps inside
+/// DEPYLER-E0282-FIX: Check if expression is Ok(expr) or Some(expr) with chained `PyOps` inside
 /// Returns the inner binary expression if it's wrapped and has chained ops
 pub fn get_wrapped_chained_pyops(expr: &HirExpr) -> Option<&HirExpr> {
     match expr {
@@ -400,7 +401,7 @@ fn is_direct_chained_pyops(expr: &HirExpr) -> bool {
 }
 
 /// DEPYLER-0943: Check if expression is a dict/HashMap index access
-/// Dict subscript like `config["name"]` returns serde_json::Value, which needs
+/// Dict subscript like `config["name"]` returns `serde_json::Value`, which needs
 /// conversion when returning as String.
 pub fn is_dict_index_access(expr: &HirExpr) -> bool {
     match expr {
@@ -476,7 +477,7 @@ pub fn handler_contains_raise(handler_body: &[crate::hir::HirStmt]) -> bool {
     handler_body.iter().any(|stmt| matches!(stmt, HirStmt::Raise { .. }))
 }
 
-/// DEPYLER-0399: Convert string to PascalCase for enum variants
+/// DEPYLER-0399: Convert string to `PascalCase` for enum variants
 pub fn to_pascal_case(s: &str) -> String {
     s.split(&['-', '_'][..])
         .map(|word| {
@@ -534,9 +535,11 @@ pub fn is_dict_augassign_pattern(target: &crate::hir::AssignTarget, value: &HirE
 
 /// DEPYLER-0790: Check if a nested function is recursive (calls itself)
 /// Returns true if the function body contains a call to the function itself
+#[allow(clippy::too_many_lines)]
 pub fn is_nested_function_recursive(name: &str, body: &[crate::hir::HirStmt]) -> bool {
     use crate::hir::{HirExpr, HirStmt};
 
+    #[allow(clippy::match_same_arms)]
     fn check_expr(expr: &HirExpr, name: &str) -> bool {
         match expr {
             // Direct call to the function by name - func is Symbol, not Box<HirExpr>
@@ -681,11 +684,12 @@ pub fn extract_divisor_from_floor_div(expr: &HirExpr) -> anyhow::Result<&HirExpr
     }
 }
 
-/// DEPYLER-1054: Check if an expression produces a DepylerValue
+/// DEPYLER-1054: Check if an expression produces a `DepylerValue`
 /// This occurs when:
 /// 1. Subscript access on a dict with Unknown value type (heterogeneous)
-/// 2. Variable typed as Type::Unknown in NASA mode
-/// 3. Arithmetic operations on DepylerValue operands
+/// 2. Variable typed as `Type::Unknown` in NASA mode
+/// 3. Arithmetic operations on `DepylerValue` operands
+#[allow(clippy::match_same_arms)]
 pub fn expr_produces_depyler_value(
     expr: &HirExpr,
     ctx: &crate::rust_gen::context::CodeGenContext,
@@ -756,13 +760,13 @@ pub fn expr_produces_depyler_value(
     }
 }
 
-/// DEPYLER-1064: Check if expression produces a NATIVE tuple of DepylerValue elements
+/// DEPYLER-1064: Check if expression produces a NATIVE tuple of `DepylerValue` elements
 ///
 /// This is different from `expr_produces_depyler_value` which checks if the expression
-/// produces a DepylerValue directly. This checks specifically for Tuple[Any, ...] return types
-/// which become native Rust tuples `(DepylerValue, DepylerValue, ...)` rather than DepylerValue::Tuple.
+/// produces a `DepylerValue` directly. This checks specifically for Tuple[Any, ...] return types
+/// which become native Rust tuples `(DepylerValue, DepylerValue, ...)` rather than `DepylerValue::Tuple`.
 ///
-/// For native tuples, we use positional access (.0, .1, .2) instead of get_tuple_elem().
+/// For native tuples, we use positional access (.0, .1, .2) instead of `get_tuple_elem()`.
 pub fn is_native_depyler_tuple(
     expr: &HirExpr,
     ctx: &crate::rust_gen::context::CodeGenContext,
@@ -805,15 +809,15 @@ fn get_expr_type(
     }
 }
 
-/// DEPYLER-1054: Check if a type represents DepylerValue
-/// Matches Type::Unknown and Type::Custom("Any"/"object") which become DepylerValue in NASA mode
+/// DEPYLER-1054: Check if a type represents `DepylerValue`
+/// Matches `Type::Unknown` and `Type::Custom("Any"/"object`") which become `DepylerValue` in NASA mode
 fn is_depyler_value_type(ty: &crate::hir::Type) -> bool {
     use crate::hir::Type;
     matches!(ty, Type::Unknown) || matches!(ty, Type::Custom(s) if s == "Any" || s == "object")
 }
 
 /// DEPYLER-1054: Get the extraction call for a target type
-/// Returns the method to call on DepylerValue to extract the concrete value
+/// Returns the method to call on `DepylerValue` to extract the concrete value
 pub fn get_depyler_extraction_for_type(target_type: &crate::hir::Type) -> Option<&'static str> {
     use crate::hir::Type;
     match target_type {

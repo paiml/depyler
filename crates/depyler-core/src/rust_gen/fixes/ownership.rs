@@ -27,6 +27,7 @@ pub(super) fn fix_borrow_into_iter_chain(code: &str) -> String {
 // ── fix_borrowed_alias_in_new_calls and helpers ──────────────────────────
 
 /// Collect type aliases that resolve to String (e.g. `type Name = String;`).
+#[allow(clippy::manual_let_else)]
 fn collect_string_type_aliases(code: &str) -> Vec<String> {
     let mut aliases = Vec::new();
     for line in code.lines() {
@@ -67,7 +68,7 @@ fn collect_borrowed_params(code: &str, string_aliases: &[String]) -> Vec<String>
 
 /// Extract a parameter name from a line that contains `: &Alias`.
 fn extract_borrowed_param_name(trimmed: &str, alias: &str) -> Option<String> {
-    let pattern = format!(": &{}", alias);
+    let pattern = format!(": &{alias}");
     let pos = trimmed.find(&pattern)?;
     let before = trimmed[..pos].trim();
     let param = before
@@ -100,20 +101,20 @@ fn clone_borrowed_param_in_line(line: &str, borrowed_params: &[String]) -> Strin
     let mut modified = line.to_string();
     for param in borrowed_params {
         let patterns = [
-            (format!(", {},", param), format!(", {}.clone(),", param)),
-            (format!(", {})", param), format!(", {}.clone())", param)),
-            (format!("({},", param), format!("({}.clone(),", param)),
-            (format!("({})", param), format!("({}.clone())", param)),
+            (format!(", {param},"), format!(", {param}.clone(),")),
+            (format!(", {param})"), format!(", {param}.clone())")),
+            (format!("({param},"), format!("({param}.clone(),")),
+            (format!("({param})"), format!("({param}.clone())")),
         ];
         for (from, to) in &patterns {
             modified = modified.replace(from, to);
         }
         // Handle standalone arg on its own line: `        param,`
         let arg_trimmed = modified.trim();
-        if arg_trimmed == format!("{},", param) || arg_trimmed == format!("{})", param) {
+        if arg_trimmed == format!("{param},") || arg_trimmed == format!("{param})") {
             let indent = &modified[..modified.len() - modified.trim_start().len()];
             let suffix = if arg_trimmed.ends_with(',') { "," } else { ")" };
-            modified = format!("{}{}.clone(){}", indent, param, suffix);
+            modified = format!("{indent}{param}.clone(){suffix}");
         }
     }
     modified
@@ -161,7 +162,7 @@ pub(super) fn fix_borrowed_alias_in_new_calls(code: &str) -> String {
 // ── fix_deref_string_comparison and helpers ──────────────────────────────
 
 /// Check if a `(*var)` at the given position is followed by `== "` or `!= "`.
-fn is_deref_comparison(result: &str, abs_pos: usize, var_end: usize) -> bool {
+fn is_deref_comparison(result: &str, _abs_pos: usize, var_end: usize) -> bool {
     let after_close = &result[var_end..];
     let trimmed = after_close.trim_start();
     trimmed.starts_with("== \"") || trimmed.starts_with("!= \"")
@@ -183,7 +184,7 @@ fn try_replace_deref_comparison(result: &str, i: usize) -> Option<(String, usize
     if !is_deref_comparison(result, abs_pos, var_end) {
         return None;
     }
-    let old = format!("(*{})", var_name);
+    let old = format!("(*{var_name})");
     let new = var_name.to_string();
     let replaced = format!("{}{}{}", &result[..abs_pos], new, &result[abs_pos + old.len()..]);
     Some((replaced, abs_pos + new.len()))
@@ -214,7 +215,7 @@ pub(super) fn fix_deref_string_comparison(code: &str) -> String {
 pub(super) fn fix_deref_unwrap_result(code: &str) -> String {
     let mut result = code.to_string();
     for method in &["unwrap_or_default()", "unwrap()", "unwrap_or(0)", "unwrap_or(0.0)"] {
-        let search = format!(".{}", method);
+        let search = format!(".{method}");
         let mut i = 0;
         while i < result.len() {
             let Some(pos) = result[i..].find(&search) else {
@@ -304,19 +305,19 @@ pub(super) fn apply_deref_in_new_calls(code: &str, params: &[String]) -> String 
     result
 }
 
-/// Replace a param reference with `*param` when it appears as a standalone arg in a ::new() call.
+/// Replace a param reference with `*param` when it appears as a standalone arg in a `::new()` call.
 fn deref_param_in_new_call_line(line: &str, param: &str) -> String {
     let trimmed = line.trim();
-    if trimmed == format!("{},", param) {
-        line.replace(&format!("{},", param), &format!("*{},", param))
-    } else if trimmed == format!("{})", param) {
-        line.replace(&format!("{})", param), &format!("*{})", param))
+    if trimmed == format!("{param},") {
+        line.replace(&format!("{param},"), &format!("*{param},"))
+    } else if trimmed == format!("{param})") {
+        line.replace(&format!("{param})"), &format!("*{param})"))
     } else {
         line.to_string()
     }
 }
 
-/// Fix `(*ref_option.unwrap_or_default())` where ref_option is `&Option<T>`.
+/// Fix `(*ref_option.unwrap_or_default())` where `ref_option` is `&Option<T>`.
 /// Deref the reference first: `(*VAR).unwrap_or_default()` (works for Copy types).
 pub(super) fn fix_deref_ref_option_unwrap(code: &str) -> String {
     let mut result = code.to_string();
@@ -335,8 +336,8 @@ pub(super) fn fix_deref_ref_option_unwrap(code: &str) -> String {
         if let Some(star_pos) = before.rfind("(*") {
             let var = result[star_pos + 2..abs].trim().to_string();
             if var.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
-                let old = format!("(*{}.unwrap_or_default())", var);
-                let new = format!("(*{}).unwrap_or_default()", var);
+                let old = format!("(*{var}.unwrap_or_default())");
+                let new = format!("(*{var}).unwrap_or_default()");
                 result = result.replacen(&old, &new, 1);
                 i = star_pos + new.len();
                 continue;
@@ -349,7 +350,7 @@ pub(super) fn fix_deref_ref_option_unwrap(code: &str) -> String {
 
 // ── fix_immutable_ref_to_mut and helpers ─────────────────────────────────
 
-/// Collect a map of function name -> Vec<param_index> for &mut parameters.
+/// Collect a map of function name -> Vec<`param_index`> for &mut parameters.
 fn collect_mut_param_map(code: &str) -> std::collections::HashMap<String, Vec<usize>> {
     use std::collections::HashMap;
     let mut mut_params: HashMap<String, Vec<usize>> = HashMap::new();
@@ -393,7 +394,7 @@ pub(super) fn fix_immutable_ref_to_mut(code: &str) -> String {
         }
         let mut line_str = line.to_string();
         for (fname, positions) in &mut_params {
-            let pat = format!("{}(", fname);
+            let pat = format!("{fname}(");
             if let Some(pos) = line_str.find(&pat) {
                 if !is_word_boundary_call(&line_str, pos) {
                     continue;
@@ -521,7 +522,7 @@ fn find_call_args_end(line: &str, args_start: usize) -> usize {
 
 /// Fix a single call site: change `&arg` to `&mut arg` at specified positions.
 pub(super) fn fix_mut_args_in_call(line: &str, fname: &str, positions: &[usize]) -> String {
-    let pat = format!("{}(", fname);
+    let pat = format!("{fname}(");
     let call_pos = match line.find(&pat) {
         Some(p) => {
             if !is_word_boundary_call(line, p) {
@@ -626,8 +627,9 @@ fn collect_fn_string_param_names(code: &str) -> Vec<String> {
 }
 
 /// Replace `name(&var)` calls with `name(var.clone())` for a single fn param name.
+#[allow(clippy::format_push_string)]
 fn replace_ref_calls_with_clone(result: &str, name: &str) -> String {
-    let re_pattern = format!(r"{}(&", name);
+    let re_pattern = format!(r"{name}(&");
     if !result.contains(&re_pattern) {
         return result.to_string();
     }
@@ -636,11 +638,11 @@ fn replace_ref_calls_with_clone(result: &str, name: &str) -> String {
     while let Some(idx) = result[pos..].find(&re_pattern) {
         let abs_idx = pos + idx;
         new_result.push_str(&result[pos..abs_idx]);
-        new_result.push_str(&format!("{}(", name));
+        new_result.push_str(&format!("{name}("));
         let after = abs_idx + re_pattern.len();
         if let Some(close) = result[after..].find(')') {
             let var = &result[after..after + close];
-            new_result.push_str(&format!("{}.clone())", var));
+            new_result.push_str(&format!("{var}.clone())"));
             pos = after + close + 1;
         } else {
             new_result.push_str(&result[after..]);
@@ -688,7 +690,7 @@ fn try_parse_double_expect(trimmed: &str) -> Option<(String, String, String)> {
     if exp1_close >= trimmed.len() || trimmed.as_bytes()[exp1_close] != b')' {
         return None;
     }
-    let first_expect_result = trimmed[star_idx + 2..exp1_close + 1].to_string();
+    let first_expect_result = trimmed[(star_idx + 2)..=exp1_close].to_string();
     let after = &trimmed[exp1_close + 1..];
     if !after.starts_with(").expect(") {
         return None;
@@ -702,9 +704,9 @@ fn try_parse_double_expect(trimmed: &str) -> Option<(String, String, String)> {
 
 /// DEPYLER-99MODE-S9: Fix `(*opt.expect(...)).expect(...)` double-unwrap on Option<i32>.
 ///
-/// Pattern: `(*maybe_value.expect("msg1")).expect("msg2")` where maybe_value: &Option<i32>.
-/// The first .expect() unwraps Option->i32, then (*i32).expect() is nonsensical.
-/// Fix: remove dereference and second .expect(), keep just `maybe_value.expect("msg1")`.
+/// Pattern: `(*maybe_value.expect("msg1")).expect("msg2")` where `maybe_value`: &Option<i32>.
+/// The first .`expect()` unwraps Option->i32, then (*`i32).expect()` is nonsensical.
+/// Fix: remove dereference and second .`expect()`, keep just `maybe_value.expect("msg1")`.
 pub(super) fn fix_double_expect_on_option_ref(code: &str) -> String {
     if !code.contains(".expect(") {
         return code.to_string();
@@ -714,7 +716,7 @@ pub(super) fn fix_double_expect_on_option_ref(code: &str) -> String {
         let trimmed = line.trim();
         if let Some((prefix, first_expect_result, suffix)) = try_parse_double_expect(trimmed) {
             let indent = &line[..line.len() - line.trim_start().len()];
-            let new_trimmed = format!("{}{}{}", prefix, first_expect_result, suffix);
+            let new_trimmed = format!("{prefix}{first_expect_result}{suffix}");
             result.push_str(indent);
             result.push_str(&new_trimmed);
         } else {
@@ -768,21 +770,21 @@ fn find_captured_vars(lines: &[&str], closure_start: usize, closure_end: usize) 
     captured_vars
 }
 
-/// Build the list of (old_pattern, new_pattern) replacements for a captured variable.
+/// Build the list of (`old_pattern`, `new_pattern`) replacements for a captured variable.
 fn build_clone_replacement_patterns(var: &str) -> Vec<(String, String)> {
-    let clone_name = format!("{}_clone", var);
+    let clone_name = format!("{var}_clone");
     vec![
-        (format!("{}.get", var), format!("{}.get", clone_name)),
-        (format!("{}.insert", var), format!("{}.insert", clone_name)),
-        (format!("{}.contains", var), format!("{}.contains", clone_name)),
-        (format!("{}.entry", var), format!("{}.entry", clone_name)),
-        (format!("{}.len", var), format!("{}.len", clone_name)),
-        (format!("{}.push", var), format!("{}.push", clone_name)),
-        (format!("{}.clone", var), format!("{}.clone", clone_name)),
-        (format!("{}.remove", var), format!("{}.remove", clone_name)),
-        (format!(" {} ", var), format!(" {} ", clone_name)),
-        (format!("[{} as", var), format!("[{} as", clone_name)),
-        (format!("[{}]", var), format!("[{}]", clone_name)),
+        (format!("{var}.get"), format!("{clone_name}.get")),
+        (format!("{var}.insert"), format!("{clone_name}.insert")),
+        (format!("{var}.contains"), format!("{clone_name}.contains")),
+        (format!("{var}.entry"), format!("{clone_name}.entry")),
+        (format!("{var}.len"), format!("{clone_name}.len")),
+        (format!("{var}.push"), format!("{clone_name}.push")),
+        (format!("{var}.clone"), format!("{clone_name}.clone")),
+        (format!("{var}.remove"), format!("{clone_name}.remove")),
+        (format!(" {var} "), format!(" {clone_name} ")),
+        (format!("[{var} as"), format!("[{clone_name} as")),
+        (format!("[{var}]"), format!("[{clone_name}]")),
     ]
 }
 
@@ -790,7 +792,7 @@ fn build_clone_replacement_patterns(var: &str) -> Vec<(String, String)> {
 fn rewrite_closure_body_line(line: &str, captured_vars: &[String]) -> String {
     let mut result = line.to_string();
     for var in captured_vars {
-        let clone_name = format!("{}_clone", var);
+        let clone_name = format!("{var}_clone");
         let patterns = build_clone_replacement_patterns(var);
         for (old, new) in &patterns {
             if result.contains(old.as_str()) && !result.contains(&clone_name) {
@@ -801,7 +803,7 @@ fn rewrite_closure_body_line(line: &str, captured_vars: &[String]) -> String {
     result
 }
 
-#[allow(dead_code)]
+#[allow(clippy::format_push_string, dead_code)]
 pub(super) fn fix_move_closure_capture(code: &str) -> String {
     if !code.contains("move |") {
         return code.to_string();
@@ -826,7 +828,7 @@ pub(super) fn fix_move_closure_capture(code: &str) -> String {
 
         // Add clone statements before the closure
         for var in &captured_vars {
-            result.push_str(&format!("{}let {}_clone = {}.clone();\n", indent, var, var));
+            result.push_str(&format!("{indent}let {var}_clone = {var}.clone();\n"));
         }
 
         // Insert the original closure line
@@ -868,7 +870,7 @@ fn find_fn_keyword_pos(trimmed: &str) -> Option<usize> {
     None
 }
 
-/// Parse a function signature to extract (fn_name, vec_of_string_param_positions).
+/// Parse a function signature to extract (`fn_name`, `vec_of_string_param_positions`).
 fn parse_string_param_fn(trimmed: &str) -> Option<(String, Vec<usize>)> {
     let fn_start = find_fn_keyword_pos(trimmed)?;
     if !trimmed[fn_start..].contains('(') || !trimmed.contains("String") {
@@ -909,11 +911,11 @@ fn collect_string_param_fns(code: &str) -> Vec<(String, Vec<usize>)> {
 
 /// Try to replace a `fn_name(& var)` or `fn_name(&var)` pattern with `fn_name(var.clone())`.
 fn try_replace_ref_arg_with_clone(line: &str, fn_name: &str) -> String {
-    let ref_pattern_spaced = format!("{}(& ", fn_name);
+    let ref_pattern_spaced = format!("{fn_name}(& ");
     if let Some(new_line) = try_clone_ref_pattern(line, fn_name, &ref_pattern_spaced) {
         return new_line;
     }
-    let ref_pattern_tight = format!("{}(&", fn_name);
+    let ref_pattern_tight = format!("{fn_name}(&");
     if let Some(new_line) = try_clone_ref_pattern(line, fn_name, &ref_pattern_tight) {
         return new_line;
     }
@@ -930,8 +932,8 @@ fn try_clone_ref_pattern(line: &str, fn_name: &str, pattern: &str) -> Option<Str
         return None;
     }
     let delim = if after.as_bytes()[end] == b')' { ")" } else { "," };
-    let old = format!("{}{}{}", pattern, var, delim);
-    let new_str = format!("{}({}.clone(){}", fn_name, var, delim);
+    let old = format!("{pattern}{var}{delim}");
+    let new_str = format!("{fn_name}({var}.clone(){delim}");
     Some(line.replace(&old, &new_str))
 }
 
@@ -945,7 +947,7 @@ pub(super) fn fix_ref_string_to_owned_in_call(code: &str) -> String {
         let mut new_line = line.to_string();
         let trimmed = line.trim();
         for (fn_name, positions) in &string_param_fns {
-            let call_pattern = format!("{}(", fn_name);
+            let call_pattern = format!("{fn_name}(");
             if !trimmed.contains(&call_pattern) {
                 continue;
             }
@@ -1010,7 +1012,7 @@ fn collect_vars_needing_mut(code: &str, mut_methods: &[String]) -> Vec<String> {
 
 /// Extract the variable name that calls `.method(` from a line.
 fn extract_caller_var(trimmed: &str, method: &str) -> Option<String> {
-    let call_pattern = format!(".{}(", method);
+    let call_pattern = format!(".{method}(");
     let dot_idx = trimmed.find(&call_pattern)?;
     let before = trimmed[..dot_idx].trim();
     let var = before.split(|c: char| !c.is_alphanumeric() && c != '_').next_back().unwrap_or("");
@@ -1042,13 +1044,13 @@ fn apply_mut_to_declarations(code: &str, vars_needing_mut: &[String]) -> String 
 /// Add `mut` to a `let VAR =` or `let VAR:` binding if not already present.
 fn add_mut_to_let_binding(line: &str, var: &str) -> String {
     let mut result = line.to_string();
-    let non_mut = format!("let {} =", var);
-    let with_mut = format!("let mut {} =", var);
+    let non_mut = format!("let {var} =");
+    let with_mut = format!("let mut {var} =");
     if result.contains(&non_mut) && !result.contains(&with_mut) {
         result = result.replace(&non_mut, &with_mut);
     }
-    let non_mut_typed = format!("let {}:", var);
-    let with_mut_typed = format!("let mut {}:", var);
+    let non_mut_typed = format!("let {var}:");
+    let with_mut_typed = format!("let mut {var}:");
     if result.contains(&non_mut_typed) && !result.contains(&with_mut_typed) {
         result = result.replace(&non_mut_typed, &with_mut_typed);
     }
@@ -1130,7 +1132,7 @@ fn process_fn_signature_for_ref_param(
 
 /// Add `&` before the first argument in a call if it's not already a reference.
 fn add_ref_to_first_call_arg(line: &str, fn_name: &str) -> String {
-    let call_pat = format!("{}(", fn_name);
+    let call_pat = format!("{fn_name}(");
     let Some(call_pos) = line.find(&call_pat) else {
         return line.to_string();
     };

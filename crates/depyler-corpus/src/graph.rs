@@ -1,6 +1,6 @@
 //! Graph-based error analysis module (DEPYLER-REPORT-V2).
 //!
-//! Uses graph algorithms (PageRank, Louvain community detection) to identify
+//! Uses graph algorithms (`PageRank`, Louvain community detection) to identify
 //! central error patterns and error communities for targeted fixing.
 
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,7 @@ pub struct ErrorNode {
     pub code: String,
     /// Frequency count.
     pub count: usize,
-    /// PageRank score (0.0-1.0, higher = more central).
+    /// `PageRank` score (0.0-1.0, higher = more central).
     pub pagerank: f64,
     /// Community ID from Louvain algorithm.
     pub community: usize,
@@ -54,7 +54,7 @@ pub struct ErrorGraph {
     pub edges: Vec<ErrorEdge>,
     /// Detected communities.
     pub communities: Vec<ErrorCommunity>,
-    /// Top errors by PageRank.
+    /// Top errors by `PageRank`.
     pub top_by_pagerank: Vec<String>,
     /// Modularity score of community detection.
     pub modularity: f64,
@@ -62,9 +62,9 @@ pub struct ErrorGraph {
 
 /// Graph analyzer for error patterns.
 pub struct GraphAnalyzer {
-    /// Damping factor for PageRank (typically 0.85).
+    /// Damping factor for `PageRank` (typically 0.85).
     damping: f64,
-    /// Maximum iterations for PageRank.
+    /// Maximum iterations for `PageRank`.
     max_iterations: usize,
     /// Convergence threshold.
     convergence: f64,
@@ -103,16 +103,17 @@ impl GraphAnalyzer {
         }
 
         // Build edges from co-occurrences
-        let edges = self.build_edges(co_occurrences, error_counts);
+        let edges = Self::build_edges(co_occurrences, error_counts);
 
         // Build adjacency map for PageRank
-        let adjacency = self.build_adjacency(&edges, error_counts);
+        let adjacency = Self::build_adjacency(&edges, error_counts);
 
         // Calculate PageRank scores
-        let pagerank = self.pagerank(&adjacency, error_counts.keys().cloned().collect());
+        let node_keys: Vec<String> = error_counts.keys().cloned().collect();
+        let pagerank = self.pagerank(&adjacency, &node_keys);
 
         // Detect communities using Louvain
-        let (community_map, modularity) = self.louvain_communities(&adjacency, error_counts);
+        let (community_map, modularity) = Self::louvain_communities(&adjacency, error_counts);
 
         // Build nodes with PageRank and community info
         let mut nodes: Vec<ErrorNode> = error_counts
@@ -126,19 +127,19 @@ impl GraphAnalyzer {
             .collect();
 
         // Sort by PageRank descending
-        nodes.sort_by(|a, b| b.pagerank.partial_cmp(&a.pagerank).unwrap());
+        nodes.sort_by(|a, b| b.pagerank.partial_cmp(&a.pagerank).expect("NaN in pagerank"));
 
         // Top errors by PageRank
         let top_by_pagerank: Vec<String> = nodes.iter().take(5).map(|n| n.code.clone()).collect();
 
         // Build communities
-        let communities = self.build_communities(&nodes, &community_map);
+        let communities = Self::build_communities(&nodes, &community_map);
 
         ErrorGraph { nodes, edges, communities, top_by_pagerank, modularity }
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn build_edges(
-        &self,
         co_occurrences: &HashMap<(String, String), usize>,
         error_counts: &HashMap<String, usize>,
     ) -> Vec<ErrorEdge> {
@@ -154,7 +155,6 @@ impl GraphAnalyzer {
     }
 
     fn build_adjacency(
-        &self,
         edges: &[ErrorEdge],
         error_counts: &HashMap<String, usize>,
     ) -> HashMap<String, Vec<(String, f64)>> {
@@ -174,11 +174,12 @@ impl GraphAnalyzer {
         adjacency
     }
 
-    /// Calculate PageRank scores for error nodes.
+    /// Calculate `PageRank` scores for error nodes.
+    #[allow(clippy::cast_precision_loss)]
     fn pagerank(
         &self,
         adjacency: &HashMap<String, Vec<(String, f64)>>,
-        nodes: Vec<String>,
+        nodes: &[String],
     ) -> HashMap<String, f64> {
         let n = nodes.len();
         if n == 0 {
@@ -193,7 +194,7 @@ impl GraphAnalyzer {
             let mut new_scores: HashMap<String, f64> = HashMap::new();
             let mut max_diff = 0.0f64;
 
-            for node in &nodes {
+            for node in nodes {
                 // Sum contributions from incoming edges
                 let incoming_sum: f64 = adjacency
                     .iter()
@@ -236,7 +237,6 @@ impl GraphAnalyzer {
 
     /// Detect communities using simplified Louvain algorithm.
     fn louvain_communities(
-        &self,
         adjacency: &HashMap<String, Vec<(String, f64)>>,
         error_counts: &HashMap<String, usize>,
     ) -> (HashMap<String, usize>, f64) {
@@ -284,7 +284,7 @@ impl GraphAnalyzer {
                         continue;
                     }
 
-                    let delta = self.modularity_delta(
+                    let delta = Self::modularity_delta(
                         node,
                         current_comm,
                         new_comm,
@@ -319,13 +319,12 @@ impl GraphAnalyzer {
         }
 
         // Calculate final modularity
-        let modularity = self.calculate_modularity(&community, adjacency, total_weight);
+        let modularity = Self::calculate_modularity(&community, adjacency, total_weight);
 
         (community, modularity)
     }
 
     fn modularity_delta(
-        &self,
         node: &str,
         from_comm: usize,
         to_comm: usize,
@@ -340,32 +339,29 @@ impl GraphAnalyzer {
         // Sum of weights to nodes in target community
         let k_in: f64 = adjacency
             .get(node)
-            .map(|neighbors| {
+            .map_or(0.0, |neighbors| {
                 neighbors
                     .iter()
                     .filter(|(n, _)| *community.get(n).unwrap_or(&0) == to_comm)
                     .map(|(_, w)| w)
                     .sum()
-            })
-            .unwrap_or(0.0);
+            });
 
         // Sum of weights to nodes in source community
         let k_out: f64 = adjacency
             .get(node)
-            .map(|neighbors| {
+            .map_or(0.0, |neighbors| {
                 neighbors
                     .iter()
                     .filter(|(n, _)| *community.get(n).unwrap_or(&0) == from_comm)
                     .map(|(_, w)| w)
                     .sum()
-            })
-            .unwrap_or(0.0);
+            });
 
         // Node degree
         let k_i: f64 = adjacency
             .get(node)
-            .map(|neighbors| neighbors.iter().map(|(_, w)| w).sum())
-            .unwrap_or(0.0);
+            .map_or(0.0, |neighbors| neighbors.iter().map(|(_, w)| w).sum());
 
         // Sum of degrees in target community
         let sigma_tot: f64 = community
@@ -374,8 +370,7 @@ impl GraphAnalyzer {
             .map(|(n, _)| {
                 adjacency
                     .get(n)
-                    .map(|neighbors| neighbors.iter().map(|(_, w)| w).sum())
-                    .unwrap_or(0.0)
+                    .map_or(0.0, |neighbors| neighbors.iter().map(|(_, w)| w).sum())
             })
             .sum();
 
@@ -385,7 +380,6 @@ impl GraphAnalyzer {
     }
 
     fn calculate_modularity(
-        &self,
         community: &HashMap<String, usize>,
         adjacency: &HashMap<String, Vec<(String, f64)>>,
         total_weight: f64,
@@ -399,7 +393,7 @@ impl GraphAnalyzer {
 
         for (node_i, &comm_i) in community {
             let k_i: f64 =
-                adjacency.get(node_i).map(|n| n.iter().map(|(_, w)| w).sum()).unwrap_or(0.0);
+                adjacency.get(node_i).map_or(0.0, |n| n.iter().map(|(_, w)| w).sum());
 
             for (node_j, &comm_j) in community {
                 if comm_i != comm_j {
@@ -407,14 +401,13 @@ impl GraphAnalyzer {
                 }
 
                 let k_j: f64 =
-                    adjacency.get(node_j).map(|n| n.iter().map(|(_, w)| w).sum()).unwrap_or(0.0);
+                    adjacency.get(node_j).map_or(0.0, |n| n.iter().map(|(_, w)| w).sum());
 
                 // Edge weight between i and j
                 let a_ij: f64 = adjacency
                     .get(node_i)
                     .and_then(|neighbors| neighbors.iter().find(|(n, _)| n == node_j))
-                    .map(|(_, w)| *w)
-                    .unwrap_or(0.0);
+                    .map_or(0.0, |(_, w)| *w);
 
                 q += a_ij - k_i * k_j / (2.0 * m);
             }
@@ -424,7 +417,6 @@ impl GraphAnalyzer {
     }
 
     fn build_communities(
-        &self,
         nodes: &[ErrorNode],
         community_map: &HashMap<String, usize>,
     ) -> Vec<ErrorCommunity> {
@@ -448,14 +440,14 @@ impl GraphAnalyzer {
 
                 let total_count: usize = members.iter().map(|n| n.count).sum();
 
-                let label = self.generate_community_label(&members);
+                let label = Self::generate_community_label(&members);
 
                 ErrorCommunity { id, members: member_codes, dominant, total_count, label }
             })
             .collect()
     }
 
-    fn generate_community_label(&self, members: &[&ErrorNode]) -> String {
+    fn generate_community_label(members: &[&ErrorNode]) -> String {
         if members.is_empty() {
             return "Empty Community".to_string();
         }
@@ -554,7 +546,7 @@ mod tests {
         adjacency.insert("C".to_string(), vec![("B".to_string(), 1.0)]);
 
         let nodes = vec!["A".to_string(), "B".to_string(), "C".to_string()];
-        let scores = analyzer.pagerank(&adjacency, nodes);
+        let scores = analyzer.pagerank(&adjacency, &nodes);
 
         // All scores should sum to ~1.0
         let sum: f64 = scores.values().sum();

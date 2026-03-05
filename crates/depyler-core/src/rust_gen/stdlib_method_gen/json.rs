@@ -1,7 +1,7 @@
 //! JSON Module Code Generation - EXTREME TDD
 //!
-//! Handles Python `json` module method conversions to Rust serde_json.
-//! Extracted from expr_gen.rs for testability and maintainability.
+//! Handles Python `json` module method conversions to Rust `serde_json`.
+//! Extracted from `expr_gen.rs` for testability and maintainability.
 //!
 //! Coverage target: 100% line coverage, 100% branch coverage
 
@@ -10,7 +10,7 @@ use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-/// Convert Python json module method calls to Rust serde_json
+/// Convert Python json module method calls to Rust `serde_json`
 ///
 /// # Supported Methods
 /// - `json.dumps(obj)` → `serde_json::to_string(&obj).unwrap()`
@@ -20,7 +20,7 @@ use syn::parse_quote;
 /// - `json.load(file)` → `serde_json::from_reader::<_, Value>(file).unwrap()`
 ///
 /// DEPYLER-1022: NASA mode support - returns stub implementations that don't
-/// require serde_json external crate.
+/// require `serde_json` external crate.
 ///
 /// # Complexity: 5 (match with 5 branches)
 pub fn convert_json_method(
@@ -39,7 +39,7 @@ pub fn convert_json_method(
             "loads" => convert_loads_nasa(&arg_exprs, ctx)?,
             "dump" => convert_dump_nasa(&arg_exprs)?,
             "load" => convert_load_nasa(&arg_exprs, ctx)?,
-            _ => bail!("json.{} not implemented yet", method),
+            _ => bail!("json.{method} not implemented yet"),
         };
         return Ok(Some(result));
     }
@@ -52,13 +52,13 @@ pub fn convert_json_method(
         "loads" => convert_loads(&arg_exprs, ctx)?,
         "dump" => convert_dump(&arg_exprs)?,
         "load" => convert_load(&arg_exprs, ctx)?,
-        _ => bail!("json.{} not implemented yet", method),
+        _ => bail!("json.{method} not implemented yet"),
     };
 
     Ok(Some(result))
 }
 
-/// Convert json.dumps() call
+/// Convert `json.dumps()` call
 fn convert_dumps(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.is_empty() || arg_exprs.len() > 2 {
         bail!("json.dumps() requires 1 or 2 arguments");
@@ -75,7 +75,7 @@ fn convert_dumps(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     }
 }
 
-/// Convert json.loads() call
+/// Convert `json.loads()` call
 fn convert_loads(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("json.loads() requires exactly 1 argument");
@@ -110,7 +110,7 @@ fn convert_loads(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<sy
     }
 }
 
-/// Convert json.dump() call
+/// Convert `json.dump()` call
 fn convert_dump(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 2 {
         bail!("json.dump() requires exactly 2 arguments (obj, file)");
@@ -120,7 +120,7 @@ fn convert_dump(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { serde_json::to_writer(#file, &#obj).expect("JSON operation failed") })
 }
 
-/// Convert json.load() call
+/// Convert `json.load()` call
 fn convert_load(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("json.load() requires exactly 1 argument (file)");
@@ -160,7 +160,7 @@ pub fn return_type_is_dict_list_union(ctx: &CodeGenContext) -> Option<String> {
     None
 }
 
-/// DEPYLER-0560: Check if function return type requires serde_json::Value
+/// DEPYLER-0560: Check if function return type requires `serde_json::Value`
 pub fn return_type_needs_json_dict(ctx: &CodeGenContext) -> bool {
     // Check assignment target type first
     if let Some(ref assign_type) = ctx.current_assign_type {
@@ -191,7 +191,7 @@ pub fn return_type_needs_json_dict(ctx: &CodeGenContext) -> bool {
     }
 }
 
-/// Check if a type represents serde_json::Value
+/// Check if a type represents `serde_json::Value`
 fn is_json_value_type(t: &Type) -> bool {
     match t {
         Type::Unknown => true,
@@ -200,10 +200,10 @@ fn is_json_value_type(t: &Type) -> bool {
     }
 }
 
-/// DEPYLER-1153: Check if return type expects DepylerValue keys
-/// DEPYLER-1318-FIX: Bare Dict and Dict(Unknown, _) use String keys, NOT DepylerValue keys!
-/// This aligns with stmt_gen.rs line 6885 and type_mapper.rs DEPYLER-1318 Dict Unification.
-/// Only explicit DepylerValue key type (rare) would return true here.
+/// DEPYLER-1153: Check if return type expects `DepylerValue` keys
+/// DEPYLER-1318-FIX: Bare Dict and Dict(Unknown, _) use String keys, NOT `DepylerValue` keys!
+/// This aligns with `stmt_gen.rs` line 6885 and `type_mapper.rs` DEPYLER-1318 Dict Unification.
+/// Only explicit `DepylerValue` key type (rare) would return true here.
 fn return_type_needs_depyler_value_keys(ctx: &CodeGenContext) -> bool {
     if let Some(ref ret_type) = ctx.current_return_type {
         match ret_type {
@@ -228,7 +228,7 @@ fn return_type_needs_depyler_value_keys(ctx: &CodeGenContext) -> bool {
 // without external crates. They use format!("{:?}", ...) for serialization
 // and return empty containers for deserialization.
 
-/// NASA mode: json.dumps() → format!("{:?}", obj)
+/// NASA mode: `json.dumps()` → format!("{:?}", obj)
 fn convert_dumps_nasa(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.is_empty() || arg_exprs.len() > 2 {
         bail!("json.dumps() requires 1 or 2 arguments");
@@ -238,9 +238,10 @@ fn convert_dumps_nasa(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { format!("{:?}", #obj) })
 }
 
-/// NASA mode: json.loads() → empty HashMap stub
-/// DEPYLER-1051: Uses DepylerValue for Hybrid Fallback Strategy
-/// DEPYLER-1153: Use DepylerValue keys when return type is bare Dict
+/// NASA mode: `json.loads()` → empty `HashMap` stub
+/// DEPYLER-1051: Uses `DepylerValue` for Hybrid Fallback Strategy
+/// DEPYLER-1153: Use `DepylerValue` keys when return type is bare Dict
+#[allow(clippy::no_effect_underscore_binding)]
 fn convert_loads_nasa(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("json.loads() requires exactly 1 argument");
@@ -258,7 +259,8 @@ fn convert_loads_nasa(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Resu
     }
 }
 
-/// NASA mode: json.dump() → write Debug format to file (stub)
+/// NASA mode: `json.dump()` → write Debug format to file (stub)
+#[allow(clippy::no_effect_underscore_binding)]
 fn convert_dump_nasa(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 2 {
         bail!("json.dump() requires exactly 2 arguments (obj, file)");
@@ -269,9 +271,10 @@ fn convert_dump_nasa(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { format!("{:?}", #obj) })
 }
 
-/// NASA mode: json.load() → empty HashMap stub
-/// DEPYLER-1051: Uses DepylerValue for Hybrid Fallback Strategy
-/// DEPYLER-1153: Use DepylerValue keys when return type is bare Dict
+/// NASA mode: `json.load()` → empty `HashMap` stub
+/// DEPYLER-1051: Uses `DepylerValue` for Hybrid Fallback Strategy
+/// DEPYLER-1153: Use `DepylerValue` keys when return type is bare Dict
+#[allow(clippy::no_effect_underscore_binding)]
 fn convert_load_nasa(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("json.load() requires exactly 1 argument (file)");

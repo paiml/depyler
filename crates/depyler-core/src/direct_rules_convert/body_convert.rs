@@ -1,10 +1,10 @@
 //! Body and assignment conversion for direct rules
 //!
-//! Contains body-level conversion functions: convert_body, find_mutable_vars,
+//! Contains body-level conversion functions: `convert_body`, `find_mutable_vars`,
 //! assignment conversion, and expression purity checks.
 
 use crate::direct_rules::{extract_nested_indices, make_ident};
-use crate::hir::*;
+use crate::hir::{HirStmt, Type, AssignTarget, HirExpr};
 use crate::type_mapper::TypeMapper;
 use anyhow::{bail, Result};
 use quote::quote;
@@ -29,10 +29,12 @@ pub(crate) fn convert_body(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Resul
 
 /// DEPYLER-0713: Analyze which variables need to be mutable
 /// Variables are mutable if they are reassigned or have mutating method calls
+#[allow(clippy::too_many_lines)]
 pub(crate) fn find_mutable_vars_in_body(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
     let mut declared: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut mutable: std::collections::HashSet<String> = std::collections::HashSet::new();
 
+    #[allow(clippy::items_after_statements, clippy::match_same_arms)]
     fn analyze_stmt(
         stmt: &HirStmt,
         declared: &mut std::collections::HashSet<String>,
@@ -126,6 +128,7 @@ pub(crate) fn find_mutable_vars_in_body(stmts: &[HirStmt]) -> std::collections::
         }
     }
 
+    #[allow(clippy::items_after_statements)]
     fn check_mutating_methods(expr: &HirExpr, mutable: &mut std::collections::HashSet<String>) {
         match expr {
             HirExpr::MethodCall { object, method, args, .. } => {
@@ -199,8 +202,9 @@ pub(crate) fn find_mutable_vars_in_body(stmts: &[HirStmt]) -> std::collections::
     mutable
 }
 
-/// DEPYLER-0704: Added param_types parameter for type coercion in binary operations
-/// DEPYLER-0713: Added mutable_vars analysis for proper mutability
+/// DEPYLER-0704: Added `param_types` parameter for type coercion in binary operations
+/// DEPYLER-0713: Added `mutable_vars` analysis for proper mutability
+#[allow(clippy::unnecessary_wraps)]
 pub(crate) fn convert_body_with_context(
     stmts: &[HirStmt],
     type_mapper: &TypeMapper,
@@ -227,9 +231,10 @@ pub(crate) fn convert_body_with_context(
 }
 
 /// Convert simple variable assignment: `x = value`
-/// DEPYLER-0713: Only add `mut` if variable is in mutable_vars set
+/// DEPYLER-0713: Only add `mut` if variable is in `mutable_vars` set
 ///
 /// Complexity: 2 (with branching for mutability)
+#[allow(clippy::default_trait_access, clippy::unnecessary_wraps)]
 pub(crate) fn convert_symbol_assignment(
     symbol: &str,
     value_expr: syn::Expr,
@@ -262,6 +267,7 @@ pub(crate) fn convert_symbol_assignment(
 ///
 /// Handles both simple and nested subscript assignments.
 /// Complexity: 3 (if + loop with nested if)
+#[allow(clippy::default_trait_access, clippy::needless_pass_by_value)]
 pub(crate) fn convert_index_assignment(
     base: &HirExpr,
     index: &HirExpr,
@@ -308,6 +314,7 @@ pub(crate) fn convert_index_assignment(
 /// Convert attribute assignment: `obj.attr = value`
 ///
 /// Complexity: 1 (no branching)
+#[allow(clippy::default_trait_access, clippy::needless_pass_by_value)]
 pub(crate) fn convert_attribute_assignment(
     base: &HirExpr,
     attr: &str,
@@ -342,6 +349,7 @@ pub(crate) fn convert_assign_stmt(
     convert_assign_stmt_with_expr(target, value_expr, type_mapper)
 }
 
+#[allow(clippy::too_many_lines)]
 pub(crate) fn convert_assign_stmt_with_expr(
     target: &AssignTarget,
     value_expr: syn::Expr,
@@ -359,6 +367,7 @@ pub(crate) fn convert_assign_stmt_with_expr(
 }
 
 /// DEPYLER-0713: Convert assignment with proper mutability tracking
+#[allow(clippy::default_trait_access, clippy::redundant_else, clippy::too_many_lines)]
 pub(crate) fn convert_assign_stmt_with_mutable_vars(
     target: &AssignTarget,
     value_expr: syn::Expr,
@@ -383,115 +392,112 @@ pub(crate) fn convert_assign_stmt_with_mutable_vars(
                 })
                 .collect();
 
-            match all_symbols {
-                Some(symbols) => {
-                    // DEPYLER-0713: Only add mut if variable is in mutable_vars
-                    let idents_with_mut: Vec<_> = symbols
+            if let Some(symbols) = all_symbols {
+                // DEPYLER-0713: Only add mut if variable is in mutable_vars
+                let idents_with_mut: Vec<_> = symbols
+                    .iter()
+                    .map(|s| (make_ident(s), mutable_vars.contains(*s)))
+                    .collect();
+                let pat = syn::Pat::Tuple(syn::PatTuple {
+                    attrs: vec![],
+                    paren_token: syn::token::Paren::default(),
+                    elems: idents_with_mut
                         .iter()
-                        .map(|s| (make_ident(s), mutable_vars.contains(*s)))
-                        .collect();
-                    let pat = syn::Pat::Tuple(syn::PatTuple {
-                        attrs: vec![],
-                        paren_token: syn::token::Paren::default(),
-                        elems: idents_with_mut
-                            .iter()
-                            .map(|(ident, needs_mut)| {
-                                syn::Pat::Ident(syn::PatIdent {
-                                    attrs: vec![],
-                                    by_ref: None,
-                                    mutability: if *needs_mut {
-                                        Some(syn::token::Mut::default())
-                                    } else {
-                                        None
-                                    },
-                                    ident: ident.clone(),
-                                    subpat: None,
-                                })
+                        .map(|(ident, needs_mut)| {
+                            syn::Pat::Ident(syn::PatIdent {
+                                attrs: vec![],
+                                by_ref: None,
+                                mutability: if *needs_mut {
+                                    Some(syn::token::Mut::default())
+                                } else {
+                                    None
+                                },
+                                ident: ident.clone(),
+                                subpat: None,
                             })
-                            .collect(),
-                    });
-                    Ok(syn::Stmt::Local(syn::Local {
+                        })
+                        .collect(),
+                });
+                Ok(syn::Stmt::Local(syn::Local {
+                    attrs: vec![],
+                    let_token: syn::token::Let::default(),
+                    pat,
+                    init: Some(syn::LocalInit {
+                        eq_token: syn::token::Eq::default(),
+                        expr: Box::new(value_expr),
+                        diverge: None,
+                    }),
+                    semi_token: syn::token::Semi::default(),
+                }))
+            } else {
+                // GH-109: Handle tuple unpacking with Index targets
+                // Pattern: list[i], list[j] = list[j], list[i] (swap)
+                let all_indices: Option<Vec<_>> = targets
+                    .iter()
+                    .map(|t| match t {
+                        AssignTarget::Index { base, index } => Some((base, index)),
+                        _ => None,
+                    })
+                    .collect();
+
+                if let Some(indices) = all_indices {
+                    // All targets are subscripts - generate intermediate-based assignment
+                    let temp_ident = make_ident("_swap_temp");
+
+                    // Build assignments for each target from intermediate tuple
+                    let mut stmts: Vec<syn::Stmt> = Vec::new();
+
+                    // First: let _swap_temp = value_expr;
+                    stmts.push(syn::Stmt::Local(syn::Local {
                         attrs: vec![],
                         let_token: syn::token::Let::default(),
-                        pat,
+                        pat: syn::Pat::Ident(syn::PatIdent {
+                            attrs: vec![],
+                            by_ref: None,
+                            mutability: None,
+                            ident: temp_ident.clone(),
+                            subpat: None,
+                        }),
                         init: Some(syn::LocalInit {
                             eq_token: syn::token::Eq::default(),
                             expr: Box::new(value_expr),
                             diverge: None,
                         }),
                         semi_token: syn::token::Semi::default(),
-                    }))
-                }
-                None => {
-                    // GH-109: Handle tuple unpacking with Index targets
-                    // Pattern: list[i], list[j] = list[j], list[i] (swap)
-                    let all_indices: Option<Vec<_>> = targets
-                        .iter()
-                        .map(|t| match t {
-                            AssignTarget::Index { base, index } => Some((base, index)),
-                            _ => None,
-                        })
-                        .collect();
+                    }));
 
-                    if let Some(indices) = all_indices {
-                        // All targets are subscripts - generate intermediate-based assignment
-                        let temp_ident = make_ident("_swap_temp");
+                    // Then: base[index] = _swap_temp.N for each target
+                    for (idx, (base, index)) in indices.iter().enumerate() {
+                        let base_expr = convert_expr(base, type_mapper)?;
+                        let index_expr = convert_expr(index, type_mapper)?;
+                        let tuple_index = syn::Index::from(idx);
 
-                        // Build assignments for each target from intermediate tuple
-                        let mut stmts: Vec<syn::Stmt> = Vec::new();
-
-                        // First: let _swap_temp = value_expr;
-                        stmts.push(syn::Stmt::Local(syn::Local {
-                            attrs: vec![],
-                            let_token: syn::token::Let::default(),
-                            pat: syn::Pat::Ident(syn::PatIdent {
-                                attrs: vec![],
-                                by_ref: None,
-                                mutability: None,
-                                ident: temp_ident.clone(),
-                                subpat: None,
-                            }),
-                            init: Some(syn::LocalInit {
-                                eq_token: syn::token::Eq::default(),
-                                expr: Box::new(value_expr),
-                                diverge: None,
-                            }),
-                            semi_token: syn::token::Semi::default(),
-                        }));
-
-                        // Then: base[index] = _swap_temp.N for each target
-                        for (idx, (base, index)) in indices.iter().enumerate() {
-                            let base_expr = convert_expr(base, type_mapper)?;
-                            let index_expr = convert_expr(index, type_mapper)?;
-                            let tuple_index = syn::Index::from(idx);
-
-                            let assign_expr: syn::Expr = parse_quote! {
-                                #base_expr[(#index_expr) as usize] = #temp_ident.#tuple_index
-                            };
-                            stmts.push(syn::Stmt::Expr(assign_expr, Some(Default::default())));
-                        }
-
-                        // Return a block containing all statements
-                        // Note: We return just the first statement; caller may need to handle block
-                        if stmts.len() == 1 {
-                            return Ok(stmts.remove(0));
-                        } else {
-                            // Wrap in a block expression
-                            let block =
-                                syn::Block { brace_token: syn::token::Brace::default(), stmts };
-                            return Ok(syn::Stmt::Expr(
-                                syn::Expr::Block(syn::ExprBlock {
-                                    attrs: vec![],
-                                    label: None,
-                                    block,
-                                }),
-                                None,
-                            ));
-                        }
+                        let assign_expr: syn::Expr = parse_quote! {
+                            #base_expr[(#index_expr) as usize] = #temp_ident.#tuple_index
+                        };
+                        stmts.push(syn::Stmt::Expr(assign_expr, Some(Default::default())));
                     }
 
-                    bail!("Complex tuple unpacking not yet supported")
+                    // Return a block containing all statements
+                    // Note: We return just the first statement; caller may need to handle block
+                    if stmts.len() == 1 {
+                        return Ok(stmts.remove(0));
+                    } else {
+                        // Wrap in a block expression
+                        let block =
+                            syn::Block { brace_token: syn::token::Brace::default(), stmts };
+                        return Ok(syn::Stmt::Expr(
+                            syn::Expr::Block(syn::ExprBlock {
+                                attrs: vec![],
+                                label: None,
+                                block,
+                            }),
+                            None,
+                        ));
+                    }
                 }
+
+                bail!("Complex tuple unpacking not yet supported")
             }
         }
     }
@@ -499,6 +505,7 @@ pub(crate) fn convert_assign_stmt_with_mutable_vars(
 
 /// DEPYLER-0701: Check if an expression is "pure" (has no side effects)
 /// Pure expressions used as statements need `let _ =` to silence warnings
+#[allow(clippy::match_same_arms)]
 pub(crate) fn is_pure_expression_direct(expr: &HirExpr) -> bool {
     match expr {
         // Bare variable references have no side effects

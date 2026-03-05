@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 /// Configuration for transpilation (pure data, no I/O)
 #[derive(Debug, Clone, Default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct TranspileConfig {
     pub verify: bool,
     pub gen_tests: bool,
@@ -81,7 +82,7 @@ pub struct TranspileResult {
     pub fixes_applied: usize,
 }
 
-/// Create a configured pipeline from TranspileConfig
+/// Create a configured pipeline from `TranspileConfig`
 pub fn create_pipeline(config: &TranspileConfig) -> DepylerPipeline {
     let mut pipeline = DepylerPipeline::new();
 
@@ -104,6 +105,7 @@ pub fn create_pipeline(config: &TranspileConfig) -> DepylerPipeline {
 }
 
 /// Transpile Python source to Rust (pure function, no I/O)
+#[allow(clippy::cast_possible_truncation)]
 pub fn transpile_source(python_source: &str, config: &TranspileConfig) -> Result<TranspileResult> {
     let source_size = python_source.len();
 
@@ -129,15 +131,17 @@ pub fn transpile_source(python_source: &str, config: &TranspileConfig) -> Result
 }
 
 /// Generate trace output for a transpilation phase
+#[allow(clippy::format_push_string)]
 pub fn format_trace_phase(phase: u8, name: &str, details: &[(&str, &str)]) -> String {
-    let mut output = format!("Phase {}: {}\n", phase, name);
+    let mut output = format!("Phase {phase}: {name}\n");
     for (key, value) in details {
-        output.push_str(&format!("  - {}: {}\n", key, value));
+        output.push_str(&format!("  - {key}: {value}\n"));
     }
     output
 }
 
 /// Calculate transpilation metrics
+#[allow(clippy::cast_precision_loss)]
 pub fn calculate_metrics(result: &TranspileResult) -> TranspileMetrics {
     let compression_ratio = if result.source_size > 0 {
         result.output_size as f64 / result.source_size as f64
@@ -199,13 +203,10 @@ pub fn build_oracle_config(config: &TranspileConfig) -> OracleConfig {
 
 /// Compute output path from input path
 pub fn compute_output_path(input: &Path, output: Option<&Path>) -> PathBuf {
-    match output {
-        Some(path) => path.to_path_buf(),
-        None => {
-            let mut path = input.to_path_buf();
-            path.set_extension("rs");
-            path
-        }
+    if let Some(path) = output { path.to_path_buf() } else {
+        let mut path = input.to_path_buf();
+        path.set_extension("rs");
+        path
     }
 }
 
@@ -221,7 +222,7 @@ pub fn compute_output_paths(
     let autofix_output = if config.auto_fix && config.async_mode {
         let stem = main_output.file_stem().unwrap_or_default().to_string_lossy();
         let mut p = main_output.clone();
-        p.set_file_name(format!("{}.autofix.rs", stem));
+        p.set_file_name(format!("{stem}.autofix.rs"));
         Some(p)
     } else {
         None
@@ -241,7 +242,7 @@ pub fn compute_output_paths(
     let source_map = if config.source_map {
         let mut p = main_output.clone();
         let name = p.file_name().unwrap_or_default().to_string_lossy();
-        p.set_file_name(format!("{}.sourcemap.json", name));
+        p.set_file_name(format!("{name}.sourcemap.json"));
         Some(p)
     } else {
         None
@@ -283,8 +284,8 @@ pub fn format_init_trace(config: &TranspileConfig) -> Vec<(String, String)> {
 /// Format parse trace details
 pub fn format_parse_trace(source_size: usize, parse_time_ms: u64) -> Vec<(String, String)> {
     vec![
-        ("Input size".to_string(), format!("{} bytes", source_size)),
-        ("Parse time".to_string(), format!("{:.2}ms", parse_time_ms)),
+        ("Input size".to_string(), format!("{source_size} bytes")),
+        ("Parse time".to_string(), format!("{parse_time_ms:.2}ms")),
     ]
 }
 
@@ -294,8 +295,8 @@ pub fn format_codegen_trace(
     dependencies_count: usize,
 ) -> Vec<(String, String)> {
     vec![
-        ("Generated Rust code".to_string(), format!("{} bytes", output_size)),
-        ("Dependencies detected".to_string(), format!("{}", dependencies_count)),
+        ("Generated Rust code".to_string(), format!("{output_size} bytes")),
+        ("Dependencies detected".to_string(), format!("{dependencies_count}")),
         ("Generation".to_string(), "complete".to_string()),
     ]
 }
@@ -323,6 +324,7 @@ pub fn format_oracle_trace(
 
 /// Format summary output for transpilation
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::cast_precision_loss)]
 pub fn format_summary(
     input_path: &Path,
     output_path: &Path,
@@ -354,9 +356,9 @@ pub fn format_summary(
         ));
     }
 
-    lines.push(format!("⏱️  Parse time: {:.2}ms", parse_time_ms));
-    lines.push(format!("📊 Throughput: {:.1} KB/s", throughput));
-    lines.push(format!("⏱️  Total time: {:.2}ms", total_time_ms));
+    lines.push(format!("⏱️  Parse time: {parse_time_ms:.2}ms"));
+    lines.push(format!("📊 Throughput: {throughput:.1} KB/s"));
+    lines.push(format!("⏱️  Total time: {total_time_ms:.2}ms"));
 
     if verified {
         lines.push("✓ Properties Verified".to_string());
@@ -429,13 +431,12 @@ pub fn format_ml_result(
     let is_high = confidence >= threshold;
 
     if is_auto_fix && is_high {
-        format!("🔧 Auto-fix applied with {:.2}% confidence", confidence_pct)
+        format!("🔧 Auto-fix applied with {confidence_pct:.2}% confidence")
     } else if is_high {
-        format!("✓ High confidence ({:.2}%) - auto-fix would apply", confidence_pct)
+        format!("✓ High confidence ({confidence_pct:.2}%) - auto-fix would apply")
     } else {
         format!(
-            "⚠ Low confidence ({:.2}%) - manual review recommended [strategy: {}]",
-            confidence_pct, strategy
+            "⚠ Low confidence ({confidence_pct:.2}%) - manual review recommended [strategy: {strategy}]"
         )
     }
 }

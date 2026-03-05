@@ -1,17 +1,18 @@
-//! String method handlers for ExpressionConverter
+//! String method handlers for `ExpressionConverter`
 //!
 //! Extracted from mod.rs to reduce file size. Contains the `convert_string_method`
 //! handler covering: upper, lower, strip, startswith, endswith, split, join,
 //! replace, find, count, isdigit, isalpha, and related string operations.
 
-use crate::hir::*;
+use crate::hir::{HirExpr, Type, Literal};
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
-impl<'a, 'b> ExpressionConverter<'a, 'b> {
+impl ExpressionConverter<'_, '_> {
     /// Handle string methods (upper, lower, strip, startswith, endswith, split, join, replace, find, count, isdigit, isalpha)
     #[inline]
+    #[allow(clippy::too_many_lines)]
     pub(super) fn convert_string_method(
         &mut self,
         hir_object: &HirExpr,
@@ -373,14 +374,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if hir_args.len() != 1 {
                     bail!("count() requires exactly one argument");
                 }
-                let substring: syn::Expr = match &hir_args[0] {
-                    HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
-                    _ => {
-                        // DEPYLER-0200: Use &* to deref-reborrow for Pattern trait compliance
-                        // Works for both String (&*String -> &str) and &str (&*&str -> &str)
-                        let arg = &arg_exprs[0];
-                        parse_quote! { &*#arg }
-                    }
+                let substring: syn::Expr = if let HirExpr::Literal(Literal::String(s)) = &hir_args[0] { parse_quote! { #s } } else {
+                    // DEPYLER-0200: Use &* to deref-reborrow for Pattern trait compliance
+                    // Works for both String (&*String -> &str) and &str (&*&str -> &str)
+                    let arg = &arg_exprs[0];
+                    parse_quote! { &*#arg }
                 };
                 Ok(parse_quote! { #object_expr.matches(#substring).count() as i32 })
             }
@@ -887,7 +885,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            _ => bail!("Unknown string method: {}", method),
+            _ => bail!("Unknown string method: {method}"),
         }
     }
 }

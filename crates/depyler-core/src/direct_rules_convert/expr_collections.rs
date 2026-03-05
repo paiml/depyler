@@ -1,14 +1,14 @@
-//! Collection literal conversion and type predicates for ExprConverter
+//! Collection literal conversion and type predicates for `ExprConverter`
 //!
 //! Handles list, dict, tuple, set, frozenset literals and type checking helpers.
 
-use crate::hir::*;
+use crate::hir::{HirExpr, Type, Literal, BinOp};
 use anyhow::{bail, Result};
 use syn::parse_quote;
 
 use super::ExprConverter;
 
-impl<'a> ExprConverter<'a> {
+impl ExprConverter<'_> {
     pub(super) fn convert_list(&self, elts: &[HirExpr]) -> Result<syn::Expr> {
         let elt_exprs: Vec<syn::Expr> =
             elts.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?;
@@ -53,7 +53,8 @@ impl<'a> ExprConverter<'a> {
         })
     }
 
-    /// DEPYLER-1166: Check if dict literal has mixed value types (requires DepylerValue)
+    /// DEPYLER-1166: Check if dict literal has mixed value types (requires `DepylerValue`)
+    #[allow(clippy::unused_self)]
     pub(super) fn dict_has_mixed_value_types(&self, items: &[(HirExpr, HirExpr)]) -> bool {
         if items.len() <= 1 {
             return false; // Single or empty dict, no mixing
@@ -90,9 +91,9 @@ impl<'a> ExprConverter<'a> {
         })
     }
 
-    /// DEPYLER-1122: Convert dict literal with DepylerValue wrapping
+    /// DEPYLER-1122: Convert dict literal with `DepylerValue` wrapping
     /// Used when returning a dict from a method with bare `dict` return type,
-    /// which maps to HashMap<DepylerValue, DepylerValue>
+    /// which maps to `HashMap`<`DepylerValue`, `DepylerValue`>
     /// DEPYLER-1166: Also handles Dict[str, Any] which has String keys
     pub(super) fn convert_dict_to_depyler_value(
         &self,
@@ -261,6 +262,7 @@ impl<'a> ExprConverter<'a> {
         })
     }
 
+    #[allow(clippy::unused_self)]
     pub(super) fn is_set_expr(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Set(_) | HirExpr::FrozenSet(_) => true,
@@ -280,6 +282,7 @@ impl<'a> ExprConverter<'a> {
 
     /// DEPYLER-0601: Detect if expression is likely a string type.
     /// Used to generate `.contains()` instead of `.contains_key()` for `in` operator.
+    #[allow(clippy::match_same_arms, clippy::unused_self)]
     pub(super) fn is_string_expr(&self, expr: &HirExpr) -> bool {
         match expr {
             // String literals are obviously strings
@@ -354,7 +357,8 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-0742: Detect if expression is a deque type.
-    /// Used to generate VecDeque methods instead of Vec methods.
+    /// Used to generate `VecDeque` methods instead of Vec methods.
+    #[allow(clippy::unused_self)]
     pub(super) fn is_deque_expr(&self, expr: &HirExpr) -> bool {
         match expr {
             // Call to deque() constructor
@@ -369,6 +373,7 @@ impl<'a> ExprConverter<'a> {
 
     /// DEPYLER-0832: Detect if expression is a tuple (for `in` operator).
     /// Tuples should use `.contains()` on an array, not `.contains_key()`.
+    #[allow(clippy::unused_self)]
     pub(super) fn is_tuple_or_list_expr(&self, expr: &HirExpr) -> bool {
         matches!(expr, HirExpr::Tuple(_) | HirExpr::List(_))
     }
@@ -442,6 +447,7 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    #[allow(clippy::needless_pass_by_value, clippy::unused_self)]
     pub(super) fn convert_set_operation(
         &self,
         op: BinOp,

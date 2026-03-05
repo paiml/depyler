@@ -254,6 +254,7 @@ impl GraphBuilder {
     }
 
     /// Process a statement to build nodes
+    #[allow(clippy::unnecessary_wraps)]
     fn process_statement(
         &mut self,
         stmt: &ast::Stmt,
@@ -330,6 +331,7 @@ impl GraphBuilder {
     }
 
     /// Process edges (calls, inheritance)
+    #[allow(clippy::unnecessary_wraps)]
     fn process_edges(
         &mut self,
         stmt: &ast::Stmt,
@@ -406,6 +408,7 @@ impl GraphBuilder {
     }
 
     /// Extract calls from an expression
+    #[allow(clippy::similar_names)]
     fn extract_calls_from_expr(&self, expr: &ast::Expr, caller: &str, graph: &mut DependencyGraph) {
         match expr {
             ast::Expr::Call(c) => {

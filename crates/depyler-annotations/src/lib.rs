@@ -503,7 +503,7 @@ impl AnnotationParser {
             }
         }
 
-        self.apply_annotations(&mut annotations, parsed_values)?;
+        Self::apply_annotations(&mut annotations, parsed_values)?;
         Ok(annotations)
     }
 
@@ -520,7 +520,6 @@ impl AnnotationParser {
     }
 
     fn apply_annotations(
-        &self,
         annotations: &mut TranspilationAnnotations,
         values: HashMap<String, String>,
     ) -> Result<(), AnnotationError> {
@@ -529,7 +528,7 @@ impl AnnotationParser {
             match key.as_str() {
                 // Core annotations (5)
                 "type_strategy" | "ownership" | "safety_level" | "fallback" | "bounds_checking" => {
-                    self.apply_core_annotation(annotations, &key, &value)?;
+                    Self::apply_core_annotation(annotations, &key, &value)?;
                 }
 
                 // Optimization annotations (5)
@@ -538,37 +537,37 @@ impl AnnotationParser {
                 | "vectorize"
                 | "unroll_loops"
                 | "optimization_hint" => {
-                    self.apply_optimization_annotation(annotations, &key, &value)?;
+                    Self::apply_optimization_annotation(annotations, &key, &value)?;
                 }
 
                 // Thread safety annotations (2)
                 "thread_safety" | "interior_mutability" => {
-                    self.apply_thread_safety_annotation(annotations, &key, &value)?;
+                    Self::apply_thread_safety_annotation(annotations, &key, &value)?;
                 }
 
                 // String/Hash strategy (2)
                 "string_strategy" | "hash_strategy" => {
-                    self.apply_string_hash_annotation(annotations, &key, &value)?;
+                    Self::apply_string_hash_annotation(annotations, &key, &value)?;
                 }
 
                 // Error handling (2)
                 "panic_behavior" | "error_strategy" => {
-                    self.apply_error_handling_annotation(annotations, &key, &value)?;
+                    Self::apply_error_handling_annotation(annotations, &key, &value)?;
                 }
 
                 // Global strategy (1)
                 "global_strategy" => {
-                    self.apply_global_strategy_annotation(annotations, &value)?;
+                    Self::apply_global_strategy_annotation(annotations, &value)?;
                 }
 
                 // Verification (3)
                 "termination" | "invariant" | "verify_bounds" => {
-                    self.apply_verification_annotation(annotations, &key, &value)?;
+                    Self::apply_verification_annotation(annotations, &key, &value)?;
                 }
 
                 // Service metadata (4)
                 "service_type" | "migration_strategy" | "compatibility_layer" | "pattern" => {
-                    self.apply_service_metadata_annotation(annotations, &key, &value)?;
+                    Self::apply_service_metadata_annotation(annotations, &key, &value)?;
                 }
 
                 // Lambda-specific annotations (9)
@@ -581,7 +580,7 @@ impl AnnotationParser {
                 | "custom_serialization"
                 | "timeout"
                 | "tracing" => {
-                    self.apply_lambda_annotation(annotations, &key, &value)?;
+                    Self::apply_lambda_annotation(annotations, &key, &value)?;
                 }
 
                 _ => return Err(AnnotationError::UnknownKey(key)),
@@ -590,46 +589,44 @@ impl AnnotationParser {
         Ok(())
     }
 
-    /// Apply core annotation (type_strategy, ownership, safety_level, fallback, bounds_checking)
+    /// Apply core annotation (`type_strategy`, ownership, `safety_level`, fallback, `bounds_checking`)
     #[inline]
     fn apply_core_annotation(
-        &self,
         annotations: &mut TranspilationAnnotations,
         key: &str,
         value: &str,
     ) -> Result<(), AnnotationError> {
         match key {
             "type_strategy" => {
-                annotations.type_strategy = self.parse_type_strategy(value)?;
+                annotations.type_strategy = Self::parse_type_strategy(value)?;
             }
             "ownership" => {
-                annotations.ownership_model = self.parse_ownership_model(value)?;
+                annotations.ownership_model = Self::parse_ownership_model(value)?;
             }
             "safety_level" => {
-                annotations.safety_level = self.parse_safety_level(value)?;
+                annotations.safety_level = Self::parse_safety_level(value)?;
             }
             "fallback" => {
-                annotations.fallback_strategy = self.parse_fallback_strategy(value)?;
+                annotations.fallback_strategy = Self::parse_fallback_strategy(value)?;
             }
             "bounds_checking" => {
-                annotations.bounds_checking = self.parse_bounds_checking(value)?;
+                annotations.bounds_checking = Self::parse_bounds_checking(value)?;
             }
             _ => unreachable!("apply_core_annotation called with non-core key"),
         }
         Ok(())
     }
 
-    /// Apply optimization annotation (optimization_level, performance_critical, vectorize, unroll_loops, optimization_hint)
+    /// Apply optimization annotation (`optimization_level`, `performance_critical`, vectorize, `unroll_loops`, `optimization_hint`)
     #[inline]
     fn apply_optimization_annotation(
-        &self,
         annotations: &mut TranspilationAnnotations,
         key: &str,
         value: &str,
     ) -> Result<(), AnnotationError> {
         match key {
             "optimization_level" => {
-                annotations.optimization_level = self.parse_optimization_level(value)?;
+                annotations.optimization_level = Self::parse_optimization_level(value)?;
             }
             "performance_critical" => {
                 if value == "true" {
@@ -649,7 +646,7 @@ impl AnnotationParser {
                 annotations.performance_hints.push(PerformanceHint::UnrollLoops(count));
             }
             "optimization_hint" => {
-                self.apply_optimization_hint(annotations, value)?;
+                Self::apply_optimization_hint(annotations, value)?;
             }
             _ => unreachable!("apply_optimization_annotation called with non-optimization key"),
         }
@@ -659,7 +656,6 @@ impl AnnotationParser {
     /// Apply optimization hint sub-handler
     #[inline]
     fn apply_optimization_hint(
-        &self,
         annotations: &mut TranspilationAnnotations,
         value: &str,
     ) -> Result<(), AnnotationError> {
@@ -667,7 +663,7 @@ impl AnnotationParser {
             "vectorize" => annotations.performance_hints.push(PerformanceHint::Vectorize),
             "latency" => annotations.performance_hints.push(PerformanceHint::OptimizeForLatency),
             "throughput" => {
-                annotations.performance_hints.push(PerformanceHint::OptimizeForThroughput)
+                annotations.performance_hints.push(PerformanceHint::OptimizeForThroughput);
             }
             "async_ready" => {
                 eprintln!("Warning: async_ready is experimental and not yet fully supported");
@@ -682,20 +678,19 @@ impl AnnotationParser {
         Ok(())
     }
 
-    /// Apply thread safety annotation (thread_safety, interior_mutability)
+    /// Apply thread safety annotation (`thread_safety`, `interior_mutability`)
     #[inline]
     fn apply_thread_safety_annotation(
-        &self,
         annotations: &mut TranspilationAnnotations,
         key: &str,
         value: &str,
     ) -> Result<(), AnnotationError> {
         match key {
             "thread_safety" => {
-                annotations.thread_safety = self.parse_thread_safety(value)?;
+                annotations.thread_safety = Self::parse_thread_safety(value)?;
             }
             "interior_mutability" => {
-                annotations.interior_mutability = self.parse_interior_mutability(value)?;
+                annotations.interior_mutability = Self::parse_interior_mutability(value)?;
             }
             _ => unreachable!("apply_thread_safety_annotation called with non-thread-safety key"),
         }
@@ -705,65 +700,61 @@ impl AnnotationParser {
     /// Apply global strategy annotation
     #[inline]
     fn apply_global_strategy_annotation(
-        &self,
         annotations: &mut TranspilationAnnotations,
         value: &str,
     ) -> Result<(), AnnotationError> {
-        annotations.global_strategy = self.parse_global_strategy(value)?;
+        annotations.global_strategy = Self::parse_global_strategy(value)?;
         Ok(())
     }
 
-    /// Apply string/hash strategy annotation (string_strategy, hash_strategy)
+    /// Apply string/hash strategy annotation (`string_strategy`, `hash_strategy`)
     #[inline]
     fn apply_string_hash_annotation(
-        &self,
         annotations: &mut TranspilationAnnotations,
         key: &str,
         value: &str,
     ) -> Result<(), AnnotationError> {
         match key {
             "string_strategy" => {
-                annotations.string_strategy = self.parse_string_strategy(value)?;
+                annotations.string_strategy = Self::parse_string_strategy(value)?;
             }
             "hash_strategy" => {
-                annotations.hash_strategy = self.parse_hash_strategy(value)?;
+                annotations.hash_strategy = Self::parse_hash_strategy(value)?;
             }
             _ => unreachable!("apply_string_hash_annotation called with non-string/hash key"),
         }
         Ok(())
     }
 
-    /// Apply error handling annotation (panic_behavior, error_strategy)
+    /// Apply error handling annotation (`panic_behavior`, `error_strategy`)
     #[inline]
     fn apply_error_handling_annotation(
-        &self,
         annotations: &mut TranspilationAnnotations,
         key: &str,
         value: &str,
     ) -> Result<(), AnnotationError> {
         match key {
             "panic_behavior" => {
-                annotations.panic_behavior = self.parse_panic_behavior(value)?;
+                annotations.panic_behavior = Self::parse_panic_behavior(value)?;
             }
             "error_strategy" => {
-                annotations.error_strategy = self.parse_error_strategy(value)?;
+                annotations.error_strategy = Self::parse_error_strategy(value)?;
             }
             _ => unreachable!("apply_error_handling_annotation called with non-error key"),
         }
         Ok(())
     }
 
-    /// Apply verification annotation (termination, invariant, verify_bounds)
+    /// Apply verification annotation (termination, invariant, `verify_bounds`)
     #[inline]
     fn apply_verification_annotation(
-        &self,
         annotations: &mut TranspilationAnnotations,
         key: &str,
         value: &str,
     ) -> Result<(), AnnotationError> {
         match key {
             "termination" => {
-                annotations.termination = self.parse_termination(value)?;
+                annotations.termination = Self::parse_termination(value)?;
             }
             "invariant" => {
                 annotations.invariants.push(value.to_string());
@@ -776,23 +767,22 @@ impl AnnotationParser {
         Ok(())
     }
 
-    /// Apply service metadata annotation (service_type, migration_strategy, compatibility_layer, pattern)
+    /// Apply service metadata annotation (`service_type`, `migration_strategy`, `compatibility_layer`, pattern)
     #[inline]
     fn apply_service_metadata_annotation(
-        &self,
         annotations: &mut TranspilationAnnotations,
         key: &str,
         value: &str,
     ) -> Result<(), AnnotationError> {
         match key {
             "service_type" => {
-                annotations.service_type = Some(self.parse_service_type(value)?);
+                annotations.service_type = Some(Self::parse_service_type(value)?);
             }
             "migration_strategy" => {
-                annotations.migration_strategy = Some(self.parse_migration_strategy(value)?);
+                annotations.migration_strategy = Some(Self::parse_migration_strategy(value)?);
             }
             "compatibility_layer" => {
-                annotations.compatibility_layer = Some(self.parse_compatibility_layer(value)?);
+                annotations.compatibility_layer = Some(Self::parse_compatibility_layer(value)?);
             }
             "pattern" => {
                 annotations.pattern = Some(value.to_string());
@@ -805,7 +795,6 @@ impl AnnotationParser {
     /// Apply lambda-specific annotation (9 lambda keys) - dispatcher with ≤10 complexity
     #[inline]
     fn apply_lambda_annotation(
-        &self,
         annotations: &mut TranspilationAnnotations,
         key: &str,
         value: &str,
@@ -815,49 +804,47 @@ impl AnnotationParser {
 
         match key {
             "lambda_runtime" | "event_type" | "architecture" => {
-                self.apply_lambda_config(lambda_annotations, key, value)?;
+                Self::apply_lambda_config(lambda_annotations, key, value)?;
             }
             "cold_start_optimize"
             | "batch_failure_reporting"
             | "custom_serialization"
             | "tracing" => {
-                self.apply_lambda_flags(lambda_annotations, key, value);
+                Self::apply_lambda_flags(lambda_annotations, key, value);
             }
             "memory_size" | "timeout" => {
-                self.apply_lambda_numeric(lambda_annotations, key, value)?;
+                Self::apply_lambda_numeric(lambda_annotations, key, value)?;
             }
             _ => unreachable!("apply_lambda_annotation called with non-lambda key"),
         }
         Ok(())
     }
 
-    /// Apply lambda configuration (runtime, event_type, architecture)
+    /// Apply lambda configuration (runtime, `event_type`, architecture)
     #[inline]
     fn apply_lambda_config(
-        &self,
         lambda_annotations: &mut LambdaAnnotations,
         key: &str,
         value: &str,
     ) -> Result<(), AnnotationError> {
         match key {
             "lambda_runtime" => {
-                lambda_annotations.runtime = self.parse_lambda_runtime(value)?;
+                lambda_annotations.runtime = Self::parse_lambda_runtime(value);
             }
             "event_type" => {
-                lambda_annotations.event_type = Some(self.parse_lambda_event_type(value)?);
+                lambda_annotations.event_type = Some(Self::parse_lambda_event_type(value));
             }
             "architecture" => {
-                lambda_annotations.architecture = self.parse_architecture(value)?;
+                lambda_annotations.architecture = Self::parse_architecture(value)?;
             }
             _ => unreachable!("apply_lambda_config called with non-config key"),
         }
         Ok(())
     }
 
-    /// Apply lambda feature flags (cold_start_optimize, batch_failure_reporting, custom_serialization, tracing)
+    /// Apply lambda feature flags (`cold_start_optimize`, `batch_failure_reporting`, `custom_serialization`, tracing)
     #[inline]
     fn apply_lambda_flags(
-        &self,
         lambda_annotations: &mut LambdaAnnotations,
         key: &str,
         value: &str,
@@ -879,10 +866,9 @@ impl AnnotationParser {
         }
     }
 
-    /// Apply lambda numeric settings (memory_size, timeout)
+    /// Apply lambda numeric settings (`memory_size`, timeout)
     #[inline]
     fn apply_lambda_numeric(
-        &self,
         lambda_annotations: &mut LambdaAnnotations,
         key: &str,
         value: &str,
@@ -903,7 +889,7 @@ impl AnnotationParser {
         Ok(())
     }
 
-    fn parse_type_strategy(&self, value: &str) -> Result<TypeStrategy, AnnotationError> {
+    fn parse_type_strategy(value: &str) -> Result<TypeStrategy, AnnotationError> {
         match value {
             "conservative" => Ok(TypeStrategy::Conservative),
             "aggressive" => Ok(TypeStrategy::Aggressive),
@@ -916,7 +902,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_ownership_model(&self, value: &str) -> Result<OwnershipModel, AnnotationError> {
+    fn parse_ownership_model(value: &str) -> Result<OwnershipModel, AnnotationError> {
         match value {
             "owned" => Ok(OwnershipModel::Owned),
             "borrowed" => Ok(OwnershipModel::Borrowed),
@@ -928,7 +914,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_safety_level(&self, value: &str) -> Result<SafetyLevel, AnnotationError> {
+    fn parse_safety_level(value: &str) -> Result<SafetyLevel, AnnotationError> {
         match value {
             "safe" => Ok(SafetyLevel::Safe),
             "unsafe_allowed" => Ok(SafetyLevel::UnsafeAllowed),
@@ -939,7 +925,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_fallback_strategy(&self, value: &str) -> Result<FallbackStrategy, AnnotationError> {
+    fn parse_fallback_strategy(value: &str) -> Result<FallbackStrategy, AnnotationError> {
         match value {
             "mcp" => Ok(FallbackStrategy::Mcp),
             "manual" => Ok(FallbackStrategy::Manual),
@@ -951,7 +937,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_bounds_checking(&self, value: &str) -> Result<BoundsChecking, AnnotationError> {
+    fn parse_bounds_checking(value: &str) -> Result<BoundsChecking, AnnotationError> {
         match value {
             "explicit" => Ok(BoundsChecking::Explicit),
             "implicit" => Ok(BoundsChecking::Implicit),
@@ -963,7 +949,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_optimization_level(&self, value: &str) -> Result<OptimizationLevel, AnnotationError> {
+    fn parse_optimization_level(value: &str) -> Result<OptimizationLevel, AnnotationError> {
         match value {
             "standard" => Ok(OptimizationLevel::Standard),
             "aggressive" => Ok(OptimizationLevel::Aggressive),
@@ -975,7 +961,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_thread_safety(&self, value: &str) -> Result<ThreadSafety, AnnotationError> {
+    fn parse_thread_safety(value: &str) -> Result<ThreadSafety, AnnotationError> {
         match value {
             "required" => Ok(ThreadSafety::Required),
             "not_required" => Ok(ThreadSafety::NotRequired),
@@ -987,7 +973,6 @@ impl AnnotationParser {
     }
 
     fn parse_interior_mutability(
-        &self,
         value: &str,
     ) -> Result<InteriorMutability, AnnotationError> {
         match value {
@@ -1002,7 +987,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_string_strategy(&self, value: &str) -> Result<StringStrategy, AnnotationError> {
+    fn parse_string_strategy(value: &str) -> Result<StringStrategy, AnnotationError> {
         match value {
             "conservative" => Ok(StringStrategy::Conservative),
             "always_owned" => Ok(StringStrategy::AlwaysOwned),
@@ -1014,7 +999,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_hash_strategy(&self, value: &str) -> Result<HashStrategy, AnnotationError> {
+    fn parse_hash_strategy(value: &str) -> Result<HashStrategy, AnnotationError> {
         match value {
             "standard" => Ok(HashStrategy::Standard),
             "fnv" => Ok(HashStrategy::Fnv),
@@ -1026,7 +1011,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_panic_behavior(&self, value: &str) -> Result<PanicBehavior, AnnotationError> {
+    fn parse_panic_behavior(value: &str) -> Result<PanicBehavior, AnnotationError> {
         match value {
             "propagate" => Ok(PanicBehavior::Propagate),
             "return_error" => Ok(PanicBehavior::ReturnError),
@@ -1038,7 +1023,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_error_strategy(&self, value: &str) -> Result<ErrorStrategy, AnnotationError> {
+    fn parse_error_strategy(value: &str) -> Result<ErrorStrategy, AnnotationError> {
         match value {
             "panic" => Ok(ErrorStrategy::Panic),
             "result_type" => Ok(ErrorStrategy::ResultType),
@@ -1050,7 +1035,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_global_strategy(&self, value: &str) -> Result<GlobalStrategy, AnnotationError> {
+    fn parse_global_strategy(value: &str) -> Result<GlobalStrategy, AnnotationError> {
         match value {
             "none" => Ok(GlobalStrategy::None),
             "lazy_static" => Ok(GlobalStrategy::LazyStatic),
@@ -1062,7 +1047,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_termination(&self, value: &str) -> Result<Termination, AnnotationError> {
+    fn parse_termination(value: &str) -> Result<Termination, AnnotationError> {
         match value {
             "unknown" => Ok(Termination::Unknown),
             "proven" => Ok(Termination::Proven),
@@ -1082,7 +1067,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_service_type(&self, value: &str) -> Result<ServiceType, AnnotationError> {
+    fn parse_service_type(value: &str) -> Result<ServiceType, AnnotationError> {
         match value {
             "web_api" => Ok(ServiceType::WebApi),
             "cli" => Ok(ServiceType::Cli),
@@ -1094,7 +1079,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_migration_strategy(&self, value: &str) -> Result<MigrationStrategy, AnnotationError> {
+    fn parse_migration_strategy(value: &str) -> Result<MigrationStrategy, AnnotationError> {
         match value {
             "incremental" => Ok(MigrationStrategy::Incremental),
             "big_bang" => Ok(MigrationStrategy::BigBang),
@@ -1107,7 +1092,6 @@ impl AnnotationParser {
     }
 
     fn parse_compatibility_layer(
-        &self,
         value: &str,
     ) -> Result<CompatibilityLayer, AnnotationError> {
         match value {
@@ -1121,31 +1105,30 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_lambda_runtime(&self, value: &str) -> Result<LambdaRuntime, AnnotationError> {
+    fn parse_lambda_runtime(value: &str) -> LambdaRuntime {
         match value {
-            "provided.al2" => Ok(LambdaRuntime::ProvidedAl2),
-            "provided.al2023" => Ok(LambdaRuntime::ProvidedAl2023),
-            _ => Ok(LambdaRuntime::Custom(value.to_string())),
+            "provided.al2" => LambdaRuntime::ProvidedAl2,
+            "provided.al2023" => LambdaRuntime::ProvidedAl2023,
+            _ => LambdaRuntime::Custom(value.to_string()),
         }
     }
 
-    fn parse_lambda_event_type(&self, value: &str) -> Result<LambdaEventType, AnnotationError> {
+    fn parse_lambda_event_type(value: &str) -> LambdaEventType {
         // Quick path for common types
-        let event_type = match value {
+        match value {
             "auto" => LambdaEventType::Auto,
             "S3Event" | "SqsEvent" | "SnsEvent" | "DynamodbEvent" | "CloudwatchEvent"
-            | "KinesisEvent" => self.parse_aws_service_event(value),
+            | "KinesisEvent" => Self::parse_aws_service_event(value),
             "APIGatewayProxyRequest" | "APIGatewayV2HttpRequest" => {
-                self.parse_api_gateway_event(value)
+                Self::parse_api_gateway_event(value)
             }
-            _ => self.parse_custom_event_type(value),
-        };
-        Ok(event_type)
+            _ => Self::parse_custom_event_type(value),
+        }
     }
 
-    /// Parse AWS service events (S3, SQS, SNS, DynamoDB, CloudWatch, Kinesis)
+    /// Parse AWS service events (S3, SQS, SNS, `DynamoDB`, `CloudWatch`, Kinesis)
     #[inline]
-    fn parse_aws_service_event(&self, value: &str) -> LambdaEventType {
+    fn parse_aws_service_event(value: &str) -> LambdaEventType {
         match value {
             "S3Event" => LambdaEventType::S3Event,
             "SqsEvent" => LambdaEventType::SqsEvent,
@@ -1159,7 +1142,7 @@ impl AnnotationParser {
 
     /// Parse API Gateway events (v1 and v2)
     #[inline]
-    fn parse_api_gateway_event(&self, value: &str) -> LambdaEventType {
+    fn parse_api_gateway_event(value: &str) -> LambdaEventType {
         match value {
             "APIGatewayProxyRequest" => LambdaEventType::ApiGatewayProxyRequest,
             "APIGatewayV2HttpRequest" => LambdaEventType::ApiGatewayV2HttpRequest,
@@ -1167,9 +1150,9 @@ impl AnnotationParser {
         }
     }
 
-    /// Parse custom or EventBridge event types
+    /// Parse custom or `EventBridge` event types
     #[inline]
-    fn parse_custom_event_type(&self, value: &str) -> LambdaEventType {
+    fn parse_custom_event_type(value: &str) -> LambdaEventType {
         if value.starts_with("EventBridgeEvent<") && value.ends_with('>') {
             let inner = &value[17..value.len() - 1];
             LambdaEventType::EventBridgeEvent(Some(inner.to_string()))
@@ -1180,7 +1163,7 @@ impl AnnotationParser {
         }
     }
 
-    fn parse_architecture(&self, value: &str) -> Result<Architecture, AnnotationError> {
+    fn parse_architecture(value: &str) -> Result<Architecture, AnnotationError> {
         match value {
             "x86_64" | "x64" => Ok(Architecture::X86_64),
             "arm64" | "aarch64" => Ok(Architecture::Arm64),

@@ -1,7 +1,7 @@
 //! Itertools Module Code Generation - EXTREME TDD
 //!
 //! Handles Python `itertools` module method conversions to Rust iterator adapters.
-//! Extracted from expr_gen.rs for testability and maintainability.
+//! Extracted from `expr_gen.rs` for testability and maintainability.
 //!
 //! Coverage target: 100% line coverage, 100% branch coverage
 
@@ -26,7 +26,7 @@ use syn::parse_quote;
 /// - product: Cartesian product of iterables
 /// - permutations: Permutations of iterable
 /// - combinations: Combinations of iterable
-/// - zip_longest: Zip with fill value for shorter iterables
+/// - `zip_longest`: Zip with fill value for shorter iterables
 ///
 /// # Complexity: 15 (match with 14 branches + default)
 pub fn convert_itertools_method(
@@ -52,15 +52,16 @@ pub fn convert_itertools_method(
         "permutations" => convert_permutations(&arg_exprs, ctx)?,
         "combinations" => convert_combinations(&arg_exprs, ctx)?,
         "zip_longest" => convert_zip_longest(&arg_exprs, ctx)?,
-        _ => bail!("itertools.{} not implemented yet (available: count, cycle, repeat, chain, islice, takewhile, dropwhile, accumulate, compress, groupby, product, permutations, combinations, zip_longest)", method),
+        _ => bail!("itertools.{method} not implemented yet (available: count, cycle, repeat, chain, islice, takewhile, dropwhile, accumulate, compress, groupby, product, permutations, combinations, zip_longest)"),
     };
 
     Ok(Some(result))
 }
 
 /// itertools.count(start=0, step=1) - Infinite counter
+#[allow(clippy::unnecessary_wraps)]
 fn convert_count(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
-    let start = if !arg_exprs.is_empty() { arg_exprs[0].clone() } else { parse_quote!(0) };
+    let start = if arg_exprs.is_empty() { parse_quote!(0) } else { arg_exprs[0].clone() };
     let step = if arg_exprs.len() >= 2 { arg_exprs[1].clone() } else { parse_quote!(1) };
 
     Ok(parse_quote! {
@@ -344,7 +345,7 @@ fn convert_combinations(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Re
     })
 }
 
-/// itertools.zip_longest(iter1, iter2) - Zip with fill value for shorter iterables
+/// `itertools.zip_longest(iter1`, iter2) - Zip with fill value for shorter iterables
 fn convert_zip_longest(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if arg_exprs.len() < 2 {
         bail!("itertools.zip_longest() requires at least 2 arguments");

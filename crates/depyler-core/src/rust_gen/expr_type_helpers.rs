@@ -1,6 +1,6 @@
 //! Expression Type Helpers
 //!
-//! DEPYLER-COVERAGE-95: Extracted pure type-checking helpers from expr_gen.rs
+//! DEPYLER-COVERAGE-95: Extracted pure type-checking helpers from `expr_gen.rs`
 //! for improved testability and coverage.
 //!
 //! These functions analyze HIR expressions and types to determine:
@@ -15,7 +15,8 @@ use syn::parse_quote;
 /// Check if expression evaluates to an integer type.
 /// Handles variables, literals, and binary operations on integers.
 ///
-/// DEPYLER-0805: Extracted from ExpressionConverter::is_int_expr
+/// DEPYLER-0805: Extracted from `ExpressionConverter::is_int_expr`
+#[allow(clippy::implicit_hasher)]
 pub fn is_int_expr(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
     match expr {
         HirExpr::Var(name) => {
@@ -43,6 +44,7 @@ pub fn is_int_expr(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
 }
 
 /// Check if expression is a variable with integer type.
+#[allow(clippy::implicit_hasher)]
 pub fn is_int_var(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
     if let HirExpr::Var(name) = expr {
         if let Some(var_type) = var_types.get(name) {
@@ -63,6 +65,7 @@ pub fn is_int_var(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
 /// Also uses heuristics for common float parameter names.
 ///
 /// DEPYLER-0950: Heuristic for colorsys color channel variables
+#[allow(clippy::implicit_hasher)]
 pub fn is_float_var(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
     if let HirExpr::Var(name) = expr {
         if let Some(var_type) = var_types.get(name) {
@@ -103,9 +106,9 @@ pub fn is_float_var_name(name: &str) -> bool {
 }
 
 /// Add & to borrow a path expression if it's a simple variable.
-/// This prevents moving String parameters in PathBuf::from() and File::open()
+/// This prevents moving String parameters in `PathBuf::from()` and <File::open()>
 ///
-/// DEPYLER-0465: Extracted from ExpressionConverter::borrow_if_needed
+/// DEPYLER-0465: Extracted from `ExpressionConverter::borrow_if_needed`
 #[inline]
 pub fn borrow_if_needed(expr: &syn::Expr) -> syn::Expr {
     match expr {

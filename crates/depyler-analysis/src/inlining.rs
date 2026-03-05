@@ -145,7 +145,7 @@ impl InliningAnalyzer {
                         modified_body.extend(inlined_stmts);
                         // Track which functions were inlined
                         if let HirStmt::Expr(HirExpr::Call { func: callee, .. }) = stmt {
-                            if decisions.get(callee).map(|d| d.should_inline).unwrap_or(false) {
+                            if decisions.get(callee).is_some_and(|d| d.should_inline) {
                                 inlined_functions.insert(callee.clone());
                             }
                         }
@@ -161,7 +161,7 @@ impl InliningAnalyzer {
         if self.config.inline_single_use {
             program.functions.retain(|f| {
                 !inlined_functions.contains(&f.name)
-                    || self.function_metrics.get(&f.name).map(|m| m.call_count > 1).unwrap_or(true)
+                    || self.function_metrics.get(&f.name).is_none_or(|m| m.call_count > 1)
             });
         }
 
@@ -190,21 +190,23 @@ impl InliningAnalyzer {
         calls
     }
 
+    #[allow(clippy::match_same_arms)]
     fn extract_calls_from_stmt(&self, stmt: &HirStmt, calls: &mut HashSet<String>) {
         match stmt {
-            HirStmt::Expr(expr) => self.extract_calls_from_expr(expr, calls),
-            HirStmt::Assign { value, .. } => self.extract_calls_from_expr(value, calls),
-            HirStmt::Return(Some(expr)) => self.extract_calls_from_expr(expr, calls),
+            HirStmt::Expr(expr) => Self::extract_calls_from_expr(expr, calls),
+            HirStmt::Assign { value, .. } => Self::extract_calls_from_expr(value, calls),
+            HirStmt::Return(Some(expr)) => Self::extract_calls_from_expr(expr, calls),
             HirStmt::If { condition, then_body, else_body } => {
-                self.extract_calls_from_if(condition, then_body, else_body, calls)
+                self.extract_calls_from_if(condition, then_body, else_body, calls);
             }
             HirStmt::While { condition, body } | HirStmt::For { iter: condition, body, .. } => {
-                self.extract_calls_from_loop(condition, body, calls)
+                self.extract_calls_from_loop(condition, body, calls);
             }
             _ => {}
         }
     }
 
+    #[allow(clippy::ref_option)]
     fn extract_calls_from_if(
         &self,
         condition: &HirExpr,
@@ -212,7 +214,7 @@ impl InliningAnalyzer {
         else_body: &Option<Vec<HirStmt>>,
         calls: &mut HashSet<String>,
     ) {
-        self.extract_calls_from_expr(condition, calls);
+        Self::extract_calls_from_expr(condition, calls);
         self.extract_calls_from_body(then_body, calls);
         if let Some(else_stmts) = else_body {
             self.extract_calls_from_body(else_stmts, calls);
@@ -225,7 +227,7 @@ impl InliningAnalyzer {
         body: &[HirStmt],
         calls: &mut HashSet<String>,
     ) {
-        self.extract_calls_from_expr(condition, calls);
+        Self::extract_calls_from_expr(condition, calls);
         self.extract_calls_from_body(body, calls);
     }
 
@@ -235,7 +237,7 @@ impl InliningAnalyzer {
         }
     }
 
-    fn extract_calls_from_expr(&self, expr: &HirExpr, calls: &mut HashSet<String>) {
+    fn extract_calls_from_expr(expr: &HirExpr, calls: &mut HashSet<String>) {
         extract_calls_from_expr_inner(expr, calls);
     }
 }
@@ -326,17 +328,17 @@ impl InliningAnalyzer {
     fn calculate_metrics(&mut self, program: &HirProgram) {
         for func in &program.functions {
             let size = self.calculate_function_size(func);
-            let has_loops = self.contains_loops(&func.body);
+            let has_loops = Self::contains_loops(&func.body);
             let has_side_effects = self.has_side_effects(func);
-            let is_trivial = self.is_trivial_function(func);
-            let return_count = self.count_returns(&func.body);
+            let is_trivial = Self::is_trivial_function(func);
+            let return_count = Self::count_returns(&func.body);
 
             // Calculate call count
             let call_count =
-                self.call_graph.called_by.get(&func.name).map(|callers| callers.len()).unwrap_or(0);
+                self.call_graph.called_by.get(&func.name).map_or(0, std::collections::HashSet::len);
 
             // Estimate execution cost
-            let cost = self.estimate_cost(func, size, has_loops, has_side_effects);
+            let cost = Self::estimate_cost(func, size, has_loops, has_side_effects);
 
             let metrics = FunctionMetrics {
                 size,
@@ -361,11 +363,12 @@ impl InliningAnalyzer {
         size
     }
 
+    #[allow(clippy::match_same_arms)]
     fn calculate_stmt_size(&self, stmt: &HirStmt) -> usize {
         match stmt {
-            HirStmt::Expr(expr) => self.calculate_expr_size(expr),
-            HirStmt::Assign { value, .. } => 1 + self.calculate_expr_size(value),
-            HirStmt::Return(Some(expr)) => 1 + self.calculate_expr_size(expr),
+            HirStmt::Expr(expr) => Self::calculate_expr_size(expr),
+            HirStmt::Assign { value, .. } => 1 + Self::calculate_expr_size(value),
+            HirStmt::Return(Some(expr)) => 1 + Self::calculate_expr_size(expr),
             HirStmt::Return(None) => 1,
             HirStmt::If { condition, then_body, else_body } => {
                 self.calculate_if_size(condition, then_body, else_body)
@@ -377,13 +380,14 @@ impl InliningAnalyzer {
         }
     }
 
+    #[allow(clippy::ref_option)]
     fn calculate_if_size(
         &self,
         condition: &HirExpr,
         then_body: &[HirStmt],
         else_body: &Option<Vec<HirStmt>>,
     ) -> usize {
-        let mut size = 1 + self.calculate_expr_size(condition);
+        let mut size = 1 + Self::calculate_expr_size(condition);
         size += self.calculate_body_size(then_body);
         if let Some(else_stmts) = else_body {
             size += self.calculate_body_size(else_stmts);
@@ -392,7 +396,7 @@ impl InliningAnalyzer {
     }
 
     fn calculate_loop_size(&self, condition: &HirExpr, body: &[HirStmt]) -> usize {
-        let mut size = 1 + self.calculate_expr_size(condition);
+        let mut size = 1 + Self::calculate_expr_size(condition);
         size += self.calculate_body_size(body);
         size
     }
@@ -401,11 +405,11 @@ impl InliningAnalyzer {
         body.iter().map(|s| self.calculate_stmt_size(s)).sum()
     }
 
-    fn calculate_expr_size(&self, expr: &HirExpr) -> usize {
+    fn calculate_expr_size(expr: &HirExpr) -> usize {
         calculate_expr_size_inner(expr)
     }
 
-    fn contains_loops(&self, body: &[HirStmt]) -> bool {
+    fn contains_loops(body: &[HirStmt]) -> bool {
         contains_loops_inner(body)
     }
 
@@ -426,11 +430,12 @@ impl InliningAnalyzer {
         false
     }
 
+    #[allow(clippy::match_same_arms)]
     fn stmt_has_side_effects(&self, stmt: &HirStmt) -> bool {
         match stmt {
-            HirStmt::Expr(expr) => self.expr_has_side_effects(expr),
-            HirStmt::Assign { value, .. } => self.expr_has_side_effects(value),
-            HirStmt::Return(Some(expr)) => self.expr_has_side_effects(expr),
+            HirStmt::Expr(expr) => Self::expr_has_side_effects(expr),
+            HirStmt::Assign { value, .. } => Self::expr_has_side_effects(value),
+            HirStmt::Return(Some(expr)) => Self::expr_has_side_effects(expr),
             HirStmt::If { condition, then_body, else_body } => {
                 self.if_has_side_effects(condition, then_body, else_body)
             }
@@ -442,30 +447,31 @@ impl InliningAnalyzer {
         }
     }
 
+    #[allow(clippy::ref_option)]
     fn if_has_side_effects(
         &self,
         condition: &HirExpr,
         then_body: &[HirStmt],
         else_body: &Option<Vec<HirStmt>>,
     ) -> bool {
-        self.expr_has_side_effects(condition)
+        Self::expr_has_side_effects(condition)
             || self.body_has_side_effects(then_body)
-            || else_body.as_ref().map(|stmts| self.body_has_side_effects(stmts)).unwrap_or(false)
+            || else_body.as_ref().is_some_and(|stmts| self.body_has_side_effects(stmts))
     }
 
     fn loop_has_side_effects(&self, condition: &HirExpr, body: &[HirStmt]) -> bool {
-        self.expr_has_side_effects(condition) || self.body_has_side_effects(body)
+        Self::expr_has_side_effects(condition) || self.body_has_side_effects(body)
     }
 
     fn body_has_side_effects(&self, body: &[HirStmt]) -> bool {
         body.iter().any(|s| self.stmt_has_side_effects(s))
     }
 
-    fn expr_has_side_effects(&self, expr: &HirExpr) -> bool {
+    fn expr_has_side_effects(expr: &HirExpr) -> bool {
         expr_has_side_effects_inner(expr)
     }
 
-    fn is_trivial_function(&self, func: &HirFunction) -> bool {
+    fn is_trivial_function(func: &HirFunction) -> bool {
         // A trivial function has a single return statement
         if func.body.len() == 1 {
             matches!(func.body[0], HirStmt::Return(_))
@@ -474,13 +480,13 @@ impl InliningAnalyzer {
         }
     }
 
-    fn count_returns(&self, body: &[HirStmt]) -> usize {
+    fn count_returns(body: &[HirStmt]) -> usize {
         count_returns_inner(body)
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn estimate_cost(
-        &self,
-        func: &HirFunction,
+                func: &HirFunction,
         size: usize,
         has_loops: bool,
         has_side_effects: bool,
@@ -595,6 +601,7 @@ impl InliningAnalyzer {
         None
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn decide_by_cost_benefit(&self, metrics: &FunctionMetrics) -> InliningDecision {
         let call_overhead = 1.0;
         let benefit = (call_overhead * metrics.call_count as f64) - metrics.cost;
@@ -676,7 +683,7 @@ impl InliningAnalyzer {
             }
 
             let mut result = inlined;
-            self.replace_return_with_assign(&mut result, target);
+            Self::replace_return_with_assign(&mut result, target);
             Some(result)
         } else {
             None
@@ -684,8 +691,7 @@ impl InliningAnalyzer {
     }
 
     fn replace_return_with_assign(
-        &self,
-        statements: &mut [HirStmt],
+                statements: &mut [HirStmt],
         target: &depyler_hir::hir::AssignTarget,
     ) {
         if let Some(last) = statements.last_mut() {
@@ -740,6 +746,8 @@ impl InliningAnalyzer {
         inlined_body
     }
 
+    #[allow(clippy::used_underscore_binding)]
+    #[allow(clippy::self_only_used_in_recursion)]
     fn transform_stmt_for_inlining(
         &self,
         stmt: &HirStmt,
@@ -749,7 +757,7 @@ impl InliningAnalyzer {
         match stmt {
             HirStmt::Expr(expr) => HirStmt::Expr(transform_expr_for_inlining_inner(expr, params)),
             HirStmt::Assign { target, value, type_annotation } => HirStmt::Assign {
-                target: self.transform_assign_target_for_inlining(target, params),
+                target: Self::transform_assign_target_for_inlining(target, params),
                 value: transform_expr_for_inlining_inner(value, params),
                 type_annotation: type_annotation.clone(),
             },
@@ -775,22 +783,20 @@ impl InliningAnalyzer {
 
     #[allow(dead_code)]
     fn transform_expr_for_inlining(
-        &self,
-        expr: &HirExpr,
+                expr: &HirExpr,
         params: &[depyler_hir::hir::HirParam],
     ) -> HirExpr {
         transform_expr_for_inlining_inner(expr, params)
     }
 
     fn transform_assign_target_for_inlining(
-        &self,
-        target: &depyler_hir::hir::AssignTarget,
+                target: &depyler_hir::hir::AssignTarget,
         params: &[depyler_hir::hir::HirParam],
     ) -> depyler_hir::hir::AssignTarget {
         match target {
             depyler_hir::hir::AssignTarget::Symbol(name) => {
                 if params.iter().any(|p| &p.name == name) {
-                    depyler_hir::hir::AssignTarget::Symbol(format!("_inline_{}", name))
+                    depyler_hir::hir::AssignTarget::Symbol(format!("_inline_{name}"))
                 } else {
                     target.clone()
                 }
@@ -800,6 +806,7 @@ impl InliningAnalyzer {
     }
 }
 
+#[allow(clippy::match_same_arms)]
 fn calculate_expr_size_inner(expr: &HirExpr) -> usize {
     match expr {
         HirExpr::Literal(_) | HirExpr::Var(_) => 1,
@@ -908,7 +915,7 @@ fn transform_expr_for_inlining_inner(
         HirExpr::Var(name) => {
             // Replace parameter references with inlined versions
             if params.iter().any(|p| &p.name == name) {
-                HirExpr::Var(format!("_inline_{}", name))
+                HirExpr::Var(format!("_inline_{name}"))
             } else {
                 expr.clone()
             }
