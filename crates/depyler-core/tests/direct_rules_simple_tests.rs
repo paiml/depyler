@@ -399,7 +399,7 @@ mod tests {
     }
 }
 
-/// Property tests for direct_rules
+/// Property tests for `direct_rules`
 #[cfg(test)]
 mod property_tests {
     use depyler_core::direct_rules::apply_rules;
@@ -424,7 +424,7 @@ mod property_tests {
 
             for i in 0..num_functions {
                 module.functions.push(HirFunction {
-                    name: format!("func{}", i),
+                    name: format!("func{i}"),
                     params: smallvec![],
                     ret_type: Type::Unknown,
                     body: vec![],

@@ -1129,9 +1129,7 @@ mod tests {
 
         assert!(
             short_score > long_score,
-            "Short doc should score higher: {} vs {}",
-            short_score,
-            long_score
+            "Short doc should score higher: {short_score} vs {long_score}"
         );
     }
 
@@ -1228,7 +1226,7 @@ mod tests {
     fn test_rrf_result_debug() {
         let result = RrfResult { doc_idx: 1, score: 0.033, bm25_rank: 1, tfidf_rank: 1 };
 
-        let debug_str = format!("{:?}", result);
+        let debug_str = format!("{result:?}");
         assert!(debug_str.contains("doc_idx"));
         assert!(debug_str.contains("score"));
     }

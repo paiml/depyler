@@ -1,4 +1,4 @@
-//! Session 11: Deep coverage tests for rust_gen.rs (mod)
+//! Session 11: Deep coverage tests for `rust_gen.rs` (mod)
 //!
 //! Targets the #4 coverage bottleneck (79% covered, 2347 missed regions):
 //! - Class code generation patterns
@@ -30,37 +30,35 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s11_gen_class_empty() {
-    let code = r#"
+    let code = r"
 class Empty:
     pass
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("struct Empty") || result.contains("Empty"),
-        "Should transpile empty class. Got: {}",
-        result
+        "Should transpile empty class. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_gen_class_with_fields() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("struct Point") || result.contains("Point"),
-        "Should transpile class with fields. Got: {}",
-        result
+        "Should transpile class with fields. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_gen_class_with_methods() {
-    let code = r#"
+    let code = r"
 class Counter:
     def __init__(self):
         self.count = 0
@@ -70,27 +68,26 @@ class Counter:
 
     def get_count(self) -> int:
         return self.count
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("Counter") && result.contains("increment"),
-        "Should transpile class with methods. Got: {}",
-        result
+        "Should transpile class with methods. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_gen_class_with_str() {
-    let code = r#"
+    let code = r"
 class Named:
     def __init__(self, name: str):
         self.name = name
 
     def __str__(self) -> str:
         return self.name
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Named"), "Should transpile class with __str__. Got: {}", result);
+    assert!(result.contains("Named"), "Should transpile class with __str__. Got: {result}");
 }
 
 #[test]
@@ -104,12 +101,12 @@ class Item:
         return f"Item({self.value})"
 "#;
     let result = transpile(code);
-    assert!(result.contains("Item"), "Should transpile class with __repr__. Got: {}", result);
+    assert!(result.contains("Item"), "Should transpile class with __repr__. Got: {result}");
 }
 
 #[test]
 fn test_s11_gen_class_with_eq() {
-    let code = r#"
+    let code = r"
 class Pair:
     def __init__(self, a: int, b: int):
         self.a = a
@@ -117,44 +114,43 @@ class Pair:
 
     def __eq__(self, other) -> bool:
         return self.a == other.a and self.b == other.b
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Pair"), "Should transpile class with __eq__. Got: {}", result);
+    assert!(result.contains("Pair"), "Should transpile class with __eq__. Got: {result}");
 }
 
 #[test]
 fn test_s11_gen_class_with_len() {
-    let code = r#"
+    let code = r"
 class Container:
     def __init__(self):
         self.items: list = []
 
     def __len__(self) -> int:
         return len(self.items)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Container"), "Should transpile class with __len__. Got: {}", result);
+    assert!(result.contains("Container"), "Should transpile class with __len__. Got: {result}");
 }
 
 #[test]
 fn test_s11_gen_class_staticmethod() {
-    let code = r#"
+    let code = r"
 class MathHelper:
     @staticmethod
     def add(a: int, b: int) -> int:
         return a + b
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("MathHelper") || result.contains("fn add"),
-        "Should transpile staticmethod. Got: {}",
-        result
+        "Should transpile staticmethod. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_gen_class_classmethod() {
-    let code = r#"
+    let code = r"
 class Config:
     def __init__(self, value: str):
         self.value = value
@@ -162,14 +158,14 @@ class Config:
     @classmethod
     def from_string(cls, s: str):
         return cls(s)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Config"), "Should transpile classmethod. Got: {}", result);
+    assert!(result.contains("Config"), "Should transpile classmethod. Got: {result}");
 }
 
 #[test]
 fn test_s11_gen_class_property() {
-    let code = r#"
+    let code = r"
 class Circle:
     def __init__(self, radius: float):
         self.radius = radius
@@ -177,9 +173,9 @@ class Circle:
     @property
     def area(self) -> float:
         return 3.14159 * self.radius ** 2
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Circle"), "Should transpile property. Got: {}", result);
+    assert!(result.contains("Circle"), "Should transpile property. Got: {result}");
 }
 
 #[test]
@@ -199,8 +195,7 @@ class Dog(Animal):
     let result = transpile(code);
     assert!(
         result.contains("Animal") || result.contains("Dog"),
-        "Should transpile class inheritance. Got: {}",
-        result
+        "Should transpile class inheritance. Got: {result}"
     );
 }
 
@@ -215,7 +210,7 @@ class Config:
         self.name = name
 "#;
     let result = transpile(code);
-    assert!(result.contains("Config"), "Should transpile class vars. Got: {}", result);
+    assert!(result.contains("Config"), "Should transpile class vars. Got: {result}");
 }
 
 // ============================================================================
@@ -224,26 +219,26 @@ class Config:
 
 #[test]
 fn test_s11_gen_import_math() {
-    let code = r#"
+    let code = r"
 import math
 
 def circle_area(r: float) -> float:
     return math.pi * r ** 2
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn circle_area"), "Should handle math import. Got: {}", result);
+    assert!(result.contains("fn circle_area"), "Should handle math import. Got: {result}");
 }
 
 #[test]
 fn test_s11_gen_from_import() {
-    let code = r#"
+    let code = r"
 from math import sqrt, pi
 
 def hypotenuse(a: float, b: float) -> float:
     return sqrt(a ** 2 + b ** 2)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn hypotenuse"), "Should handle from import. Got: {}", result);
+    assert!(result.contains("fn hypotenuse"), "Should handle from import. Got: {result}");
 }
 
 #[test]
@@ -255,7 +250,7 @@ def get_home() -> str:
     return os.getenv("HOME", "/tmp")
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn get_home"), "Should handle os import. Got: {}", result);
+    assert!(result.contains("fn get_home"), "Should handle os import. Got: {result}");
 }
 
 #[test]
@@ -267,12 +262,12 @@ def process(items: List[int]) -> Dict[str, int]:
     return {"count": len(items)}
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn process"), "Should handle typing import. Got: {}", result);
+    assert!(result.contains("fn process"), "Should handle typing import. Got: {result}");
 }
 
 #[test]
 fn test_s11_gen_import_collections() {
-    let code = r#"
+    let code = r"
 from collections import defaultdict
 
 def word_count(words: list) -> dict:
@@ -280,21 +275,21 @@ def word_count(words: list) -> dict:
     for w in words:
         counts[w] += 1
     return counts
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn word_count"), "Should handle collections import. Got: {}", result);
+    assert!(result.contains("fn word_count"), "Should handle collections import. Got: {result}");
 }
 
 #[test]
 fn test_s11_gen_import_json() {
-    let code = r#"
+    let code = r"
 import json
 
 def serialize(data: dict) -> str:
     return json.dumps(data)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn serialize"), "Should handle json import. Got: {}", result);
+    assert!(result.contains("fn serialize"), "Should handle json import. Got: {result}");
 }
 
 // ============================================================================
@@ -303,33 +298,31 @@ def serialize(data: dict) -> str:
 
 #[test]
 fn test_s11_gen_module_int_constant() {
-    let code = r#"
+    let code = r"
 MAX_SIZE = 1024
 
 def get_max() -> int:
     return MAX_SIZE
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("MAX_SIZE") || result.contains("1024"),
-        "Should transpile int constant. Got: {}",
-        result
+        "Should transpile int constant. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_gen_module_float_constant() {
-    let code = r#"
+    let code = r"
 EPSILON = 0.001
 
 def is_close(a: float, b: float) -> bool:
     return abs(a - b) < EPSILON
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("EPSILON") || result.contains("is_close"),
-        "Should transpile float constant. Got: {}",
-        result
+        "Should transpile float constant. Got: {result}"
     );
 }
 
@@ -344,40 +337,37 @@ def get_version() -> str:
     let result = transpile(code);
     assert!(
         result.contains("VERSION") || result.contains("1.0.0"),
-        "Should transpile string constant. Got: {}",
-        result
+        "Should transpile string constant. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_gen_module_bool_constant() {
-    let code = r#"
+    let code = r"
 DEBUG = False
 
 def is_debug() -> bool:
     return DEBUG
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("DEBUG") || result.contains("is_debug"),
-        "Should transpile bool constant. Got: {}",
-        result
+        "Should transpile bool constant. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_gen_module_list_constant() {
-    let code = r#"
+    let code = r"
 PRIMES = [2, 3, 5, 7, 11, 13]
 
 def is_prime(n: int) -> bool:
     return n in PRIMES
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("PRIMES") || result.contains("is_prime"),
-        "Should transpile list constant. Got: {}",
-        result
+        "Should transpile list constant. Got: {result}"
     );
 }
 
@@ -392,8 +382,7 @@ def get_status(code: int) -> str:
     let result = transpile(code);
     assert!(
         result.contains("STATUS_CODES") || result.contains("get_status"),
-        "Should transpile dict constant. Got: {}",
-        result
+        "Should transpile dict constant. Got: {result}"
     );
 }
 
@@ -403,7 +392,7 @@ def get_status(code: int) -> str:
 
 #[test]
 fn test_s11_gen_multiple_functions() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
 
@@ -415,15 +404,14 @@ def mul(a: int, b: int) -> int:
 
 def div(a: float, b: float) -> float:
     return a / b
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn add")
             && result.contains("fn sub")
             && result.contains("fn mul")
             && result.contains("fn div"),
-        "Should transpile multiple functions. Got: {}",
-        result
+        "Should transpile multiple functions. Got: {result}"
     );
 }
 
@@ -438,7 +426,7 @@ def greet(name: str, greeting: str = "Hello") -> str:
     return f"{greeting}, {name}!"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn greet"), "Should transpile default params. Got: {}", result);
+    assert!(result.contains("fn greet"), "Should transpile default params. Got: {result}");
 }
 
 #[test]
@@ -448,7 +436,7 @@ def connect(host: str = "localhost", port: int = 8080, timeout: int = 30) -> str
     return f"{host}:{port}"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn connect"), "Should transpile multiple defaults. Got: {}", result);
+    assert!(result.contains("fn connect"), "Should transpile multiple defaults. Got: {result}");
 }
 
 // ============================================================================
@@ -457,32 +445,30 @@ def connect(host: str = "localhost", port: int = 8080, timeout: int = 30) -> str
 
 #[test]
 fn test_s11_gen_async_function() {
-    let code = r#"
+    let code = r"
 async def fetch_data(url: str) -> str:
     return url
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn fetch_data") || result.contains("async fn fetch_data"),
-        "Should transpile async function. Got: {}",
-        result
+        "Should transpile async function. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_gen_async_with_await() {
-    let code = r#"
+    let code = r"
 import asyncio
 
 async def delayed_result(n: int) -> int:
     await asyncio.sleep(1)
     return n * 2
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn delayed_result"),
-        "Should transpile async with await. Got: {}",
-        result
+        "Should transpile async with await. Got: {result}"
     );
 }
 
@@ -492,31 +478,27 @@ async def delayed_result(n: int) -> int:
 
 #[test]
 fn test_s11_gen_generator_yield() {
-    let code = r#"
+    let code = r"
 def count_up(n: int):
     for i in range(n):
         yield i
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn count_up"), "Should transpile generator yield. Got: {}", result);
+    assert!(result.contains("fn count_up"), "Should transpile generator yield. Got: {result}");
 }
 
 #[test]
 fn test_s11_gen_generator_yield_value() {
-    let code = r#"
+    let code = r"
 def fibonacci(n: int):
     a = 0
     b = 1
     for _ in range(n):
         yield a
         a, b = b, a + b
-"#;
+";
     let result = transpile(code);
-    assert!(
-        result.contains("fn fibonacci"),
-        "Should transpile fibonacci generator. Got: {}",
-        result
-    );
+    assert!(result.contains("fn fibonacci"), "Should transpile fibonacci generator. Got: {result}");
 }
 
 // ============================================================================
@@ -533,8 +515,7 @@ def documented(x: int) -> int:
     let result = transpile(code);
     assert!(
         result.contains("fn documented"),
-        "Should transpile function with docstring. Got: {}",
-        result
+        "Should transpile function with docstring. Got: {result}"
     );
 }
 
@@ -547,11 +528,7 @@ class Documented:
         self.value = 0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Documented"),
-        "Should transpile class with docstring. Got: {}",
-        result
-    );
+    assert!(result.contains("Documented"), "Should transpile class with docstring. Got: {result}");
 }
 
 // ============================================================================
@@ -560,7 +537,7 @@ class Documented:
 
 #[test]
 fn test_s11_gen_class_with_multiple_methods() {
-    let code = r#"
+    let code = r"
 class Stack:
     def __init__(self):
         self.items: list = []
@@ -579,18 +556,17 @@ class Stack:
 
     def size(self) -> int:
         return len(self.items)
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("Stack") && result.contains("push"),
-        "Should transpile Stack class. Got: {}",
-        result
+        "Should transpile Stack class. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_gen_class_with_comparison() {
-    let code = r#"
+    let code = r"
 class Temperature:
     def __init__(self, degrees: float):
         self.degrees = degrees
@@ -603,12 +579,11 @@ class Temperature:
 
     def __gt__(self, other) -> bool:
         return self.degrees > other.degrees
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("Temperature"),
-        "Should transpile class with comparisons. Got: {}",
-        result
+        "Should transpile class with comparisons. Got: {result}"
     );
 }
 
@@ -618,17 +593,16 @@ class Temperature:
 
 #[test]
 fn test_s11_gen_enum_like_class() {
-    let code = r#"
+    let code = r"
 class Color:
     RED = 1
     GREEN = 2
     BLUE = 3
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("Color") || result.contains("RED"),
-        "Should transpile enum-like class. Got: {}",
-        result
+        "Should transpile enum-like class. Got: {result}"
     );
 }
 
@@ -638,40 +612,35 @@ class Color:
 
 #[test]
 fn test_s11_gen_function_calling_function() {
-    let code = r#"
+    let code = r"
 def helper(x: int) -> int:
     return x * 2
 
 def main(x: int) -> int:
     return helper(x) + 1
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn helper") && result.contains("fn main"),
-        "Should transpile function calling function. Got: {}",
-        result
+        "Should transpile function calling function. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_gen_recursive_function() {
-    let code = r#"
+    let code = r"
 def factorial(n: int) -> int:
     if n <= 1:
         return 1
     return n * factorial(n - 1)
-"#;
+";
     let result = transpile(code);
-    assert!(
-        result.contains("fn factorial"),
-        "Should transpile recursive function. Got: {}",
-        result
-    );
+    assert!(result.contains("fn factorial"), "Should transpile recursive function. Got: {result}");
 }
 
 #[test]
 fn test_s11_gen_mutually_recursive() {
-    let code = r#"
+    let code = r"
 def is_even(n: int) -> bool:
     if n == 0:
         return True
@@ -681,12 +650,11 @@ def is_odd(n: int) -> bool:
     if n == 0:
         return False
     return is_even(n - 1)
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn is_even") && result.contains("fn is_odd"),
-        "Should transpile mutually recursive. Got: {}",
-        result
+        "Should transpile mutually recursive. Got: {result}"
     );
 }
 
@@ -696,7 +664,7 @@ def is_odd(n: int) -> bool:
 
 #[test]
 fn test_s11_gen_complex_return_type() {
-    let code = r#"
+    let code = r"
 from typing import List, Tuple
 
 def split_list(items: List[int]) -> Tuple[List[int], List[int]]:
@@ -708,18 +676,17 @@ def split_list(items: List[int]) -> Tuple[List[int], List[int]]:
         else:
             odds.append(x)
     return (evens, odds)
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn split_list"),
-        "Should transpile complex return type. Got: {}",
-        result
+        "Should transpile complex return type. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_gen_optional_param() {
-    let code = r#"
+    let code = r"
 from typing import Optional
 
 def find(items: list, target: int) -> Optional[int]:
@@ -727,9 +694,9 @@ def find(items: list, target: int) -> Optional[int]:
         if items[i] == target:
             return i
     return None
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn find"), "Should transpile Optional param. Got: {}", result);
+    assert!(result.contains("fn find"), "Should transpile Optional param. Got: {result}");
 }
 
 // ============================================================================
@@ -738,23 +705,23 @@ def find(items: list, target: int) -> Optional[int]:
 
 #[test]
 fn test_s11_gen_args_function() {
-    let code = r#"
+    let code = r"
 def sum_all(*args) -> int:
     total = 0
     for x in args:
         total += x
     return total
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sum_all"), "Should transpile *args. Got: {}", result);
+    assert!(result.contains("fn sum_all"), "Should transpile *args. Got: {result}");
 }
 
 #[test]
 fn test_s11_gen_kwargs_function() {
-    let code = r#"
+    let code = r"
 def config(**kwargs) -> dict:
     return kwargs
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn config"), "Should transpile **kwargs. Got: {}", result);
+    assert!(result.contains("fn config"), "Should transpile **kwargs. Got: {result}");
 }

@@ -10,19 +10,19 @@
 
 use depyler_core::DepylerPipeline;
 
-/// Test Vector subtraction with scalar from numpy min() result
-/// Python: arr - min_val where min_val = np.min(arr)
+/// Test Vector subtraction with scalar from numpy `min()` result
+/// Python: arr - `min_val` where `min_val` = np.min(arr)
 /// Rust: Should generate element-wise subtraction
 #[test]
 fn test_depyler_0928_vector_sub_scalar_from_min() {
-    let python = r#"
+    let python = r"
 import numpy as np
 
 def normalize(a: float, b: float, c: float):
     arr = np.array([a, b, c])
     min_val = np.min(arr)
     return arr - min_val
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -36,23 +36,22 @@ def normalize(a: float, b: float, c: float):
         rust_code.contains("as_slice")
             || rust_code.contains("sub_scalar")
             || rust_code.contains("map(|"),
-        "Vector - scalar should use element-wise pattern, not raw operator.\nGot:\n{}",
-        rust_code
+        "Vector - scalar should use element-wise pattern, not raw operator.\nGot:\n{rust_code}"
     );
 }
 
 /// Test Vector multiplication with integer 0
 /// Python: arr * 0
-/// Rust: Should generate arr.scale(0f32).unwrap() or similar
+/// Rust: Should generate `arr.scale(0f32).unwrap()` or similar
 #[test]
 fn test_depyler_0928_vector_mul_integer_zero() {
-    let python = r#"
+    let python = r"
 import numpy as np
 
 def zero_array(a: float, b: float, c: float):
     arr = np.array([a, b, c])
     return arr * 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -67,23 +66,22 @@ def zero_array(a: float, b: float, c: float):
             || rust_code.contains("0f32")
             || rust_code.contains("0_f32")
             || rust_code.contains("0 as f32"),
-        "Vector * integer should use scale() or cast to f32.\nGot:\n{}",
-        rust_code
+        "Vector * integer should use scale() or cast to f32.\nGot:\n{rust_code}"
     );
 }
 
 /// Test Vector multiplication with integer (non-zero)
 /// Python: arr * 2
-/// Rust: Should generate arr.scale(2f32).unwrap() or similar
+/// Rust: Should generate `arr.scale(2f32).unwrap()` or similar
 #[test]
 fn test_depyler_0928_vector_mul_integer_nonzero() {
-    let python = r#"
+    let python = r"
 import numpy as np
 
 def double_array(a: float, b: float, c: float):
     arr = np.array([a, b, c])
     return arr * 2
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -97,17 +95,16 @@ def double_array(a: float, b: float, c: float):
             || rust_code.contains("2f32")
             || rust_code.contains("2_f32")
             || rust_code.contains("2 as f32"),
-        "Vector * integer should use scale() or cast to f32.\nGot:\n{}",
-        rust_code
+        "Vector * integer should use scale() or cast to f32.\nGot:\n{rust_code}"
     );
 }
 
 /// Test minmax normalization pattern (complete pattern from failing example)
-/// Python: (arr - min_val) / denom if denom > 0 else arr * 0
-/// This is the exact pattern from example_numpy_minmax
+/// Python: (arr - `min_val`) / denom if denom > 0 else arr * 0
+/// This is the exact pattern from `example_numpy_minmax`
 #[test]
 fn test_depyler_0928_minmax_normalization_pattern() {
-    let python = r#"
+    let python = r"
 import numpy as np
 
 def minmax_normalize(a: float, b: float, c: float):
@@ -117,7 +114,7 @@ def minmax_normalize(a: float, b: float, c: float):
     denom = max_val - min_val
     result = (arr - min_val) / denom if denom > 0 else arr * 0
     return result
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -133,16 +130,15 @@ def minmax_normalize(a: float, b: float, c: float):
 
     assert!(
         has_proper_vector_ops,
-        "Minmax pattern should use proper trueno methods.\nGot:\n{}",
-        rust_code
+        "Minmax pattern should use proper trueno methods.\nGot:\n{rust_code}"
     );
 }
 
-/// Test that min_val from np.min is recognized as returning float
-/// This tests the expr_returns_float recognition
+/// Test that `min_val` from np.min is recognized as returning float
+/// This tests the `expr_returns_float` recognition
 #[test]
 fn test_depyler_0928_min_val_recognized_as_float() {
-    let python = r#"
+    let python = r"
 import numpy as np
 
 def test_min(a: float, b: float, c: float):
@@ -152,7 +148,7 @@ def test_min(a: float, b: float, c: float):
     if min_val > 0:
         return min_val
     return 0.0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -166,8 +162,7 @@ def test_min(a: float, b: float, c: float):
         rust_code.contains("min_val > 0")
             || rust_code.contains("min_val > 0f32")
             || rust_code.contains("min_val > 0.0"),
-        "min_val comparison should work.\nGot:\n{}",
-        rust_code
+        "min_val comparison should work.\nGot:\n{rust_code}"
     );
 }
 
@@ -175,13 +170,13 @@ def test_min(a: float, b: float, c: float):
 /// Python: arr + offset where offset is float
 #[test]
 fn test_depyler_0928_vector_add_scalar() {
-    let python = r#"
+    let python = r"
 import numpy as np
 
 def add_offset(a: float, b: float, c: float, offset: float):
     arr = np.array([a, b, c])
     return arr + offset
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -194,8 +189,7 @@ def add_offset(a: float, b: float, c: float, offset: float):
         rust_code.contains("as_slice")
             || rust_code.contains("add_scalar")
             || rust_code.contains("map(|"),
-        "Vector + scalar should use element-wise pattern.\nGot:\n{}",
-        rust_code
+        "Vector + scalar should use element-wise pattern.\nGot:\n{rust_code}"
     );
 }
 
@@ -203,13 +197,13 @@ def add_offset(a: float, b: float, c: float, offset: float):
 /// Python: arr / factor where factor is float
 #[test]
 fn test_depyler_0928_vector_div_scalar() {
-    let python = r#"
+    let python = r"
 import numpy as np
 
 def scale_down(a: float, b: float, c: float, factor: float):
     arr = np.array([a, b, c])
     return arr / factor
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -222,8 +216,7 @@ def scale_down(a: float, b: float, c: float, factor: float):
         rust_code.contains("as_slice")
             || rust_code.contains("div_scalar")
             || rust_code.contains("map(|"),
-        "Vector / scalar should use element-wise pattern.\nGot:\n{}",
-        rust_code
+        "Vector / scalar should use element-wise pattern.\nGot:\n{rust_code}"
     );
 }
 
@@ -231,14 +224,14 @@ def scale_down(a: float, b: float, c: float, factor: float):
 /// This is the exact pattern from arr * 0 in minmax
 #[test]
 fn test_depyler_0928_vector_mul_integer_literal_in_ternary() {
-    let python = r#"
+    let python = r"
 import numpy as np
 
 def conditional_zero(a: float, b: float, condition: bool):
     arr = np.array([a, b])
     result = arr if condition else arr * 0
     return result
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -253,7 +246,6 @@ def conditional_zero(a: float, b: float, condition: bool):
             || rust_code.contains("0f32")
             || rust_code.contains("0_f32")
             || rust_code.contains("0 as f32"),
-        "Vector * 0 in ternary should use proper Vector operation.\nGot:\n{}",
-        rust_code
+        "Vector * 0 in ternary should use proper Vector operation.\nGot:\n{rust_code}"
     );
 }

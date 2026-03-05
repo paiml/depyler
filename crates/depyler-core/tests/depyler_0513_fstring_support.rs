@@ -1,13 +1,13 @@
 //! DEPYLER-0513: F-String (Formatted String Literal) Support
 //!
-//! **ROOT CAUSE**: HIR → Rust codegen missing match arm for HirExpr::FString
+//! **ROOT CAUSE**: HIR → Rust codegen missing match arm for `HirExpr::FString`
 //!
 //! **Five Whys**:
-//! 1. Why fails in classes? direct_rules.rs path lacks FString match arm
-//! 2. Why two paths? Classes use direct_rules, functions use expr_gen
-//! 3. Why no FString in direct_rules? Only added to expr_gen path
+//! 1. Why fails in classes? `direct_rules.rs` path lacks `FString` match arm
+//! 2. Why two paths? Classes use `direct_rules`, functions use `expr_gen`
+//! 3. Why no `FString` in `direct_rules`? Only added to `expr_gen` path
 //! 4. Why separate? Class codegen has different context (self refs)
-//! 5. ROOT: F-string codegen only in expr_gen, not in direct_rules.rs:1841
+//! 5. ROOT: F-string codegen only in `expr_gen`, not in `direct_rules.rs:1841`
 //!
 //! **Examples**:
 //! - Python: `f"Hello {name}"` → Rust: `format!("Hello {}", name)`
@@ -52,8 +52,7 @@ def greet(name: str) -> str:
     // Should generate format! macro
     assert!(
         rust_code.contains("format!"),
-        "DEPYLER-0513: Should generate format! macro. Generated:\n{}",
-        rust_code
+        "DEPYLER-0513: Should generate format! macro. Generated:\n{rust_code}"
     );
 }
 
@@ -129,8 +128,7 @@ class Game:
     // Should contain format!
     assert!(
         rust_code.contains("format!"),
-        "DEPYLER-0513: Should generate format! macro. Generated:\n{}",
-        rust_code
+        "DEPYLER-0513: Should generate format! macro. Generated:\n{rust_code}"
     );
 }
 
@@ -155,7 +153,6 @@ class MarcoPoloGame:
     // Should contain println! with format!
     assert!(
         rust_code.contains("format!") || rust_code.contains("println!"),
-        "DEPYLER-0513: Should generate format! or println!. Generated:\n{}",
-        rust_code
+        "DEPYLER-0513: Should generate format! or println!. Generated:\n{rust_code}"
     );
 }

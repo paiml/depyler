@@ -17,12 +17,12 @@ fn transpile_and_compile(python_code: &str) -> Result<String, Box<dyn std::error
 
 #[test]
 fn test_depyler_0382_os_path_join_starred_basic() {
-    let python = r#"
+    let python = r"
 import os
 
 def join_paths(*parts: str) -> str:
     return os.path.join(*parts)
-"#;
+";
 
     let result = transpile_and_compile(python);
 
@@ -35,8 +35,7 @@ def join_paths(*parts: str) -> str:
     // Should convert to parts.join(std::path::MAIN_SEPARATOR_STR) or similar
     assert!(
         code.contains("join") || code.contains("MAIN_SEPARATOR"),
-        "Should have path joining logic. Got: {}",
-        code
+        "Should have path joining logic. Got: {code}"
     );
 }
 
@@ -56,12 +55,12 @@ def test() -> str:
 
 #[test]
 fn test_depyler_0382_os_path_join_starred_mixed_args() {
-    let python = r#"
+    let python = r"
 import os
 
 def test(base: str, *rest: str) -> str:
     return os.path.join(base, *rest)
-"#;
+";
 
     let result = transpile_and_compile(python);
     assert!(result.is_ok(), "Should transpile os.path.join with mixed positional and starred args");
@@ -73,10 +72,10 @@ def test(base: str, *rest: str) -> str:
 
 #[test]
 fn test_depyler_0382_print_starred() {
-    let python = r#"
+    let python = r"
 def print_all(*items):
     print(*items)
-"#;
+";
 
     let result = transpile_and_compile(python);
     assert!(result.is_ok(), "Should transpile print(*items)");
@@ -88,10 +87,10 @@ def print_all(*items):
 
 #[test]
 fn test_depyler_0382_unsupported_function_error() {
-    let python = r#"
+    let python = r"
 def test(*args):
     some_custom_func(*args)
-"#;
+";
 
     let result = transpile_and_compile(python);
 
@@ -103,8 +102,7 @@ def test(*args):
             err_msg.contains("*args")
                 || err_msg.contains("unpacking")
                 || err_msg.contains("not yet supported"),
-            "Error message should mention *args unpacking. Got: {}",
-            err_msg
+            "Error message should mention *args unpacking. Got: {err_msg}"
         );
     }
 }
@@ -127,25 +125,24 @@ mod property_tests {
             .iter()
             .map(|s| {
                 let escaped = s
-                    .replace("\\", "\\\\") // Backslash first
-                    .replace("\"", "\\\"") // Double quotes
-                    .replace("\n", "\\n") // Newlines
-                    .replace("\r", "\\r") // Carriage returns
-                    .replace("\t", "\\t"); // Tabs
-                format!("\"{}\"", escaped)
+                    .replace('\\', "\\\\") // Backslash first
+                    .replace('"', "\\\"") // Double quotes
+                    .replace('\n', "\\n") // Newlines
+                    .replace('\r', "\\r") // Carriage returns
+                    .replace('\t', "\\t"); // Tabs
+                format!("\"{escaped}\"")
             })
             .collect::<Vec<_>>()
             .join(", ");
 
         let python = format!(
-            r#"
+            r"
 import os
 
 def test() -> str:
-    parts = [{}]
+    parts = [{parts_str}]
     return os.path.join(*parts)
-"#,
-            parts_str
+"
         );
 
         match transpile_and_compile(&python) {

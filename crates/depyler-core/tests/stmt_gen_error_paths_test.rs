@@ -1,10 +1,10 @@
-//! Test error paths and edge cases in stmt_gen.rs for coverage
+//! Test error paths and edge cases in `stmt_gen.rs` for coverage
 
 use depyler_core::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {}", e))
+    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {e}"))
 }
 
 fn transpile_ok(code: &str) -> bool {

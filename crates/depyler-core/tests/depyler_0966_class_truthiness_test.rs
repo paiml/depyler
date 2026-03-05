@@ -11,7 +11,7 @@ use depyler_core::DepylerPipeline;
 #[test]
 fn test_class_list_field_truthiness_negated() {
     // Python: Check if list field is empty with `not`
-    let python = r#"
+    let python = r"
 class MinHeap:
     def __init__(self):
         self.heap: list[int] = []
@@ -20,7 +20,7 @@ class MinHeap:
         if not self.heap:
             return True
         return False
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -32,8 +32,7 @@ class MinHeap:
     // NOT: !self.heap (which would fail with E0308)
     assert!(
         rust_code.contains(".is_empty()"),
-        "Should use .is_empty() for collection truthiness check\n\nGenerated:\n{}",
-        rust_code
+        "Should use .is_empty() for collection truthiness check\n\nGenerated:\n{rust_code}"
     );
 
     // Should NOT use ! operator on a Vec
@@ -46,8 +45,7 @@ class MinHeap:
 
     assert!(
         !has_invalid_not_on_vec,
-        "Should NOT use ! operator directly on Vec field\n\nGenerated:\n{}",
-        rust_code
+        "Should NOT use ! operator directly on Vec field\n\nGenerated:\n{rust_code}"
     );
 }
 
@@ -58,7 +56,7 @@ fn test_class_list_field_truthiness_positive() {
     // NOTE: This test is ignored because positive truthiness (`if self.items:`)
     // requires statement-level transformation in stmt_gen.rs, not just unary not handling.
     // The negated case (`if not self.items:`) works via convert_unary().
-    let python = r#"
+    let python = r"
 class Queue:
     def __init__(self):
         self.items: list[str] = []
@@ -67,7 +65,7 @@ class Queue:
         if self.items:
             return True
         return False
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -79,15 +77,14 @@ class Queue:
     // Pattern: `if self.items:` → `if !self.items.is_empty():`
     assert!(
         rust_code.contains("is_empty()"),
-        "Should use is_empty() for collection truthiness check\n\nGenerated:\n{}",
-        rust_code
+        "Should use is_empty() for collection truthiness check\n\nGenerated:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_class_dict_field_truthiness() {
     // Python: Check if dict field is empty
-    let python = r#"
+    let python = r"
 class Cache:
     def __init__(self):
         self.data: dict[str, int] = {}
@@ -96,7 +93,7 @@ class Cache:
         if not self.data:
             return False
         return True
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -107,15 +104,14 @@ class Cache:
     // Should use .is_empty() for dict truthiness
     assert!(
         rust_code.contains("is_empty()"),
-        "Should use is_empty() for dict truthiness check\n\nGenerated:\n{}",
-        rust_code
+        "Should use is_empty() for dict truthiness check\n\nGenerated:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_class_optional_field_truthiness() {
     // Python: Check if Optional field is None
-    let python = r#"
+    let python = r"
 class Container:
     def __init__(self):
         self.cached: int | None = None
@@ -124,7 +120,7 @@ class Container:
         if not self.cached:
             return False
         return True
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -135,15 +131,14 @@ class Container:
     // Should use .is_none() for Optional truthiness with negation
     assert!(
         rust_code.contains("is_none()") || rust_code.contains("is_some()"),
-        "Should use is_none() or is_some() for Optional truthiness check\n\nGenerated:\n{}",
-        rust_code
+        "Should use is_none() or is_some() for Optional truthiness check\n\nGenerated:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_heap_pop_pattern() {
     // The specific pattern from example_heap_queue that was failing
-    let python = r#"
+    let python = r"
 class MinHeap:
     def __init__(self):
         self.heap: list[int] = []
@@ -152,7 +147,7 @@ class MinHeap:
         if not self.heap:
             return None
         return self.heap[0]
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -163,8 +158,7 @@ class MinHeap:
     // Should generate is_empty() check
     assert!(
         rust_code.contains("is_empty()"),
-        "Should use is_empty() for heap truthiness check\n\nGenerated:\n{}",
-        rust_code
+        "Should use is_empty() for heap truthiness check\n\nGenerated:\n{rust_code}"
     );
 
     // The condition should be something like:
@@ -176,7 +170,6 @@ class MinHeap:
 
     assert!(
         has_correct_pattern,
-        "Should have self.heap with is_empty() pattern\n\nGenerated:\n{}",
-        rust_code
+        "Should have self.heap with is_empty() pattern\n\nGenerated:\n{rust_code}"
     );
 }

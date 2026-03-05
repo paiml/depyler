@@ -4,7 +4,7 @@
 //!
 //! Root Cause (Five-Whys):
 //! 1. Why? "Multiple conditions in list comprehension not yet supported"
-//! 2. Why? convert_list_comp() only handles generator.ifs.len() <= 1
+//! 2. Why? `convert_list_comp()` only handles `generator.ifs.len()` <= 1
 //! 3. Why? Code explicitly checks `if generator.ifs.len() == 1` then bails otherwise
 //! 4. Why? Original implementation assumed single condition
 //! 5. ROOT: Missing logical chaining of multiple conditions with && operator
@@ -34,9 +34,9 @@ fn parse_and_generate(python: &str) -> depyler_core::hir::HirModule {
 #[test]
 fn test_double_if_condition() {
     // Minimal reproducer: two if conditions
-    let python = r#"
+    let python = r"
 result = [x for x in range(10) if x > 5 if x % 2 == 0]
-"#;
+";
     let hir = parse_and_generate(python);
     assert_eq!(hir.constants.len(), 1);
 }
@@ -44,9 +44,9 @@ result = [x for x in range(10) if x > 5 if x % 2 == 0]
 #[test]
 fn test_triple_if_condition() {
     // Three if conditions
-    let python = r#"
+    let python = r"
 result = [x for x in range(20) if x > 5 if x < 15 if x % 2 == 0]
-"#;
+";
     let hir = parse_and_generate(python);
     assert_eq!(hir.constants.len(), 1);
 }

@@ -1,6 +1,6 @@
 //! DEPYLER-0945: Pattern Trait Borrowing Tests
 //!
-//! Tests for ensuring Pattern trait methods (starts_with, ends_with, find, replace, split)
+//! Tests for ensuring Pattern trait methods (`starts_with`, `ends_with`, find, replace, split)
 //! produce compilable code. When params are already &str (from str type hints), no extra
 //! borrowing is needed. When params are owned String, we borrow them.
 
@@ -14,8 +14,8 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 fn unique_temp_path() -> (String, String) {
     let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
-    let rs_file = format!("/tmp/depyler_0945_{}_{}.rs", pid, id);
-    let out_file = format!("/tmp/depyler_0945_{}_{}", pid, id);
+    let rs_file = format!("/tmp/depyler_0945_{pid}_{id}.rs");
+    let out_file = format!("/tmp/depyler_0945_{pid}_{id}");
     (rs_file, out_file)
 }
 
@@ -56,10 +56,10 @@ fn compile_errors(code: &str) -> String {
 /// Test startswith with variable pattern - CRITICAL FOR E0277 FIX
 #[test]
 fn test_depyler_0945_startswith_variable_pattern() {
-    let python = r#"
+    let python = r"
 def check_prefix(text: str, pattern: str) -> bool:
     return text.startswith(pattern)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -68,14 +68,13 @@ def check_prefix(text: str, pattern: str) -> bool:
     let code = result.unwrap();
 
     // Should NOT have double-borrowing (&&) which would fail compilation
-    assert!(!code.contains("starts_with(&&"), "Should NOT double-borrow: {}", code);
+    assert!(!code.contains("starts_with(&&"), "Should NOT double-borrow: {code}");
 
     // CRITICAL: Generated code must compile without E0277
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
         panic!(
-            "Generated code should compile (E0277 fix). Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
+            "Generated code should compile (E0277 fix). Errors:\n{errors}\n\nGenerated code:\n{code}"
         );
     }
 }
@@ -83,10 +82,10 @@ def check_prefix(text: str, pattern: str) -> bool:
 /// Test endswith with variable suffix
 #[test]
 fn test_depyler_0945_endswith_variable_suffix() {
-    let python = r#"
+    let python = r"
 def check_suffix(text: str, suffix: str) -> bool:
     return text.endswith(suffix)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -95,14 +94,13 @@ def check_suffix(text: str, suffix: str) -> bool:
     let code = result.unwrap();
 
     // Should NOT have double-borrowing
-    assert!(!code.contains("ends_with(&&"), "Should NOT double-borrow: {}", code);
+    assert!(!code.contains("ends_with(&&"), "Should NOT double-borrow: {code}");
 
     // CRITICAL: Generated code must compile without E0277
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
         panic!(
-            "Generated code should compile (E0277 fix). Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
+            "Generated code should compile (E0277 fix). Errors:\n{errors}\n\nGenerated code:\n{code}"
         );
     }
 }
@@ -110,10 +108,10 @@ def check_suffix(text: str, suffix: str) -> bool:
 /// Test find with variable substring
 #[test]
 fn test_depyler_0945_find_variable_substring() {
-    let python = r#"
+    let python = r"
 def find_pos(text: str, needle: str) -> int:
     return text.find(needle)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -122,14 +120,13 @@ def find_pos(text: str, needle: str) -> int:
     let code = result.unwrap();
 
     // Should NOT have double-borrowing
-    assert!(!code.contains("find(&&"), "Should NOT double-borrow: {}", code);
+    assert!(!code.contains("find(&&"), "Should NOT double-borrow: {code}");
 
     // CRITICAL: Generated code must compile without E0277
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
         panic!(
-            "Generated code should compile (E0277 fix). Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
+            "Generated code should compile (E0277 fix). Errors:\n{errors}\n\nGenerated code:\n{code}"
         );
     }
 }
@@ -137,10 +134,10 @@ def find_pos(text: str, needle: str) -> int:
 /// Test replace with variable arguments
 #[test]
 fn test_depyler_0945_replace_variable_args() {
-    let python = r#"
+    let python = r"
 def replace_text(text: str, old: str, new: str) -> str:
     return text.replace(old, new)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -149,14 +146,13 @@ def replace_text(text: str, old: str, new: str) -> str:
     let code = result.unwrap();
 
     // Should NOT have double-borrowing
-    assert!(!code.contains("replace(&&"), "Should NOT double-borrow: {}", code);
+    assert!(!code.contains("replace(&&"), "Should NOT double-borrow: {code}");
 
     // CRITICAL: Generated code must compile without E0277
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
         panic!(
-            "Generated code should compile (E0277 fix). Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
+            "Generated code should compile (E0277 fix). Errors:\n{errors}\n\nGenerated code:\n{code}"
         );
     }
 }
@@ -164,12 +160,12 @@ def replace_text(text: str, old: str, new: str) -> str:
 /// Test split with variable delimiter
 #[test]
 fn test_depyler_0945_split_variable_delimiter() {
-    let python = r#"
+    let python = r"
 from typing import List
 
 def split_text(text: str, delimiter: str) -> List[str]:
     return text.split(delimiter)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -178,14 +174,13 @@ def split_text(text: str, delimiter: str) -> List[str]:
     let code = result.unwrap();
 
     // Should NOT have double-borrowing
-    assert!(!code.contains("split(&&"), "Should NOT double-borrow: {}", code);
+    assert!(!code.contains("split(&&"), "Should NOT double-borrow: {code}");
 
     // CRITICAL: Generated code must compile without E0277
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
         panic!(
-            "Generated code should compile (E0277 fix). Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
+            "Generated code should compile (E0277 fix). Errors:\n{errors}\n\nGenerated code:\n{code}"
         );
     }
 }
@@ -211,14 +206,13 @@ def split_comma(text: str) -> list:
     // They should appear as "Hello" not &"Hello"
     assert!(
         code.contains(r#"starts_with("Hello")"#) || code.contains("starts_with(\"Hello\")"),
-        "String literal should be used directly: {}",
-        code
+        "String literal should be used directly: {code}"
     );
 
     // CRITICAL: Generated code must compile
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
@@ -240,6 +234,6 @@ def check_dynamic_prefix(text: str) -> bool:
     // CRITICAL: Generated code must compile
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }

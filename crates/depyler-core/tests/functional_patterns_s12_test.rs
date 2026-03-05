@@ -2,7 +2,7 @@
 //!
 //! Targets remaining cold paths:
 //! - map/filter/reduce functional patterns
-//! - Complex print() patterns
+//! - Complex `print()` patterns
 //! - abs/min/max with multiple args
 //! - Complex class hierarchies
 //! - Multiple functions with shared state
@@ -26,26 +26,26 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b42_map_and_filter() {
-    let code = r#"
+    let code = r"
 def transform(items: list) -> list:
     doubled = list(map(lambda x: x * 2, items))
     return list(filter(lambda x: x > 5, doubled))
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn transform"), "Got: {}", result);
+    assert!(result.contains("fn transform"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b42_reduce_manual() {
-    let code = r#"
+    let code = r"
 def product(items: list) -> int:
     result = 1
     for item in items:
         result *= item
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn product"), "Got: {}", result);
+    assert!(result.contains("fn product"), "Got: {result}");
 }
 
 // ===== Print patterns =====
@@ -57,7 +57,7 @@ def greet(name: str):
     print(f"Hello, {name}!")
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn greet"), "Got: {}", result);
+    assert!(result.contains("fn greet"), "Got: {result}");
 }
 
 #[test]
@@ -67,7 +67,7 @@ def show_info(name: str, age: int):
     print("Name:", name, "Age:", age)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn show_info"), "Got: {}", result);
+    assert!(result.contains("fn show_info"), "Got: {result}");
 }
 
 #[test]
@@ -77,76 +77,76 @@ def print_csv(items: list):
     print(*items, sep=",")
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn print_csv"), "Got: {}", result);
+    assert!(result.contains("fn print_csv"), "Got: {result}");
 }
 
 // ===== abs/min/max patterns =====
 
 #[test]
 fn test_s12_b42_abs_usage() {
-    let code = r#"
+    let code = r"
 def distance(a: int, b: int) -> int:
     return abs(a - b)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn distance"), "Got: {}", result);
+    assert!(result.contains("fn distance"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b42_min_two() {
-    let code = r#"
+    let code = r"
 def smaller(a: int, b: int) -> int:
     return min(a, b)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn smaller"), "Got: {}", result);
+    assert!(result.contains("fn smaller"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b42_max_two() {
-    let code = r#"
+    let code = r"
 def larger(a: int, b: int) -> int:
     return max(a, b)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn larger"), "Got: {}", result);
+    assert!(result.contains("fn larger"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b42_min_three() {
-    let code = r#"
+    let code = r"
 def smallest(a: int, b: int, c: int) -> int:
     return min(a, b, c)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn smallest"), "Got: {}", result);
+    assert!(result.contains("fn smallest"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b42_min_list() {
-    let code = r#"
+    let code = r"
 def min_val(items: list) -> int:
     return min(items)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn min_val"), "Got: {}", result);
+    assert!(result.contains("fn min_val"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b42_max_list() {
-    let code = r#"
+    let code = r"
 def max_val(items: list) -> int:
     return max(items)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn max_val"), "Got: {}", result);
+    assert!(result.contains("fn max_val"), "Got: {result}");
 }
 
 // ===== Complex class hierarchies =====
 
 #[test]
 fn test_s12_b42_multi_class_system() {
-    let code = r##"
+    let code = r"
 class Event:
     def __init__(self, name: str, priority: int):
         self.name = name
@@ -172,10 +172,10 @@ class EventQueue:
 
     def size(self) -> int:
         return len(self.events)
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("Event"), "Got: {}", result);
-    assert!(result.contains("EventQueue"), "Got: {}", result);
+    assert!(result.contains("Event"), "Got: {result}");
+    assert!(result.contains("EventQueue"), "Got: {result}");
 }
 
 // ===== Multiple functions with shared logic =====
@@ -201,9 +201,9 @@ def validate_name(name: str) -> bool:
     return name == clean_identifier(name)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn is_valid"), "Got: {}", result);
-    assert!(result.contains("fn clean_identifier"), "Got: {}", result);
-    assert!(result.contains("fn validate_name"), "Got: {}", result);
+    assert!(result.contains("fn is_valid"), "Got: {result}");
+    assert!(result.contains("fn clean_identifier"), "Got: {result}");
+    assert!(result.contains("fn validate_name"), "Got: {result}");
 }
 
 // ===== Data transformation pipeline =====
@@ -225,31 +225,31 @@ def load(records: list) -> dict:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn extract"), "Got: {}", result);
-    assert!(result.contains("fn transform_line"), "Got: {}", result);
-    assert!(result.contains("fn load"), "Got: {}", result);
+    assert!(result.contains("fn extract"), "Got: {result}");
+    assert!(result.contains("fn transform_line"), "Got: {result}");
+    assert!(result.contains("fn load"), "Got: {result}");
 }
 
 // ===== Complex list comprehension =====
 
 #[test]
 fn test_s12_b42_matrix_flatten_comp() {
-    let code = r#"
+    let code = r"
 def flatten(matrix: list) -> list:
     return [elem for row in matrix for elem in row]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn flatten"), "Got: {}", result);
+    assert!(result.contains("fn flatten"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b42_dict_comp_transform() {
-    let code = r#"
+    let code = r"
 def uppercase_keys(d: dict) -> dict:
     return {k.upper(): v for k, v in d.items()}
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn uppercase_keys"), "Got: {}", result);
+    assert!(result.contains("fn uppercase_keys"), "Got: {result}");
 }
 
 // ===== Complex error handling =====
@@ -271,14 +271,14 @@ def safe_parse_config(text: str) -> dict:
     return result
 "##;
     let result = transpile(code);
-    assert!(result.contains("fn safe_parse_config"), "Got: {}", result);
+    assert!(result.contains("fn safe_parse_config"), "Got: {result}");
 }
 
 // ===== Recursive patterns =====
 
 #[test]
 fn test_s12_b42_recursive_power() {
-    let code = r#"
+    let code = r"
 def fast_pow(base: int, exp: int) -> int:
     if exp == 0:
         return 1
@@ -286,14 +286,14 @@ def fast_pow(base: int, exp: int) -> int:
         half = fast_pow(base, exp // 2)
         return half * half
     return base * fast_pow(base, exp - 1)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn fast_pow"), "Got: {}", result);
+    assert!(result.contains("fn fast_pow"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b42_recursive_flatten() {
-    let code = r#"
+    let code = r"
 def depth(items: list) -> int:
     if not items:
         return 0
@@ -304,9 +304,9 @@ def depth(items: list) -> int:
             if d > max_depth:
                 max_depth = d
     return max_depth + 1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn depth"), "Got: {}", result);
+    assert!(result.contains("fn depth"), "Got: {result}");
 }
 
 // ===== Comparison operators =====
@@ -324,7 +324,7 @@ def compare(a: int, b: int) -> str:
     return "unknown"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn compare"), "Got: {}", result);
+    assert!(result.contains("fn compare"), "Got: {result}");
 }
 
 // ===== String escape patterns =====
@@ -340,19 +340,19 @@ def escape_html(text: str) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn escape_html"), "Got: {}", result);
+    assert!(result.contains("fn escape_html"), "Got: {result}");
 }
 
 // ===== Multiple comprehension types =====
 
 #[test]
 fn test_s12_b42_gen_to_list() {
-    let code = r#"
+    let code = r"
 def squares_sum(n: int) -> int:
     return sum(i * i for i in range(1, n + 1))
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn squares_sum"), "Got: {}", result);
+    assert!(result.contains("fn squares_sum"), "Got: {result}");
 }
 
 #[test]
@@ -362,5 +362,5 @@ def vowels_in(text: str) -> set:
     return {c for c in text.lower() if c in "aeiou"}
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn vowels_in"), "Got: {}", result);
+    assert!(result.contains("fn vowels_in"), "Got: {result}");
 }

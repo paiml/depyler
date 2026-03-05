@@ -12,7 +12,7 @@ use std::io::Write;
 #[test]
 fn test_option_comparison_with_int() {
     // Generator with Optional parameter, comparison in loop
-    let python = r#"
+    let python = r"
 from typing import Optional
 
 def count_up(limit: Optional[int] = None):
@@ -22,12 +22,12 @@ def count_up(limit: Optional[int] = None):
         count += 1
         if count > 100:  # Safety break
             break
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust:\n{}", rust);
+    println!("Generated Rust:\n{rust}");
 
     // Should unwrap Option for comparison
     // Expected patterns:
@@ -43,15 +43,14 @@ def count_up(limit: Optional[int] = None):
         "BUG: Comparing i32 with Option<i32> needs unwrap or pattern match\n\
          Five-Whys Root Cause: Binary operations don't handle Option types\n\
          Expected: count < limit.unwrap_or(i32::MAX) or match pattern\n\
-         Generated:\n{}",
-        rust
+         Generated:\n{rust}"
     );
 }
 
 #[test]
 fn test_option_none_check_in_condition() {
     // Python: if limit is None or count < limit
-    let python = r#"
+    let python = r"
 from typing import Optional
 
 def process(limit: Optional[int]):
@@ -59,26 +58,25 @@ def process(limit: Optional[int]):
     if limit is None or count < limit:
         return True
     return False
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust:\n{}", rust);
+    println!("Generated Rust:\n{rust}");
 
     // Should handle Option comparison
     assert!(
         rust.contains("is_none") || rust.contains("None") || rust.contains("unwrap"),
         "BUG: Option comparison in if condition needs proper handling\n\
-         Generated:\n{}",
-        rust
+         Generated:\n{rust}"
     );
 }
 
 #[test]
 fn test_compilation_option_comparison() {
     // This should compile without E0308
-    let python = r#"
+    let python = r"
 from typing import Optional
 
 def limited_counter(max_val: Optional[int] = None):
@@ -88,7 +86,7 @@ def limited_counter(max_val: Optional[int] = None):
         if count > 10:
             break
     return count
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
@@ -105,13 +103,12 @@ def limited_counter(max_val: Optional[int] = None):
         .expect("Failed to run rustc");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    println!("rustc output:\n{}", stderr);
+    println!("rustc output:\n{stderr}");
 
     assert!(
         !stderr.contains("E0308") || !stderr.contains("expected `i32`, found `Option<i32>`"),
         "BUG: E0308 type mismatch - comparing i32 with Option<i32>\n\
          Five-Whys: Binary operations need Option unwrap\n\
-         rustc stderr:\n{}",
-        stderr
+         rustc stderr:\n{stderr}"
     );
 }

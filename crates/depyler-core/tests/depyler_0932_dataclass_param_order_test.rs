@@ -310,8 +310,7 @@ def hire_employee() -> Employee:
     assert!(struct_pos.is_some(), "Should generate Employee struct: {code}");
 
     let struct_start = struct_pos.unwrap();
-    let struct_end =
-        code[struct_start..].find('}').map_or(code.len(), |p| struct_start + p + 1);
+    let struct_end = code[struct_start..].find('}').map_or(code.len(), |p| struct_start + p + 1);
     let struct_def = &code[struct_start..struct_end];
 
     let dept_pos = struct_def.find("department");

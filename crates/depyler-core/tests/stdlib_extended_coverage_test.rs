@@ -1,7 +1,7 @@
 //! Extended coverage tests for stdlib method generation modules
 //!
-//! DEPYLER-99MODE-001: Targets coverage for hashlib.rs (73%), regex_mod.rs (72%),
-//! datetime.rs (57%), math.rs (88%), array_initialization.rs (79%)
+//! DEPYLER-99MODE-001: Targets coverage for hashlib.rs (73%), `regex_mod.rs` (72%),
+//! datetime.rs (57%), math.rs (88%), `array_initialization.rs` (79%)
 
 use depyler_core::DepylerPipeline;
 
@@ -259,11 +259,11 @@ def f(text: str) -> bool:
 
 #[test]
 fn test_re_escape() {
-    let code = r#"
+    let code = r"
 import re
 def f(text: str) -> str:
     return re.escape(text)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -295,12 +295,12 @@ def f() -> str:
 
 #[test]
 fn test_datetime_fromtimestamp() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 def f() -> str:
     dt = datetime.fromtimestamp(1707029400)
     return str(dt)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -328,91 +328,91 @@ def f() -> str:
 
 #[test]
 fn test_datetime_weekday() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 def f() -> int:
     dt = datetime.now()
     return dt.weekday()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_datetime_isoweekday() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 def f() -> int:
     dt = datetime.now()
     return dt.isoweekday()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_datetime_replace() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 def f() -> str:
     dt = datetime(2025, 1, 1)
     dt2 = dt.replace(year=2026)
     return str(dt2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_datetime_date_method() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 def f() -> str:
     dt = datetime.now()
     d = dt.date()
     return str(d)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_timedelta_empty() {
-    let code = r#"
+    let code = r"
 from datetime import timedelta
 def f() -> int:
     delta = timedelta()
     return delta.days
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_timedelta_multiple_args() {
-    let code = r#"
+    let code = r"
 from datetime import timedelta
 def f() -> int:
     delta = timedelta(days=5, hours=3, minutes=30)
     return delta.days
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_datetime_hour_minute_second() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 def f() -> int:
     dt = datetime(2025, 2, 4, 10, 30, 45)
     return dt.hour + dt.minute + dt.second
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_datetime_microsecond() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 def f() -> int:
     dt = datetime.now()
     return dt.microsecond
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -433,203 +433,203 @@ def f() -> str:
 
 #[test]
 fn test_math_gcd_negative() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> int:
     return math.gcd(-12, 8)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_gcd_zero() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> int:
     return math.gcd(0, 5)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_lcm() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> int:
     return math.lcm(4, 6)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_factorial_zero() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> int:
     return math.factorial(0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_comb() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> int:
     return math.comb(10, 3)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_perm() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> int:
     return math.perm(5)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_perm_two_args() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> int:
     return math.perm(5, 2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_frexp() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     m, e = math.frexp(3.14)
     return m
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_remainder() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.remainder(5.5, 2.0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_isclose() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> bool:
     return math.isclose(1.0, 1.00001)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_dist() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.dist([1.0, 2.0], [4.0, 6.0])
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_log_two_args() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.log(100.0, 10.0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_log_one_arg() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.log(2.718)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_hypot() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.hypot(3.0, 4.0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_atan2() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.atan2(1.0, 1.0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_copysign() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.copysign(1.0, -1.0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_fmod() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.fmod(7.0, 3.0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_ldexp() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.ldexp(0.5, 3)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_trunc() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> int:
     return math.trunc(3.7)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_modf() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     frac, whole = math.modf(3.14)
     return frac
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -655,11 +655,11 @@ def f() -> bool:
 
 #[test]
 fn test_math_isfinite() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> bool:
     return math.isfinite(3.14)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -667,51 +667,51 @@ def f() -> bool:
 
 #[test]
 fn test_math_degrees() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.degrees(math.pi)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_radians() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.radians(180.0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_cosh() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.cosh(1.0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_sinh() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.sinh(1.0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_tanh() {
-    let code = r#"
+    let code = r"
 import math
 def f() -> float:
     return math.tanh(1.0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -723,48 +723,48 @@ def f() -> float:
 
 #[test]
 fn test_range_with_positive_step() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     total = 0
     for i in range(0, 20, 3):
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_range_single_arg() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     total = 0
     for i in range(10):
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_range_two_args() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     total = 0
     for i in range(5, 15):
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_range_large_step() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     total = 0
     for i in range(0, 100, 10):
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }

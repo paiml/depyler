@@ -5,7 +5,7 @@
 //! Root Cause (Five-Whys):
 //! 1. Why? "Multiple conditions in list comprehension not yet supported"
 //! 2. Why? Nested list comprehension with multiple for clauses rejected
-//! 3. Why? Current HIR ListComp only supports single generator
+//! 3. Why? Current HIR `ListComp` only supports single generator
 //! 4. Why? Original implementation (DEPYLER-0XXX) only handled simple case
 //! 5. ROOT: HIR architecture limited to single-generator comprehensions
 
@@ -30,9 +30,9 @@ fn parse_and_generate(python: &str) -> depyler_core::hir::HirModule {
 #[test]
 fn test_nested_list_comprehension() {
     // Minimal reproducer: nested list comprehension
-    let python = r#"
+    let python = r"
 matrix = [[i + j for j in range(3)] for i in range(3)]
-"#;
+";
     let hir = parse_and_generate(python);
     assert_eq!(hir.constants.len(), 1);
 }
@@ -40,9 +40,9 @@ matrix = [[i + j for j in range(3)] for i in range(3)]
 #[test]
 fn test_flattened_list_comprehension() {
     // Flattened list comprehension with multiple for clauses
-    let python = r#"
+    let python = r"
 result = [i * j for i in range(3) for j in range(3)]
-"#;
+";
     let hir = parse_and_generate(python);
     assert_eq!(hir.constants.len(), 1);
 }
@@ -50,9 +50,9 @@ result = [i * j for i in range(3) for j in range(3)]
 #[test]
 fn test_filtered_nested_comprehension() {
     // Multiple for clauses with if condition
-    let python = r#"
+    let python = r"
 result = [(i, j) for i in range(5) for j in range(5) if i < j]
-"#;
+";
     let hir = parse_and_generate(python);
     assert_eq!(hir.constants.len(), 1);
 }

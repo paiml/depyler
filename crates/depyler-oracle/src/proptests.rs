@@ -351,7 +351,7 @@ proptest! {
 
         for i in 0..n_templates {
             let template = FixTemplate::builder(
-                &format!("test-{}", i),
+                &format!("test-{i}"),
                 "Test",
                 ErrorCategory::Other
             )

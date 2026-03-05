@@ -1,4 +1,4 @@
-//! Coverage tests for rust_gen/stdlib_method_gen/os.rs
+//! Coverage tests for `rust_gen/stdlib_method_gen/os.rs`
 //!
 //! DEPYLER-99MODE-001: Targets os.rs (~571 lines)
 //! Covers: os.getcwd, os.path.join, os.path.exists,
@@ -12,34 +12,34 @@ fn transpile_ok(code: &str) -> bool {
 
 #[test]
 fn test_os_getcwd() {
-    let code = r#"
+    let code = r"
 import os
 
 def f() -> str:
     return os.getcwd()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_os_path_join() {
-    let code = r#"
+    let code = r"
 import os
 
 def f(base: str, name: str) -> str:
     return os.path.join(base, name)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_os_path_exists() {
-    let code = r#"
+    let code = r"
 import os
 
 def f(path: str) -> bool:
     return os.path.exists(path)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -56,34 +56,34 @@ def f(key: str) -> str:
 
 #[test]
 fn test_os_listdir() {
-    let code = r#"
+    let code = r"
 import os
 
 def f(path: str) -> list:
     return os.listdir(path)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_os_path_basename() {
-    let code = r#"
+    let code = r"
 import os
 
 def f(path: str) -> str:
     return os.path.basename(path)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_os_path_dirname() {
-    let code = r#"
+    let code = r"
 import os
 
 def f(path: str) -> str:
     return os.path.dirname(path)
-"#;
+";
     assert!(transpile_ok(code));
 }
 

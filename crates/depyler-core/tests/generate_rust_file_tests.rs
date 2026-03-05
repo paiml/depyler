@@ -9,7 +9,7 @@ use depyler_core::rust_gen::generate_rust_file;
 use depyler_core::type_mapper::TypeMapper;
 use smallvec::SmallVec;
 
-/// Helper function to create a minimal valid HirFunction
+/// Helper function to create a minimal valid `HirFunction`
 fn create_simple_function(name: &str) -> HirFunction {
     HirFunction {
         name: name.to_string(),
@@ -22,7 +22,7 @@ fn create_simple_function(name: &str) -> HirFunction {
     }
 }
 
-/// Helper function to create an empty HirModule
+/// Helper function to create an empty `HirModule`
 fn create_empty_module() -> HirModule {
     HirModule {
         functions: vec![],
@@ -128,8 +128,7 @@ mod simple_function_tests {
         if let Ok((code, _dependencies)) = result {
             assert!(
                 code.contains(func_name),
-                "Function name '{}' should appear in output",
-                func_name
+                "Function name '{func_name}' should appear in output"
             );
         }
     }

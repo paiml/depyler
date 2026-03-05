@@ -8,11 +8,11 @@ use depyler_core::DepylerPipeline;
 
 #[test]
 fn test_dict_insert_adds_mut() {
-    let python_code = r#"
+    let python_code = r"
 def add_entry(d: dict[str, int], key: str, value: int) -> dict[str, int]:
     d[key] = value
     return d
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -22,21 +22,20 @@ def add_entry(d: dict[str, int], key: str, value: int) -> dict[str, int]:
     assert!(
         rust_code.contains("mut d: HashMap<String, i32>")
             || rust_code.contains("mut d: std::collections::HashMap<String, i32>"),
-        "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{}",
-        rust_code
+        "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{rust_code}"
     );
     assert!(rust_code.contains(".insert("), "Should contain .insert() call");
 
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 }
 
 #[test]
 fn test_dict_clear_adds_mut() {
-    let python_code = r#"
+    let python_code = r"
 def clear_dict(d: dict[str, int]) -> dict[str, int]:
     d.clear()
     return d
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -46,20 +45,19 @@ def clear_dict(d: dict[str, int]) -> dict[str, int]:
     assert!(
         rust_code.contains("mut d: HashMap<String, i32>")
             || rust_code.contains("mut d: std::collections::HashMap<String, i32>"),
-        "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{}",
-        rust_code
+        "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{rust_code}"
     );
     assert!(rust_code.contains(".clear()"), "Should contain .clear() call");
 
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 }
 
 #[test]
 fn test_dict_pop_removes_double_ref() {
-    let python_code = r#"
+    let python_code = r"
 def pop_entry(d: dict[str, int], key: str) -> int:
     return d.pop(key, -1)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -77,15 +75,15 @@ def pop_entry(d: dict[str, int], key: str) -> int:
         "Should contain .remove(key) or .remove(&key)"
     );
 
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 }
 
 #[test]
 fn test_dict_contains_key_no_double_ref() {
-    let python_code = r#"
+    let python_code = r"
 def has_key(d: dict[str, int], key: str) -> bool:
     return key in d
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -105,23 +103,22 @@ def has_key(d: dict[str, int], key: str) -> bool:
 
     assert!(
         has_contains_key || has_get_is_some,
-        "Should contain .contains_key() or .get().is_some() pattern.\nGenerated code:\n{}",
-        rust_code
+        "Should contain .contains_key() or .get().is_some() pattern.\nGenerated code:\n{rust_code}"
     );
 
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 }
 
 #[test]
 fn test_dict_combined_mutations() {
     // Test multiple mutating operations
-    let python_code = r#"
+    let python_code = r"
 def modify_dict(d: dict[str, int], k1: str, k2: str) -> dict[str, int]:
     d[k1] = 10
     if k2 in d:
         d.pop(k2)
     return d
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -131,8 +128,7 @@ def modify_dict(d: dict[str, int], k1: str, k2: str) -> dict[str, int]:
     assert!(
         rust_code.contains("mut d: HashMap<String, i32>")
             || rust_code.contains("mut d: std::collections::HashMap<String, i32>"),
-        "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{}",
-        rust_code
+        "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{rust_code}"
     );
 
     // Should NOT have &&k2
@@ -141,16 +137,16 @@ def modify_dict(d: dict[str, int], k1: str, k2: str) -> dict[str, int]:
         "Should NOT contain &&k2 double reference"
     );
 
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 }
 
 #[test]
 fn test_dict_no_mut_when_not_mutated() {
     // Parameter should NOT have mut if not mutated
-    let python_code = r#"
+    let python_code = r"
 def get_value(d: dict[str, int], key: str) -> int:
     return d.get(key, 0)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -165,18 +161,18 @@ def get_value(d: dict[str, int], key: str) -> int:
         "Should NOT contain 'mut d' for read-only parameter"
     );
 
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 }
 
 #[test]
 fn test_dict_remove_in_conditional() {
     // Test that mut is detected even when method call is in conditional
-    let python_code = r#"
+    let python_code = r"
 def remove_if_exists(d: dict[str, int], key: str) -> dict[str, int]:
     if key in d:
         d.pop(key)
     return d
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -186,8 +182,7 @@ def remove_if_exists(d: dict[str, int], key: str) -> dict[str, int]:
     assert!(
         rust_code.contains("mut d: HashMap<String, i32>")
             || rust_code.contains("mut d: std::collections::HashMap<String, i32>"),
-        "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{}",
-        rust_code
+        "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{rust_code}"
     );
 
     // Should NOT have &&key in contains_key or remove
@@ -196,5 +191,5 @@ def remove_if_exists(d: dict[str, int], key: str) -> dict[str, int]:
         "Should NOT contain &&key double reference"
     );
 
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 }

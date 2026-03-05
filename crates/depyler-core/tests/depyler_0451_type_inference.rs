@@ -20,9 +20,7 @@ fn transpile_python(python: &str) -> anyhow::Result<String> {
 fn assert_contains(rust_code: &str, pattern: &str) {
     assert!(
         rust_code.contains(pattern),
-        "Expected pattern not found:\n  Pattern: {}\n  Code:\n{}",
-        pattern,
-        rust_code
+        "Expected pattern not found:\n  Pattern: {pattern}\n  Code:\n{rust_code}"
     );
 }
 
@@ -31,9 +29,7 @@ fn assert_contains(rust_code: &str, pattern: &str) {
 fn assert_not_contains(rust_code: &str, pattern: &str) {
     assert!(
         !rust_code.contains(pattern),
-        "Unexpected pattern found:\n  Pattern: {}\n  Code:\n{}",
-        pattern,
-        rust_code
+        "Unexpected pattern found:\n  Pattern: {pattern}\n  Code:\n{rust_code}"
     );
 }
 
@@ -43,11 +39,11 @@ fn assert_not_contains(rust_code: &str, pattern: &str) {
 
 #[test]
 fn test_DEPYLER_0451_01_file_path_inference() {
-    let python = r#"
+    let python = r"
 def read_file(filepath):
     with open(filepath) as f:
         return f.read()
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -63,8 +59,7 @@ def read_file(filepath):
 
     assert!(
         has_str_param && !has_value_param,
-        "Expected filepath: &str or String, not Value. Got:\n{}",
-        rust_code
+        "Expected filepath: &str or String, not Value. Got:\n{rust_code}"
     );
 }
 
@@ -74,10 +69,10 @@ def read_file(filepath):
 
 #[test]
 fn test_DEPYLER_0451_02_integer_inference() {
-    let python = r#"
+    let python = r"
 def increment(x):
     return x + 1
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -92,11 +87,7 @@ def increment(x):
     // Should NOT use serde_json::Value
     let has_value_param = rust_code.contains("x: serde_json::Value");
 
-    assert!(
-        has_int_param && !has_value_param,
-        "Expected x: i32/i64, not Value. Got:\n{}",
-        rust_code
-    );
+    assert!(has_int_param && !has_value_param, "Expected x: i32/i64, not Value. Got:\n{rust_code}");
 }
 
 // ====================================================================================
@@ -123,8 +114,7 @@ def greet(name):
 
     assert!(
         has_str_param && !has_value_param,
-        "Expected name: &str or String, not Value. Got:\n{}",
-        rust_code
+        "Expected name: &str or String, not Value. Got:\n{rust_code}"
     );
 }
 
@@ -134,10 +124,10 @@ def greet(name):
 
 #[test]
 fn test_DEPYLER_0451_04_string_upper_inference() {
-    let python = r#"
+    let python = r"
 def uppercase(text):
     return text.upper()
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -152,8 +142,7 @@ def uppercase(text):
 
     assert!(
         has_str_param && !has_value_param,
-        "Expected text: &str or String, not Value. Got:\n{}",
-        rust_code
+        "Expected text: &str or String, not Value. Got:\n{rust_code}"
     );
 
     // Should use .to_uppercase() (Rust equivalent)
@@ -166,13 +155,13 @@ def uppercase(text):
 
 #[test]
 fn test_DEPYLER_0451_05_list_iteration_inference() {
-    let python = r#"
+    let python = r"
 def sum_list(items):
     total = 0
     for item in items:
         total += item
     return total
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -193,8 +182,7 @@ def sum_list(items):
 
     assert!(
         has_slice_param && !has_value_param,
-        "Expected items: &[i32] or Vec<i32> or &Vec<i32>, not Value. Got:\n{}",
-        rust_code
+        "Expected items: &[i32] or Vec<i32> or &Vec<i32>, not Value. Got:\n{rust_code}"
     );
 }
 
@@ -225,8 +213,7 @@ def conditional(flag):
 
     assert!(
         has_bool_param && !has_value_param,
-        "Expected flag: bool, not Value. Got:\n{}",
-        rust_code
+        "Expected flag: bool, not Value. Got:\n{rust_code}"
     );
 }
 
@@ -236,12 +223,12 @@ def conditional(flag):
 
 #[test]
 fn test_DEPYLER_0451_07_mixed_inference() {
-    let python = r#"
+    let python = r"
 def process(data, flag):
     if flag:
         return data.upper()
     return data
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -261,15 +248,10 @@ def process(data, flag):
 
     assert!(
         has_str_data && !has_value_data,
-        "Expected data: &str or String, not Value. Got:\n{}",
-        rust_code
+        "Expected data: &str or String, not Value. Got:\n{rust_code}"
     );
 
-    assert!(
-        has_bool_flag && !has_value_flag,
-        "Expected flag: bool, not Value. Got:\n{}",
-        rust_code
-    );
+    assert!(has_bool_flag && !has_value_flag, "Expected flag: bool, not Value. Got:\n{rust_code}");
 }
 
 // ====================================================================================
@@ -279,7 +261,7 @@ def process(data, flag):
 #[test]
 #[ignore] // DEPYLER-0451: Phase 3 - Context-aware stdlib API inference
 fn test_DEPYLER_0451_08_csv_reader_inference() {
-    let python = r#"
+    let python = r"
 import csv
 
 def process_csv(path):
@@ -287,7 +269,7 @@ def process_csv(path):
         reader = csv.DictReader(f)
         for row in reader:
             print(row['name'])
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -302,8 +284,7 @@ def process_csv(path):
 
     assert!(
         has_str_param && !has_value_param,
-        "Expected path: &str or String, not Value. Got:\n{}",
-        rust_code
+        "Expected path: &str or String, not Value. Got:\n{rust_code}"
     );
 
     // Should use correct csv iteration pattern
@@ -316,10 +297,10 @@ def process_csv(path):
 
 #[test]
 fn test_DEPYLER_0451_09_return_type_propagation() {
-    let python = r#"
+    let python = r"
 def get_length(text: str) -> int:
     return len(text)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -333,9 +314,9 @@ def get_length(text: str) -> int:
         || rust_code.contains("-> i64")
         || rust_code.contains("-> usize");
 
-    assert!(has_str_param, "Expected text: &str or String. Got:\n{}", rust_code);
+    assert!(has_str_param, "Expected text: &str or String. Got:\n{rust_code}");
 
-    assert!(has_int_return, "Expected -> i32/i64/usize. Got:\n{}", rust_code);
+    assert!(has_int_return, "Expected -> i32/i64/usize. Got:\n{rust_code}");
 }
 
 // ====================================================================================
@@ -345,13 +326,13 @@ def get_length(text: str) -> int:
 #[test]
 #[ignore = "Known failing - DEPYLER-0451"]
 fn test_DEPYLER_0451_10_multiple_parameters() {
-    let python = r#"
+    let python = r"
 def search(items, target):
     for item in items:
         if item == target:
             return True
     return False
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -371,8 +352,7 @@ def search(items, target):
 
     assert!(
         has_slice_param && !has_value_items,
-        "Expected items: &[T] or Vec<T>, not Value. Got:\n{}",
-        rust_code
+        "Expected items: &[T] or Vec<T>, not Value. Got:\n{rust_code}"
     );
 
     // Lenient on target type (could be generic T or specific type)

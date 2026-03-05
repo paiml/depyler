@@ -4,7 +4,7 @@
 //! bare string literals (&str) not String for Rust's Pattern trait.
 //!
 //! Python: text.rsplit("/", 1)
-//! Rust WRONG: text.rsplit("/".to_string(), 1)  // String doesn't impl Pattern
+//! Rust WRONG: `text.rsplit("/".to_string()`, 1)  // String doesn't impl Pattern
 //! Rust RIGHT: text.rsplit("/", 1)  // &str implements Pattern
 
 use depyler_core::ast_bridge::AstBridge;
@@ -85,13 +85,12 @@ path = "src/lib.rs"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
 
-/// Test: rsplit() should NOT generate String for separator (Pattern trait)
+/// Test: `rsplit()` should NOT generate String for separator (Pattern trait)
 #[test]
 fn test_rsplit_uses_str_not_string() {
     let python = r#"
@@ -105,12 +104,11 @@ def split_path(path: str) -> str:
     // Should NOT contain "/".to_string() for rsplit separator
     assert!(
         !rust.contains(r#""/".to_string()"#) || !rust.contains("rsplit"),
-        "rsplit should use bare string literal, not .to_string(). Generated:\n{}",
-        rust
+        "rsplit should use bare string literal, not .to_string(). Generated:\n{rust}"
     );
 }
 
-/// Test: rsplit() with string literal separator should compile
+/// Test: `rsplit()` with string literal separator should compile
 #[test]
 fn test_rsplit_compiles() {
     let python = r#"
@@ -123,7 +121,7 @@ def split_path(path: str) -> str:
     assert_compiles(&rust, "rsplit_pattern");
 }
 
-/// Test: startswith() should use bare string literal for Pattern
+/// Test: `startswith()` should use bare string literal for Pattern
 #[test]
 fn test_startswith_uses_str_literal() {
     let python = r#"
@@ -137,12 +135,11 @@ def check_prefix(text: str) -> bool:
     // (already handled, this is a regression test)
     assert!(
         !rust.contains(r#"startswith("hello".to_string())"#),
-        "startswith should use bare string literal. Generated:\n{}",
-        rust
+        "startswith should use bare string literal. Generated:\n{rust}"
     );
 }
 
-/// Test: contains() should use bare string literal for Pattern
+/// Test: `contains()` should use bare string literal for Pattern
 #[test]
 fn test_contains_uses_str_literal() {
     let python = r#"

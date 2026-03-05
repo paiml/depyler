@@ -1,4 +1,4 @@
-//! Tests for extracted helper functions from stmt_gen.rs
+//! Tests for extracted helper functions from `stmt_gen.rs`
 //!
 //! These tests ensure the extracted type tracking helpers work correctly.
 //! Written using EXTREME TDD - tests first, then extraction.
@@ -20,7 +20,7 @@ fn transpiles_to(code: &str) -> Option<String> {
 #[test]
 fn test_option_returning_function_tracking() {
     // When a function returns Option, variables assigned from it should be tracked
-    let code = r#"
+    let code = r"
 from typing import Optional
 
 def find_item(items: list[int], target: int) -> Optional[int]:
@@ -33,7 +33,7 @@ def main():
     result = find_item([1, 2, 3], 2)
     if result:
         print(result)
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -72,27 +72,27 @@ def get_config():
 #[test]
 fn test_counter_string_tracking() {
     // Counter(string) should track as char counter for iteration
-    let code = r#"
+    let code = r"
 from collections import Counter
 
 def count_chars(text: str):
     counter = Counter(text)
     for char, count in counter.items():
         print(char, count)
-"#;
+";
     assert!(transpiles(code));
 }
 
 #[test]
 fn test_counter_from_list() {
     // Counter(list) should work normally
-    let code = r#"
+    let code = r"
 from collections import Counter
 
 def count_items(items: list[int]):
     counter = Counter(items)
     return counter
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -103,23 +103,23 @@ def count_items(items: list[int]):
 #[test]
 fn test_generator_expr_iterator_tracking() {
     // Generator expressions produce iterators, not collections
-    let code = r#"
+    let code = r"
 def squares(n: int):
     gen = (x * x for x in range(n))
     for val in gen:
         print(val)
-"#;
+";
     assert!(transpiles(code));
 }
 
 #[test]
 fn test_filter_chain_iterator_tracking() {
     // Method chains with filter/map produce iterators
-    let code = r#"
+    let code = r"
 def even_squares(nums: list[int]) -> list[int]:
     result = list(filter(lambda x: x % 2 == 0, map(lambda x: x * x, nums)))
     return result
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -130,21 +130,21 @@ def even_squares(nums: list[int]) -> list[int]:
 #[test]
 fn test_numpy_array_tracking() {
     // numpy arrays should be tracked for proper iteration
-    let code = r#"
+    let code = r"
 import numpy as np
 
 def process_array():
     arr = np.array([1.0, 2.0, 3.0])
     for val in arr:
         print(val)
-"#;
+";
     assert!(transpiles(code));
 }
 
 #[test]
 fn test_numpy_binary_op_tracking() {
     // Binary ops on numpy arrays produce numpy arrays
-    let code = r#"
+    let code = r"
 import numpy as np
 
 def add_arrays():
@@ -152,7 +152,7 @@ def add_arrays():
     b = np.array([3.0, 4.0])
     result = a + b
     return result
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -163,7 +163,7 @@ def add_arrays():
 #[test]
 fn test_csv_dictreader_mutable() {
     // csv.DictReader needs mutable access
-    let code = r#"
+    let code = r"
 import csv
 
 def read_csv(filepath: str):
@@ -171,7 +171,7 @@ def read_csv(filepath: str):
         reader = csv.DictReader(f)
         for row in reader:
             print(row)
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -182,14 +182,14 @@ def read_csv(filepath: str):
 #[test]
 fn test_none_placeholder_skip() {
     // None placeholder followed by real assignment should skip None
-    let code = r#"
+    let code = r"
 def find_max(items: list[int]) -> int:
     result = None
     for item in items:
         if result is None or item > result:
             result = item
     return result
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -215,39 +215,39 @@ def process(flag: bool) -> str:
 #[test]
 fn test_float_callable_return_tracking() {
     // Variables assigned from Callable that returns float should be tracked
-    let code = r#"
+    let code = r"
 from typing import Callable
 
 def integrate(f: Callable[[float], float], a: float, b: float) -> float:
     fa = f(a)
     fb = f(b)
     return (fa + fb) * (b - a) / 2
-"#;
+";
     assert!(transpiles(code));
 }
 
 #[test]
 fn test_float_binary_op_tracking() {
     // Binary operations involving floats should track result as float
-    let code = r#"
+    let code = r"
 def compute(a: float, b: float) -> float:
     result = a * b + 1.0
     return result
-"#;
+";
     assert!(transpiles(code));
 }
 
 #[test]
 fn test_float_cse_temp_tracking() {
     // CSE temps from float expressions should be tracked
-    let code = r#"
+    let code = r"
 def bisect(f, a: float, b: float) -> float:
     fa = f(a)
     fb = f(b)
     if fa * fb > 0:
         return a
     return (a + b) / 2
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -258,12 +258,12 @@ def bisect(f, a: float, b: float) -> float:
 #[test]
 fn test_var_to_var_type_propagation() {
     // Type should propagate from one variable to another on assignment
-    let code = r#"
+    let code = r"
 def copy_value() -> float:
     a: float = 3.14
     b = a
     return b
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -274,12 +274,12 @@ def copy_value() -> float:
 #[test]
 fn test_list_type_from_literal() {
     // List type should be tracked from literal
-    let code = r#"
+    let code = r"
 def process_list():
     items = [1, 2, 3]
     for item in items:
         print(item)
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -298,11 +298,11 @@ def process_dict():
 #[test]
 fn test_set_type_from_literal() {
     // Set type should be tracked from literal
-    let code = r#"
+    let code = r"
 def process_set():
     items = {1, 2, 3}
     return 2 in items
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -324,33 +324,33 @@ def process_tuple():
 #[test]
 fn test_list_comp_type_tracking() {
     // List comprehension should track element type
-    let code = r#"
+    let code = r"
 def squares(n: int) -> list[int]:
     result = [x * x for x in range(n)]
     return result
-"#;
+";
     assert!(transpiles(code));
 }
 
 #[test]
 fn test_dict_comp_type_tracking() {
     // Dict comprehension should track key/value types
-    let code = r#"
+    let code = r"
 def make_dict(n: int) -> dict[int, int]:
     result = {i: i * i for i in range(n)}
     return result
-"#;
+";
     assert!(transpiles(code));
 }
 
 #[test]
 fn test_set_comp_type_tracking() {
     // Set comprehension should track element type
-    let code = r#"
+    let code = r"
 def unique_squares(n: int) -> set[int]:
     result = {x * x for x in range(n)}
     return result
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -373,11 +373,11 @@ def parse_line(line: str):
 #[test]
 fn test_string_method_lower_type() {
     // .lower() returns string
-    let code = r#"
+    let code = r"
 def normalize(s: str) -> str:
     result = s.lower()
     return result
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -388,11 +388,11 @@ def normalize(s: str) -> str:
 #[test]
 fn test_slice_type_tracking() {
     // Sliced lists should be tracked as owned Vec
-    let code = r#"
+    let code = r"
 def get_rest(items: list[int]) -> list[int]:
     rest = items[1:]
     return rest
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -403,13 +403,13 @@ def get_rest(items: list[int]) -> list[int]:
 #[test]
 fn test_json_loads_type_tracking() {
     // json.loads() returns Value type
-    let code = r#"
+    let code = r"
 import json
 
 def parse_json(s: str):
     data = json.loads(s)
     return data
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -434,7 +434,7 @@ def get_field(s: str):
 #[test]
 fn test_deque_type_tracking() {
     // deque() should be tracked for truthiness conversion
-    let code = r#"
+    let code = r"
 from collections import deque
 
 def process_queue():
@@ -442,7 +442,7 @@ def process_queue():
     while queue:
         item = queue.popleft()
         print(item)
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -500,11 +500,11 @@ def main():
 #[test]
 fn test_final_generates_const() {
     // Final type annotation should generate const
-    let code = r#"
+    let code = r"
 from typing import Final
 
 MAX_SIZE: Final[int] = 100
-"#;
+";
     assert!(transpiles(code));
 }
 
@@ -587,7 +587,7 @@ def main():
 #[test]
 fn test_dict_augassign_add() {
     // dict[key] += value should avoid borrow-after-move
-    let code = r#"
+    let code = r"
 def count_items(items: list[str]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for item in items:
@@ -596,6 +596,6 @@ def count_items(items: list[str]) -> dict[str, int]:
         else:
             counts[item] = 1
     return counts
-"#;
+";
     assert!(transpiles(code));
 }

@@ -14,7 +14,7 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 fn unique_temp_path() -> String {
     let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
-    format!("/tmp/depyler_0931_{}_{}.rs", pid, id)
+    format!("/tmp/depyler_0931_{pid}_{id}.rs")
 }
 
 /// Helper to check if generated Rust code compiles
@@ -39,7 +39,7 @@ fn compiles(code: &str) -> bool {
     // Add serde_json extern if found
     if let Some(rlib) = serde_json_rlib {
         args.push("--extern".to_string());
-        args.push(format!("serde_json={}", rlib));
+        args.push(format!("serde_json={rlib}"));
     }
 
     args.push(temp_file.clone());
@@ -52,7 +52,7 @@ fn compiles(code: &str) -> bool {
     output.status.success()
 }
 
-/// Find serde_json rlib in target directories
+/// Find `serde_json` rlib in target directories
 fn find_serde_json_rlib() -> Option<String> {
     // Check common locations for serde_json rlib
     for base in ["target/debug/deps", "../../target/debug/deps", "target/release/deps"] {
@@ -91,7 +91,7 @@ fn compile_errors(code: &str) -> String {
     // Add serde_json extern if found
     if let Some(rlib) = serde_json_rlib {
         args.push("--extern".to_string());
-        args.push(format!("serde_json={}", rlib));
+        args.push(format!("serde_json={rlib}"));
     }
 
     args.push(temp_file.clone());
@@ -128,12 +128,12 @@ def run_command(cmd: list) -> str:
 
     let code = result.unwrap();
     // Should properly scope stdout/stderr variables
-    assert!(code.contains("fn run_command"), "Should generate run_command function: {}", code);
+    assert!(code.contains("fn run_command"), "Should generate run_command function: {code}");
 
     // CRITICAL: Generated code must compile without E0425 errors
     if !compiles(&code) {
         let errors = compile_errors(&code);
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
@@ -142,14 +142,14 @@ def run_command(cmd: list) -> str:
 #[test]
 #[ignore = "slow: requires rustc compilation"]
 fn test_depyler_0931_multi_variable_unpacking() {
-    let python = r#"
+    let python = r"
 def process_output() -> tuple:
     try:
         a, b, c = (1, 2, 3)
         return (a, b, c)
     except:
         return (0, 0, 0)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -157,12 +157,12 @@ def process_output() -> tuple:
 
     let code = result.unwrap();
     // Variables should be accessible in both branches
-    assert!(code.contains("fn process_output"), "Should generate function: {}", code);
+    assert!(code.contains("fn process_output"), "Should generate function: {code}");
 
     // CRITICAL: Generated code must compile
     if !compiles(&code) {
         let errors = compile_errors(&code);
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
@@ -184,19 +184,19 @@ def safe_read(path: str) -> str:
 
     let code = result.unwrap();
     // 'data' should be accessible in both try and except context
-    assert!(code.contains("fn safe_read"), "Should generate safe_read function: {}", code);
+    assert!(code.contains("fn safe_read"), "Should generate safe_read function: {code}");
 
     // CRITICAL: Generated code must compile
     if !compiles(&code) {
         let errors = compile_errors(&code);
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
 /// Test subprocess.Popen result handling
 #[test]
 fn test_depyler_0931_subprocess_popen() {
-    let python = r#"
+    let python = r"
 import subprocess
 
 def start_process(cmd: str) -> int:
@@ -206,7 +206,7 @@ def start_process(cmd: str) -> int:
         return returncode
     except Exception:
         return -1
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -214,19 +214,19 @@ def start_process(cmd: str) -> int:
 
     let code = result.unwrap();
     // Should handle subprocess.Popen
-    assert!(code.contains("fn start_process"), "Should generate start_process function: {}", code);
+    assert!(code.contains("fn start_process"), "Should generate start_process function: {code}");
 
     // CRITICAL: Generated code must compile
     if !compiles(&code) {
         let errors = compile_errors(&code);
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
 /// Test variable used in except block must be hoisted
 #[test]
 fn test_depyler_0931_variable_used_in_except() {
-    let python = r#"
+    let python = r"
 def process_with_fallback(x: int) -> int:
     try:
         result = x * 2
@@ -234,26 +234,26 @@ def process_with_fallback(x: int) -> int:
     except:
         # result should be accessible here as Option<i64>
         return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
     assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
-    assert!(code.contains("fn process_with_fallback"), "Should generate function: {}", code);
+    assert!(code.contains("fn process_with_fallback"), "Should generate function: {code}");
 
     // CRITICAL: Generated code must compile
     if !compiles(&code) {
         let errors = compile_errors(&code);
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
 /// Test nested try/except with variable scoping
 #[test]
 fn test_depyler_0931_nested_try_except() {
-    let python = r#"
+    let python = r"
 def nested_handler(x: int) -> int:
     try:
         outer = x + 1
@@ -264,7 +264,7 @@ def nested_handler(x: int) -> int:
             return outer
     except:
         return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -272,11 +272,11 @@ def nested_handler(x: int) -> int:
 
     let code = result.unwrap();
     // Both outer and inner should be properly scoped
-    assert!(code.contains("fn nested_handler"), "Should generate function: {}", code);
+    assert!(code.contains("fn nested_handler"), "Should generate function: {code}");
 
     // CRITICAL: Generated code must compile
     if !compiles(&code) {
         let errors = compile_errors(&code);
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }

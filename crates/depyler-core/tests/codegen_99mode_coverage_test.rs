@@ -1,7 +1,7 @@
 //! Coverage tests for codegen.rs
 //!
 //! DEPYLER-99MODE-001: Targets codegen.rs (2,879 lines)
-//! Covers: hir_to_rust, generate_rust, function conversion,
+//! Covers: `hir_to_rust`, `generate_rust`, function conversion,
 //! collection type detection, import generation, code formatting.
 
 use depyler_core::DepylerPipeline;
@@ -33,13 +33,13 @@ fn test_codegen_function_with_params() {
 
 #[test]
 fn test_codegen_multiple_functions() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
 
 def sub(a: int, b: int) -> int:
     return a - b
-"#;
+";
     let rust = transpile(code);
     assert!(rust.contains("fn add"));
     assert!(rust.contains("fn sub"));
@@ -104,10 +104,10 @@ def f() -> dict:
 
 #[test]
 fn test_codegen_nested_list() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     return [[1, 2], [3, 4]]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -123,13 +123,13 @@ fn test_codegen_formatted_output() {
 
 #[test]
 fn test_codegen_multiline_function() {
-    let code = r#"
+    let code = r"
 def process(items: list) -> int:
     total = 0
     for item in items:
         total += item
     return total
-"#;
+";
     let rust = transpile(code);
     assert!(rust.contains("fn process"));
 }
@@ -140,46 +140,46 @@ def process(items: list) -> int:
 
 #[test]
 fn test_codegen_class_to_struct() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
         self.y = y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_codegen_class_with_method() {
-    let code = r#"
+    let code = r"
 class Counter:
     def __init__(self):
         self.count = 0
 
     def increment(self):
         self.count += 1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_codegen_recursive_function() {
-    let code = r#"
+    let code = r"
 def factorial(n: int) -> int:
     if n <= 1:
         return 1
     return n * factorial(n - 1)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_codegen_generator_function() {
-    let code = r#"
+    let code = r"
 def gen(n: int):
     for i in range(n):
         yield i
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -191,23 +191,23 @@ fn test_codegen_async_function() {
 
 #[test]
 fn test_codegen_exception_handling() {
-    let code = r#"
+    let code = r"
 def safe_div(a: int, b: int) -> int:
     try:
         return a // b
     except:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_codegen_with_statement() {
-    let code = r#"
+    let code = r"
 def read_file(path: str) -> str:
     with open(path) as f:
         return f.read()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -219,10 +219,10 @@ fn test_codegen_list_comprehension() {
 
 #[test]
 fn test_codegen_lambda() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return sorted(items, key=lambda x: -x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 

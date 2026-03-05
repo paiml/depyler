@@ -24,27 +24,27 @@ fn transpile_python(python: &str) -> anyhow::Result<String> {
 #[test]
 fn test_DEPYLER_1162_single_module_return_type_propagation() {
     // Basic test: function A returns concrete type, function B uses it
-    let python = r#"
+    let python = r"
 def get_count():
     return 42
 
 def use_count():
     x = get_count()
     return x + 1
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
     // The return type of get_count should propagate to use_count
-    assert!(rust.contains("i64") || rust.contains("i32"), "Should infer integer types: {}", rust);
+    assert!(rust.contains("i64") || rust.contains("i32"), "Should infer integer types: {rust}");
 }
 
 #[test]
 fn test_DEPYLER_1162_chained_function_calls() {
     // Chain: A -> B -> C, type should propagate through all
-    let python = r#"
+    let python = r"
 def get_base():
     return 100
 
@@ -54,7 +54,7 @@ def double_it():
 def use_doubled():
     value = double_it()
     return value / 10
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -63,21 +63,21 @@ def use_doubled():
 #[test]
 fn test_DEPYLER_1162_typed_function_to_untyped_caller() {
     // Typed function called by untyped function
-    let python = r#"
+    let python = r"
 def typed_getter() -> int:
     return 42
 
 def untyped_caller():
     result = typed_getter()
     return result * 2
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
     // typed_getter's int return type should influence untyped_caller
-    assert!(rust.contains("i64") || rust.contains("i32"), "Should propagate int type: {}", rust);
+    assert!(rust.contains("i64") || rust.contains("i32"), "Should propagate int type: {rust}");
 }
 
 #[test]
@@ -96,30 +96,26 @@ def greet():
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
-    assert!(
-        rust.contains("String") || rust.contains("&str"),
-        "Should handle string types: {}",
-        rust
-    );
+    assert!(rust.contains("String") || rust.contains("&str"), "Should handle string types: {rust}");
 }
 
 #[test]
 fn test_DEPYLER_1162_list_return_propagation() {
     // List return type propagation
-    let python = r#"
+    let python = r"
 def get_items():
     return [1, 2, 3]
 
 def process_items():
     items = get_items()
     return len(items)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
-    assert!(rust.contains("Vec<") || rust.contains("vec!"), "Should handle list types: {}", rust);
+    assert!(rust.contains("Vec<") || rust.contains("vec!"), "Should handle list types: {rust}");
 }
 
 // ========================================================================
@@ -129,27 +125,27 @@ def process_items():
 #[test]
 fn test_DEPYLER_1162_parameter_type_from_call_site() {
     // Untyped function parameter should infer type from call site
-    let python = r#"
+    let python = r"
 def add_one(x):
     return x + 1
 
 def main():
     result = add_one(5)
     return result
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
 
     // x should be inferred as int from call site
     let rust = result.unwrap();
-    assert!(rust.contains("i64") || rust.contains("i32"), "Should infer int parameter: {}", rust);
+    assert!(rust.contains("i64") || rust.contains("i32"), "Should infer int parameter: {rust}");
 }
 
 #[test]
 fn test_DEPYLER_1162_multiple_call_sites_consistent() {
     // Multiple call sites with consistent types
-    let python = r#"
+    let python = r"
 def process(value):
     return value * 2
 
@@ -158,7 +154,7 @@ def caller1():
 
 def caller2():
     return process(20)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -167,7 +163,7 @@ def caller2():
 #[test]
 fn test_DEPYLER_1162_bidirectional_type_flow() {
     // Type flows both from return and to parameters
-    let python = r#"
+    let python = r"
 def transform(x: int) -> str:
     return str(x)
 
@@ -175,7 +171,7 @@ def caller():
     value = 42
     result = transform(value)
     return len(result)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -204,7 +200,7 @@ def get_host():
 #[test]
 fn test_DEPYLER_1162_conditional_return_types() {
     // Function with conditional returns
-    let python = r#"
+    let python = r"
 def maybe_get(flag):
     if flag:
         return 42
@@ -215,7 +211,7 @@ def use_maybe():
     if result:
         return result + 1
     return 0
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -224,7 +220,7 @@ def use_maybe():
 #[test]
 fn test_DEPYLER_1162_recursive_type_propagation() {
     // Recursive function - type should be consistent
-    let python = r#"
+    let python = r"
 def factorial(n):
     if n <= 1:
         return 1
@@ -232,7 +228,7 @@ def factorial(n):
 
 def main():
     return factorial(5)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -246,7 +242,7 @@ def main():
 fn test_DEPYLER_1162_simulated_multi_module() {
     // Simulate module_a and module_b in single file
     // This tests the same type propagation that would occur across modules
-    let python = r#"
+    let python = r"
 # Simulated module_a
 def module_a_get_value():
     return 100
@@ -259,7 +255,7 @@ def module_b_main():
     value = module_a_get_value()
     processed = module_a_process(value)
     return processed + 1
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -268,15 +264,14 @@ def module_b_main():
     // All functions should have consistent integer types
     assert!(
         rust.contains("fn module_a_get_value") && rust.contains("fn module_b_main"),
-        "Should generate all functions: {}",
-        rust
+        "Should generate all functions: {rust}"
     );
 }
 
 #[test]
 fn test_DEPYLER_1162_data_pipeline_pattern() {
     // Common pattern: data flows through multiple functions
-    let python = r#"
+    let python = r"
 def load_data():
     return [1, 2, 3, 4, 5]
 
@@ -291,7 +286,7 @@ def pipeline():
     filtered = filter_data(raw)
     transformed = transform_data(filtered)
     return sum(transformed)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -341,14 +336,14 @@ fn test_DEPYLER_1162_success_criteria() {
 #[test]
 fn test_DEPYLER_1162_verify_no_depyler_value_fallback() {
     // When types are determinable, we should NOT fall back to DepylerValue
-    let python = r#"
+    let python = r"
 def get_number() -> int:
     return 42
 
 def double_number() -> int:
     n = get_number()
     return n * 2
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -356,5 +351,5 @@ def double_number() -> int:
     let rust = result.unwrap();
     // With explicit type annotations, we should see concrete types, not DepylerValue
     let has_concrete_types = rust.contains("i64") || rust.contains("i32") || rust.contains("-> i");
-    assert!(has_concrete_types, "Should use concrete types when annotated: {}", rust);
+    assert!(has_concrete_types, "Should use concrete types when annotated: {rust}");
 }

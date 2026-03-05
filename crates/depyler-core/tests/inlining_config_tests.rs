@@ -1,5 +1,5 @@
-//! EXTREME TDD: Tests for inlining.rs InliningConfig
-//! Coverage: InliningConfig, default values, custom configurations
+//! EXTREME TDD: Tests for inlining.rs `InliningConfig`
+//! Coverage: `InliningConfig`, default values, custom configurations
 
 use depyler_core::inlining::{InliningAnalyzer, InliningConfig};
 
@@ -212,7 +212,7 @@ fn test_config_clone() {
 #[test]
 fn test_config_debug() {
     let config = InliningConfig::default();
-    let debug_str = format!("{:?}", config);
+    let debug_str = format!("{config:?}");
     assert!(debug_str.contains("InliningConfig"));
     assert!(debug_str.contains("max_inline_size"));
     assert!(debug_str.contains("max_inline_depth"));

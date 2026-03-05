@@ -2,7 +2,7 @@
 //!
 //! Tests verify that format! macro handles non-Display types correctly:
 //! - Vec<T> should use {:?} (Debug trait)
-//! - Option<T> should use {:?} or .unwrap_or()
+//! - Option<T> should use {:?} or .`unwrap_or()`
 //! - Result<T, E> should use {:?} or ? operator
 //!
 //! These tests use the actual fibonacci.rs errors as test cases.
@@ -28,7 +28,7 @@ def main():
     let rust = transpile(python);
 
     // After fix: should use {:?} for Vec (Debug trait)
-    assert!(rust.contains("{:?}"), "Vec should use Debug formatter {{:?}}, got: {}", rust);
+    assert!(rust.contains("{:?}"), "Vec should use Debug formatter {{:?}}, got: {rust}");
 }
 
 #[test]
@@ -52,7 +52,7 @@ def main():
     let rust = transpile(python);
 
     // Should use {:?} for Vec return type
-    assert!(rust.contains("{:?}"), "Vec<i32> should use Debug formatter, got: {}", rust);
+    assert!(rust.contains("{:?}"), "Vec<i32> should use Debug formatter, got: {rust}");
 }
 
 #[test]
@@ -81,8 +81,7 @@ def main():
 
     assert!(
         has_debug || has_unwrap || has_match || has_if_let,
-        "Option should be handled with Debug, unwrap, match, or if let, got: {}",
-        rust
+        "Option should be handled with Debug, unwrap, match, or if let, got: {rust}"
     );
 }
 
@@ -99,8 +98,7 @@ def main():
     // HashMap should use {:?}
     assert!(
         rust.contains("{:?}") || !rust.contains("HashMap"),
-        "HashMap should use Debug formatter if present, got: {}",
-        rust
+        "HashMap should use Debug formatter if present, got: {rust}"
     );
 }
 
@@ -119,5 +117,5 @@ def main():
     // Primitives should still use {} (Display)
     let display_count = rust.matches("{}").count();
 
-    assert!(display_count >= 2, "Primitives should use Display formatter {{}}, got: {}", rust);
+    assert!(display_count >= 2, "Primitives should use Display formatter {{}}, got: {rust}");
 }

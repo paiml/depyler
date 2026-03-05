@@ -1,10 +1,10 @@
-//! DEPYLER-0956: os.makedirs() uses ? but function returns ()
+//! DEPYLER-0956: `os.makedirs()` uses ? but function returns ()
 //!
-//! Bug: When os.makedirs() is used, the generated code used the ? operator
+//! Bug: When `os.makedirs()` is used, the generated code used the ? operator
 //! but the function return type was () instead of Result<(), Box<dyn Error>>.
 //!
-//! Fix: Use .unwrap() instead of ? to not require Result return type.
-//! This matches Python's semantics where OSError is raised (panics in Rust).
+//! Fix: Use .`unwrap()` instead of ? to not require Result return type.
+//! This matches Python's semantics where `OSError` is raised (panics in Rust).
 
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::hir::HirModule;
@@ -45,7 +45,7 @@ fn transpile(python: &str) -> Result<String, String> {
 fn assert_compiles(rust_code: &str, test_name: &str) {
     use std::process::Command;
 
-    let test_file = std::env::temp_dir().join(format!("depyler_0956_{}.rs", test_name));
+    let test_file = std::env::temp_dir().join(format!("depyler_0956_{test_name}.rs"));
     std::fs::write(&test_file, rust_code).expect("Failed to write test file");
 
     let output = Command::new("rustc")
@@ -75,7 +75,7 @@ def test():
     let rust = transpile(python).expect("transpilation failed");
 
     // Must use .unwrap() not ?
-    assert!(rust.contains(".unwrap()"), "Expected .unwrap() but got: {}", rust);
+    assert!(rust.contains(".unwrap()"), "Expected .unwrap() but got: {rust}");
 
     // Verify it compiles
     assert_compiles(&rust, "makedirs");
@@ -94,7 +94,7 @@ def test():
     let rust = transpile(python).expect("transpilation failed");
 
     // Must use .unwrap() not ?
-    assert!(rust.contains(".unwrap()"), "Expected .unwrap() but got: {}", rust);
+    assert!(rust.contains(".unwrap()"), "Expected .unwrap() but got: {rust}");
 
     // Verify it compiles
     assert_compiles(&rust, "mkdir");
@@ -113,7 +113,7 @@ def test():
     let rust = transpile(python).expect("transpilation failed");
 
     // Must use .unwrap() not ?
-    assert!(rust.contains(".unwrap()"), "Expected .unwrap() but got: {}", rust);
+    assert!(rust.contains(".unwrap()"), "Expected .unwrap() but got: {rust}");
 
     // Verify it compiles
     assert_compiles(&rust, "rmdir");
@@ -132,7 +132,7 @@ def test():
     let rust = transpile(python).expect("transpilation failed");
 
     // Must use .unwrap() not ?
-    assert!(rust.contains(".unwrap()"), "Expected .unwrap() but got: {}", rust);
+    assert!(rust.contains(".unwrap()"), "Expected .unwrap() but got: {rust}");
 
     // Verify it compiles
     assert_compiles(&rust, "rename");

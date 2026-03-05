@@ -545,10 +545,10 @@ mod tests {
 
     #[test]
     fn test_parse_rustc_errors() {
-        let output = r#"error[E0308]: mismatched types
+        let output = r"error[E0308]: mismatched types
    --> src/main.rs:10:5
 error[E0432]: unresolved import `serde_json`
-   --> src/lib.rs:1:5"#;
+   --> src/lib.rs:1:5";
 
         let errors = parse_rustc_errors(output);
         assert_eq!(errors.len(), 2);

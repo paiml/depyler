@@ -1,4 +1,4 @@
-//! EXTREME TDD tests for ast_bridge module
+//! EXTREME TDD tests for `ast_bridge` module
 //! Tests edge cases, error paths, and boundary conditions
 
 use depyler_core::ast_bridge::AstBridge;
@@ -6,7 +6,7 @@ use proptest::prelude::*;
 use rustpython_ast::Suite;
 use rustpython_parser::Parse;
 
-/// Helper to create a ModModule from parsed code
+/// Helper to create a `ModModule` from parsed code
 fn make_module(ast: Suite) -> rustpython_ast::Mod {
     rustpython_ast::Mod::Module(rustpython_ast::ModModule {
         body: ast,
@@ -62,10 +62,10 @@ def hello() -> str:
 /// Test function with many parameters (boundary test)
 #[test]
 fn test_function_many_params() {
-    let python_code = r#"
+    let python_code = r"
 def many_params(a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int) -> int:
     return a + b + c + d + e + f + g + h
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -77,10 +77,10 @@ def many_params(a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int) 
 /// Test async function conversion
 #[test]
 fn test_async_function() {
-    let python_code = r#"
+    let python_code = r"
 async def async_fetch(url: str) -> str:
     return url
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -93,10 +93,10 @@ async def async_fetch(url: str) -> str:
 /// Test import statement conversion
 #[test]
 fn test_import_statement() {
-    let python_code = r#"
+    let python_code = r"
 import os
 import sys
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -108,9 +108,9 @@ import sys
 /// Test from import statement conversion
 #[test]
 fn test_from_import_statement() {
-    let python_code = r#"
+    let python_code = r"
 from typing import List, Dict, Optional
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -123,9 +123,9 @@ from typing import List, Dict, Optional
 /// Test type alias conversion
 #[test]
 fn test_simple_type_alias() {
-    let python_code = r#"
+    let python_code = r"
 UserId = int
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -138,10 +138,10 @@ UserId = int
 /// Test generic type alias conversion
 #[test]
 fn test_generic_type_alias() {
-    let python_code = r#"
+    let python_code = r"
 from typing import Optional
 MaybeInt = Optional[int]
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -151,13 +151,13 @@ MaybeInt = Optional[int]
     assert!(hir.type_aliases.iter().any(|ta| ta.name == "MaybeInt"));
 }
 
-/// Test NewType pattern
+/// Test `NewType` pattern
 #[test]
 fn test_newtype_pattern() {
-    let python_code = r#"
+    let python_code = r"
 from typing import NewType
 UserId = NewType('UserId', int)
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -171,13 +171,13 @@ UserId = NewType('UserId', int)
 /// Test protocol conversion
 #[test]
 fn test_protocol_conversion() {
-    let python_code = r#"
+    let python_code = r"
 from typing import Protocol
 
 class Drawable(Protocol):
     def draw(self) -> None:
         ...
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -187,17 +187,17 @@ class Drawable(Protocol):
     assert_eq!(hir.protocols[0].name, "Drawable");
 }
 
-/// Test runtime_checkable protocol
+/// Test `runtime_checkable` protocol
 #[test]
 fn test_runtime_checkable_protocol() {
-    let python_code = r#"
+    let python_code = r"
 from typing import Protocol, runtime_checkable
 
 @runtime_checkable
 class Sized(Protocol):
     def __len__(self) -> int:
         ...
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -210,12 +210,12 @@ class Sized(Protocol):
 /// Test class conversion
 #[test]
 fn test_class_conversion() {
-    let python_code = r#"
+    let python_code = r"
 class Point:
     def __init__(self, x: int, y: int) -> None:
         self.x = x
         self.y = y
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -228,9 +228,9 @@ class Point:
 /// Test module-level constant
 #[test]
 fn test_module_level_constant() {
-    let python_code = r#"
+    let python_code = r"
 MAX_SIZE = 100
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -242,9 +242,9 @@ MAX_SIZE = 100
 /// Test annotated module-level constant
 #[test]
 fn test_annotated_constant() {
-    let python_code = r#"
+    let python_code = r"
 MAX_SIZE: int = 100
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -271,7 +271,7 @@ def add(a: int, b: int) -> int:
     assert!(hir.functions[0].docstring.is_some());
 }
 
-/// Test with_source builder pattern
+/// Test `with_source` builder pattern
 #[test]
 fn test_with_source_builder() {
     let python_code = r#"
@@ -301,11 +301,11 @@ fn test_default_implementation() {
 /// Test function with complex return type
 #[test]
 fn test_complex_return_type() {
-    let python_code = r#"
+    let python_code = r"
 from typing import Dict, List
 def get_data() -> Dict[str, List[int]]:
     return {}
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -315,10 +315,10 @@ def get_data() -> Dict[str, List[int]]:
 /// Test function with *args
 #[test]
 fn test_function_with_varargs() {
-    let python_code = r#"
+    let python_code = r"
 def variadic(*args: int) -> int:
     return sum(args)
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -328,10 +328,10 @@ def variadic(*args: int) -> int:
 /// Test function with **kwargs
 #[test]
 fn test_function_with_kwargs() {
-    let python_code = r#"
+    let python_code = r"
 def with_kwargs(**kwargs: str) -> None:
     pass
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -354,12 +354,12 @@ def with_defaults(a: int, b: int = 10, c: str = "hello") -> int:
 /// Test nested class definition
 #[test]
 fn test_nested_class() {
-    let python_code = r#"
+    let python_code = r"
 class Outer:
     class Inner:
         def method(self) -> int:
             return 42
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -369,13 +369,13 @@ class Outer:
 /// Test class with inheritance
 #[test]
 fn test_class_inheritance() {
-    let python_code = r#"
+    let python_code = r"
 class Base:
     pass
 
 class Derived(Base):
     pass
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -387,7 +387,7 @@ class Derived(Base):
 /// Test class with multiple inheritance
 #[test]
 fn test_multiple_inheritance() {
-    let python_code = r#"
+    let python_code = r"
 class A:
     pass
 
@@ -396,7 +396,7 @@ class B:
 
 class C(A, B):
     pass
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -406,14 +406,14 @@ class C(A, B):
 /// Test decorated function
 #[test]
 fn test_decorated_function() {
-    let python_code = r#"
+    let python_code = r"
 def decorator(f):
     return f
 
 @decorator
 def decorated() -> int:
     return 42
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -423,12 +423,12 @@ def decorated() -> int:
 /// Test staticmethod
 #[test]
 fn test_staticmethod() {
-    let python_code = r#"
+    let python_code = r"
 class MyClass:
     @staticmethod
     def static_method() -> int:
         return 42
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -438,12 +438,12 @@ class MyClass:
 /// Test classmethod
 #[test]
 fn test_classmethod() {
-    let python_code = r#"
+    let python_code = r"
 class MyClass:
     @classmethod
     def class_method(cls) -> int:
         return 42
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -458,7 +458,7 @@ proptest! {
     /// Property: parsing valid function names should succeed
     #[test]
     fn prop_valid_function_names(name in "[a-z][a-z0-9_]{0,20}") {
-        let code = format!("def {}() -> None: pass", name);
+        let code = format!("def {name}() -> None: pass");
         let ast = Suite::parse(&code, "<test>");
         prop_assert!(ast.is_ok());
     }
@@ -466,7 +466,7 @@ proptest! {
     /// Property: parsing valid parameter counts should succeed
     #[test]
     fn prop_parameter_counts(count in 0usize..10) {
-        let params: Vec<String> = (0..count).map(|i| format!("p{}: int", i)).collect();
+        let params: Vec<String> = (0..count).map(|i| format!("p{i}: int")).collect();
         let code = format!("def f({}) -> int: return 0", params.join(", "));
         let ast = Suite::parse(&code, "<test>");
         prop_assert!(ast.is_ok());
@@ -483,7 +483,7 @@ proptest! {
     /// Property: type environment should contain all parameters
     #[test]
     fn prop_type_env_contains_params(count in 1usize..5) {
-        let params: Vec<String> = (0..count).map(|i| format!("p{}: int", i)).collect();
+        let params: Vec<String> = (0..count).map(|i| format!("p{i}: int")).collect();
         let code = format!("def f({}) -> int: return 0", params.join(", "));
         let ast = Suite::parse(&code, "<test>");
         if let Ok(suite) = ast {
@@ -492,7 +492,7 @@ proptest! {
             if let Ok((_, type_env)) = result {
                 // Type environment should have bindings for params
                 for i in 0..count {
-                    let param_name = format!("p{}", i);
+                    let param_name = format!("p{i}");
                     prop_assert!(type_env.get_var_type(&param_name).is_some());
                 }
             }
@@ -507,11 +507,11 @@ proptest! {
 /// Test that functions are correctly counted (mutation-resistant)
 #[test]
 fn test_function_count_mutation_resistant() {
-    let python_code = r#"
+    let python_code = r"
 def f1(): pass
 def f2(): pass
 def f3(): pass
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let (hir, _) = bridge.python_to_hir(make_module(ast)).unwrap();
@@ -527,11 +527,11 @@ def f3(): pass
 /// Test that import counts are exact (mutation-resistant)
 #[test]
 fn test_import_count_mutation_resistant() {
-    let python_code = r#"
+    let python_code = r"
 import os
 import sys
 import json
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let (hir, _) = bridge.python_to_hir(make_module(ast)).unwrap();
@@ -542,10 +542,10 @@ import json
 /// Test that parameter types are preserved exactly (mutation-resistant)
 #[test]
 fn test_param_types_mutation_resistant() {
-    let python_code = r#"
+    let python_code = r"
 def typed(a: int, b: str, c: float) -> bool:
     return True
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let (hir, _) = bridge.python_to_hir(make_module(ast)).unwrap();
@@ -560,13 +560,13 @@ def typed(a: int, b: str, c: float) -> bool:
 /// Test function properties are correctly analyzed (mutation-resistant)
 #[test]
 fn test_function_properties_mutation_resistant() {
-    let python_code = r#"
+    let python_code = r"
 async def async_fn() -> int:
     return 0
 
 def sync_fn() -> int:
     return 1
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let (hir, _) = bridge.python_to_hir(make_module(ast)).unwrap();
@@ -610,7 +610,7 @@ fn test_function_only_pass() {
 #[test]
 fn test_long_function_name() {
     let long_name = "a".repeat(100);
-    let python_code = format!("def {}() -> None: pass", long_name);
+    let python_code = format!("def {long_name}() -> None: pass");
     let ast = Suite::parse(&python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -622,13 +622,13 @@ fn test_long_function_name() {
 /// Test deeply nested function calls
 #[test]
 fn test_nested_function_calls() {
-    let python_code = r#"
+    let python_code = r"
 def f(x: int) -> int:
     return x
 
 def g() -> int:
     return f(f(f(f(f(1)))))
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -652,7 +652,7 @@ def all_params(a: int, b: str = "default", *args: float, **kwargs: bool) -> None
 #[test]
 fn test_class_many_methods() {
     let methods: Vec<String> =
-        (0..20).map(|i| format!("    def method{}(self) -> int: return {}", i, i)).collect();
+        (0..20).map(|i| format!("    def method{i}(self) -> int: return {i}")).collect();
     let python_code = format!("class ManyMethods:\n{}", methods.join("\n"));
     let ast = Suite::parse(&python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
@@ -666,12 +666,12 @@ fn test_class_many_methods() {
 /// Test multiple type aliases
 #[test]
 fn test_multiple_type_aliases() {
-    let python_code = r#"
+    let python_code = r"
 Int = int
 Str = str
 Bool = bool
 Float = float
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -683,11 +683,11 @@ Float = float
 /// Test generator function
 #[test]
 fn test_generator_function() {
-    let python_code = r#"
+    let python_code = r"
 def gen(n: int) -> int:
     for i in range(n):
         yield i
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -699,13 +699,13 @@ def gen(n: int) -> int:
 /// Test global statement handling
 #[test]
 fn test_global_statement() {
-    let python_code = r#"
+    let python_code = r"
 x = 10
 
 def modify_global() -> None:
     global x
     x = 20
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -715,7 +715,7 @@ def modify_global() -> None:
 /// Test nonlocal statement handling
 #[test]
 fn test_nonlocal_statement() {
-    let python_code = r#"
+    let python_code = r"
 def outer() -> int:
     x = 10
     def inner() -> None:
@@ -723,7 +723,7 @@ def outer() -> int:
         x = 20
     inner()
     return x
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -733,11 +733,11 @@ def outer() -> int:
 /// Test lambda expression
 #[test]
 fn test_lambda_expression() {
-    let python_code = r#"
+    let python_code = r"
 def use_lambda() -> int:
     f = lambda x: x + 1
     return f(5)
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -747,10 +747,10 @@ def use_lambda() -> int:
 /// Test list comprehension
 #[test]
 fn test_list_comprehension() {
-    let python_code = r#"
+    let python_code = r"
 def squares(n: int) -> list:
     return [x * x for x in range(n)]
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -760,10 +760,10 @@ def squares(n: int) -> list:
 /// Test dict comprehension
 #[test]
 fn test_dict_comprehension() {
-    let python_code = r#"
+    let python_code = r"
 def square_dict(n: int) -> dict:
     return {x: x * x for x in range(n)}
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -773,10 +773,10 @@ def square_dict(n: int) -> dict:
 /// Test set comprehension
 #[test]
 fn test_set_comprehension() {
-    let python_code = r#"
+    let python_code = r"
 def unique_squares(n: int) -> set:
     return {x * x for x in range(n)}
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -786,10 +786,10 @@ def unique_squares(n: int) -> set:
 /// Test ternary expression
 #[test]
 fn test_ternary_expression() {
-    let python_code = r#"
+    let python_code = r"
 def max_val(a: int, b: int) -> int:
     return a if a > b else b
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -799,12 +799,12 @@ def max_val(a: int, b: int) -> int:
 /// Test walrus operator (named expression)
 #[test]
 fn test_walrus_operator() {
-    let python_code = r#"
+    let python_code = r"
 def check_length(s: str) -> bool:
     if (n := len(s)) > 10:
         return True
     return False
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -828,13 +828,13 @@ def validate(x: int) -> int:
 /// Test try-except handling
 #[test]
 fn test_try_except() {
-    let python_code = r#"
+    let python_code = r"
 def safe_div(a: int, b: int) -> int:
     try:
         return a // b
     except ZeroDivisionError:
         return 0
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));
@@ -844,11 +844,11 @@ def safe_div(a: int, b: int) -> int:
 /// Test with statement
 #[test]
 fn test_with_statement() {
-    let python_code = r#"
+    let python_code = r"
 def read_file(path: str) -> str:
     with open(path) as f:
         return f.read()
-"#;
+";
     let ast = Suite::parse(python_code, "<test>").unwrap();
     let bridge = AstBridge::new();
     let result = bridge.python_to_hir(make_module(ast));

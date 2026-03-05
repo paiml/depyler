@@ -647,11 +647,11 @@ mod tests {
         let syntax_count = dataset.samples_for_category(ErrorCategory::SyntaxError).len();
 
         // Each category should have multiple samples
-        assert!(type_count >= 5, "Type mismatch: {}", type_count);
-        assert!(borrow_count >= 5, "Borrow checker: {}", borrow_count);
-        assert!(lifetime_count >= 5, "Lifetime: {}", lifetime_count);
-        assert!(trait_count >= 5, "Trait bound: {}", trait_count);
-        assert!(import_count >= 5, "Import: {}", import_count);
-        assert!(syntax_count >= 5, "Syntax: {}", syntax_count);
+        assert!(type_count >= 5, "Type mismatch: {type_count}");
+        assert!(borrow_count >= 5, "Borrow checker: {borrow_count}");
+        assert!(lifetime_count >= 5, "Lifetime: {lifetime_count}");
+        assert!(trait_count >= 5, "Trait bound: {trait_count}");
+        assert!(import_count >= 5, "Import: {import_count}");
+        assert!(syntax_count >= 5, "Syntax: {syntax_count}");
     }
 }

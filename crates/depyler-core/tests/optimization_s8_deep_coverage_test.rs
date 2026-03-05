@@ -1,8 +1,8 @@
 //! Session 8 deep coverage: optimization.rs
 //!
-//! Direct API tests for PerformanceOptimizer covering all optimization
+//! Direct API tests for `PerformanceOptimizer` covering all optimization
 //! levels, constant folding, dead code elimination, strength reduction,
-//! loop unrolling, performance hints, and optimize_module.
+//! loop unrolling, performance hints, and `optimize_module`.
 
 use depyler_annotations::{
     BoundsChecking, OptimizationLevel, PerformanceHint, TranspilationAnnotations,
@@ -211,7 +211,7 @@ fn test_conservative_no_fold_mixed_types() {
     match &func.body[0] {
         HirStmt::Return(Some(HirExpr::Binary { .. })) => {} // Good
         HirStmt::Return(Some(HirExpr::Literal(_))) => {}    // Also fine if supported
-        other => panic!("Unexpected: {:?}", other),
+        other => panic!("Unexpected: {other:?}"),
     }
 }
 

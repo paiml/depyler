@@ -1,8 +1,8 @@
-//! Coverage tests for type_mapper.rs
+//! Coverage tests for `type_mapper.rs`
 //!
-//! DEPYLER-99MODE-001: Targets type_mapper.rs (2,038 lines)
-//! Covers: TypeMapper, map_type, map_return_type, needs_reference,
-//! can_copy, string strategies, integer width, NASA mode.
+//! DEPYLER-99MODE-001: Targets `type_mapper.rs` (2,038 lines)
+//! Covers: `TypeMapper`, `map_type`, `map_return_type`, `needs_reference`,
+//! `can_copy`, string strategies, integer width, NASA mode.
 
 use depyler_core::DepylerPipeline;
 
@@ -106,19 +106,19 @@ fn test_type_mapper_return_none() {
 
 #[test]
 fn test_type_mapper_list_param() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     return len(items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_mapper_dict_param() {
-    let code = r#"
+    let code = r"
 def f(d: dict) -> int:
     return len(d)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -134,31 +134,31 @@ fn test_type_mapper_str_param() {
 
 #[test]
 fn test_type_mapper_copy_int() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     y = x
     return x + y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_mapper_copy_float() {
-    let code = r#"
+    let code = r"
 def f(x: float) -> float:
     y = x
     return x + y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_mapper_copy_bool() {
-    let code = r#"
+    let code = r"
 def f(x: bool) -> bool:
     y = x
     return x and y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -168,11 +168,11 @@ def f(x: bool) -> bool:
 
 #[test]
 fn test_type_mapper_list_of_int() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [1, 2, 3]
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -198,11 +198,11 @@ def f() -> dict:
 
 #[test]
 fn test_type_mapper_set_of_int() {
-    let code = r#"
+    let code = r"
 def f() -> set:
     s = {1, 2, 3}
     return s
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -212,16 +212,16 @@ def f() -> set:
 
 #[test]
 fn test_type_mapper_mixed_types() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: float, s: str) -> str:
     return s + str(x) + str(y)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_mapper_function_chain() {
-    let code = r#"
+    let code = r"
 def to_int(s: str) -> int:
     return int(s)
 
@@ -230,7 +230,7 @@ def to_str(n: int) -> str:
 
 def f(s: str) -> str:
     return to_str(to_int(s) + 1)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -261,13 +261,13 @@ def f(x: int = 0, s: str = "default", flag: bool = True) -> str:
 
 #[test]
 fn test_type_mapper_list_operations() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     result = []
     for item in items:
         result.append(item * 2)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 

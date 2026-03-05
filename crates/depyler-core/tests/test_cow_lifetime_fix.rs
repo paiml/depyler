@@ -20,7 +20,7 @@ def concatenate(a: str, b: str) -> str:
     // The bug: current code generates `a: Cow<'static, str>, b: &str`
     // We want to assert this is NOT present
 
-    println!("Generated code:\n{}", generated_code);
+    println!("Generated code:\n{generated_code}");
 
     // Check if the function signature uses Cow<'static, str>
     let has_static_cow_param = generated_code.contains("Cow<'static, str>");
@@ -30,8 +30,7 @@ def concatenate(a: str, b: str) -> str:
         "❌ BUG CONFIRMED: Parameters use Cow<'static, str>\n\
          Expected: Generic lifetime 'a or just &str\n\
          Found: Cow<'static, str>\n\n\
-         Generated code:\n{}",
-        generated_code
+         Generated code:\n{generated_code}"
     );
 }
 
@@ -54,7 +53,7 @@ def concatenate(a: str, b: str) -> str:
 
     // Add necessary test code that uses local Strings
     let test_code = format!(
-        r#"{}
+        r#"{generated_code}
 
 #[cfg(test)]
 mod test_local_strings {{
@@ -69,8 +68,7 @@ mod test_local_strings {{
         let _result = concatenate(&a, &b);
     }}
 }}
-"#,
-        generated_code
+"#
     );
 
     std::fs::write(&test_file, &test_code).expect("Failed to write test file");
@@ -99,16 +97,14 @@ mod test_local_strings {{
             panic!(
                 "❌ BUG CONFIRMED: Generated code requires 'static lifetime for parameters!\n\
                  This prevents using local Strings in tests.\n\n\
-                 Compilation error:\n{}\n\n\
-                 Generated code:\n{}",
-                stderr, generated_code
+                 Compilation error:\n{stderr}\n\n\
+                 Generated code:\n{generated_code}"
             );
         } else {
             // Different compilation error - still fail but with different message
             panic!(
-                "Compilation failed (may be unrelated to DEPYLER-0282):\n{}\n\n\
-                 Generated code:\n{}",
-                stderr, generated_code
+                "Compilation failed (may be unrelated to DEPYLER-0282):\n{stderr}\n\n\
+                 Generated code:\n{generated_code}"
             );
         }
     }

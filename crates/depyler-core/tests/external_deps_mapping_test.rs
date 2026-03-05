@@ -14,7 +14,7 @@ mod numpy_to_trueno {
     use super::*;
 
     /// Test: numpy module maps to trueno crate
-    /// Spec Section 2.3: NumPy → Trueno Mapping
+    /// Spec Section 2.3: `NumPy` → Trueno Mapping
     #[test]
     fn test_numpy_module_maps_to_trueno() {
         let mapper = ModuleMapper::new();
@@ -25,7 +25,7 @@ mod numpy_to_trueno {
         assert_eq!(mapping.version.as_ref().unwrap(), "0.7", "trueno version should be 0.7");
     }
 
-    /// Test: np.array maps to Vector::from_slice
+    /// Test: np.array maps to `Vector::from_slice`
     #[test]
     fn test_numpy_array_maps_to_vector_from_slice() {
         let mapper = ModuleMapper::new();
@@ -34,7 +34,7 @@ mod numpy_to_trueno {
         assert_eq!(mapping.item_map.get("array"), Some(&"Vector::from_slice".to_string()));
     }
 
-    /// Test: np.zeros maps to Vector::zeros
+    /// Test: np.zeros maps to `Vector::zeros`
     #[test]
     fn test_numpy_zeros_maps_to_vector_zeros() {
         let mapper = ModuleMapper::new();
@@ -43,7 +43,7 @@ mod numpy_to_trueno {
         assert_eq!(mapping.item_map.get("zeros"), Some(&"Vector::zeros".to_string()));
     }
 
-    /// Test: np.ones maps to Vector::ones
+    /// Test: np.ones maps to `Vector::ones`
     #[test]
     fn test_numpy_ones_maps_to_vector_ones() {
         let mapper = ModuleMapper::new();
@@ -52,7 +52,7 @@ mod numpy_to_trueno {
         assert_eq!(mapping.item_map.get("ones"), Some(&"Vector::ones".to_string()));
     }
 
-    /// Test: np.add maps to Vector::add
+    /// Test: np.add maps to `Vector::add`
     #[test]
     fn test_numpy_add_maps_to_vector_add() {
         let mapper = ModuleMapper::new();
@@ -61,7 +61,7 @@ mod numpy_to_trueno {
         assert_eq!(mapping.item_map.get("add"), Some(&"Vector::add".to_string()));
     }
 
-    /// Test: np.dot maps to Vector::dot
+    /// Test: np.dot maps to `Vector::dot`
     #[test]
     fn test_numpy_dot_maps_to_vector_dot() {
         let mapper = ModuleMapper::new();
@@ -70,7 +70,7 @@ mod numpy_to_trueno {
         assert_eq!(mapping.item_map.get("dot"), Some(&"Vector::dot".to_string()));
     }
 
-    /// Test: np.sum maps to Vector::sum
+    /// Test: np.sum maps to `Vector::sum`
     #[test]
     fn test_numpy_sum_maps_to_vector_sum() {
         let mapper = ModuleMapper::new();
@@ -79,7 +79,7 @@ mod numpy_to_trueno {
         assert_eq!(mapping.item_map.get("sum"), Some(&"Vector::sum".to_string()));
     }
 
-    /// Test: np.mean maps to Vector::mean
+    /// Test: np.mean maps to `Vector::mean`
     #[test]
     fn test_numpy_mean_maps_to_vector_mean() {
         let mapper = ModuleMapper::new();
@@ -88,7 +88,7 @@ mod numpy_to_trueno {
         assert_eq!(mapping.item_map.get("mean"), Some(&"Vector::mean".to_string()));
     }
 
-    /// Test: np.matmul maps to Matrix::matmul
+    /// Test: np.matmul maps to `Matrix::matmul`
     #[test]
     fn test_numpy_matmul_maps_to_matrix_matmul() {
         let mapper = ModuleMapper::new();
@@ -146,7 +146,7 @@ mod sklearn_to_aprender {
         assert!(mapping.is_external);
     }
 
-    /// Test: LinearRegression maps to aprender::linear::LinearRegression
+    /// Test: `LinearRegression` maps to `aprender::linear::LinearRegression`
     #[test]
     fn test_sklearn_linear_regression_maps_to_aprender() {
         let mapper = ModuleMapper::new();
@@ -156,7 +156,7 @@ mod sklearn_to_aprender {
         assert_eq!(mapping.item_map.get("LinearRegression"), Some(&"LinearRegression".to_string()));
     }
 
-    /// Test: KMeans maps to aprender::cluster::KMeans
+    /// Test: `KMeans` maps to `aprender::cluster::KMeans`
     #[test]
     fn test_sklearn_kmeans_maps_to_aprender() {
         let mapper = ModuleMapper::new();
@@ -190,8 +190,8 @@ mod sklearn_to_aprender {
 mod subprocess_to_std_process {
     use super::*;
 
-    /// Test: subprocess module maps to std::process
-    /// Spec Section 4.2: subprocess → std::process (146 examples)
+    /// Test: subprocess module maps to `std::process`
+    /// Spec Section 4.2: subprocess → `std::process` (146 examples)
     #[test]
     fn test_subprocess_module_maps_to_std_process() {
         let mapper = ModuleMapper::new();
@@ -201,7 +201,7 @@ mod subprocess_to_std_process {
         assert!(!mapping.is_external, "std::process is in stdlib");
     }
 
-    /// Test: subprocess.run maps to Command::new().status()
+    /// Test: subprocess.run maps to `Command::new().status()`
     #[test]
     fn test_subprocess_run_maps_to_command() {
         let mapper = ModuleMapper::new();
@@ -219,7 +219,7 @@ mod subprocess_to_std_process {
         assert_eq!(mapping.item_map.get("Popen"), Some(&"Command".to_string()));
     }
 
-    /// Test: subprocess.PIPE maps to Stdio::piped
+    /// Test: subprocess.PIPE maps to `Stdio::piped`
     #[test]
     fn test_subprocess_pipe_maps_to_stdio_piped() {
         let mapper = ModuleMapper::new();
@@ -237,7 +237,7 @@ mod subprocess_to_std_process {
         assert_eq!(mapping.item_map.get("call"), Some(&"Command".to_string()));
     }
 
-    /// Test: subprocess.check_output maps to Command output
+    /// Test: `subprocess.check_output` maps to Command output
     #[test]
     fn test_subprocess_check_output_maps_to_command_output() {
         let mapper = ModuleMapper::new();
@@ -250,7 +250,7 @@ mod subprocess_to_std_process {
 mod re_to_regex_enhanced {
     use super::*;
 
-    /// Test: re.sub maps to Regex::replace_all
+    /// Test: re.sub maps to `Regex::replace_all`
     #[test]
     fn test_re_sub_maps_to_replace_all() {
         let mapper = ModuleMapper::new();
@@ -259,7 +259,7 @@ mod re_to_regex_enhanced {
         assert_eq!(mapping.item_map.get("sub"), Some(&"Regex::replace_all".to_string()));
     }
 
-    /// Test: re.split maps to Regex::split
+    /// Test: re.split maps to `Regex::split`
     #[test]
     fn test_re_split_maps_to_regex_split() {
         let mapper = ModuleMapper::new();
@@ -268,7 +268,7 @@ mod re_to_regex_enhanced {
         assert_eq!(mapping.item_map.get("split"), Some(&"Regex::split".to_string()));
     }
 
-    /// Test: re.IGNORECASE maps to RegexBuilder with case_insensitive
+    /// Test: re.IGNORECASE maps to `RegexBuilder` with `case_insensitive`
     #[test]
     fn test_re_ignorecase_mapping() {
         let mapper = ModuleMapper::new();
@@ -315,14 +315,12 @@ mod dependency_versions {
         for module in external_modules {
             if let Some(mapping) = mapper.get_mapping(module) {
                 if mapping.is_external {
-                    assert!(mapping.version.is_some(), "{} should have a version", module);
+                    assert!(mapping.version.is_some(), "{module} should have a version");
                     let version = mapping.version.as_ref().unwrap();
                     // Basic semver check: should contain a number
                     assert!(
                         version.chars().any(|c| c.is_ascii_digit()),
-                        "{} version '{}' should be semver-like",
-                        module,
-                        version
+                        "{module} version '{version}' should be semver-like"
                     );
                 }
             }
@@ -352,7 +350,7 @@ mod random_to_rand {
         assert_eq!(mapping.version.as_ref().unwrap(), "0.8");
     }
 
-    /// Test: random.random maps to rand::random
+    /// Test: random.random maps to `rand::random`
     #[test]
     fn test_random_random_maps_correctly() {
         let mapper = ModuleMapper::new();
@@ -361,7 +359,7 @@ mod random_to_rand {
         assert_eq!(mapping.item_map.get("random"), Some(&"random".to_string()));
     }
 
-    /// Test: random.randint maps to gen_range
+    /// Test: random.randint maps to `gen_range`
     #[test]
     fn test_random_randint_maps_to_gen_range() {
         let mapper = ModuleMapper::new();
@@ -370,7 +368,7 @@ mod random_to_rand {
         assert_eq!(mapping.item_map.get("randint"), Some(&"gen_range".to_string()));
     }
 
-    /// Test: random.uniform maps to gen_range for floats
+    /// Test: random.uniform maps to `gen_range` for floats
     #[test]
     fn test_random_uniform_maps_correctly() {
         let mapper = ModuleMapper::new();
@@ -379,7 +377,7 @@ mod random_to_rand {
         assert!(mapping.item_map.contains_key("uniform"), "uniform should be mapped");
     }
 
-    /// Test: random.seed maps to thread_rng seed
+    /// Test: random.seed maps to `thread_rng` seed
     #[test]
     fn test_random_seed_maps_correctly() {
         let mapper = ModuleMapper::new();
@@ -392,7 +390,7 @@ mod random_to_rand {
 mod threading_to_std_thread {
     use super::*;
 
-    /// Test: threading module maps to std::thread
+    /// Test: threading module maps to `std::thread`
     #[test]
     fn test_threading_module_maps_to_std_thread() {
         let mapper = ModuleMapper::new();
@@ -402,7 +400,7 @@ mod threading_to_std_thread {
         assert!(!mapping.is_external);
     }
 
-    /// Test: threading.Thread maps to std::thread::spawn
+    /// Test: threading.Thread maps to `std::thread::spawn`
     #[test]
     fn test_threading_thread_maps_to_spawn() {
         let mapper = ModuleMapper::new();
@@ -411,7 +409,7 @@ mod threading_to_std_thread {
         assert_eq!(mapping.item_map.get("Thread"), Some(&"spawn".to_string()));
     }
 
-    /// Test: threading.Lock maps to std::sync::Mutex
+    /// Test: threading.Lock maps to `std::sync::Mutex`
     #[test]
     fn test_threading_lock_maps_to_mutex() {
         let mapper = ModuleMapper::new();
@@ -462,7 +460,7 @@ mod asyncio_to_tokio {
         assert!(mapping.item_map.contains_key("run"), "run should be mapped");
     }
 
-    /// Test: asyncio.sleep maps to tokio::time::sleep
+    /// Test: asyncio.sleep maps to `tokio::time::sleep`
     #[test]
     fn test_asyncio_sleep_maps_to_tokio_sleep() {
         let mapper = ModuleMapper::new();
@@ -471,7 +469,7 @@ mod asyncio_to_tokio {
         assert_eq!(mapping.item_map.get("sleep"), Some(&"time::sleep".to_string()));
     }
 
-    /// Test: asyncio.gather maps to tokio::join
+    /// Test: asyncio.gather maps to `tokio::join`
     #[test]
     fn test_asyncio_gather_maps_to_join() {
         let mapper = ModuleMapper::new();
@@ -503,7 +501,7 @@ mod struct_to_byteorder {
         assert!(mapping.is_external);
     }
 
-    /// Test: struct.pack maps to WriteBytesExt
+    /// Test: struct.pack maps to `WriteBytesExt`
     #[test]
     fn test_struct_pack_maps_correctly() {
         let mapper = ModuleMapper::new();
@@ -512,7 +510,7 @@ mod struct_to_byteorder {
         assert!(mapping.item_map.contains_key("pack"), "pack should be mapped");
     }
 
-    /// Test: struct.unpack maps to ReadBytesExt
+    /// Test: struct.unpack maps to `ReadBytesExt`
     #[test]
     fn test_struct_unpack_maps_correctly() {
         let mapper = ModuleMapper::new();

@@ -1114,7 +1114,7 @@ mod tests {
                 // Each category has some failures
                 for _ in 0..5 {
                     outcomes.push(TranspileOutcome {
-                        category: format!("cat_{}", i),
+                        category: format!("cat_{i}"),
                         success: false,
                         error_message: Some("error".to_string()),
                         python_features: vec![],

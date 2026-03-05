@@ -19,7 +19,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b87_stack() {
-    let code = r#"
+    let code = r"
 class Stack:
     def __init__(self):
         self.items = []
@@ -38,14 +38,14 @@ class Stack:
 
     def size(self) -> int:
         return len(self.items)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Stack"), "Got: {}", result);
+    assert!(result.contains("Stack"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b87_queue() {
-    let code = r#"
+    let code = r"
 class Queue:
     def __init__(self):
         self.items = []
@@ -64,14 +64,14 @@ class Queue:
 
     def size(self) -> int:
         return len(self.items)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Queue"), "Got: {}", result);
+    assert!(result.contains("Queue"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b87_hash_map() {
-    let code = r#"
+    let code = r"
 class HashMap:
     def __init__(self, capacity: int):
         self.capacity = capacity
@@ -100,14 +100,14 @@ class HashMap:
             if pair[0] == key:
                 return pair[1]
         return -1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("HashMap"), "Got: {}", result);
+    assert!(result.contains("HashMap"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b87_binary_search_tree() {
-    let code = r#"
+    let code = r"
 class TreeNode:
     def __init__(self, value: int):
         self.value = value
@@ -136,16 +136,16 @@ def inorder(root) -> list:
     if root is None:
         return []
     return inorder(root.left) + [root.value] + inorder(root.right)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("TreeNode"), "Got: {}", result);
-    assert!(result.contains("fn bst_insert"), "Got: {}", result);
-    assert!(result.contains("fn bst_search"), "Got: {}", result);
+    assert!(result.contains("TreeNode"), "Got: {result}");
+    assert!(result.contains("fn bst_insert"), "Got: {result}");
+    assert!(result.contains("fn bst_search"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b87_ring_buffer() {
-    let code = r#"
+    let code = r"
 class RingBuffer:
     def __init__(self, capacity: int):
         self.data = [0] * capacity
@@ -169,14 +169,14 @@ class RingBuffer:
 
     def size(self) -> int:
         return self.count
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("RingBuffer"), "Got: {}", result);
+    assert!(result.contains("RingBuffer"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b87_disjoint_set() {
-    let code = r#"
+    let code = r"
 class DisjointSet:
     def __init__(self, n: int):
         self.parent = list(range(n))
@@ -200,14 +200,14 @@ class DisjointSet:
             self.parent[py] = px
             self.rank[px] += 1
         return True
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("DisjointSet"), "Got: {}", result);
+    assert!(result.contains("DisjointSet"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b87_lru_cache() {
-    let code = r#"
+    let code = r"
 class LRUCache:
     def __init__(self, capacity: int):
         self.capacity = capacity
@@ -229,14 +229,14 @@ class LRUCache:
             del self.cache[oldest]
         self.cache[key] = value
         self.order.append(key)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("LRUCache"), "Got: {}", result);
+    assert!(result.contains("LRUCache"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b87_trie() {
-    let code = r#"
+    let code = r"
 class TrieNode:
     def __init__(self):
         self.children = {}
@@ -269,7 +269,7 @@ class Trie:
                 return False
             node = node.children[c]
         return True
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Trie"), "Got: {}", result);
+    assert!(result.contains("Trie"), "Got: {result}");
 }

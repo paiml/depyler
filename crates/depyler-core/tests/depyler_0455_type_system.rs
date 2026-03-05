@@ -76,10 +76,7 @@ def validate_int(value):
         && (rust_code.contains("ArgumentTypeError")
             || rust_code.contains("Box<dyn std::error::Error>"));
 
-    assert!(
-        has_result_type,
-        "Expected Result<_, ArgumentTypeError> signature. Got:\n{rust_code}"
-    );
+    assert!(has_result_type, "Expected Result<_, ArgumentTypeError> signature. Got:\n{rust_code}");
 }
 
 // ====================================================================================

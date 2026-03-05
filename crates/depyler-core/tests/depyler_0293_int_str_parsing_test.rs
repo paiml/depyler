@@ -7,10 +7,10 @@ use std::process::Command;
 
 #[test]
 fn test_int_str_simple() {
-    let python_code = r#"
+    let python_code = r"
 def parse_number(s: str) -> int:
     return int(s)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -23,8 +23,7 @@ def parse_number(s: str) -> int:
     // Should use .parse::<i32>() with turbofish
     assert!(
         fn_section.contains(".parse::<i32>()"),
-        "Should use .parse::<i32>() for int(str)\nFunction:\n{}",
-        fn_section
+        "Should use .parse::<i32>() for int(str)\nFunction:\n{fn_section}"
     );
     // In the function body, should not have direct 'as i32' cast for string
     // (This assertion is redundant since .parse::<i32>() is confirmed above, but keeping for clarity)
@@ -32,13 +31,13 @@ def parse_number(s: str) -> int:
 
 #[test]
 fn test_int_str_in_try_except() {
-    let python_code = r#"
+    let python_code = r"
 def safe_parse_int(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return -1
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -53,7 +52,7 @@ def safe_parse_int(s: str) -> int:
 
 #[test]
 fn test_int_str_multiple_calls() {
-    let python_code = r#"
+    let python_code = r"
 def parse_and_divide(s1: str, s2: str) -> int:
     try:
         a = int(s1)
@@ -61,7 +60,7 @@ def parse_and_divide(s1: str, s2: str) -> int:
         return a // b
     except ValueError:
         return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -70,20 +69,19 @@ def parse_and_divide(s1: str, s2: str) -> int:
     let parse_count = rust_code.matches(".parse::<i32>()").count();
     assert!(
         parse_count >= 2,
-        "Should use .parse::<i32>() for both string variables (found {})",
-        parse_count
+        "Should use .parse::<i32>() for both string variables (found {parse_count})"
     );
 }
 
 #[test]
 fn test_int_str_compiles() {
-    let python_code = r#"
+    let python_code = r"
 def safe_parse_int(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return -1
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -105,13 +103,13 @@ def safe_parse_int(s: str) -> int:
 
 #[test]
 fn test_int_str_behavior() {
-    let python_code = r#"
+    let python_code = r"
 def safe_parse_int(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return -1
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let _rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -178,10 +176,10 @@ mod tests {
 
 #[test]
 fn test_int_with_number_not_string() {
-    let python_code = r#"
+    let python_code = r"
 def double_int(x: int) -> int:
     return int(x) * 2
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -195,17 +193,16 @@ def double_int(x: int) -> int:
     // For int→int, should NOT use .parse() in the function body
     assert!(
         !fn_section.contains(".parse"),
-        "Should NOT use .parse() for int(int)\nFunction:\n{}",
-        fn_section
+        "Should NOT use .parse() for int(int)\nFunction:\n{fn_section}"
     );
 }
 
 #[test]
 fn test_int_with_float() {
-    let python_code = r#"
+    let python_code = r"
 def truncate_float(x: float) -> int:
     return int(x)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -219,10 +216,10 @@ def truncate_float(x: float) -> int:
 
 #[test]
 fn test_int_with_bool() {
-    let python_code = r#"
+    let python_code = r"
 def bool_to_int(b: bool) -> int:
     return int(b)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -252,10 +249,10 @@ def parse_number(s: str) -> int:
 
 #[test]
 fn test_int_str_nested_in_expression() {
-    let python_code = r#"
+    let python_code = r"
 def calculate(s: str) -> int:
     return int(s) * 2 + 10
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -269,13 +266,13 @@ def calculate(s: str) -> int:
 
 #[test]
 fn test_int_str_as_function_arg() {
-    let python_code = r#"
+    let python_code = r"
 def helper(x: int) -> int:
     return x * 2
 
 def parse_and_call(s: str) -> int:
     return helper(int(s))
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");

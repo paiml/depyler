@@ -36,13 +36,12 @@ def cleanup_operation(x: int) -> int:
 
     assert!(
         rust_code.contains("fn cleanup_operation"),
-        "Should have cleanup_operation function.\nGot:\n{}",
-        rust_code
+        "Should have cleanup_operation function.\nGot:\n{rust_code}"
     );
 
     // Should have print statement for cleanup
     let has_print = rust_code.contains("print") || rust_code.contains("println");
-    assert!(has_print, "Should have cleanup print.\nGot:\n{}", rust_code);
+    assert!(has_print, "Should have cleanup print.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -65,14 +64,13 @@ def safe_divide(a: int, b: int) -> int:
 
     assert!(
         rust_code.contains("fn safe_divide"),
-        "Should have safe_divide function.\nGot:\n{}",
-        rust_code
+        "Should have safe_divide function.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_finally_with_return_in_try() {
-    let python = r#"
+    let python = r"
 def process_with_cleanup(x: int) -> int:
     count = 0
     try:
@@ -80,7 +78,7 @@ def process_with_cleanup(x: int) -> int:
         return count
     finally:
         count = count + 1
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -90,8 +88,7 @@ def process_with_cleanup(x: int) -> int:
 
     assert!(
         rust_code.contains("fn process_with_cleanup"),
-        "Should have process_with_cleanup function.\nGot:\n{}",
-        rust_code
+        "Should have process_with_cleanup function.\nGot:\n{rust_code}"
     );
 }
 
@@ -118,8 +115,7 @@ def handle_with_cleanup(data: str) -> int:
 
     assert!(
         rust_code.contains("fn handle_with_cleanup"),
-        "Should have handle_with_cleanup function.\nGot:\n{}",
-        rust_code
+        "Should have handle_with_cleanup function.\nGot:\n{rust_code}"
     );
 }
 
@@ -144,14 +140,13 @@ def log_and_cleanup(x: int) -> int:
 
     assert!(
         rust_code.contains("fn log_and_cleanup"),
-        "Should have log_and_cleanup function.\nGot:\n{}",
-        rust_code
+        "Should have log_and_cleanup function.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_finally_with_variable_assignment() {
-    let python = r#"
+    let python = r"
 def track_execution(x: int) -> int:
     executed = False
     try:
@@ -159,7 +154,7 @@ def track_execution(x: int) -> int:
         return result
     finally:
         executed = True
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -169,8 +164,7 @@ def track_execution(x: int) -> int:
 
     assert!(
         rust_code.contains("fn track_execution"),
-        "Should have track_execution function.\nGot:\n{}",
-        rust_code
+        "Should have track_execution function.\nGot:\n{rust_code}"
     );
 }
 
@@ -197,8 +191,7 @@ def complete_pattern(x: int) -> int:
 
     assert!(
         rust_code.contains("fn complete_pattern"),
-        "Should have complete_pattern function.\nGot:\n{}",
-        rust_code
+        "Should have complete_pattern function.\nGot:\n{rust_code}"
     );
 }
 
@@ -224,8 +217,7 @@ def nested_cleanup(x: int) -> int:
 
     assert!(
         rust_code.contains("fn nested_cleanup"),
-        "Should have nested_cleanup function.\nGot:\n{}",
-        rust_code
+        "Should have nested_cleanup function.\nGot:\n{rust_code}"
     );
 }
 
@@ -252,8 +244,7 @@ def open_and_process(filename: str) -> str:
 
     assert!(
         rust_code.contains("fn open_and_process"),
-        "Should have open_and_process function.\nGot:\n{}",
-        rust_code
+        "Should have open_and_process function.\nGot:\n{rust_code}"
     );
 }
 
@@ -284,7 +275,6 @@ def complex_cleanup(x: int, y: int) -> int:
 
     assert!(
         rust_code.contains("fn complex_cleanup"),
-        "Should have complex_cleanup function.\nGot:\n{}",
-        rust_code
+        "Should have complex_cleanup function.\nGot:\n{rust_code}"
     );
 }

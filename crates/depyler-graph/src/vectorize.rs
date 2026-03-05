@@ -262,10 +262,10 @@ mod tests {
 
     #[test]
     fn test_vectorize_simple() {
-        let python = r#"
+        let python = r"
 def foo():
     return 42
-"#;
+";
 
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
@@ -354,8 +354,8 @@ def foo():
                 return_type: None,
                 parameter_types: vec![],
                 local_types: vec![],
-                statement_kind: "".to_string(),
-                expression_kind: "".to_string(),
+                statement_kind: String::new(),
+                expression_kind: String::new(),
                 ast_depth: 0,
             },
             graph_context: GraphContext {
@@ -366,11 +366,11 @@ def foo():
                 callers: vec![],
                 inheritance_chain: vec![],
             },
-            source_snippet: "".to_string(),
+            source_snippet: String::new(),
             labels: FailureLabels {
-                category: "".to_string(),
-                subcategory: "".to_string(),
-                fix_type: "".to_string(),
+                category: String::new(),
+                subcategory: String::new(),
+                fix_type: String::new(),
                 confidence: 0.0,
             },
         }];
@@ -520,8 +520,8 @@ def foo():
                 return_type: None,
                 parameter_types: vec![],
                 local_types: vec![],
-                statement_kind: "".to_string(),
-                expression_kind: "".to_string(),
+                statement_kind: String::new(),
+                expression_kind: String::new(),
                 ast_depth: 0,
             },
             graph_context: GraphContext {
@@ -532,11 +532,11 @@ def foo():
                 callers: vec![],
                 inheritance_chain: vec![],
             },
-            source_snippet: "".to_string(),
+            source_snippet: String::new(),
             labels: FailureLabels {
-                category: "".to_string(),
-                subcategory: "".to_string(),
-                fix_type: "".to_string(),
+                category: String::new(),
+                subcategory: String::new(),
+                fix_type: String::new(),
                 confidence: 0.0,
             },
         };
@@ -577,13 +577,13 @@ def foo():
 
     #[test]
     fn test_vectorize_failure_graph_context_populated() {
-        let python = r#"
+        let python = r"
 def callee():
     return 1
 
 def caller():
     return callee()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -744,8 +744,8 @@ def caller():
         let context = FailureContext { graph: &DependencyGraph::new(), source };
         let snippet = context.extract_snippet(5, 10);
         // Should get all lines since context is larger than file
-        assert!(snippet.contains("a"));
-        assert!(snippet.contains("j"));
+        assert!(snippet.contains('a'));
+        assert!(snippet.contains('j'));
     }
 
     #[test]
@@ -777,8 +777,8 @@ def caller():
                 return_type: None,
                 parameter_types: vec![],
                 local_types: vec![],
-                statement_kind: "".to_string(),
-                expression_kind: "".to_string(),
+                statement_kind: String::new(),
+                expression_kind: String::new(),
                 ast_depth: 0,
             },
             graph_context: GraphContext {
@@ -789,15 +789,15 @@ def caller():
                 callers: vec![],
                 inheritance_chain: vec![],
             },
-            source_snippet: "".to_string(),
+            source_snippet: String::new(),
             labels: FailureLabels {
-                category: "".to_string(),
-                subcategory: "".to_string(),
-                fix_type: "".to_string(),
+                category: String::new(),
+                subcategory: String::new(),
+                fix_type: String::new(),
                 confidence: 0.0,
             },
         };
-        let debug = format!("{:?}", failure);
+        let debug = format!("{failure:?}");
         assert!(debug.contains("VectorizedFailure"));
         let cloned = failure.clone();
         assert_eq!(cloned.id, "f0");
@@ -815,8 +815,8 @@ def caller():
                 return_type: None,
                 parameter_types: vec![],
                 local_types: vec![],
-                statement_kind: "".to_string(),
-                expression_kind: "".to_string(),
+                statement_kind: String::new(),
+                expression_kind: String::new(),
                 ast_depth: 0,
             },
             graph_context: GraphContext {
@@ -827,11 +827,11 @@ def caller():
                 callers: vec![],
                 inheritance_chain: vec![],
             },
-            source_snippet: "".to_string(),
+            source_snippet: String::new(),
             labels: FailureLabels {
-                category: "".to_string(),
-                subcategory: "".to_string(),
-                fix_type: "".to_string(),
+                category: String::new(),
+                subcategory: String::new(),
+                fix_type: String::new(),
                 confidence: 0.0,
             },
         };
@@ -856,13 +856,13 @@ def caller():
 
     #[test]
     fn test_s12_vectorize_with_node_id_in_graph() {
-        let python = r#"
+        let python = r"
 def callee():
     return 1
 
 def caller():
     return callee()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 

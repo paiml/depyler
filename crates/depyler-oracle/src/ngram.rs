@@ -633,7 +633,7 @@ mod tests {
         let normalized = normalize_error("error: expected i32, found &str at line 42");
 
         // Should lowercase
-        assert!(!normalized.contains("E"));
+        assert!(!normalized.contains('E'));
         // Should remove "error:"
         assert!(!normalized.contains("error:"));
         // Should normalize numbers

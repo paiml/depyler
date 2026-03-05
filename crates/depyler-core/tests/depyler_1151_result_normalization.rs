@@ -36,13 +36,13 @@ fn transpile_python(python: &str) -> anyhow::Result<String> {
 #[test]
 fn test_DEPYLER_1151_optional_return_only() {
     // Simple Optional return - no exceptions
-    let python = r#"
+    let python = r"
 def find_value(items, target):
     for item in items:
         if item == target:
             return item
     return None
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -51,8 +51,7 @@ def find_value(items, target):
     // Should produce Option<T>, not Result<Option<T>>
     assert!(
         rust.contains("Option<") || rust.contains("Some(") || rust.contains("None"),
-        "Should handle Optional return: {}",
-        rust
+        "Should handle Optional return: {rust}"
     );
 }
 
@@ -63,13 +62,13 @@ def find_value(items, target):
 #[test]
 fn test_DEPYLER_1151_exception_handling_only() {
     // Exception handling - should produce Result
-    let python = r#"
+    let python = r"
 def parse_int(s):
     try:
         return int(s)
     except ValueError:
         return 0
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -83,8 +82,7 @@ def parse_int(s):
             || rust.contains("Err(")
             || rust.contains("parse")
             || rust.contains("match"),
-        "Should handle exception: {}",
-        rust
+        "Should handle exception: {rust}"
     );
 }
 
@@ -96,7 +94,7 @@ def parse_int(s):
 #[test]
 fn test_DEPYLER_1151_mixed_exception_and_optional() {
     // Mixed pattern - try/except with None returns
-    let python = r#"
+    let python = r"
 def safe_parse(s):
     if not s:
         return None
@@ -104,7 +102,7 @@ def safe_parse(s):
         return int(s)
     except:
         return None
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -117,13 +115,13 @@ def safe_parse(s):
 #[test]
 fn test_DEPYLER_1151_try_except_with_none_in_except() {
     // None specifically in except block
-    let python = r#"
+    let python = r"
 def get_or_none(d, key):
     try:
         return d[key]
     except KeyError:
         return None
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -135,7 +133,7 @@ def get_or_none(d, key):
 
 #[test]
 fn test_DEPYLER_1151_nested_try_except() {
-    let python = r#"
+    let python = r"
 def nested_parse(outer, inner):
     try:
         try:
@@ -144,7 +142,7 @@ def nested_parse(outer, inner):
             return int(outer)
     except:
         return 0
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -156,7 +154,7 @@ def nested_parse(outer, inner):
 
 #[test]
 fn test_DEPYLER_1151_multiple_return_types() {
-    let python = r#"
+    let python = r"
 def flexible_return(x):
     try:
         if x > 0:
@@ -167,7 +165,7 @@ def flexible_return(x):
             return -x
     except:
         return 0
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -180,7 +178,7 @@ def flexible_return(x):
 #[test]
 fn test_DEPYLER_1151_result_propagation() {
     // When calling a function that returns Result from another Result-returning function
-    let python = r#"
+    let python = r"
 def parse_numbers(strings):
     results = []
     for s in strings:
@@ -189,7 +187,7 @@ def parse_numbers(strings):
         except:
             pass
     return results
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());

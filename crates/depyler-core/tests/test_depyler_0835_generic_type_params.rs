@@ -32,7 +32,7 @@ fn has_e0412_error(rust_code: &str) -> bool {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let rust_file = temp_dir.path().join("test_generic.rs");
     let mut file = std::fs::File::create(&rust_file).expect("Failed to create file");
-    writeln!(file, "{}", rust_code).expect("Failed to write file");
+    writeln!(file, "{rust_code}").expect("Failed to write file");
     drop(file);
 
     let output = Command::new("rustc")
@@ -52,7 +52,7 @@ fn has_e0412_error(rust_code: &str) -> bool {
 
 /// Test: Class inherits from parameterized generic, T used in fields
 /// Python: class EnumerateIter(Iter[tuple[int, T]]) with source: Iter[T]
-/// Expected: struct EnumerateIter<T> with source: Iter<T>
+/// Expected: struct `EnumerateIter`<T> with source: Iter<T>
 /// SLOW: Requires rustc compilation validation
 #[test]
 #[ignore = "slow: requires rustc compilation"]
@@ -80,15 +80,13 @@ class Wrapper(Base[tuple[int, T]]):
     // Generated code should NOT have E0412
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error: cannot find type 'T'\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Generated code has E0412 error: cannot find type 'T'\\n\\nGenerated code:\\n{rust_code}"
     );
 
     // Struct should have type parameter
     assert!(
         rust_code.contains("struct Wrapper<T") || rust_code.contains("struct Wrapper <T"),
-        "Wrapper struct should have type parameter <T>\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Wrapper struct should have type parameter <T>\\n\\nGenerated code:\\n{rust_code}"
     );
 }
 
@@ -119,8 +117,7 @@ class Mapper(Transform[T, U]):
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Generated code has E0412 error\\n\\nGenerated code:\\n{rust_code}"
     );
 }
 
@@ -151,8 +148,7 @@ class Container:
     // Should have T as type param derived from field usage
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error for field-only type var\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Generated code has E0412 error for field-only type var\\n\\nGenerated code:\\n{rust_code}"
     );
 }
 
@@ -179,8 +175,7 @@ class Pair:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Generated code has E0412 error\\n\\nGenerated code:\\n{rust_code}"
     );
 }
 
@@ -214,8 +209,7 @@ class EnumerateIter(Iter[tuple[int, T]]):
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error for nested tuple type var\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Generated code has E0412 error for nested tuple type var\\n\\nGenerated code:\\n{rust_code}"
     );
 }
 
@@ -243,8 +237,7 @@ class ListWrapper(Base[list[T]]):
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error for nested generic type var\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Generated code has E0412 error for nested generic type var\\n\\nGenerated code:\\n{rust_code}"
     );
 }
 
@@ -275,8 +268,7 @@ class Container(Generic[T]):
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error in method return type\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Generated code has E0412 error in method return type\\n\\nGenerated code:\\n{rust_code}"
     );
 }
 
@@ -302,8 +294,7 @@ class Mapper(Generic[T]):
     // Method-level type params (U) should be on method, class-level (T) on struct
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Generated code has E0412 error\\n\\nGenerated code:\\n{rust_code}"
     );
 }
 
@@ -311,7 +302,7 @@ class Mapper(Generic[T]):
 // SECTION 5: Real-World Patterns from Corpus
 // ============================================================================
 
-/// Test: EnumerateIter pattern from example_generic_iterator
+/// Test: `EnumerateIter` pattern from `example_generic_iterator`
 /// This is the exact pattern causing E0412 in the corpus
 /// SLOW: Requires rustc compilation validation
 #[test]
@@ -348,19 +339,17 @@ class EnumerateIter(Iter[tuple[int, T]]):
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error (EnumerateIter pattern)\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Generated code has E0412 error (EnumerateIter pattern)\\n\\nGenerated code:\\n{rust_code}"
     );
 
     // EnumerateIter should have <T>
     assert!(
         rust_code.contains("EnumerateIter<T") || rust_code.contains("EnumerateIter <T"),
-        "EnumerateIter should have type parameter\\n\\nGenerated code:\\n{}",
-        rust_code
+        "EnumerateIter should have type parameter\\n\\nGenerated code:\\n{rust_code}"
     );
 }
 
-/// Test: ZipIter pattern - explicit Generic[T, U] alongside parameterized base
+/// Test: `ZipIter` pattern - explicit Generic[T, U] alongside parameterized base
 /// SLOW: Requires rustc compilation validation
 #[test]
 #[ignore = "slow: requires rustc compilation"]
@@ -388,19 +377,17 @@ class ZipIter(Iter[tuple[T, U]], Generic[T, U]):
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error (ZipIter pattern)\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Generated code has E0412 error (ZipIter pattern)\\n\\nGenerated code:\\n{rust_code}"
     );
 
     // ZipIter should have <T, U>
     assert!(
-        rust_code.contains("ZipIter<T") && rust_code.contains("U"),
-        "ZipIter should have both type parameters\\n\\nGenerated code:\\n{}",
-        rust_code
+        rust_code.contains("ZipIter<T") && rust_code.contains('U'),
+        "ZipIter should have both type parameters\\n\\nGenerated code:\\n{rust_code}"
     );
 }
 
-/// Test: FilterIter pattern - inherits Iter[T] without explicit Generic[T]
+/// Test: `FilterIter` pattern - inherits Iter[T] without explicit Generic[T]
 #[test]
 fn test_depyler_0835_filter_iter_pattern() {
     let pipeline = DepylerPipeline::new();
@@ -425,8 +412,7 @@ class FilterIter(Iter[T]):
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error (FilterIter pattern)\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Generated code has E0412 error (FilterIter pattern)\\n\\nGenerated code:\\n{rust_code}"
     );
 }
 
@@ -460,8 +446,7 @@ class Wrapper(Base[str]):
     // T should still be extracted from field usage
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Generated code has E0412 error\\n\\nGenerated code:\\n{rust_code}"
     );
 }
 
@@ -490,17 +475,12 @@ class Duplicate(Base[tuple[T, T]]):
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\\n\\nGenerated code:\\n{}",
-        rust_code
+        "Generated code has E0412 error\\n\\nGenerated code:\\n{rust_code}"
     );
 
     // Should only have one <T>, not <T, T>
     let count = rust_code.matches("<T:").count() + rust_code.matches("<T>").count();
-    assert!(
-        count > 0,
-        "Should have type parameter T declared\\n\\nGenerated code:\\n{}",
-        rust_code
-    );
+    assert!(count > 0, "Should have type parameter T declared\\n\\nGenerated code:\\n{rust_code}");
 }
 
 // ============================================================================
@@ -581,7 +561,7 @@ class EnumIter(Iter[tuple[int, T]]):
         "The following test cases have E0412 errors (cannot find type):\n{}",
         e0412_failures
             .iter()
-            .map(|(name, code)| format!("=== {} ===\n{}", name, code))
+            .map(|(name, code)| format!("=== {name} ===\n{code}"))
             .collect::<Vec<_>>()
             .join("\n\n")
     );

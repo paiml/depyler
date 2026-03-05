@@ -43,20 +43,19 @@ def main():
     // Should either use &[u8] parameter or convert Vec<u8> to slice
     assert!(
         rust.contains("&[u8]") || rust.contains("Vec<u8>") || rust.contains(".as_slice()"),
-        "Should handle bytes type correctly: {}",
-        rust
+        "Should handle bytes type correctly: {rust}"
     );
 }
 
 #[test]
 fn test_DEPYLER_1159_vec_u8_as_slice() {
     // Vec<u8> passed where &[u8] expected
-    let python = r#"
+    let python = r"
 import hashlib
 
 def hash_data(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -83,23 +82,19 @@ def main():
 
     let rust = result.unwrap();
     // Should handle string borrowing correctly
-    assert!(
-        rust.contains("String") || rust.contains("&str"),
-        "Should handle string type: {}",
-        rust
-    );
+    assert!(rust.contains("String") || rust.contains("&str"), "Should handle string type: {rust}");
 }
 
 #[test]
 fn test_DEPYLER_1159_path_string_conversion() {
     // PathBuf/Path string conversion
-    let python = r#"
+    let python = r"
 from pathlib import Path
 
 def read_file(path: str) -> str:
     p = Path(path)
     return str(p)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -112,7 +107,7 @@ def read_file(path: str) -> str:
 #[test]
 fn test_DEPYLER_1159_list_reference() {
     // List passed by reference
-    let python = r#"
+    let python = r"
 def sum_list(numbers):
     total = 0
     for n in numbers:
@@ -122,7 +117,7 @@ def sum_list(numbers):
 def main():
     nums = [1, 2, 3, 4, 5]
     return sum_list(nums)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -173,14 +168,14 @@ def main():
 #[test]
 fn test_DEPYLER_1159_copy_type_no_borrow() {
     // i32 is Copy - should NOT add unnecessary &
-    let python = r#"
+    let python = r"
 def double(x: int) -> int:
     return x * 2
 
 def main():
     value = 21
     return double(value)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -190,22 +185,21 @@ def main():
     // i32 is Copy, so `double(value)` not `double(&value)`
     assert!(
         !rust.contains("double ( & value )") && !rust.contains("double(&value)"),
-        "Should not borrow Copy types unnecessarily: {}",
-        rust
+        "Should not borrow Copy types unnecessarily: {rust}"
     );
 }
 
 #[test]
 fn test_DEPYLER_1159_float_copy_no_borrow() {
     // f64 is Copy - should NOT add unnecessary &
-    let python = r#"
+    let python = r"
 def square(x: float) -> float:
     return x * x
 
 def main():
     value = 3.14
     return square(value)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());

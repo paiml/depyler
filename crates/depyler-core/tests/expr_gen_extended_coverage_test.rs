@@ -1,6 +1,6 @@
-//! Extended coverage tests for expr_gen.rs
+//! Extended coverage tests for `expr_gen.rs`
 //!
-//! Target: expr_gen.rs gaps (125 uncovered lines at 87.90%)
+//! Target: `expr_gen.rs` gaps (125 uncovered lines at 87.90%)
 //! Coverage focus: Error paths, type-aware generation, comprehensions, slicing
 //!
 //! Test Strategy:
@@ -17,19 +17,19 @@ use depyler_core::DepylerPipeline;
 
 /// Unit Test: Variable name conflict with "self" keyword
 ///
-/// Verifies: convert_variable() error path for is_non_raw_keyword()
+/// Verifies: `convert_variable()` error path for `is_non_raw_keyword()`
 /// Expected: Should fail or rename variable (cannot use r#self)
 #[test]
 fn test_keyword_conflict_self_variable() {
     let pipeline = DepylerPipeline::new();
 
     // This should either fail or automatically rename the variable
-    let python_code = r#"
+    let python_code = r"
 def use_reserved():
     # Using 'self' outside a class context
     value = 42
     return value
-"#;
+";
     let result = pipeline.transpile(python_code);
 
     // Should successfully transpile (doesn't actually conflict since 'self' isn't used as var)
@@ -41,11 +41,11 @@ def use_reserved():
 fn test_keyword_conflict_super_variable() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def process():
     result = 100
     return result
-"#;
+";
     let result = pipeline.transpile(python_code);
 
     assert!(result.is_ok());
@@ -55,9 +55,9 @@ def process():
 // TIER 1: Map with Multiple Iterables - Unsupported Case
 // ============================================================================
 
-/// Unit Test: map() with more than 3 iterables
+/// Unit Test: `map()` with more than 3 iterables
 ///
-/// Verifies: try_convert_map_with_zip() bail!() at line 1122
+/// Verifies: `try_convert_map_with_zip()` bail!() at line 1122
 /// Expected: Should handle gracefully or report unsupported
 #[test]
 fn test_map_with_four_iterables_unsupported() {
@@ -65,25 +65,25 @@ fn test_map_with_four_iterables_unsupported() {
 
     // map(lambda a,b,c,d: a+b+c+d, list1, list2, list3, list4) is complex
     // Current implementation may not support >3 iterables
-    let python_code = r#"
+    let python_code = r"
 def combine_pairs(list1: list[int], list2: list[int]) -> list[int]:
     return list(map(lambda a, b: a + b, list1, list2))
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn combine_pairs"));
     // Should use zip pattern for 2 iterables
 }
 
-/// Unit Test: map() with 3 iterables (boundary case)
+/// Unit Test: `map()` with 3 iterables (boundary case)
 #[test]
 fn test_map_with_three_iterables_boundary() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def triple_combine(a: list[int], b: list[int], c: list[int]) -> list[int]:
     return list(map(lambda x, y, z: x + y + z, a, b, c))
-"#;
+";
     let result = pipeline.transpile(python_code);
 
     // Should handle 3 iterables (izip3 pattern)
@@ -96,16 +96,16 @@ def triple_combine(a: list[int], b: list[int], c: list[int]) -> list[int]:
 
 /// Unit Test: "in" operator with string containment
 ///
-/// Verifies: convert_binary() BinOp::In with Type::String detection
-/// Expected: Generates .contains(&substring) not .contains_key()
+/// Verifies: `convert_binary()` `BinOp::In` with `Type::String` detection
+/// Expected: Generates .contains(&substring) not .`contains_key()`
 #[test]
 fn test_in_operator_string_contains() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def check_substring(text: str, pattern: str) -> bool:
     return pattern in text
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn check_substring"));
@@ -114,16 +114,16 @@ def check_substring(text: str, pattern: str) -> bool:
 
 /// Unit Test: "not in" operator with dict type
 ///
-/// Verifies: convert_binary() BinOp::NotIn with dict detection
-/// Expected: Generates !.contains_key() for dicts
+/// Verifies: `convert_binary()` `BinOp::NotIn` with dict detection
+/// Expected: Generates !.`contains_key()` for dicts
 #[test]
 fn test_not_in_operator_dict() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def check_key_missing(data: dict[str, int], key: str) -> bool:
     return key not in data
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn check_key_missing"));
@@ -135,10 +135,10 @@ def check_key_missing(data: dict[str, int], key: str) -> bool:
 fn test_in_operator_list_contains() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def is_present(items: list[int], value: int) -> bool:
     return value in items
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn is_present"));
@@ -149,18 +149,18 @@ def is_present(items: list[int], value: int) -> bool:
 // TIER 2: Type-Aware Unary Operators
 // ============================================================================
 
-/// Unit Test: Unary "not" on collection (should use .is_empty())
+/// Unit Test: Unary "not" on collection (should use .`is_empty()`)
 ///
-/// Verifies: convert_unary() UnaryOp::Not with is_collection detection
+/// Verifies: `convert_unary()` `UnaryOp::Not` with `is_collection` detection
 /// Expected: Type-aware generation for collections
 #[test]
 fn test_unary_not_on_list() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def is_list_empty(items: list[int]) -> bool:
     return not items
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn is_list_empty"));
@@ -172,47 +172,47 @@ def is_list_empty(items: list[int]) -> bool:
 fn test_unary_not_on_bool() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def negate_flag(enabled: bool) -> bool:
     return not enabled
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn negate_flag"));
-    assert!(rust_code.contains("!") || rust_code.contains("not"));
+    assert!(rust_code.contains('!') || rust_code.contains("not"));
 }
 
 // ============================================================================
 // TIER 2: Type-Aware int() Cast
 // ============================================================================
 
-/// Unit Test: int() cast on string variable (should use .parse())
+/// Unit Test: `int()` cast on string variable (should use .`parse()`)
 ///
-/// Verifies: convert_int_cast() with Type::String detection
-/// Expected: Generates .parse().unwrap_or_default() not "as i32"
+/// Verifies: `convert_int_cast()` with `Type::String` detection
+/// Expected: Generates .`parse().unwrap_or_default()` not "as i32"
 #[test]
 fn test_int_cast_from_string() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def parse_number(text: str) -> int:
     return int(text)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn parse_number"));
     // Should use .parse() for string-to-int conversion
 }
 
-/// Unit Test: int() cast on float (standard cast)
+/// Unit Test: `int()` cast on float (standard cast)
 #[test]
 fn test_int_cast_from_float() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def truncate_float(value: float) -> int:
     return int(value)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn truncate_float"));
@@ -223,18 +223,18 @@ def truncate_float(value: float) -> int:
 // TIER 3: List Comprehensions - Range Optimization
 // ============================================================================
 
-/// Unit Test: List comprehension with range (no .iter() needed)
+/// Unit Test: List comprehension with range (no .`iter()` needed)
 ///
-/// Verifies: convert_list_comp() is_range_expr() optimization
-/// Expected: Range used directly without .clone().into_iter()
+/// Verifies: `convert_list_comp()` `is_range_expr()` optimization
+/// Expected: Range used directly without .`clone().into_iter()`
 #[test]
 fn test_list_comp_with_range() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def squares() -> list[int]:
     return [x * x for x in range(10)]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn squares"));
@@ -246,25 +246,25 @@ def squares() -> list[int]:
 fn test_list_comp_range_with_filter() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def even_squares() -> list[int]:
     return [x * x for x in range(10) if x % 2 == 0]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn even_squares"));
     assert!(rust_code.contains("filter") || rust_code.contains("if"));
 }
 
-/// Unit Test: List comprehension with non-range (needs .iter())
+/// Unit Test: List comprehension with non-range (needs .`iter()`)
 #[test]
 fn test_list_comp_with_list_variable() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def double_items(items: list[int]) -> list[int]:
     return [x * 2 for x in items]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn double_items"));
@@ -276,16 +276,16 @@ def double_items(items: list[int]) -> list[int]:
 
 /// Unit Test: Set comprehension without condition
 ///
-/// Verifies: convert_set_comp() .iter().cloned() pattern
-/// Expected: Generates HashSet collection
+/// Verifies: `convert_set_comp()` .`iter().cloned()` pattern
+/// Expected: Generates `HashSet` collection
 #[test]
 fn test_set_comp_no_condition() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def unique_doubles(items: list[int]) -> set[int]:
     return {x * 2 for x in items}
-"#;
+";
     let result = pipeline.transpile(python_code);
 
     // Set comprehensions should work
@@ -294,16 +294,16 @@ def unique_doubles(items: list[int]) -> set[int]:
 
 /// Unit Test: Dict comprehension with condition
 ///
-/// Verifies: convert_dict_comp() with filter
-/// Expected: Generates HashMap collection
+/// Verifies: `convert_dict_comp()` with filter
+/// Expected: Generates `HashMap` collection
 #[test]
 fn test_dict_comp_with_condition() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def even_mapping() -> dict[int, int]:
     return {i: i * 2 for i in range(10) if i % 2 == 0}
-"#;
+";
     let result = pipeline.transpile(python_code);
 
     // Dict comprehensions should work
@@ -316,16 +316,16 @@ def even_mapping() -> dict[int, int]:
 
 /// Unit Test: String slice with all parameters [start:stop:step]
 ///
-/// Verifies: convert_string_slice() with step parameter
+/// Verifies: `convert_string_slice()` with step parameter
 /// Expected: Proper character iteration with step
 #[test]
 fn test_string_slice_with_step() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def every_other_char(text: str) -> str:
     return text[::2]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn every_other_char"));
@@ -336,10 +336,10 @@ def every_other_char(text: str) -> str:
 fn test_string_slice_negative_step() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def reverse_string(text: str) -> str:
     return text[::-1]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn reverse_string"));
@@ -351,10 +351,10 @@ def reverse_string(text: str) -> str:
 fn test_string_slice_range() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def substring(text: str) -> str:
     return text[1:4]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn substring"));
@@ -366,16 +366,16 @@ def substring(text: str) -> str:
 
 /// Unit Test: List slice with negative indices
 ///
-/// Verifies: convert_slice() negative index handling
+/// Verifies: `convert_slice()` negative index handling
 /// Expected: Computes actual indices from end of list
 #[test]
 fn test_list_slice_negative_indices() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def last_three(items: list[int]) -> list[int]:
     return items[-3:]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn last_three"));
@@ -386,10 +386,10 @@ def last_three(items: list[int]) -> list[int]:
 fn test_list_slice_negative_range() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def middle_section(items: list[int]) -> list[int]:
     return items[-5:-2]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn middle_section"));
@@ -401,16 +401,16 @@ def middle_section(items: list[int]) -> list[int]:
 
 /// Unit Test: Lambda with no parameters
 ///
-/// Verifies: convert_lambda() parameterless closure
-/// Expected: Generates || #body_expr
+/// Verifies: `convert_lambda()` parameterless closure
+/// Expected: Generates || #`body_expr`
 #[test]
 fn test_lambda_no_params() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def get_constant_function():
     return lambda: 42
-"#;
+";
     let result = pipeline.transpile(python_code);
 
     // Should handle parameterless lambda
@@ -419,8 +419,8 @@ def get_constant_function():
 
 /// Unit Test: F-string with only literal (no interpolation)
 ///
-/// Verifies: convert_fstring() literal-only optimization
-/// Expected: Simple .to_string() not format!()
+/// Verifies: `convert_fstring()` literal-only optimization
+/// Expected: Simple .`to_string()` not format!()
 #[test]
 fn test_fstring_literal_only() {
     let pipeline = DepylerPipeline::new();
@@ -469,11 +469,10 @@ fn test_property_comparison_operators() {
 
     for (op, name) in operators {
         let python_code = format!(
-            r#"
-def test_{}_op(a: int, b: int) -> bool:
-    return a {} b
-"#,
-            name, op
+            r"
+def test_{name}_op(a: int, b: int) -> bool:
+    return a {op} b
+"
         );
         let result = pipeline.transpile(&python_code);
 
@@ -492,19 +491,17 @@ fn test_property_unary_operators() {
     for (name, expr) in test_cases {
         let python_code = if name == "not" {
             format!(
-                r#"
-def test_{}_op(flag: bool) -> bool:
-    return {}
-"#,
-                name, expr
+                r"
+def test_{name}_op(flag: bool) -> bool:
+    return {expr}
+"
             )
         } else {
             format!(
-                r#"
-def test_{}_op(value: int) -> int:
-    return {}
-"#,
-                name, expr
+                r"
+def test_{name}_op(value: int) -> int:
+    return {expr}
+"
             )
         };
 
@@ -519,10 +516,10 @@ def test_{}_op(value: int) -> int:
 fn test_integration_complex_comprehension() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def process_data(numbers: list[int]) -> list[int]:
     return [x * 2 for x in numbers if x > 0 and x < 100]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn process_data"));
@@ -550,12 +547,12 @@ def string_processing(text: str) -> str:
 fn test_integration_type_aware_operations() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def check_and_convert(data: dict[str, int], key: str, value_str: str) -> int:
     if key not in data:
         return int(value_str)
     return data[key]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn check_and_convert"));

@@ -1,6 +1,6 @@
-//! Coverage tests for escape_analysis.rs and type_gen.rs
+//! Coverage tests for `escape_analysis.rs` and `type_gen.rs`
 //!
-//! DEPYLER-99MODE-001: Targets escape_analysis.rs (1,280 lines) + type_gen.rs (1,407 lines)
+//! DEPYLER-99MODE-001: Targets `escape_analysis.rs` (1,280 lines) + `type_gen.rs` (1,407 lines)
 //! Covers: escape detection, ownership inference, type generation,
 //! generic type construction, collection type patterns.
 
@@ -16,82 +16,82 @@ fn transpile_ok(code: &str) -> bool {
 
 #[test]
 fn test_escape_local_only() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     x = 42
     y = x + 1
     return y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_escape_returned_value() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [1, 2, 3]
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_escape_passed_to_function() {
-    let code = r#"
+    let code = r"
 def process(items: list) -> int:
     return len(items)
 
 def f() -> int:
     data = [1, 2, 3]
     return process(data)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_escape_stored_in_collection() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     result = []
     for i in range(5):
         result.append(i * 2)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_escape_class_field() {
-    let code = r#"
+    let code = r"
 class Container:
     def __init__(self, items: list):
         self.items = items
 
     def get_items(self) -> list:
         return self.items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_escape_closure_capture() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return sorted(items, key=lambda x: -x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_escape_conditional_ownership() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> list:
     if x > 0:
         result = [1, 2, 3]
     else:
         result = [4, 5, 6]
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -159,12 +159,12 @@ fn test_typegen_vec_from_range() {
 
 #[test]
 fn test_typegen_empty_list() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = []
     items.append(1)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -195,25 +195,25 @@ def f() -> dict:
 
 #[test]
 fn test_typegen_function_return_inference() {
-    let code = r#"
+    let code = r"
 def get_items() -> list:
     return [1, 2, 3]
 
 def f() -> int:
     items = get_items()
     return len(items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_typegen_mixed_types_function() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: float, s: str, flag: bool) -> str:
     if flag:
         return s + str(x)
     return str(y)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -239,9 +239,9 @@ fn test_typegen_comprehension_type() {
 
 #[test]
 fn test_typegen_lambda_type() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return list(map(lambda x: x * 2, items))
-"#;
+";
     assert!(transpile_ok(code));
 }

@@ -1,4 +1,4 @@
-//! Session 8 coverage tests for rust_gen.rs
+//! Session 8 coverage tests for `rust_gen.rs`
 //! Targets: module-level patterns, imports, class generation, function signatures
 
 use depyler_core::ast_bridge::AstBridge;
@@ -20,10 +20,10 @@ fn transpile(python_code: &str) -> String {
 #[test]
 fn test_module_level_constant() {
     let code = transpile(
-        r#"
+        r"
 MAX_SIZE: int = 100
 PI: float = 3.14159
-"#,
+",
     );
     assert!(
         code.contains("MAX_SIZE") || code.contains("100"),
@@ -63,10 +63,10 @@ def hello() -> str:
 #[test]
 fn test_function_multiple_args() {
     let code = transpile(
-        r#"
+        r"
 def add(a: int, b: int, c: int) -> int:
     return a + b + c
-"#,
+",
     );
     assert!(
         code.contains("fn add") && code.contains("i64") || code.contains("i32"),
@@ -88,10 +88,10 @@ def greet(name: str, greeting: str = "Hello") -> str:
 #[test]
 fn test_function_returning_list() {
     let code = transpile(
-        r#"
+        r"
 def make_list() -> list:
     return [1, 2, 3]
-"#,
+",
     );
     assert!(
         code.contains("Vec") || code.contains("vec!"),
@@ -116,25 +116,25 @@ def make_dict() -> dict:
 #[test]
 fn test_function_returning_tuple() {
     let code = transpile(
-        r#"
+        r"
 def pair(a: int, b: int) -> tuple:
     return (a, b)
-"#,
+",
     );
-    assert!(code.contains("(") || code.contains("tuple"), "Should generate tuple return: {code}");
+    assert!(code.contains('(') || code.contains("tuple"), "Should generate tuple return: {code}");
 }
 
 #[test]
 fn test_function_returning_optional() {
     let code = transpile(
-        r#"
+        r"
 from typing import Optional
 def find(items: list, target: int) -> Optional[int]:
     for i, item in enumerate(items):
         if item == target:
             return i
     return None
-"#,
+",
     );
     assert!(
         code.contains("Option") || code.contains("None"),
@@ -147,12 +147,12 @@ def find(items: list, target: int) -> Optional[int]:
 #[test]
 fn test_simple_class() {
     let code = transpile(
-        r#"
+        r"
 class Point:
     def __init__(self, x: int, y: int) -> None:
         self.x = x
         self.y = y
-"#,
+",
     );
     assert!(code.contains("struct Point"), "Should generate struct: {code}");
     assert!(code.contains("x:") && code.contains("y:"), "Should have fields: {code}");
@@ -203,14 +203,14 @@ class Point:
 #[test]
 fn test_class_with_len() {
     let code = transpile(
-        r#"
+        r"
 class Collection:
     def __init__(self) -> None:
         self.items: list = []
 
     def __len__(self) -> int:
         return len(self.items)
-"#,
+",
     );
     assert!(code.contains("len") || code.contains("items"), "Should generate len method: {code}");
 }
@@ -218,14 +218,14 @@ class Collection:
 #[test]
 fn test_class_with_iter() {
     let code = transpile(
-        r#"
+        r"
 class Numbers:
     def __init__(self) -> None:
         self.data: list = []
 
     def __iter__(self):
         return iter(self.data)
-"#,
+",
     );
     assert!(
         code.contains("iter") || code.contains("IntoIterator") || code.contains("Iterator"),
@@ -238,7 +238,7 @@ class Numbers:
 #[test]
 fn test_multiple_functions() {
     let code = transpile(
-        r#"
+        r"
 def add(a: int, b: int) -> int:
     return a + b
 
@@ -247,7 +247,7 @@ def multiply(a: int, b: int) -> int:
 
 def compute(x: int, y: int) -> int:
     return add(x, y) + multiply(x, y)
-"#,
+",
     );
     assert!(code.contains("fn add"), "Should have add: {code}");
     assert!(code.contains("fn multiply"), "Should have multiply: {code}");
@@ -259,11 +259,11 @@ def compute(x: int, y: int) -> int:
 #[test]
 fn test_import_json() {
     let code = transpile(
-        r#"
+        r"
 import json
 def f(data: dict) -> str:
     return json.dumps(data)
-"#,
+",
     );
     assert!(
         code.contains("serde_json") || code.contains("json") || code.contains("to_string"),
@@ -310,7 +310,7 @@ def f(items: List[int]) -> Optional[Dict[str, int]]:
 #[test]
 fn test_module_with_class_and_functions() {
     let code = transpile(
-        r#"
+        r"
 class Calculator:
     def __init__(self) -> None:
         self.history: list = []
@@ -322,7 +322,7 @@ class Calculator:
 
 def create_calculator() -> Calculator:
     return Calculator()
-"#,
+",
     );
     assert!(code.contains("struct Calculator"), "Should have struct: {code}");
     assert!(
@@ -334,13 +334,13 @@ def create_calculator() -> Calculator:
 #[test]
 fn test_dataclass_like() {
     let code = transpile(
-        r#"
+        r"
 class Config:
     def __init__(self, host: str, port: int, debug: bool) -> None:
         self.host = host
         self.port = port
         self.debug = debug
-"#,
+",
     );
     assert!(code.contains("struct Config"), "Should generate struct: {code}");
     assert!(
@@ -386,12 +386,12 @@ def f() -> None:
 #[test]
 fn test_staticmethod() {
     let code = transpile(
-        r#"
+        r"
 class Math:
     @staticmethod
     def add(a: int, b: int) -> int:
         return a + b
-"#,
+",
     );
     assert!(
         code.contains("fn add") && (code.contains("impl") || code.contains("Math")),
@@ -402,7 +402,7 @@ class Math:
 #[test]
 fn test_classmethod() {
     let code = transpile(
-        r#"
+        r"
 class Counter:
     count: int = 0
 
@@ -410,7 +410,7 @@ class Counter:
     def increment(cls) -> int:
         cls.count += 1
         return cls.count
-"#,
+",
     );
     assert!(
         code.contains("increment") || code.contains("Counter"),

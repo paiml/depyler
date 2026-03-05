@@ -1,10 +1,10 @@
-//! Comprehensive tests for rust_type_to_syn function
+//! Comprehensive tests for `rust_type_to_syn` function
 //! Following EXTREME TDD: Tests written BEFORE refactoring
 
 use depyler_core::rust_gen::rust_type_to_syn;
 use depyler_core::type_mapper::{PrimitiveType, RustConstGeneric, RustType};
 
-/// Helper to convert RustType to syn::Type and back to string for testing
+/// Helper to convert `RustType` to `syn::Type` and back to string for testing
 fn type_to_string(rust_type: &RustType) -> String {
     let syn_type = rust_type_to_syn(rust_type).expect("Failed to convert type");
     quote::quote! { #syn_type }.to_string()
@@ -99,8 +99,7 @@ fn test_hashmap_string_i32() {
     assert!(
         result == "HashMap < String , i32 >"
             || result == "std :: collections :: HashMap < String , i32 >",
-        "Expected HashMap or std::collections::HashMap, got: {}",
-        result
+        "Expected HashMap or std::collections::HashMap, got: {result}"
     );
 }
 
@@ -111,8 +110,7 @@ fn test_hashset_string() {
     // DEPYLER-0685: Accept both short and fully qualified paths
     assert!(
         result == "HashSet < String >" || result == "std :: collections :: HashSet < String >",
-        "Expected HashSet or std::collections::HashSet, got: {}",
-        result
+        "Expected HashSet or std::collections::HashSet, got: {result}"
     );
 }
 
@@ -414,7 +412,7 @@ fn test_array_of_arrays() {
     };
     let result = type_to_string(&ty);
     assert!(result.contains("i32"));
-    assert!(result.contains("5"));
+    assert!(result.contains('5'));
     assert!(result.contains("10"));
 }
 

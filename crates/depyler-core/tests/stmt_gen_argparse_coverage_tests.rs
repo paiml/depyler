@@ -1,4 +1,4 @@
-//! Shim tests for stmt_gen argparse coverage
+//! Shim tests for `stmt_gen` argparse coverage
 //! These use public APIs only.
 
 use depyler_core::hir::{HirExpr, HirStmt, Literal};

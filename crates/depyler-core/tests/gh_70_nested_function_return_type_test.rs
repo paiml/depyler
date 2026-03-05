@@ -16,34 +16,34 @@ use std::process::Command;
 /// Helper: Compile generated Rust code and return success/failure
 fn compile_rust_code(rust_code: &str, test_name: &str) -> Result<(), String> {
     // Write to temporary file
-    let temp_file = format!("/tmp/gh70_{}.rs", test_name);
-    std::fs::write(&temp_file, rust_code).map_err(|e| format!("Write failed: {}", e))?;
+    let temp_file = format!("/tmp/gh70_{test_name}.rs");
+    std::fs::write(&temp_file, rust_code).map_err(|e| format!("Write failed: {e}"))?;
 
     // Try to compile
     let output = Command::new("rustc")
         .args(["--crate-type", "lib", &temp_file])
         .output()
-        .map_err(|e| format!("Rustc execution failed: {}", e))?;
+        .map_err(|e| format!("Rustc execution failed: {e}"))?;
 
     if output.status.success() {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(format!("Compilation failed:\n{}", stderr))
+        Err(format!("Compilation failed:\n{stderr}"))
     }
 }
 
 #[test]
 fn test_gh70_nested_function_string_return() {
     // Minimal case: nested function returns string slice
-    let python_code = r#"
+    let python_code = r"
 def outer():
     def inner(entry):
         timestamp, level, message = entry
         return timestamp[11:13]  # Returns str
 
     return inner
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
@@ -56,8 +56,7 @@ def outer():
     // when returning non-unit value
     assert!(
         !rust_code.contains("| -> () {") || !rust_code.contains("return"),
-        "Closure with return statement should not have explicit `-> ()` type.\nGenerated:\n{}",
-        rust_code
+        "Closure with return statement should not have explicit `-> ()` type.\nGenerated:\n{rust_code}"
     );
 }
 
@@ -65,13 +64,13 @@ def outer():
 #[ignore = "Known failing - GH-70"]
 fn test_gh70_nested_function_int_return() {
     // Nested function returns int (from list index)
-    let python_code = r#"
+    let python_code = r"
 def get_first_element():
     def extract_key(item):
         return item[0]  # Returns int
 
     return extract_key
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
@@ -84,13 +83,13 @@ def get_first_element():
 #[test]
 fn test_gh70_nested_function_with_annotation() {
     // With explicit annotation, should use that type
-    let python_code = r#"
+    let python_code = r"
 def outer():
     def inner(x: int) -> int:
         return x * 2
 
     return inner
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
@@ -98,8 +97,7 @@ def outer():
     // Should have explicit return type when annotated
     assert!(
         rust_code.contains("-> i64") || rust_code.contains("-> i32"),
-        "Annotated function should have explicit return type.\nGenerated:\n{}",
-        rust_code
+        "Annotated function should have explicit return type.\nGenerated:\n{rust_code}"
     );
 
     compile_rust_code(&rust_code, "with_annotation").expect("Generated Rust code MUST compile");
@@ -109,7 +107,7 @@ def outer():
 #[ignore = "Known failing - GH-70"]
 fn test_gh70_itertools_groupby_pattern() {
     // Real-world case from issue: groupby key extractor
-    let python_code = r#"
+    let python_code = r"
 def group_by_hour(entries):
     def extract_hour(entry):
         timestamp, level, message = entry
@@ -117,7 +115,7 @@ def group_by_hour(entries):
 
     # Would use with itertools.groupby(entries, key=extract_hour)
     return extract_hour
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
@@ -131,13 +129,13 @@ def group_by_hour(entries):
 #[ignore = "slow: requires rustc compilation"]
 fn test_gh70_void_nested_function() {
     // Nested function with no return (truly void)
-    let python_code = r#"
+    let python_code = r"
 def outer():
     def printer(msg):
         print(msg)  # No return, truly void
 
     return printer
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation should succeed");

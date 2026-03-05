@@ -7,10 +7,10 @@ use std::process::Command;
 
 #[test]
 fn test_sorted_ascending_simple() {
-    let python_code = r#"
+    let python_code = r"
 def sort_ascending(numbers: list[int]) -> list[int]:
     return sorted(numbers)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -23,10 +23,10 @@ def sort_ascending(numbers: list[int]) -> list[int]:
 
 #[test]
 fn test_sorted_descending_simple() {
-    let python_code = r#"
+    let python_code = r"
 def sort_descending(numbers: list[int]) -> list[int]:
     return sorted(numbers, reverse=True)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -46,10 +46,10 @@ def sort_descending(numbers: list[int]) -> list[int]:
 
 #[test]
 fn test_sorted_with_key_and_reverse() {
-    let python_code = r#"
+    let python_code = r"
 def sort_by_abs_descending(numbers: list[int]) -> list[int]:
     return sorted(numbers, key=lambda x: abs(x), reverse=True)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -64,10 +64,10 @@ def sort_by_abs_descending(numbers: list[int]) -> list[int]:
 
 #[test]
 fn test_sorted_with_key_no_reverse() {
-    let python_code = r#"
+    let python_code = r"
 def sort_by_abs(numbers: list[int]) -> list[int]:
     return sorted(numbers, key=lambda x: abs(x))
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -84,10 +84,10 @@ def sort_by_abs(numbers: list[int]) -> list[int]:
 
 #[test]
 fn test_sorted_reverse_false_explicit() {
-    let python_code = r#"
+    let python_code = r"
 def sort_ascending_explicit(numbers: list[int]) -> list[int]:
     return sorted(numbers, reverse=False)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -101,10 +101,10 @@ def sort_ascending_explicit(numbers: list[int]) -> list[int]:
 
 #[test]
 fn test_sorted_compiles_ascending() {
-    let python_code = r#"
+    let python_code = r"
 def sort_ascending(numbers: list[int]) -> list[int]:
     return sorted(numbers)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -126,10 +126,10 @@ def sort_ascending(numbers: list[int]) -> list[int]:
 
 #[test]
 fn test_sorted_compiles_descending() {
-    let python_code = r#"
+    let python_code = r"
 def sort_descending(numbers: list[int]) -> list[int]:
     return sorted(numbers, reverse=True)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -151,7 +151,7 @@ def sort_descending(numbers: list[int]) -> list[int]:
 
 #[test]
 fn test_sorted_behavior_ascending() {
-    let python_code = r#"
+    let python_code = r"
 def sort_ascending(numbers: list[int]) -> list[int]:
     return sorted(numbers)
 
@@ -159,7 +159,7 @@ def sort_ascending(numbers: list[int]) -> list[int]:
 # 1. Length preservation
 # 2. Ascending order (result[i-1] <= result[i])
 # 3. Same elements as input
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -171,16 +171,16 @@ def sort_ascending(numbers: list[int]) -> list[int]:
 
 #[test]
 fn test_sorted_behavior_descending() {
-    let python_code = r#"
+    let python_code = r"
 def sort_descending(numbers: list[int]) -> list[int]:
     return sorted(numbers, reverse=True)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let _rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Write a simple standalone test (without the auto-generated property tests)
-    let test_code = r#"
+    let test_code = r"
 pub fn sort_descending(numbers: Vec<i32>) -> Vec<i32> {
     {
         let mut __sorted_result = numbers.clone();
@@ -212,7 +212,7 @@ mod tests {
         assert_eq!(sort_descending(vec![42]), vec![42]);
     }
 }
-"#;
+";
 
     std::fs::write("/tmp/test_sorted_behavior_simple.rs", test_code)
         .expect("Failed to write test file");
@@ -246,7 +246,7 @@ mod tests {
 
 #[test]
 fn test_sorted_multiple_functions() {
-    let python_code = r#"
+    let python_code = r"
 def sort_ascending(numbers: list[int]) -> list[int]:
     return sorted(numbers)
 
@@ -255,7 +255,7 @@ def sort_descending(numbers: list[int]) -> list[int]:
 
 def sort_by_abs(numbers: list[int]) -> list[int]:
     return sorted(numbers, key=lambda x: abs(x))
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -277,13 +277,13 @@ def sort_by_abs(numbers: list[int]) -> list[int]:
 
 #[test]
 fn test_sorted_with_strings() {
-    let python_code = r#"
+    let python_code = r"
 def sort_strings(words: list[str]) -> list[str]:
     return sorted(words)
 
 def sort_strings_reverse(words: list[str]) -> list[str]:
     return sorted(words, reverse=True)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");

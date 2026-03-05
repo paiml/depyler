@@ -96,8 +96,7 @@ serde_json = "1.0"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
@@ -134,8 +133,7 @@ def main():
     // The context variable should be mutable
     assert!(
         rust.contains("let mut _context"),
-        "Context variable should be mutable. Generated:\n{}",
-        rust
+        "Context variable should be mutable. Generated:\n{rust}"
     );
 
     // Should compile without E0596 error

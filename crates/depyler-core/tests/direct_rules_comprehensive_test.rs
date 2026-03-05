@@ -1,4 +1,4 @@
-//! Comprehensive tests for direct_rules.rs to increase coverage
+//! Comprehensive tests for `direct_rules.rs` to increase coverage
 
 use depyler_core::DepylerPipeline;
 

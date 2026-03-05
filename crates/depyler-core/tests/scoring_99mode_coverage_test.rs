@@ -27,19 +27,19 @@ fn test_score_simple_compile() {
 
 #[test]
 fn test_score_function_with_loop() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_score_class_with_methods() {
-    let code = r#"
+    let code = r"
 class Calculator:
     def __init__(self):
         self.value = 0
@@ -47,7 +47,7 @@ class Calculator:
     def add(self, x: int) -> int:
         self.value += x
         return self.value
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -57,20 +57,20 @@ class Calculator:
 
 #[test]
 fn test_score_type_inference_basic() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: float) -> float:
     return float(x) + y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_score_type_inference_collections() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [1, 2, 3]
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -163,7 +163,7 @@ def classify(x: int) -> str:
 
 #[test]
 fn test_score_quality_loop_complexity() {
-    let code = r#"
+    let code = r"
 def find_pairs(items: list, target: int) -> list:
     result = []
     for i in range(len(items)):
@@ -171,7 +171,7 @@ def find_pairs(items: list, target: int) -> list:
             if items[i] + items[j] == target:
                 result.append((i, j))
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -181,13 +181,13 @@ def find_pairs(items: list, target: int) -> list:
 
 #[test]
 fn test_score_semantic_deterministic() {
-    let code = r#"
+    let code = r"
 def sum_list(items: list) -> int:
     total = 0
     for item in items:
         total += item
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -206,7 +206,7 @@ def greet(name: str) -> str:
 
 #[test]
 fn test_score_grade_clean_code() {
-    let code = r#"
+    let code = r"
 def fibonacci(n: int) -> int:
     if n <= 1:
         return n
@@ -215,13 +215,13 @@ def fibonacci(n: int) -> int:
     for i in range(2, n + 1):
         a, b = b, a + b
     return b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_score_grade_with_class() {
-    let code = r#"
+    let code = r"
 class Stack:
     def __init__(self):
         self.items = []
@@ -237,7 +237,7 @@ class Stack:
 
     def peek(self) -> int:
         return self.items[-1]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -247,33 +247,33 @@ class Stack:
 
 #[test]
 fn test_score_fault_type_mismatch() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> str:
     return str(x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_score_fault_method_translation() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     items.append(1)
     items.extend([2, 3])
     items.sort()
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_score_fault_import_mapping() {
-    let code = r#"
+    let code = r"
 import math
 
 def f(x: float) -> float:
     return math.floor(x) + math.ceil(x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -306,7 +306,7 @@ def primes_up_to(limit: int) -> list:
 
 #[test]
 fn test_score_multi_class_program() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: float, y: float):
         self.x = x
@@ -319,13 +319,13 @@ class Rectangle:
 
     def area(self) -> float:
         return self.width * self.height
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_score_string_processing() {
-    let code = r#"
+    let code = r"
 def count_words(text: str) -> dict:
     words = text.split()
     counts = {}
@@ -333,24 +333,24 @@ def count_words(text: str) -> dict:
         word = word.lower()
         counts[word] = counts.get(word, 0) + 1
     return counts
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_score_algorithm_gcd() {
-    let code = r#"
+    let code = r"
 def gcd(a: int, b: int) -> int:
     while b != 0:
         a, b = b, a % b
     return a
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_score_algorithm_binary_search() {
-    let code = r#"
+    let code = r"
 def binary_search(items: list, target: int) -> int:
     lo = 0
     hi = len(items) - 1
@@ -363,6 +363,6 @@ def binary_search(items: list, target: int) -> int:
         else:
             hi = mid - 1
     return -1
-"#;
+";
     assert!(transpile_ok(code));
 }

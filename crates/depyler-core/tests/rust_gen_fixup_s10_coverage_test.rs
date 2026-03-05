@@ -54,7 +54,7 @@ fn test_s10_not_on_list() {
 #[test]
 fn test_s10_not_on_bool() {
     let code = transpile("def negate(flag: bool) -> bool:\n    return not flag\n");
-    assert!(code.contains("!flag") || code.contains("!"), "Should negate bool: {code}");
+    assert!(code.contains("!flag") || code.contains('!'), "Should negate bool: {code}");
 }
 
 // ============ is_none on non-Option coverage ============

@@ -5,11 +5,11 @@
 //! 2. Return converted types (int, float)
 //! 3. Return string method results (upper, lower, strip)
 //!
-//! Bug: email_address validator incorrectly generated as:
-//!   pub fn email_address(value: serde_json::Value) -> Result<i32, ArgumentTypeError>
+//! Bug: `email_address` validator incorrectly generated as:
+//!   pub fn `email_address(value`: `serde_json::Value`) -> Result<i32, `ArgumentTypeError`>
 //!
 //! Expected:
-//!   pub fn email_address(value: &str) -> Result<String, Box<dyn std::error::Error>>
+//!   pub fn `email_address(value`: &str) -> Result<String, Box<dyn std::error::Error>>
 
 #![allow(non_snake_case)]
 
@@ -258,7 +258,7 @@ def main():
 // Helper functions for test assertions
 
 fn extract_function_signature(rust_code: &str, func_name: &str) -> String {
-    let pattern = format!("pub fn {}", func_name);
+    let pattern = format!("pub fn {func_name}");
     rust_code
         .lines()
         .skip_while(|line| !line.contains(&pattern))
@@ -268,7 +268,7 @@ fn extract_function_signature(rust_code: &str, func_name: &str) -> String {
 }
 
 fn extract_function_body(rust_code: &str, func_name: &str) -> String {
-    let pattern = format!("pub fn {}", func_name);
+    let pattern = format!("pub fn {func_name}");
     let lines: Vec<&str> = rust_code.lines().collect();
     let start_idx = lines.iter().position(|line| line.contains(&pattern));
 

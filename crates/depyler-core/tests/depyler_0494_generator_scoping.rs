@@ -14,31 +14,29 @@ use std::io::Write;
 #[test]
 fn test_generator_variable_scoping() {
     // Simple generator with variables that cross yield boundary
-    let python = r#"
+    let python = r"
 def fibonacci_gen():
     a, b = 0, 1
     while True:
         yield a
         a, b = b, a + b
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust code:\n{}", rust);
+    println!("Generated Rust code:\n{rust}");
 
     // Should contain state struct with a and b fields
     assert!(
         rust.contains("a:") && rust.contains("b:"),
-        "BUG: State struct must contain generator variables as fields\nGenerated:\n{}",
-        rust
+        "BUG: State struct must contain generator variables as fields\nGenerated:\n{rust}"
     );
 
     // Should access via self.a, self.b
     assert!(
         rust.contains("self.a") && rust.contains("self.b"),
-        "BUG: Must access generator variables via self\nGenerated:\n{}",
-        rust
+        "BUG: Must access generator variables via self\nGenerated:\n{rust}"
     );
 
     // Should NOT declare as local variables in match arm
@@ -54,8 +52,7 @@ def fibonacci_gen():
 
         assert!(
             decl_idx < match_idx,
-            "BUG: Generator variables declared as match arm locals (wrong scope)\nGenerated:\n{}",
-            rust
+            "BUG: Generator variables declared as match arm locals (wrong scope)\nGenerated:\n{rust}"
         );
     }
 }
@@ -63,101 +60,94 @@ def fibonacci_gen():
 #[test]
 fn test_generator_state_struct_fields() {
     // Test that generator state struct has correct fields
-    let python = r#"
+    let python = r"
 def counter_gen(start=0):
     count = start
     while True:
         yield count
         count += 1
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust code:\n{}", rust);
+    println!("Generated Rust code:\n{rust}");
 
     // Should have count field in state struct
     assert!(
         rust.contains("count:"),
-        "BUG: State struct missing generator variable 'count'\nGenerated:\n{}",
-        rust
+        "BUG: State struct missing generator variable 'count'\nGenerated:\n{rust}"
     );
 
     // Should initialize count field (not local variable)
     assert!(
         rust.contains("self.count =") || rust.contains("count: "),
-        "BUG: count not initialized as struct field\nGenerated:\n{}",
-        rust
+        "BUG: count not initialized as struct field\nGenerated:\n{rust}"
     );
 }
 
 #[test]
 fn test_generator_multiple_variables() {
     // Test generator with multiple variables crossing yield
-    let python = r#"
+    let python = r"
 def multi_gen():
     a, b, c = 1, 2, 3
     while True:
         yield a
         a, b, c = b, c, a + b + c
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust code:\n{}", rust);
+    println!("Generated Rust code:\n{rust}");
 
     // All three variables should be struct fields
     assert!(
         rust.contains("a:") && rust.contains("b:") && rust.contains("c:"),
-        "BUG: State struct missing generator variables (a, b, c)\nGenerated:\n{}",
-        rust
+        "BUG: State struct missing generator variables (a, b, c)\nGenerated:\n{rust}"
     );
 
     // Should access all via self
     assert!(
         rust.contains("self.a") && rust.contains("self.b") && rust.contains("self.c"),
-        "BUG: Generator variables not accessed via self\nGenerated:\n{}",
-        rust
+        "BUG: Generator variables not accessed via self\nGenerated:\n{rust}"
     );
 }
 
 #[test]
 fn test_generator_with_parameters() {
     // Test that parameters AND generator variables are both handled
-    let python = r#"
+    let python = r"
 def range_gen(start, end):
     current = start
     while current < end:
         yield current
         current += 1
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust code:\n{}", rust);
+    println!("Generated Rust code:\n{rust}");
 
     // Should have current as struct field (generator variable)
     assert!(
         rust.contains("current:"),
-        "BUG: State struct missing generator variable 'current'\nGenerated:\n{}",
-        rust
+        "BUG: State struct missing generator variable 'current'\nGenerated:\n{rust}"
     );
 
     // Should also have parameters
     assert!(
         rust.contains("start:") && rust.contains("end:"),
-        "BUG: State struct missing parameters\nGenerated:\n{}",
-        rust
+        "BUG: State struct missing parameters\nGenerated:\n{rust}"
     );
 
     // current should be initialized from parameter (either in struct init or in state:0)
     // Note: start is a captured param, so it becomes self.start
     assert!(
         rust.contains("current: start") || rust.contains("self.current = self.start"),
-        "BUG: current not initialized from start parameter\nGenerated:\n{}",
-        rust
+        "BUG: current not initialized from start parameter\nGenerated:\n{rust}"
     );
 }
 
@@ -165,7 +155,7 @@ def range_gen(start, end):
 #[ignore] // DEPYLER-0494: Scoping FIXED, but type inference issues remain (separate ticket needed)
 fn test_generator_compiles() {
     // CRITICAL: Generated code MUST compile
-    let python = r#"
+    let python = r"
 def fib_gen(limit=None):
     a, b = 0, 1
     count = 0
@@ -173,12 +163,12 @@ def fib_gen(limit=None):
         yield a
         a, b = b, a + b
         count += 1
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust code:\n{}", rust);
+    println!("Generated Rust code:\n{rust}");
 
     // Write to temp file and compile
     let mut file = tempfile::NamedTempFile::new().unwrap();
@@ -205,7 +195,7 @@ def fib_gen(limit=None):
 #[test]
 fn test_fibonacci_generator_specific() {
     // Test the EXACT case from fibonacci.rs that's failing
-    let python = r#"
+    let python = r"
 def fibonacci_generator(limit=None):
     a, b = 0, 1
     count = 0
@@ -213,55 +203,52 @@ def fibonacci_generator(limit=None):
         yield a
         a, b = b, a + b
         count += 1
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust code:\n{}", rust);
+    println!("Generated Rust code:\n{rust}");
 
     // Specific assertions for fibonacci case
     assert!(
         rust.contains("a:") && rust.contains("b:") && rust.contains("count:"),
-        "BUG: FibonacciGeneratorState struct missing fields a, b, count\nGenerated:\n{}",
-        rust
+        "BUG: FibonacciGeneratorState struct missing fields a, b, count\nGenerated:\n{rust}"
     );
 
     // Should NOT have the broken pattern
     assert!(
         !rust.contains("let result = a;") || rust.contains("self.a"),
-        "BUG: Accessing 'a' without self qualifier (scoping error)\nGenerated:\n{}",
-        rust
+        "BUG: Accessing 'a' without self qualifier (scoping error)\nGenerated:\n{rust}"
     );
 
     // Should access count via self
-    assert!(rust.contains("self.count"), "BUG: count not accessed via self\nGenerated:\n{}", rust);
+    assert!(rust.contains("self.count"), "BUG: count not accessed via self\nGenerated:\n{rust}");
 }
 
 #[test]
 #[ignore = "Known failing - DEPYLER-0494"]
 fn test_generator_yield_value_is_correct() {
     // Test that the yielded value is correctly extracted
-    let python = r#"
+    let python = r"
 def simple_yield():
     x = 42
     yield x
     x = 99
     yield x
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust code:\n{}", rust);
+    println!("Generated Rust code:\n{rust}");
 
     // x should be a struct field
-    assert!(rust.contains("x:"), "BUG: State struct missing variable 'x'\nGenerated:\n{}", rust);
+    assert!(rust.contains("x:"), "BUG: State struct missing variable 'x'\nGenerated:\n{rust}");
 
     // Should yield self.x
     assert!(
         rust.contains("self.x") || rust.contains("return Some(x)"),
-        "BUG: yield not returning correct value\nGenerated:\n{}",
-        rust
+        "BUG: yield not returning correct value\nGenerated:\n{rust}"
     );
 }

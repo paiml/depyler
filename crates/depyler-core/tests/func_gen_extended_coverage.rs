@@ -1,6 +1,6 @@
-//! Extended coverage tests for func_gen.rs
+//! Extended coverage tests for `func_gen.rs`
 //!
-//! DEPYLER-99MODE-001: Targets remaining uncovered paths in func_gen module
+//! DEPYLER-99MODE-001: Targets remaining uncovered paths in `func_gen` module
 //! Focus: complex parameter types, decorators, class methods, async,
 //! varargs, docstrings, multiple functions, recursive patterns.
 
@@ -30,11 +30,11 @@ def f(items: List[str]) -> str:
 
 #[test]
 fn test_param_dict_str_int() {
-    let code = r#"
+    let code = r"
 from typing import Dict
 def f(d: Dict[str, int]) -> int:
     return len(d)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -52,11 +52,11 @@ def f(s: Optional[str] = None) -> str:
 
 #[test]
 fn test_param_set_int() {
-    let code = r#"
+    let code = r"
 from typing import Set
 def f(s: Set[int]) -> int:
     return len(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -66,38 +66,38 @@ def f(s: Set[int]) -> int:
 
 #[test]
 fn test_return_conditional_type() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     if x > 0:
         return x
     elif x < 0:
         return -x
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_return_in_loop() {
-    let code = r#"
+    let code = r"
 def f(items: list, target: int) -> int:
     for i in range(len(items)):
         if items[i] == target:
             return i
     return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_return_in_try() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> int:
     try:
         return int(s)
     except:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -107,10 +107,10 @@ def f(s: str) -> int:
 
 #[test]
 fn test_async_with_params() {
-    let code = r#"
+    let code = r"
 async def f(url: str) -> str:
     return url
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -120,7 +120,7 @@ async def f(url: str) -> str:
 
 #[test]
 fn test_class_with_multiple_methods() {
-    let code = r#"
+    let code = r"
 class Stack:
     def __init__(self):
         self.items = []
@@ -136,7 +136,7 @@ class Stack:
 
     def size(self) -> int:
         return len(self.items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -156,7 +156,7 @@ class Point:
 
 #[test]
 fn test_class_eq() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
@@ -164,7 +164,7 @@ class Point:
 
     def __eq__(self, other) -> bool:
         return self.x == other.x and self.y == other.y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -174,14 +174,14 @@ class Point:
 
 #[test]
 fn test_function_with_multiple_loops() {
-    let code = r#"
+    let code = r"
 def matrix_sum(matrix: list) -> int:
     total = 0
     for row in matrix:
         for val in row:
             total += val
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -205,10 +205,10 @@ def classify(x: int, y: int) -> str:
 
 #[test]
 fn test_function_with_comprehension() {
-    let code = r#"
+    let code = r"
 def squares(n: int) -> list:
     return [i * i for i in range(n)]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -218,23 +218,23 @@ def squares(n: int) -> list:
 
 #[test]
 fn test_recursive_fibonacci() {
-    let code = r#"
+    let code = r"
 def fib(n: int) -> int:
     if n <= 1:
         return n
     return fib(n - 1) + fib(n - 2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_recursive_gcd() {
-    let code = r#"
+    let code = r"
 def gcd(a: int, b: int) -> int:
     if b == 0:
         return a
     return gcd(b, a % b)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -277,7 +277,7 @@ def f(x: int, y: int) -> int:
 
 #[test]
 fn test_many_functions() {
-    let code = r#"
+    let code = r"
 def a() -> int:
     return 1
 
@@ -289,7 +289,7 @@ def c() -> int:
 
 def d() -> int:
     return a() + b() + c()
-"#;
+";
     let rust = transpile(code);
     assert!(rust.contains("fn a"));
     assert!(rust.contains("fn b"));
@@ -303,10 +303,10 @@ def d() -> int:
 
 #[test]
 fn test_varargs_simple() {
-    let code = r#"
+    let code = r"
 def f(*args: int) -> int:
     return sum(args)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -316,18 +316,18 @@ def f(*args: int) -> int:
 
 #[test]
 fn test_staticmethod() {
-    let code = r#"
+    let code = r"
 class Util:
     @staticmethod
     def helper(x: int) -> int:
         return x * 2
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_property_getter() {
-    let code = r#"
+    let code = r"
 class Circle:
     def __init__(self, r: float):
         self.r = r
@@ -335,7 +335,7 @@ class Circle:
     @property
     def area(self) -> float:
         return 3.14 * self.r * self.r
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -355,18 +355,18 @@ fn test_single_return() {
 
 #[test]
 fn test_function_with_only_assignment() {
-    let code = r#"
+    let code = r"
 def f():
     x = 42
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_function_with_print() {
-    let code = r#"
+    let code = r"
 def f(msg: str):
     print(msg)
-"#;
+";
     assert!(transpile_ok(code));
 }

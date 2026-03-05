@@ -13,10 +13,10 @@ def add(a: int, b: int) -> int:
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Pure function result: {:?}", result);
+    println!("Pure function result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated code:\n{}", rust_code);
+        println!("Generated code:\n{rust_code}");
 
         // Should generate quickcheck test for pure functions
         assert!(
@@ -46,10 +46,10 @@ def bubble_sort(arr: list[int]) -> list[int]:
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Sorting function result: {:?}", result);
+    println!("Sorting function result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated test code:\n{}", rust_code);
+        println!("Generated test code:\n{rust_code}");
 
         // Properties to test for sorting:
         // 1. Length preservation
@@ -71,10 +71,10 @@ def abs_value(x: int) -> int:
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Abs function result: {:?}", result);
+    println!("Abs function result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated invariant tests:\n{}", rust_code);
+        println!("Generated invariant tests:\n{rust_code}");
 
         // Invariants to test:
         // 1. Result is always non-negative
@@ -106,10 +106,10 @@ def decode(s: str) -> str:
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Encoding functions result: {:?}", result);
+    println!("Encoding functions result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated roundtrip test:\n{}", rust_code);
+        println!("Generated roundtrip test:\n{rust_code}");
 
         // Roundtrip property: decode(encode(s)) == s
     }
@@ -128,10 +128,10 @@ def safe_divide(a: int, b: int) -> int:
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Safe divide result: {:?}", result);
+    println!("Safe divide result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated bounds test:\n{}", rust_code);
+        println!("Generated bounds test:\n{rust_code}");
 
         // Properties:
         // 1. Never panics (no divide by zero)
@@ -156,10 +156,10 @@ def normalize_path(path: str) -> str:
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Normalize path result: {:?}", result);
+    println!("Normalize path result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated idempotence test:\n{}", rust_code);
+        println!("Generated idempotence test:\n{rust_code}");
 
         // Idempotence: normalize(normalize(x)) == normalize(x)
     }
@@ -182,10 +182,10 @@ def is_valid_email(email: str) -> bool:
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Email validation result: {:?}", result);
+    println!("Email validation result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated custom generator test:\n{}", rust_code);
+        println!("Generated custom generator test:\n{rust_code}");
 
         // Should generate custom email generators for testing
     }
@@ -208,10 +208,10 @@ def find_max(arr: list[int]) -> int:
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Find max result: {:?}", result);
+    println!("Find max result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated shrinking test:\n{}", rust_code);
+        println!("Generated shrinking test:\n{rust_code}");
 
         // Should support shrinking to find minimal failing cases
     }

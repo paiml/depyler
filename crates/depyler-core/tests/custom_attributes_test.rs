@@ -1,6 +1,6 @@
 //! Integration tests for custom Rust attributes feature
 //!
-//! Tests that custom Rust attributes specified via @depyler: custom_attribute
+//! Tests that custom Rust attributes specified via @depyler: `custom_attribute`
 //! are correctly parsed and emitted in the generated Rust code.
 
 use depyler_core::DepylerPipeline;
@@ -79,10 +79,10 @@ def hot_path(items: list[int]) -> int:
 #[test]
 fn test_no_custom_attributes() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def normal_function(x: int) -> int:
     return x * 2
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
 

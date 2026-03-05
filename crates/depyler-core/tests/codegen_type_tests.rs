@@ -1,5 +1,5 @@
 //! EXTREME TDD: Tests for codegen.rs type conversion
-//! Coverage: type_to_rust_type, needs_std_collections, uses_hashmap
+//! Coverage: `type_to_rust_type`, `needs_std_collections`, `uses_hashmap`
 
 use depyler_core::DepylerPipeline;
 
@@ -162,20 +162,20 @@ def f() -> dict:
 
 #[test]
 fn test_needs_collections_set() {
-    let code = r#"
+    let code = r"
 def f() -> set:
     return {1, 2, 3}
-"#;
+";
     let result = transpile(code).unwrap();
     assert!(result.contains("HashSet") || result.contains("std::collections"));
 }
 
 #[test]
 fn test_no_collections_needed() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     return x + 1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -257,24 +257,24 @@ fn test_type_infer_from_method() {
 
 #[test]
 fn test_type_union_int_none() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     if x > 0:
         return x
     return None
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_union_multiple_returns() {
-    let code = r#"
+    let code = r"
 def f(flag: bool) -> int:
     if flag:
         return 42
     else:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -282,31 +282,31 @@ def f(flag: bool) -> int:
 
 #[test]
 fn test_type_recursive_list() {
-    let code = r#"
+    let code = r"
 def flatten(nested: list) -> list:
     result = []
     for item in nested:
         result.extend(item)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_generic_function() {
-    let code = r#"
+    let code = r"
 def identity(x: int) -> int:
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_multiple_generic_params() {
-    let code = r#"
+    let code = r"
 def swap(a: int, b: int) -> tuple:
     return (b, a)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -338,9 +338,9 @@ fn test_type_mixed_list() {
 
 #[test]
 fn test_type_callable() {
-    let code = r#"
+    let code = r"
 def apply(fn, x: int) -> int:
     return fn(x)
-"#;
+";
     assert!(transpile_ok(code));
 }

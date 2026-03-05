@@ -1,4 +1,4 @@
-//! Session 8 batch 4: Coverage tests for expr_gen_instance_methods.rs
+//! Session 8 batch 4: Coverage tests for `expr_gen_instance_methods.rs`
 //!
 //! Targets the 13,149-line instance method handler through transpile-based
 //! tests. Covers list, dict, string, set, and builtin method handlers.
@@ -22,12 +22,12 @@ fn transpile(python_code: &str) -> String {
 #[test]
 fn test_list_append() {
     let code = transpile(
-        r#"
+        r"
 def f() -> list:
     items = [1, 2, 3]
     items.append(4)
     return items
-"#,
+",
     );
     assert!(code.contains("push") || code.contains("append"), "Should handle list.append: {code}");
 }
@@ -35,11 +35,11 @@ def f() -> list:
 #[test]
 fn test_list_extend() {
     let code = transpile(
-        r#"
+        r"
 def f(a: list, b: list) -> list:
     a.extend(b)
     return a
-"#,
+",
     );
     assert!(
         code.contains("extend") || code.contains("append"),
@@ -50,10 +50,10 @@ def f(a: list, b: list) -> list:
 #[test]
 fn test_list_pop() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> int:
     return items.pop()
-"#,
+",
     );
     assert!(code.contains("pop") || code.contains("remove"), "Should handle list.pop: {code}");
 }
@@ -61,10 +61,10 @@ def f(items: list) -> int:
 #[test]
 fn test_list_pop_index() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> int:
     return items.pop(0)
-"#,
+",
     );
     assert!(
         code.contains("remove(0)") || code.contains("pop") || code.contains("fn f"),
@@ -75,10 +75,10 @@ def f(items: list) -> int:
 #[test]
 fn test_list_insert() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> None:
     items.insert(0, 42)
-"#,
+",
     );
     assert!(code.contains("insert") || code.contains("42"), "Should handle list.insert: {code}");
 }
@@ -86,10 +86,10 @@ def f(items: list) -> None:
 #[test]
 fn test_list_remove() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list, val: int) -> None:
     items.remove(val)
-"#,
+",
     );
     assert!(
         code.contains("retain") || code.contains("remove") || code.contains("position"),
@@ -100,11 +100,11 @@ def f(items: list, val: int) -> None:
 #[test]
 fn test_list_sort() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     items.sort()
     return items
-"#,
+",
     );
     assert!(code.contains("sort"), "Should handle list.sort: {code}");
 }
@@ -112,11 +112,11 @@ def f(items: list) -> list:
 #[test]
 fn test_list_reverse() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     items.reverse()
     return items
-"#,
+",
     );
     assert!(code.contains("reverse"), "Should handle list.reverse: {code}");
 }
@@ -124,10 +124,10 @@ def f(items: list) -> list:
 #[test]
 fn test_list_clear() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> None:
     items.clear()
-"#,
+",
     );
     assert!(code.contains("clear"), "Should handle list.clear: {code}");
 }
@@ -135,10 +135,10 @@ def f(items: list) -> None:
 #[test]
 fn test_list_copy() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     return items.copy()
-"#,
+",
     );
     assert!(
         code.contains("clone") || code.contains("to_vec") || code.contains("copy"),
@@ -149,10 +149,10 @@ def f(items: list) -> list:
 #[test]
 fn test_list_count() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list, target: int) -> int:
     return items.count(target)
-"#,
+",
     );
     assert!(
         code.contains("count") || code.contains("filter") || code.contains("iter"),
@@ -163,10 +163,10 @@ def f(items: list, target: int) -> int:
 #[test]
 fn test_list_index() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list, target: int) -> int:
     return items.index(target)
-"#,
+",
     );
     assert!(
         code.contains("position") || code.contains("index") || code.contains("iter"),
@@ -179,10 +179,10 @@ def f(items: list, target: int) -> int:
 #[test]
 fn test_dict_get() {
     let code = transpile(
-        r#"
+        r"
 def f(d: dict, key: str) -> int:
     return d.get(key, 0)
-"#,
+",
     );
     assert!(code.contains("get") || code.contains("unwrap_or"), "Should handle dict.get: {code}");
 }
@@ -190,10 +190,10 @@ def f(d: dict, key: str) -> int:
 #[test]
 fn test_dict_keys() {
     let code = transpile(
-        r#"
+        r"
 def f(d: dict) -> list:
     return list(d.keys())
-"#,
+",
     );
     assert!(code.contains("keys") || code.contains("iter"), "Should handle dict.keys: {code}");
 }
@@ -201,10 +201,10 @@ def f(d: dict) -> list:
 #[test]
 fn test_dict_values() {
     let code = transpile(
-        r#"
+        r"
 def f(d: dict) -> list:
     return list(d.values())
-"#,
+",
     );
     assert!(code.contains("values") || code.contains("iter"), "Should handle dict.values: {code}");
 }
@@ -212,13 +212,13 @@ def f(d: dict) -> list:
 #[test]
 fn test_dict_items() {
     let code = transpile(
-        r#"
+        r"
 def f(d: dict) -> list:
     result = []
     for k, v in d.items():
         result.append(k)
     return result
-"#,
+",
     );
     assert!(
         code.contains("iter") || code.contains("items") || code.contains("for"),
@@ -229,11 +229,11 @@ def f(d: dict) -> list:
 #[test]
 fn test_dict_update() {
     let code = transpile(
-        r#"
+        r"
 def f(a: dict, b: dict) -> dict:
     a.update(b)
     return a
-"#,
+",
     );
     assert!(
         code.contains("extend") || code.contains("insert") || code.contains("update"),
@@ -244,10 +244,10 @@ def f(a: dict, b: dict) -> dict:
 #[test]
 fn test_dict_pop() {
     let code = transpile(
-        r#"
+        r"
 def f(d: dict, key: str) -> int:
     return d.pop(key)
-"#,
+",
     );
     assert!(code.contains("remove") || code.contains("pop"), "Should handle dict.pop: {code}");
 }
@@ -255,10 +255,10 @@ def f(d: dict, key: str) -> int:
 #[test]
 fn test_dict_clear() {
     let code = transpile(
-        r#"
+        r"
 def f(d: dict) -> None:
     d.clear()
-"#,
+",
     );
     assert!(code.contains("clear"), "Should handle dict.clear: {code}");
 }
@@ -266,10 +266,10 @@ def f(d: dict) -> None:
 #[test]
 fn test_dict_setdefault() {
     let code = transpile(
-        r#"
+        r"
 def f(d: dict, key: str) -> int:
     return d.setdefault(key, 0)
-"#,
+",
     );
     assert!(
         code.contains("entry") || code.contains("or_insert") || code.contains("setdefault"),
@@ -282,10 +282,10 @@ def f(d: dict, key: str) -> int:
 #[test]
 fn test_str_upper() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.upper()
-"#,
+",
     );
     assert!(
         code.contains("to_uppercase") || code.contains("upper"),
@@ -296,10 +296,10 @@ def f(s: str) -> str:
 #[test]
 fn test_str_lower() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.lower()
-"#,
+",
     );
     assert!(
         code.contains("to_lowercase") || code.contains("lower"),
@@ -310,10 +310,10 @@ def f(s: str) -> str:
 #[test]
 fn test_str_strip() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.strip()
-"#,
+",
     );
     assert!(code.contains("trim") || code.contains("strip"), "Should handle str.strip: {code}");
 }
@@ -321,10 +321,10 @@ def f(s: str) -> str:
 #[test]
 fn test_str_lstrip() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.lstrip()
-"#,
+",
     );
     assert!(
         code.contains("trim_start") || code.contains("lstrip"),
@@ -335,10 +335,10 @@ def f(s: str) -> str:
 #[test]
 fn test_str_rstrip() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.rstrip()
-"#,
+",
     );
     assert!(
         code.contains("trim_end") || code.contains("rstrip"),
@@ -354,16 +354,16 @@ def f(s: str) -> list:
     return s.split(",")
 "#,
     );
-    assert!(code.contains("split") || code.contains(","), "Should handle str.split: {code}");
+    assert!(code.contains("split") || code.contains(','), "Should handle str.split: {code}");
 }
 
 #[test]
 fn test_str_split_no_args() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> list:
     return s.split()
-"#,
+",
     );
     assert!(
         code.contains("split") || code.contains("whitespace"),
@@ -379,7 +379,7 @@ def f(items: list) -> str:
     return ", ".join(items)
 "#,
     );
-    assert!(code.contains("join") || code.contains(","), "Should handle str.join: {code}");
+    assert!(code.contains("join") || code.contains(','), "Should handle str.join: {code}");
 }
 
 #[test]
@@ -435,10 +435,10 @@ def f(s: str) -> bool:
 #[test]
 fn test_str_isdigit() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> bool:
     return s.isdigit()
-"#,
+",
     );
     assert!(
         code.contains("is_digit")
@@ -452,10 +452,10 @@ def f(s: str) -> bool:
 #[test]
 fn test_str_isalpha() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> bool:
     return s.isalpha()
-"#,
+",
     );
     assert!(
         code.contains("is_alpha")
@@ -469,10 +469,10 @@ def f(s: str) -> bool:
 #[test]
 fn test_str_title() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.title()
-"#,
+",
     );
     assert!(
         code.contains("title") || code.contains("to_uppercase") || code.contains("char"),
@@ -483,10 +483,10 @@ def f(s: str) -> str:
 #[test]
 fn test_str_capitalize() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.capitalize()
-"#,
+",
     );
     assert!(
         code.contains("capitalize") || code.contains("to_uppercase") || code.contains("char"),
@@ -508,10 +508,10 @@ def f(s: str) -> int:
 #[test]
 fn test_str_zfill() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.zfill(5)
-"#,
+",
     );
     assert!(
         code.contains("zfill") || code.contains("pad") || code.contains("format"),
@@ -549,12 +549,12 @@ def f(name: str) -> str:
 #[test]
 fn test_set_add() {
     let code = transpile(
-        r#"
+        r"
 def f() -> set:
     s = {1, 2, 3}
     s.add(4)
     return s
-"#,
+",
     );
     assert!(code.contains("insert") || code.contains("add"), "Should handle set.add: {code}");
 }
@@ -562,10 +562,10 @@ def f() -> set:
 #[test]
 fn test_set_discard() {
     let code = transpile(
-        r#"
+        r"
 def f(s: set, val: int) -> None:
     s.discard(val)
-"#,
+",
     );
     assert!(
         code.contains("remove") || code.contains("discard"),
@@ -578,10 +578,10 @@ def f(s: set, val: int) -> None:
 #[test]
 fn test_chained_string_methods() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.strip().lower()
-"#,
+",
     );
     assert!(
         code.contains("trim") || code.contains("to_lowercase"),
@@ -592,13 +592,13 @@ def f(s: str) -> str:
 #[test]
 fn test_chained_list_methods() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     items.append(1)
     items.append(2)
     items.sort()
     return items
-"#,
+",
     );
     assert!(
         code.contains("push") && code.contains("sort"),
@@ -611,7 +611,7 @@ def f(items: list) -> list:
 #[test]
 fn test_method_on_self_field() {
     let code = transpile(
-        r#"
+        r"
 class Counter:
     def __init__(self) -> None:
         self.values: list = []
@@ -621,7 +621,7 @@ class Counter:
 
     def total(self) -> int:
         return len(self.values)
-"#,
+",
     );
     assert!(
         code.contains("push") || code.contains("values"),
@@ -632,7 +632,7 @@ class Counter:
 #[test]
 fn test_method_on_self_dict() {
     let code = transpile(
-        r#"
+        r"
 class Registry:
     def __init__(self) -> None:
         self.data: dict = {}
@@ -642,7 +642,7 @@ class Registry:
 
     def lookup(self, key: str) -> int:
         return self.data.get(key, 0)
-"#,
+",
     );
     assert!(code.contains("insert") || code.contains("get"), "Should handle dict on self: {code}");
 }
@@ -652,10 +652,10 @@ class Registry:
 #[test]
 fn test_abs_function() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int) -> int:
     return abs(x)
-"#,
+",
     );
     assert!(code.contains("abs"), "Should handle abs(): {code}");
 }
@@ -663,10 +663,10 @@ def f(x: int) -> int:
 #[test]
 fn test_min_function() {
     let code = transpile(
-        r#"
+        r"
 def f(a: int, b: int) -> int:
     return min(a, b)
-"#,
+",
     );
     assert!(code.contains("min") || code.contains("std::cmp"), "Should handle min(): {code}");
 }
@@ -674,10 +674,10 @@ def f(a: int, b: int) -> int:
 #[test]
 fn test_max_function() {
     let code = transpile(
-        r#"
+        r"
 def f(a: int, b: int) -> int:
     return max(a, b)
-"#,
+",
     );
     assert!(code.contains("max") || code.contains("std::cmp"), "Should handle max(): {code}");
 }
@@ -685,10 +685,10 @@ def f(a: int, b: int) -> int:
 #[test]
 fn test_sum_function() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> int:
     return sum(items)
-"#,
+",
     );
     assert!(code.contains("sum") || code.contains("iter"), "Should handle sum(): {code}");
 }
@@ -696,10 +696,10 @@ def f(items: list) -> int:
 #[test]
 fn test_sorted_function() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     return sorted(items)
-"#,
+",
     );
     assert!(code.contains("sort") || code.contains("clone"), "Should handle sorted(): {code}");
 }
@@ -707,10 +707,10 @@ def f(items: list) -> list:
 #[test]
 fn test_reversed_function() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     return list(reversed(items))
-"#,
+",
     );
     assert!(
         code.contains("rev") || code.contains("reverse") || code.contains("iter"),
@@ -721,13 +721,13 @@ def f(items: list) -> list:
 #[test]
 fn test_enumerate_function() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     result = []
     for i, item in enumerate(items):
         result.append(i)
     return result
-"#,
+",
     );
     assert!(
         code.contains("enumerate") || code.contains("iter"),
@@ -738,13 +738,13 @@ def f(items: list) -> list:
 #[test]
 fn test_zip_function() {
     let code = transpile(
-        r#"
+        r"
 def f(a: list, b: list) -> list:
     result = []
     for x, y in zip(a, b):
         result.append(x)
     return result
-"#,
+",
     );
     assert!(code.contains("zip") || code.contains("iter"), "Should handle zip(): {code}");
 }
@@ -752,13 +752,13 @@ def f(a: list, b: list) -> list:
 #[test]
 fn test_range_function() {
     let code = transpile(
-        r#"
+        r"
 def f(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
     return total
-"#,
+",
     );
     assert!(code.contains("0..") || code.contains("range"), "Should handle range(): {code}");
 }
@@ -766,13 +766,13 @@ def f(n: int) -> int:
 #[test]
 fn test_range_with_start_stop() {
     let code = transpile(
-        r#"
+        r"
 def f() -> int:
     total = 0
     for i in range(1, 10):
         total += i
     return total
-"#,
+",
     );
     assert!(
         code.contains("1..") || code.contains("range"),
@@ -783,13 +783,13 @@ def f() -> int:
 #[test]
 fn test_range_with_step() {
     let code = transpile(
-        r#"
+        r"
 def f() -> int:
     total = 0
     for i in range(0, 10, 2):
         total += i
     return total
-"#,
+",
     );
     assert!(
         code.contains("step") || code.contains("0..") || code.contains("range"),
@@ -802,10 +802,10 @@ def f() -> int:
 #[test]
 fn test_int_conversion() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> int:
     return int(s)
-"#,
+",
     );
     assert!(code.contains("parse") || code.contains("unwrap"), "Should handle int(): {code}");
 }
@@ -813,10 +813,10 @@ def f(s: str) -> int:
 #[test]
 fn test_float_conversion() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> float:
     return float(s)
-"#,
+",
     );
     assert!(code.contains("parse") || code.contains("f64"), "Should handle float(): {code}");
 }
@@ -824,10 +824,10 @@ def f(s: str) -> float:
 #[test]
 fn test_str_conversion() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int) -> str:
     return str(x)
-"#,
+",
     );
     assert!(code.contains("to_string") || code.contains("format"), "Should handle str(): {code}");
 }
@@ -837,10 +837,10 @@ def f(x: int) -> str:
 #[test]
 fn test_list_comprehension_with_method() {
     let code = transpile(
-        r#"
+        r"
 def f(words: list) -> list:
     return [w.upper() for w in words]
-"#,
+",
     );
     assert!(
         code.contains("to_uppercase") || code.contains("map"),
@@ -851,10 +851,10 @@ def f(words: list) -> list:
 #[test]
 fn test_dict_comprehension() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> dict:
     return {str(x): x for x in items}
-"#,
+",
     );
     assert!(
         code.contains("HashMap") || code.contains("collect") || code.contains("map"),
@@ -891,10 +891,10 @@ def f(x: int) -> None:
 #[test]
 fn test_in_operator_list() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list, target: int) -> bool:
     return target in items
-"#,
+",
     );
     assert!(
         code.contains("contains") || code.contains("iter") || code.contains("any"),
@@ -905,13 +905,13 @@ def f(items: list, target: int) -> bool:
 #[test]
 fn test_not_in_operator() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list, target: int) -> bool:
     return target not in items
-"#,
+",
     );
     assert!(
-        code.contains("contains") || code.contains("!") || code.contains("not"),
+        code.contains("contains") || code.contains('!') || code.contains("not"),
         "Should handle 'not in' operator: {code}"
     );
 }
@@ -919,10 +919,10 @@ def f(items: list, target: int) -> bool:
 #[test]
 fn test_len_list() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> int:
     return len(items)
-"#,
+",
     );
     assert!(code.contains("len()") || code.contains(".len()"), "Should handle len(): {code}");
 }
@@ -930,10 +930,10 @@ def f(items: list) -> int:
 #[test]
 fn test_len_str() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> int:
     return len(s)
-"#,
+",
     );
     assert!(code.contains("len()") || code.contains(".len()"), "Should handle len(str): {code}");
 }

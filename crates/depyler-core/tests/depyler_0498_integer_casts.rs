@@ -9,14 +9,14 @@ use depyler_core::DepylerPipeline;
 fn test_i32_to_i64_function_call_cast() {
     // Python: Nested function takes int (i64), caller passes arithmetic (i32)
     // This matches the fibonacci.py pattern where is_perfect_square is nested
-    let python = r#"
+    let python = r"
 def test_value(num: int) -> bool:
     def check_large(x: int) -> bool:
         return x > 1000000
 
     # num is i32 in arithmetic, check_large expects i64
     return check_large(5 * num * num + 4)
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Failed to transpile");
@@ -56,11 +56,11 @@ def test_value(num: int) -> bool:
 #[test]
 fn test_i64_to_i32_comparison_cast() {
     // Python: Local variable declared as int (i64), compared with i32
-    let python = r#"
+    let python = r"
 def is_perfect_square(x: int) -> bool:
     root: int = int(x ** 0.5)
     return root * root == x
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Failed to transpile");
@@ -102,11 +102,11 @@ def is_perfect_square(x: int) -> bool:
 #[ignore = "Flaky in parallel execution due to rustc subprocess resource contention"]
 fn test_integer_arithmetic_type_inference() {
     // Test that integer arithmetic preserves type consistency
-    let python = r#"
+    let python = r"
 def calculate(a: int, b: int) -> int:
     result = a * a + b * b
     return result
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Failed to transpile");
@@ -132,8 +132,7 @@ def calculate(a: int, b: int) -> int:
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(
             output.status.success(),
-            "Integer arithmetic should compile without type errors: {}",
-            stderr
+            "Integer arithmetic should compile without type errors: {stderr}"
         );
     }
 }

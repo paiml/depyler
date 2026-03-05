@@ -9,10 +9,10 @@ use depyler_core::DepylerPipeline;
 
 #[test]
 fn test_string_last_char() {
-    let python_code = r#"
+    let python_code = r"
 def get_last_char(s: str) -> str:
     return s[-1]
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -26,20 +26,19 @@ def get_last_char(s: str) -> str:
     // Should use proper string operations in the function body
     // Either .chars() based or index-based access
     assert!(
-        fn_section.contains(".chars()") || fn_section.contains("get(") || fn_section.contains("["),
-        "Should use proper string/char access\nFunction:\n{}",
-        fn_section
+        fn_section.contains(".chars()") || fn_section.contains("get(") || fn_section.contains('['),
+        "Should use proper string/char access\nFunction:\n{fn_section}"
     );
 
-    println!("✅ Generated Rust code:\n{}", rust_code);
+    println!("✅ Generated Rust code:\n{rust_code}");
 }
 
 #[test]
 fn test_string_last_n_chars() {
-    let python_code = r#"
+    let python_code = r"
 def get_last_n_chars(s: str, n: int) -> str:
     return s[-n:]
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -52,20 +51,19 @@ def get_last_n_chars(s: str, n: int) -> str:
 
     // Should use proper string operations in the function body
     assert!(
-        fn_section.contains(".chars()") || fn_section.contains("skip") || fn_section.contains("["),
-        "Should use proper string slicing\nFunction:\n{}",
-        fn_section
+        fn_section.contains(".chars()") || fn_section.contains("skip") || fn_section.contains('['),
+        "Should use proper string slicing\nFunction:\n{fn_section}"
     );
 
-    println!("✅ Generated Rust code:\n{}", rust_code);
+    println!("✅ Generated Rust code:\n{rust_code}");
 }
 
 #[test]
 fn test_string_all_but_last_n() {
-    let python_code = r#"
+    let python_code = r"
 def get_all_but_last_n(s: str, n: int) -> str:
     return s[:-n]
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -78,20 +76,19 @@ def get_all_but_last_n(s: str, n: int) -> str:
 
     // Should use proper string operations in the function body
     assert!(
-        fn_section.contains(".chars()") || fn_section.contains("take") || fn_section.contains("["),
-        "Should use proper string slicing\nFunction:\n{}",
-        fn_section
+        fn_section.contains(".chars()") || fn_section.contains("take") || fn_section.contains('['),
+        "Should use proper string slicing\nFunction:\n{fn_section}"
     );
 
-    println!("✅ Generated Rust code:\n{}", rust_code);
+    println!("✅ Generated Rust code:\n{rust_code}");
 }
 
 #[test]
 fn test_string_reverse() {
-    let python_code = r#"
+    let python_code = r"
 def reverse_string(s: str) -> str:
     return s[::-1]
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -103,17 +100,17 @@ def reverse_string(s: str) -> str:
     // Should collect into String
     assert!(rust_code.contains("collect::<String>()"), "Should collect into String");
 
-    println!("✅ Generated Rust code:\n{}", rust_code);
+    println!("✅ Generated Rust code:\n{rust_code}");
 }
 
 // ========== String Slicing Range Tests ==========
 
 #[test]
 fn test_string_slice_start_stop() {
-    let python_code = r#"
+    let python_code = r"
 def substring(s: str, start: int, stop: int) -> str:
     return s[start:stop]
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -125,15 +122,15 @@ def substring(s: str, start: int, stop: int) -> str:
         "Should use .skip()/.take() for range slicing"
     );
 
-    println!("✅ Generated Rust code:\n{}", rust_code);
+    println!("✅ Generated Rust code:\n{rust_code}");
 }
 
 #[test]
 fn test_string_slice_with_step() {
-    let python_code = r#"
+    let python_code = r"
 def every_nth_char(s: str, n: int) -> str:
     return s[::n]
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -145,14 +142,14 @@ def every_nth_char(s: str, n: int) -> str:
         "Should handle step parameter"
     );
 
-    println!("✅ Generated Rust code:\n{}", rust_code);
+    println!("✅ Generated Rust code:\n{rust_code}");
 }
 
 // ========== Compilation Tests ==========
 
 #[test]
 fn test_string_slicing_compiles() {
-    let python_code = r#"
+    let python_code = r"
 def test_all_patterns(s: str) -> str:
     last = s[-1]
     last_n = s[-3:]
@@ -160,7 +157,7 @@ def test_all_patterns(s: str) -> str:
     reversed = s[::-1]
     middle = s[1:4]
     return reversed
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -176,7 +173,7 @@ def test_all_patterns(s: str) -> str:
     if !output.status.success() {
         eprintln!("❌ Compilation failed!");
         eprintln!("STDERR:\n{}", String::from_utf8_lossy(&output.stderr));
-        eprintln!("\n📄 Generated Rust code:\n{}", rust_code);
+        eprintln!("\n📄 Generated Rust code:\n{rust_code}");
         panic!("Generated code failed to compile");
     }
 
@@ -188,10 +185,10 @@ def test_all_patterns(s: str) -> str:
 #[test]
 fn test_regression_vec_slicing_still_works() {
     // Ensure Vec slicing wasn't broken by string slicing fix
-    let python_code = r#"
+    let python_code = r"
 def last_elements(arr: list[int]) -> list[int]:
     return arr[-3:]
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -203,17 +200,17 @@ def last_elements(arr: list[int]) -> list[int]:
         "Should generate Vec-appropriate code"
     );
 
-    println!("✅ Vec slicing still works:\n{}", rust_code);
+    println!("✅ Vec slicing still works:\n{rust_code}");
 }
 
 #[test]
 fn test_regression_string_methods_still_work() {
     // DEPYLER-0302 Phase 1 & 2 should still work
-    let python_code = r#"
+    let python_code = r"
 def process_string(s: str) -> str:
     repeated = s * 3
     return repeated
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -224,7 +221,7 @@ def process_string(s: str) -> str:
         "String repetition should still work (DEPYLER-0302 Phase 2)"
     );
 
-    println!("✅ String methods still work:\n{}", rust_code);
+    println!("✅ String methods still work:\n{rust_code}");
 }
 
 // ========== Type Discrimination Tests ==========
@@ -232,12 +229,12 @@ def process_string(s: str) -> str:
 #[test]
 fn test_type_discrimination_string_vs_list() {
     // Critical: Ensure transpiler distinguishes string from list variables
-    let python_code = r#"
+    let python_code = r"
 def mixed_types(s: str, arr: list[int]) -> str:
     last_char = s[-1]
     last_elem = arr[-1]
     return last_char
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -246,22 +243,22 @@ def mixed_types(s: str, arr: list[int]) -> str:
     // List variable 'arr' should use .get() or Vec methods
     // Both should be present in the output
     assert!(
-        rust_code.contains("s") || rust_code.contains("string"),
+        rust_code.contains('s') || rust_code.contains("string"),
         "Should handle string variable"
     );
     assert!(rust_code.contains("arr") || rust_code.contains("list"), "Should handle list variable");
 
-    println!("✅ Type discrimination works:\n{}", rust_code);
+    println!("✅ Type discrimination works:\n{rust_code}");
 }
 
 // ========== Edge Cases ==========
 
 #[test]
 fn test_empty_slice() {
-    let python_code = r#"
+    let python_code = r"
 def full_copy(s: str) -> str:
     return s[:]
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -272,15 +269,15 @@ def full_copy(s: str) -> str:
         "Full slice should use simple copy"
     );
 
-    println!("✅ Full slice works:\n{}", rust_code);
+    println!("✅ Full slice works:\n{rust_code}");
 }
 
 #[test]
 fn test_negative_step_reverse() {
-    let python_code = r#"
+    let python_code = r"
 def reverse_every_second(s: str) -> str:
     return s[::-2]
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -292,5 +289,5 @@ def reverse_every_second(s: str) -> str:
         "Should handle step magnitude"
     );
 
-    println!("✅ Negative step works:\n{}", rust_code);
+    println!("✅ Negative step works:\n{rust_code}");
 }

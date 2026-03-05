@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn test_tuning_config_debug() {
         let config = TuningConfig::default();
-        let debug = format!("{:?}", config);
+        let debug = format!("{config:?}");
         assert!(debug.contains("TuningConfig"));
         assert!(debug.contains("min_similarity"));
     }
@@ -206,7 +206,7 @@ mod tests {
     fn test_tuning_result_debug() {
         let result =
             TuningResult { config: TuningConfig::default(), accuracy: 0.8, correct: 8, total: 10 };
-        let debug = format!("{:?}", result);
+        let debug = format!("{result:?}");
         assert!(debug.contains("TuningResult"));
         assert!(debug.contains("accuracy"));
     }

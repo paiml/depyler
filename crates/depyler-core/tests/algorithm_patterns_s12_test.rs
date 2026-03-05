@@ -1,8 +1,8 @@
 //! Session 12 Batch 31: Algorithm pattern transpilation tests
 //!
 //! Tests real-world algorithmic patterns that exercise multiple codegen paths
-//! simultaneously, targeting combined coverage of stmt_gen, expr_gen, and
-//! direct_rules_convert.
+//! simultaneously, targeting combined coverage of `stmt_gen`, `expr_gen`, and
+//! `direct_rules_convert`.
 
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::rust_gen::generate_rust_file;
@@ -22,7 +22,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_bubble_sort() {
-    let code = r#"
+    let code = r"
 def bubble_sort(arr: list) -> list:
     n = len(arr)
     for i in range(n):
@@ -30,14 +30,14 @@ def bubble_sort(arr: list) -> list:
             if arr[j] > arr[j + 1]:
                 arr[j], arr[j + 1] = arr[j + 1], arr[j]
     return arr
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn bubble_sort"), "Got: {}", result);
+    assert!(result.contains("fn bubble_sort"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_insertion_sort() {
-    let code = r#"
+    let code = r"
 def insertion_sort(arr: list) -> list:
     for i in range(1, len(arr)):
         key = arr[i]
@@ -47,14 +47,14 @@ def insertion_sort(arr: list) -> list:
             j -= 1
         arr[j + 1] = key
     return arr
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn insertion_sort"), "Got: {}", result);
+    assert!(result.contains("fn insertion_sort"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_selection_sort() {
-    let code = r#"
+    let code = r"
 def selection_sort(arr: list) -> list:
     n = len(arr)
     for i in range(n):
@@ -64,29 +64,29 @@ def selection_sort(arr: list) -> list:
                 min_idx = j
         arr[i], arr[min_idx] = arr[min_idx], arr[i]
     return arr
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn selection_sort"), "Got: {}", result);
+    assert!(result.contains("fn selection_sort"), "Got: {result}");
 }
 
 // ===== Search algorithms =====
 
 #[test]
 fn test_s12_linear_search() {
-    let code = r#"
+    let code = r"
 def linear_search(arr: list, target: int) -> int:
     for i in range(len(arr)):
         if arr[i] == target:
             return i
     return -1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn linear_search"), "Got: {}", result);
+    assert!(result.contains("fn linear_search"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_binary_search_recursive() {
-    let code = r#"
+    let code = r"
 def binary_search(arr: list, target: int, lo: int, hi: int) -> int:
     if lo > hi:
         return -1
@@ -97,9 +97,9 @@ def binary_search(arr: list, target: int, lo: int, hi: int) -> int:
         return binary_search(arr, target, mid + 1, hi)
     else:
         return binary_search(arr, target, lo, mid - 1)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn binary_search"), "Got: {}", result);
+    assert!(result.contains("fn binary_search"), "Got: {result}");
 }
 
 // ===== String algorithms =====
@@ -115,7 +115,7 @@ def is_palindrome(s: str) -> bool:
     return cleaned == cleaned[::-1]
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn is_palindrome"), "Got: {}", result);
+    assert!(result.contains("fn is_palindrome"), "Got: {result}");
 }
 
 #[test]
@@ -129,7 +129,7 @@ def count_vowels(text: str) -> int:
     return count
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn count_vowels"), "Got: {}", result);
+    assert!(result.contains("fn count_vowels"), "Got: {result}");
 }
 
 #[test]
@@ -141,7 +141,7 @@ def reverse_words(text: str) -> str:
     return " ".join(words)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn reverse_words"), "Got: {}", result);
+    assert!(result.contains("fn reverse_words"), "Got: {result}");
 }
 
 #[test]
@@ -159,26 +159,26 @@ def caesar_encrypt(text: str, shift: int) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn caesar_encrypt"), "Got: {}", result);
+    assert!(result.contains("fn caesar_encrypt"), "Got: {result}");
 }
 
 // ===== Math algorithms =====
 
 #[test]
 fn test_s12_gcd() {
-    let code = r#"
+    let code = r"
 def gcd(a: int, b: int) -> int:
     while b != 0:
         a, b = b, a % b
     return a
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn gcd"), "Got: {}", result);
+    assert!(result.contains("fn gcd"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_fibonacci_iterative() {
-    let code = r#"
+    let code = r"
 def fibonacci(n: int) -> int:
     if n <= 1:
         return n
@@ -187,14 +187,14 @@ def fibonacci(n: int) -> int:
     for i in range(2, n + 1):
         a, b = b, a + b
     return b
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn fibonacci"), "Got: {}", result);
+    assert!(result.contains("fn fibonacci"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_is_prime() {
-    let code = r#"
+    let code = r"
 def is_prime(n: int) -> bool:
     if n < 2:
         return False
@@ -208,14 +208,14 @@ def is_prime(n: int) -> bool:
             return False
         i += 6
     return True
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn is_prime"), "Got: {}", result);
+    assert!(result.contains("fn is_prime"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_sieve_of_eratosthenes() {
-    let code = r#"
+    let code = r"
 def sieve(n: int) -> list:
     is_prime = [True] * (n + 1)
     is_prime[0] = False
@@ -231,16 +231,16 @@ def sieve(n: int) -> list:
         if is_prime[i]:
             primes.append(i)
     return primes
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sieve"), "Got: {}", result);
+    assert!(result.contains("fn sieve"), "Got: {result}");
 }
 
 // ===== Data structure patterns =====
 
 #[test]
 fn test_s12_two_sum() {
-    let code = r#"
+    let code = r"
 def two_sum(nums: list, target: int) -> list:
     seen = {}
     for i in range(len(nums)):
@@ -249,9 +249,9 @@ def two_sum(nums: list, target: int) -> list:
             return [seen[complement], i]
         seen[nums[i]] = i
     return []
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn two_sum"), "Got: {}", result);
+    assert!(result.contains("fn two_sum"), "Got: {result}");
 }
 
 #[test]
@@ -267,12 +267,12 @@ def group_anagrams(words: list) -> dict:
     return groups
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn group_anagrams"), "Got: {}", result);
+    assert!(result.contains("fn group_anagrams"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_merge_intervals() {
-    let code = r#"
+    let code = r"
 def merge_intervals(intervals: list) -> list:
     if not intervals:
         return []
@@ -284,16 +284,16 @@ def merge_intervals(intervals: list) -> list:
         else:
             merged.append(intervals[i])
     return merged
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn merge_intervals"), "Got: {}", result);
+    assert!(result.contains("fn merge_intervals"), "Got: {result}");
 }
 
 // ===== Matrix operations =====
 
 #[test]
 fn test_s12_matrix_transpose() {
-    let code = r#"
+    let code = r"
 def transpose(matrix: list) -> list:
     rows = len(matrix)
     cols = len(matrix[0])
@@ -304,16 +304,16 @@ def transpose(matrix: list) -> list:
             row.append(matrix[i][j])
         result.append(row)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn transpose"), "Got: {}", result);
+    assert!(result.contains("fn transpose"), "Got: {result}");
 }
 
 // ===== Graph-like algorithms =====
 
 #[test]
 fn test_s12_topological_sort_simple() {
-    let code = r#"
+    let code = r"
 def count_dependencies(graph: dict) -> dict:
     in_degree = {}
     for node in graph:
@@ -324,86 +324,86 @@ def count_dependencies(graph: dict) -> dict:
                 in_degree[neighbor] = 0
             in_degree[neighbor] += 1
     return in_degree
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn count_dependencies"), "Got: {}", result);
+    assert!(result.contains("fn count_dependencies"), "Got: {result}");
 }
 
 // ===== Functional patterns =====
 
 #[test]
 fn test_s12_map_filter_reduce_pattern() {
-    let code = r#"
+    let code = r"
 def sum_of_squares_of_evens(numbers: list) -> int:
     total = 0
     for n in numbers:
         if n % 2 == 0:
             total += n * n
     return total
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sum_of_squares_of_evens"), "Got: {}", result);
+    assert!(result.contains("fn sum_of_squares_of_evens"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_list_comp_pattern() {
-    let code = r#"
+    let code = r"
 def squares(n: int) -> list:
     return [i * i for i in range(n)]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn squares"), "Got: {}", result);
+    assert!(result.contains("fn squares"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_dict_comp_from_lists() {
-    let code = r#"
+    let code = r"
 def zip_to_dict(keys: list, values: list) -> dict:
     return {k: v for k, v in zip(keys, values)}
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn zip_to_dict"), "Got: {}", result);
+    assert!(result.contains("fn zip_to_dict"), "Got: {result}");
 }
 
 // ===== Recursive patterns =====
 
 #[test]
 fn test_s12_recursive_factorial() {
-    let code = r#"
+    let code = r"
 def factorial(n: int) -> int:
     if n <= 1:
         return 1
     return n * factorial(n - 1)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn factorial"), "Got: {}", result);
+    assert!(result.contains("fn factorial"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_recursive_sum() {
-    let code = r#"
+    let code = r"
 def recursive_sum(items: list, idx: int) -> int:
     if idx >= len(items):
         return 0
     return items[idx] + recursive_sum(items, idx + 1)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn recursive_sum"), "Got: {}", result);
+    assert!(result.contains("fn recursive_sum"), "Got: {result}");
 }
 
 // ===== Error handling patterns =====
 
 #[test]
 fn test_s12_try_parse_with_fallback() {
-    let code = r#"
+    let code = r"
 def safe_int(text: str, default: int) -> int:
     try:
         return int(text)
     except ValueError:
         return default
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn safe_int"), "Got: {}", result);
+    assert!(result.contains("fn safe_int"), "Got: {result}");
 }
 
 #[test]
@@ -417,5 +417,5 @@ def validate_age(age: int) -> int:
     return age
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn validate_age"), "Got: {}", result);
+    assert!(result.contains("fn validate_age"), "Got: {result}");
 }

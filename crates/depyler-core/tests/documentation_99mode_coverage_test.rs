@@ -21,10 +21,10 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_doc_simple_function() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -40,19 +40,19 @@ def calculate(x: int) -> int:
 
 #[test]
 fn test_doc_function_no_params() {
-    let code = r#"
+    let code = r"
 def get_value() -> int:
     return 42
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_doc_function_no_return() {
-    let code = r#"
+    let code = r"
 def do_something(x: int):
     y = x + 1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -62,73 +62,73 @@ def do_something(x: int):
 
 #[test]
 fn test_doc_type_int() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_doc_type_float() {
-    let code = r#"
+    let code = r"
 def f(x: float) -> float:
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_doc_type_bool() {
-    let code = r#"
+    let code = r"
 def f(x: bool) -> bool:
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_doc_type_str() {
-    let code = r#"
+    let code = r"
 def f(x: str) -> str:
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_doc_type_list() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_doc_type_dict() {
-    let code = r#"
+    let code = r"
 def f(d: dict) -> dict:
     return d
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_doc_type_set() {
-    let code = r#"
+    let code = r"
 def f(s: set) -> set:
     return s
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_doc_type_tuple() {
-    let code = r#"
+    let code = r"
 def f() -> tuple:
     return (1, 2, 3)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -138,18 +138,18 @@ def f() -> tuple:
 
 #[test]
 fn test_doc_simple_class() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_doc_class_with_methods() {
-    let code = r#"
+    let code = r"
 class Calculator:
     def __init__(self):
         self.result = 0
@@ -160,7 +160,7 @@ class Calculator:
 
     def reset(self):
         self.result = 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -185,7 +185,7 @@ class DataProcessor:
 
 #[test]
 fn test_doc_multiple_functions() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
 
@@ -194,7 +194,7 @@ def subtract(a: int, b: int) -> int:
 
 def multiply(a: int, b: int) -> int:
     return a * b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -204,22 +204,22 @@ def multiply(a: int, b: int) -> int:
 
 #[test]
 fn test_doc_list_parameter_migration() {
-    let code = r#"
+    let code = r"
 def process(items: list) -> int:
     return sum(items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_doc_optional_return_migration() {
-    let code = r#"
+    let code = r"
 def find(items: list, target: int) -> int:
     for item in items:
         if item == target:
             return item
     return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 

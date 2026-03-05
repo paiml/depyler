@@ -31,13 +31,13 @@ fn transpile_to_rust(python_code: &str) -> Result<String, String> {
 #[test]
 fn test_DEPYLER_0512_argparse_namespace_return_type() {
     // RED: Should fail with "Unsupported type annotation: Attribute"
-    let python = r#"
+    let python = r"
 import argparse
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     return parser.parse_args()
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -55,12 +55,12 @@ def parse_args() -> argparse.Namespace:
 #[test]
 fn test_DEPYLER_0512_other_module_qualified_types() {
     // Test other module.Class patterns
-    let python = r#"
+    let python = r"
 import typing
 
 def example() -> typing.Any:
     return 42
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -91,12 +91,12 @@ def get_path() -> pathlib.Path:
 #[test]
 fn test_DEPYLER_0512_nested_module_qualified() {
     // Nested module.submodule.Class
-    let python = r#"
+    let python = r"
 import collections.abc
 
 def example() -> collections.abc.Iterable:
     return [1, 2, 3]
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(

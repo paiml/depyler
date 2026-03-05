@@ -1,9 +1,9 @@
 //! DEPYLER-0500: HIR Integration - Type Annotation Collection (Pass 1)
 //!
-//! RED → GREEN Phase: Tests for HIR + TypeEnvironment integration
+//! RED → GREEN Phase: Tests for HIR + `TypeEnvironment` integration
 //!
 //! Tests verify:
-//! 1. python_to_hir() returns (HirModule, TypeEnvironment)
+//! 1. `python_to_hir()` returns (`HirModule`, `TypeEnvironment`)
 //! 2. Function signatures collected (parameters + return type)
 //! 3. Variable annotations collected (x: int = value)
 //! 4. Existing HIR generation still works
@@ -16,7 +16,7 @@ use depyler_core::type_system::type_environment::TypeEnvironment;
 use rustpython_ast::Suite;
 use rustpython_parser::{ast, Parse};
 
-/// Helper function to parse Python and generate HIR with TypeEnvironment
+/// Helper function to parse Python and generate HIR with `TypeEnvironment`
 fn parse_and_generate(python: &str) -> (HirModule, TypeEnvironment) {
     let statements = Suite::parse(python, "<test>").expect("Should parse");
     let ast = ast::Mod::Module(ast::ModModule {
@@ -100,13 +100,13 @@ fn test_unannotated_variable_not_in_env() {
 
 #[test]
 fn test_multiple_functions_separate_scopes() {
-    let python = r#"
+    let python = r"
 def foo(x: int) -> int:
     return x
 
 def bar(x: str) -> str:
     return x
-"#;
+";
     let (_hir, type_env) = parse_and_generate(python);
 
     // Currently TypeEnvironment is global scope

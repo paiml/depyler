@@ -1,7 +1,7 @@
 //! Test for dict access with variable string keys (DEPYLER-0095)
 //!
 //! This test ensures that dict access with string variables generates correct
-//! HashMap.get() calls, not incorrect "as usize" casts.
+//! `HashMap.get()` calls, not incorrect "as usize" casts.
 
 use depyler_core::DepylerPipeline;
 
@@ -30,15 +30,13 @@ def lookup_values(data: Dict[str, int], keys: List[str]) -> List[int]:
     // Should NOT contain "as usize" for string keys
     assert!(
         !rust_code.contains("key as usize"),
-        "Dict access with string variable should not cast to usize.\nGenerated code:\n{}",
-        rust_code
+        "Dict access with string variable should not cast to usize.\nGenerated code:\n{rust_code}"
     );
 
     // Should contain proper HashMap.get() with string key
     assert!(
         rust_code.contains("data.get(key)") || rust_code.contains("data.get(&key)"),
-        "Dict access should use .get(key) or .get(&key).\nGenerated code:\n{}",
-        rust_code
+        "Dict access should use .get(key) or .get(&key).\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -61,15 +59,13 @@ def get_value(data: Dict[str, int]) -> int:
     // Should NOT contain "as usize" for string literal keys
     assert!(
         !rust_code.contains("as usize"),
-        "Dict access with string literal should not cast to usize.\nGenerated code:\n{}",
-        rust_code
+        "Dict access with string literal should not cast to usize.\nGenerated code:\n{rust_code}"
     );
 
     // Should contain proper HashMap.get() with string literal
     assert!(
         rust_code.contains(".get(\"mykey\")"),
-        "Dict access should use .get(\"mykey\").\nGenerated code:\n{}",
-        rust_code
+        "Dict access should use .get(\"mykey\").\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -92,7 +88,6 @@ def get_item(items: List[int], index: int) -> int:
     // SHOULD contain "as usize" for integer index
     assert!(
         rust_code.contains("as usize"),
-        "List access with int variable should cast to usize.\nGenerated code:\n{}",
-        rust_code
+        "List access with int variable should cast to usize.\nGenerated code:\n{rust_code}"
     );
 }

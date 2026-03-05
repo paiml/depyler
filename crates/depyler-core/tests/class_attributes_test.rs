@@ -5,7 +5,7 @@
 //!
 //! Test Coverage:
 //! 1. Simple class constant (immutable class variable)
-//! 2. Class attribute accessed via ClassName
+//! 2. Class attribute accessed via `ClassName`
 //! 3. Class attribute accessed via instance (self)
 //! 4. Multiple class attributes
 //! 5. Class attribute with string type
@@ -19,13 +19,13 @@ use depyler_core::DepylerPipeline;
 
 #[test]
 fn test_simple_class_constant() {
-    let python = r#"
+    let python = r"
 class Config:
     MAX_SIZE: int = 100
 
     def __init__(self, size: int):
         self.size = size
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -34,24 +34,24 @@ class Config:
     let rust_code = result.unwrap();
 
     // Should have struct definition
-    assert!(rust_code.contains("struct Config"), "Should have Config struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Config"), "Should have Config struct.\nGot:\n{rust_code}");
 
     // Should have const MAX_SIZE in impl block or as associated constant
     let has_const = rust_code.contains("const MAX_SIZE")
         || rust_code.contains("const max_size")
         || rust_code.contains("MAX_SIZE: i32 = 100");
-    assert!(has_const, "Should have MAX_SIZE constant.\nGot:\n{}", rust_code);
+    assert!(has_const, "Should have MAX_SIZE constant.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_class_attribute_access_via_classname() {
-    let python = r#"
+    let python = r"
 class Math:
     PI: float = 3.14159
 
     def get_pi(self) -> float:
         return Math.PI
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -59,14 +59,14 @@ class Math:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("struct Math"), "Should have Math struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Math"), "Should have Math struct.\nGot:\n{rust_code}");
 
     // Should have PI constant
     let has_pi = rust_code.contains("PI") || rust_code.contains("pi");
-    assert!(has_pi, "Should have PI constant.\nGot:\n{}", rust_code);
+    assert!(has_pi, "Should have PI constant.\nGot:\n{rust_code}");
 
     // Should have get_pi method
-    assert!(rust_code.contains("fn get_pi"), "Should have get_pi method.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("fn get_pi"), "Should have get_pi method.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -85,11 +85,11 @@ class Robot:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("struct Robot"), "Should have Robot struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Robot"), "Should have Robot struct.\nGot:\n{rust_code}");
 
     // Should have DEFAULT_NAME constant
     let has_default_name = rust_code.contains("DEFAULT_NAME") || rust_code.contains("default_name");
-    assert!(has_default_name, "Should have DEFAULT_NAME constant.\nGot:\n{}", rust_code);
+    assert!(has_default_name, "Should have DEFAULT_NAME constant.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -116,9 +116,9 @@ class Constants:
     let has_height = rust_code.contains("HEIGHT") || rust_code.contains("height");
     let has_title = rust_code.contains("TITLE") || rust_code.contains("title");
 
-    assert!(has_width, "Should have WIDTH constant.\nGot:\n{}", rust_code);
-    assert!(has_height, "Should have HEIGHT constant.\nGot:\n{}", rust_code);
-    assert!(has_title, "Should have TITLE constant.\nGot:\n{}", rust_code);
+    assert!(has_width, "Should have WIDTH constant.\nGot:\n{rust_code}");
+    assert!(has_height, "Should have HEIGHT constant.\nGot:\n{rust_code}");
+    assert!(has_title, "Should have TITLE constant.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -137,25 +137,20 @@ class Message:
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Message"),
-        "Should have Message struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Message"), "Should have Message struct.\nGot:\n{rust_code}");
 
     // Should have PREFIX constant with string value
     let has_prefix = rust_code.contains("PREFIX") || rust_code.contains("prefix");
     let has_info = rust_code.contains("[INFO]") || rust_code.contains("INFO");
     assert!(
         has_prefix && has_info,
-        "Should have PREFIX constant with [INFO] value.\nGot:\n{}",
-        rust_code
+        "Should have PREFIX constant with [INFO] value.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_class_attribute_used_in_method() {
-    let python = r#"
+    let python = r"
 class Circle:
     PI: float = 3.14159
 
@@ -164,7 +159,7 @@ class Circle:
 
     def area(self) -> float:
         return Circle.PI * self.radius * self.radius
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -172,18 +167,18 @@ class Circle:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("struct Circle"), "Should have Circle struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Circle"), "Should have Circle struct.\nGot:\n{rust_code}");
 
-    assert!(rust_code.contains("fn area"), "Should have area method.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("fn area"), "Should have area method.\nGot:\n{rust_code}");
 
     // Should have PI constant
     let has_pi = rust_code.contains("PI") || rust_code.contains("pi");
-    assert!(has_pi, "Should have PI constant.\nGot:\n{}", rust_code);
+    assert!(has_pi, "Should have PI constant.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_mutable_class_attribute() {
-    let python = r#"
+    let python = r"
 class Counter:
     count: int = 0
 
@@ -192,7 +187,7 @@ class Counter:
 
     def get_count(self) -> int:
         return Counter.count
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -200,20 +195,16 @@ class Counter:
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Counter"),
-        "Should have Counter struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Counter"), "Should have Counter struct.\nGot:\n{rust_code}");
 
     // Should have count variable (static or similar)
     let has_count = rust_code.contains("count") || rust_code.contains("COUNT");
-    assert!(has_count, "Should have count variable.\nGot:\n{}", rust_code);
+    assert!(has_count, "Should have count variable.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_counter_pattern() {
-    let python = r#"
+    let python = r"
 class Widget:
     total_widgets: int = 0
 
@@ -223,7 +214,7 @@ class Widget:
 
     def get_total(self) -> int:
         return Widget.total_widgets
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -231,22 +222,22 @@ class Widget:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("struct Widget"), "Should have Widget struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Widget"), "Should have Widget struct.\nGot:\n{rust_code}");
 
     // Should have total_widgets variable
     let has_total = rust_code.contains("total_widgets") || rust_code.contains("TOTAL_WIDGETS");
-    assert!(has_total, "Should have total_widgets variable.\nGot:\n{}", rust_code);
+    assert!(has_total, "Should have total_widgets variable.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_class_constant_used_in_init() {
-    let python = r#"
+    let python = r"
 class Buffer:
     DEFAULT_SIZE: int = 1024
 
     def __init__(self, size: int = DEFAULT_SIZE):
         self.size = size
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -254,18 +245,18 @@ class Buffer:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("struct Buffer"), "Should have Buffer struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Buffer"), "Should have Buffer struct.\nGot:\n{rust_code}");
 
     // Should have DEFAULT_SIZE constant
     let has_default_size = rust_code.contains("DEFAULT_SIZE")
         || rust_code.contains("default_size")
         || rust_code.contains("1024");
-    assert!(has_default_size, "Should have DEFAULT_SIZE constant.\nGot:\n{}", rust_code);
+    assert!(has_default_size, "Should have DEFAULT_SIZE constant.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_mix_class_and_instance_attributes() {
-    let python = r#"
+    let python = r"
 class Car:
     WHEELS: int = 4
 
@@ -275,7 +266,7 @@ class Car:
 
     def get_wheels(self) -> int:
         return self.wheels
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -283,13 +274,13 @@ class Car:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("struct Car"), "Should have Car struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Car"), "Should have Car struct.\nGot:\n{rust_code}");
 
     // Should have WHEELS constant
     let has_wheels = rust_code.contains("WHEELS") || rust_code.contains("wheels");
-    assert!(has_wheels, "Should have WHEELS constant or field.\nGot:\n{}", rust_code);
+    assert!(has_wheels, "Should have WHEELS constant or field.\nGot:\n{rust_code}");
 
     // Should have color field in struct
     let has_color = rust_code.contains("color");
-    assert!(has_color, "Should have color field.\nGot:\n{}", rust_code);
+    assert!(has_color, "Should have color field.\nGot:\n{rust_code}");
 }

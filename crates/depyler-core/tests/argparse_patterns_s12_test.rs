@@ -1,6 +1,6 @@
 //! Session 12 Batch 96: Argparse and CLI patterns
 //!
-//! Targets argparse_transform.rs cold paths (77.64% line coverage).
+//! Targets `argparse_transform.rs` cold paths (77.64% line coverage).
 //! Tests Python argparse patterns to exercise CLI codegen.
 
 use depyler_core::ast_bridge::AstBridge;
@@ -19,7 +19,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b96_simple_argparse() {
-    let code = r##"
+    let code = r#"
 import argparse
 
 def main():
@@ -28,18 +28,17 @@ def main():
     parser.add_argument("--output", default="out.txt", help="Output file")
     args = parser.parse_args()
     return args
-"##;
+"#;
     let result = transpile(code);
     assert!(
         result.contains("fn main") || result.contains("argparse") || result.contains("clap"),
-        "Got: {}",
-        result
+        "Got: {result}"
     );
 }
 
 #[test]
 fn test_s12_b96_argparse_bool_flag() {
-    let code = r##"
+    let code = r#"
 import argparse
 
 def main():
@@ -48,14 +47,14 @@ def main():
     parser.add_argument("--quiet", action="store_false")
     args = parser.parse_args()
     return args
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn main"), "Got: {}", result);
+    assert!(result.contains("fn main"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b96_argparse_int_arg() {
-    let code = r##"
+    let code = r#"
 import argparse
 
 def main():
@@ -64,14 +63,14 @@ def main():
     parser.add_argument("--threshold", type=float, default=0.5)
     args = parser.parse_args()
     return args
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn main"), "Got: {}", result);
+    assert!(result.contains("fn main"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b96_argparse_required() {
-    let code = r##"
+    let code = r#"
 import argparse
 
 def main():
@@ -80,14 +79,14 @@ def main():
     parser.add_argument("--mode", choices=["train", "test"], default="train")
     args = parser.parse_args()
     return args
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn main"), "Got: {}", result);
+    assert!(result.contains("fn main"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b96_argparse_nargs() {
-    let code = r##"
+    let code = r#"
 import argparse
 
 def main():
@@ -96,14 +95,14 @@ def main():
     parser.add_argument("--tags", nargs="*", default=[])
     args = parser.parse_args()
     return args
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn main"), "Got: {}", result);
+    assert!(result.contains("fn main"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b96_argparse_subparsers() {
-    let code = r##"
+    let code = r#"
 import argparse
 
 def main():
@@ -115,14 +114,14 @@ def main():
     test_parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
     return args
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn main"), "Got: {}", result);
+    assert!(result.contains("fn main"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b96_sys_argv() {
-    let code = r#"
+    let code = r"
 import sys
 
 def get_args() -> list:
@@ -130,14 +129,14 @@ def get_args() -> list:
 
 def get_program_name() -> str:
     return sys.argv[0]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn get_args"), "Got: {}", result);
+    assert!(result.contains("fn get_args"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b96_manual_arg_parse() {
-    let code = r##"
+    let code = r#"
 import sys
 
 def parse_args() -> dict:
@@ -156,7 +155,7 @@ def parse_args() -> dict:
         else:
             i += 1
     return args
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn parse_args"), "Got: {}", result);
+    assert!(result.contains("fn parse_args"), "Got: {result}");
 }

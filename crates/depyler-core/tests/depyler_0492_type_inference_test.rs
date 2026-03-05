@@ -1,7 +1,7 @@
 //! DEPYLER-0492: Type Inference for Unannotated Parameters
 //!
 //! Tests that unannotated function parameters are inferred from usage
-//! instead of defaulting to serde_json::Value.
+//! instead of defaulting to `serde_json::Value`.
 //!
 //! This test file follows TDD (RED phase):
 //! - Write failing tests BEFORE implementing the fix
@@ -16,12 +16,12 @@ use depyler_core::DepylerPipeline;
 #[test]
 #[ignore] // RED: Will fail until type inference integrated
 fn test_subprocess_cmd_type_inference() {
-    let python = r#"
+    let python = r"
 def run_command(cmd, capture=False):
     # cmd is used as a list: indexing and slicing
     result = subprocess.run(cmd, capture_output=capture)
     return result.returncode
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
@@ -31,22 +31,19 @@ def run_command(cmd, capture=False):
         rust.contains("cmd: Vec<String>")
             || rust.contains("cmd: &Vec<String>")
             || rust.contains("cmd: &[String]"),
-        "Expected cmd to be inferred as Vec<String> or &Vec<String> or &[String], got:\n{}",
-        rust
+        "Expected cmd to be inferred as Vec<String> or &Vec<String> or &[String], got:\n{rust}"
     );
 
     // MUST NOT default to serde_json::Value
     assert!(
         !rust.contains("cmd: &serde_json::Value"),
-        "cmd should NOT be serde_json::Value, got:\n{}",
-        rust
+        "cmd should NOT be serde_json::Value, got:\n{rust}"
     );
 
     // MUST infer capture: bool from default value False
     assert!(
         rust.contains("capture: bool"),
-        "Expected capture to be inferred as bool, got:\n{}",
-        rust
+        "Expected capture to be inferred as bool, got:\n{rust}"
     );
 }
 
@@ -54,10 +51,10 @@ def run_command(cmd, capture=False):
 #[test]
 #[ignore] // RED: Will fail until constraint collection implemented
 fn test_list_indexing_constraint() {
-    let python = r#"
+    let python = r"
 def get_first(items):
     return items[0]
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
@@ -65,14 +62,12 @@ def get_first(items):
     // Should infer items as indexable type (Vec, slice, etc.)
     assert!(
         rust.contains("items: Vec<") || rust.contains("items: &Vec<") || rust.contains("items: &["),
-        "Expected items to be inferred as Vec or &Vec or slice from indexing, got:\n{}",
-        rust
+        "Expected items to be inferred as Vec or &Vec or slice from indexing, got:\n{rust}"
     );
 
     assert!(
         !rust.contains("items: &serde_json::Value"),
-        "items should NOT default to serde_json::Value when indexed, got:\n{}",
-        rust
+        "items should NOT default to serde_json::Value when indexed, got:\n{rust}"
     );
 }
 
@@ -80,10 +75,10 @@ def get_first(items):
 #[test]
 #[ignore] // RED: Will fail until constraint collection implemented
 fn test_list_slicing_constraint() {
-    let python = r#"
+    let python = r"
 def get_rest(items):
     return items[1:]
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
@@ -91,8 +86,7 @@ def get_rest(items):
     // Should infer items as sliceable type
     assert!(
         rust.contains("items: Vec<") || rust.contains("items: &Vec<") || rust.contains("items: &["),
-        "Expected items to be inferred as Vec or &Vec or slice from slicing, got:\n{}",
-        rust
+        "Expected items to be inferred as Vec or &Vec or slice from slicing, got:\n{rust}"
     );
 }
 
@@ -100,11 +94,11 @@ def get_rest(items):
 #[test]
 #[ignore] // RED: Will fail until stdlib constraint propagation implemented
 fn test_stdlib_constraint_propagation() {
-    let python = r#"
+    let python = r"
 def run_echo(args):
     import subprocess
     subprocess.run(args)  # subprocess.run expects List[str]
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
@@ -112,8 +106,7 @@ def run_echo(args):
     // Should infer args: Vec<String> from subprocess.run signature
     assert!(
         rust.contains("args: Vec<String>") || rust.contains("args: &[String]"),
-        "Expected args to be inferred from subprocess.run signature, got:\n{}",
-        rust
+        "Expected args to be inferred from subprocess.run signature, got:\n{rust}"
     );
 }
 
@@ -121,11 +114,11 @@ def run_echo(args):
 #[test]
 #[ignore] // RED: Will fail until list construction constraint implemented
 fn test_list_construction_constraint() {
-    let python = r#"
+    let python = r"
 def build_command(prog, args):
     cmd = [prog] + args  # List concatenation
     return cmd
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
@@ -134,8 +127,7 @@ def build_command(prog, args):
     // where T matches prog's type (likely String or Unknown)
     assert!(
         rust.contains("args: Vec<") || rust.contains("args: &Vec<") || rust.contains("args: &["),
-        "Expected args to be inferred from list concatenation, got:\n{}",
-        rust
+        "Expected args to be inferred from list concatenation, got:\n{rust}"
     );
 }
 
@@ -155,14 +147,12 @@ def process(flag=False):
     // Should infer flag: bool from default value False
     assert!(
         rust.contains("flag: bool"),
-        "Expected flag to be inferred as bool from default False, got:\n{}",
-        rust
+        "Expected flag to be inferred as bool from default False, got:\n{rust}"
     );
 
     assert!(
         !rust.contains("flag: serde_json::Value"),
-        "flag should NOT be serde_json::Value, got:\n{}",
-        rust
+        "flag should NOT be serde_json::Value, got:\n{rust}"
     );
 }
 
@@ -208,7 +198,6 @@ def run_command(cmd, capture=False, check=False, cwd=None):
 
     assert!(
         !func_line.contains("serde_json::Value"),
-        "Parameters should not use serde_json::Value: {}",
-        func_line
+        "Parameters should not use serde_json::Value: {func_line}"
     );
 }

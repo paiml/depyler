@@ -98,8 +98,7 @@ serde_json = "1.0"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
@@ -109,7 +108,7 @@ serde_json = "1.0"
 #[test]
 #[ignore = "slow: requires cargo build"]
 fn test_field_assigned_in_enter() {
-    let python = r#"
+    let python = r"
 class Timer:
     def __enter__(self):
         self.start = 0
@@ -123,20 +122,18 @@ def main():
     with Timer() as t:
         x = 1 + 1
     print(t.elapsed)
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // The struct should have 'start' and 'elapsed' fields
     assert!(
         rust.contains("start:") || rust.contains("pub start"),
-        "Struct should have 'start' field. Generated:\n{}",
-        rust
+        "Struct should have 'start' field. Generated:\n{rust}"
     );
     assert!(
         rust.contains("elapsed:") || rust.contains("pub elapsed"),
-        "Struct should have 'elapsed' field. Generated:\n{}",
-        rust
+        "Struct should have 'elapsed' field. Generated:\n{rust}"
     );
 
     // Should compile without E0609 error
@@ -148,7 +145,7 @@ def main():
 #[test]
 #[ignore = "slow: requires cargo build"]
 fn test_field_assigned_in_regular_method() {
-    let python = r#"
+    let python = r"
 class Counter:
     def reset(self):
         self.count = 0
@@ -160,15 +157,14 @@ def main():
     c = Counter()
     c.reset()
     print(c.count)
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // The struct should have 'count' field
     assert!(
         rust.contains("count:") || rust.contains("pub count"),
-        "Struct should have 'count' field. Generated:\n{}",
-        rust
+        "Struct should have 'count' field. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "field_assigned_in_regular_method");
@@ -198,13 +194,11 @@ def main():
     // Should have both 'host' (from __init__) and 'connected' (from connect())
     assert!(
         rust.contains("host:") || rust.contains("pub host"),
-        "Struct should have 'host' field. Generated:\n{}",
-        rust
+        "Struct should have 'host' field. Generated:\n{rust}"
     );
     assert!(
         rust.contains("connected:") || rust.contains("pub connected"),
-        "Struct should have 'connected' field. Generated:\n{}",
-        rust
+        "Struct should have 'connected' field. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "field_from_init_and_other_methods");
@@ -215,7 +209,7 @@ def main():
 #[test]
 #[ignore = "slow: requires cargo build"]
 fn test_field_deduplication() {
-    let python = r#"
+    let python = r"
 class State:
     def __init__(self):
         self.value = 0
@@ -227,7 +221,7 @@ def main():
     s = State()
     s.reset()
     print(s.value)
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
@@ -235,11 +229,7 @@ def main():
     let field_count = rust.matches("value:").count() + rust.matches("pub value").count();
     // The struct definition should only have one field declaration
     // (multiple accesses to self.value in method bodies are fine)
-    assert!(
-        field_count >= 1,
-        "Struct should have at least one 'value' field. Generated:\n{}",
-        rust
-    );
+    assert!(field_count >= 1, "Struct should have at least one 'value' field. Generated:\n{rust}");
 
     assert_compiles(&rust, "field_deduplication");
 }

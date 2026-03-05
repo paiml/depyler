@@ -1508,7 +1508,7 @@ mod tests {
 
     #[test]
     fn test_sparkline_increasing_values() {
-        let values: Vec<f64> = (0..8).map(|i| i as f64 / 7.0).collect();
+        let values: Vec<f64> = (0..8).map(|i| f64::from(i) / 7.0).collect();
         let result = sparkline(&values, 8);
 
         // Should show increasing pattern
@@ -1761,14 +1761,14 @@ mod tests {
                 success: true,
                 error: None,
                 category: None,
-                rust_code: Some("".into()),
+                rust_code: Some(String::new()),
             },
             CompileResult {
                 file: "b.py".into(),
                 success: true,
                 error: None,
                 category: None,
-                rust_code: Some("".into()),
+                rust_code: Some(String::new()),
             },
         ];
 
@@ -1788,7 +1788,7 @@ mod tests {
                 success: true,
                 error: None,
                 category: None,
-                rust_code: Some("".into()),
+                rust_code: Some(String::new()),
             },
             CompileResult {
                 file: "b.py".into(),
@@ -1809,7 +1809,7 @@ mod tests {
                 success: true,
                 error: None,
                 category: None,
-                rust_code: Some("".into()),
+                rust_code: Some(String::new()),
             },
         ];
 
@@ -1868,7 +1868,7 @@ mod tests {
             success: true,
             error: None,
             category: None,
-            rust_code: Some("".into()),
+            rust_code: Some(String::new()),
         }];
 
         let samples = extract_training_samples(&results);
@@ -1983,7 +1983,7 @@ mod tests {
     #[test]
     fn test_display_mode_debug() {
         let mode = DisplayMode::Rich;
-        let debug = format!("{:?}", mode);
+        let debug = format!("{mode:?}");
         assert!(debug.contains("Rich"));
     }
 
@@ -2020,7 +2020,7 @@ mod tests {
     #[test]
     fn test_loop_state_debug() {
         let state = LoopState::new();
-        let debug = format!("{:?}", state);
+        let debug = format!("{state:?}");
         assert!(debug.contains("LoopState"));
     }
 
@@ -2051,7 +2051,7 @@ mod tests {
     #[test]
     fn test_convergence_estimator_debug() {
         let estimator = ConvergenceEstimator::new(0.80);
-        let debug = format!("{:?}", estimator);
+        let debug = format!("{estimator:?}");
         assert!(debug.contains("ConvergenceEstimator"));
     }
 
@@ -2074,7 +2074,7 @@ mod tests {
 
         // Simulate 50 iterations
         for i in 0..50 {
-            let rate = 0.5 + (i as f64 * 0.01);
+            let rate = 0.5 + (f64::from(i) * 0.01);
             estimator.update(rate);
         }
 
@@ -2107,7 +2107,7 @@ mod tests {
     fn test_convergence_estimate_debug() {
         let mut estimator = ConvergenceEstimator::new(0.80);
         let est = estimator.update(0.6);
-        let debug = format!("{:?}", est);
+        let debug = format!("{est:?}");
         assert!(debug.contains("ConvergenceEstimate"));
     }
 
@@ -2117,7 +2117,7 @@ mod tests {
 
     #[test]
     fn test_sparkline_more_values_than_width() {
-        let values: Vec<f64> = (0..20).map(|i| i as f64 / 19.0).collect();
+        let values: Vec<f64> = (0..20).map(|i| f64::from(i) / 19.0).collect();
         let result = sparkline(&values, 8);
 
         // Should subsample to 8 chars
@@ -2145,7 +2145,7 @@ mod tests {
 
     #[test]
     fn test_sparkline_decreasing_values() {
-        let values: Vec<f64> = (0..8).rev().map(|i| i as f64 / 7.0).collect();
+        let values: Vec<f64> = (0..8).rev().map(|i| f64::from(i) / 7.0).collect();
         let result = sparkline(&values, 8);
 
         let chars: Vec<char> = result.chars().collect();
@@ -2204,7 +2204,7 @@ mod tests {
     #[test]
     fn test_drift_status_debug() {
         let status = DriftStatus::Drift;
-        let debug = format!("{:?}", status);
+        let debug = format!("{status:?}");
         assert!(debug.contains("Drift"));
     }
 
@@ -2237,9 +2237,9 @@ mod tests {
     #[test]
     fn test_action_debug() {
         let action = Action::Retrain { failing_count: 5 };
-        let debug = format!("{:?}", action);
+        let debug = format!("{action:?}");
         assert!(debug.contains("Retrain"));
-        assert!(debug.contains("5"));
+        assert!(debug.contains('5'));
     }
 
     #[test]
@@ -2315,7 +2315,7 @@ mod tests {
         state.rate_history = vec![0.5, 0.6, 0.7, 0.8];
 
         let output = display.format_metrics(&state, DriftStatus::Warning);
-        assert!(output.contains("+")); // Positive delta
+        assert!(output.contains('+')); // Positive delta
         assert!(output.contains("WARNING"));
     }
 
@@ -2447,7 +2447,7 @@ mod tests {
             category_rates: HashMap::new(),
             duration_secs: 100.0,
         };
-        let debug = format!("{:?}", result);
+        let debug = format!("{result:?}");
         assert!(debug.contains("UtolResult"));
     }
 
@@ -2464,7 +2464,7 @@ mod tests {
             category: None,
             rust_code: Some("fn main() {}".to_string()),
         };
-        let debug = format!("{:?}", result);
+        let debug = format!("{result:?}");
         assert!(debug.contains("CompileResult"));
     }
 
@@ -2494,7 +2494,7 @@ mod tests {
     #[test]
     fn test_compilation_metrics_debug() {
         let metrics = CompilationMetrics::default();
-        let debug = format!("{:?}", metrics);
+        let debug = format!("{metrics:?}");
         assert!(debug.contains("CompilationMetrics"));
     }
 
@@ -2564,7 +2564,7 @@ mod tests {
             category: ErrorCategory::TypeMismatch,
             source_file: PathBuf::from("test.py"),
         };
-        let debug = format!("{:?}", sample);
+        let debug = format!("{sample:?}");
         assert!(debug.contains("TrainingSample"));
     }
 

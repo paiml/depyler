@@ -1,4 +1,4 @@
-//! EXTREME TDD Tests for expr_gen.rs
+//! EXTREME TDD Tests for `expr_gen.rs`
 //!
 //! These tests aim to:
 //! 1. Exercise every code path
@@ -1209,7 +1209,7 @@ mod falsification {
     #[test]
     fn test_very_long_string_literal() {
         let long_str = "a".repeat(10000);
-        let code = format!("def f() -> str:\n    return '{}'", long_str);
+        let code = format!("def f() -> str:\n    return '{long_str}'");
         // Should handle long strings
         let _ = transpile(&code);
     }

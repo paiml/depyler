@@ -6,13 +6,13 @@
 //! TDG Score: 95.45 (A+) - Excellent quality error handling infrastructure
 //!
 //! This test suite validates error handling functionality:
-//! - SourceLocation Display implementation
-//! - All ErrorKind variants
-//! - with_source() method
-//! - ResultExt trait
+//! - `SourceLocation` Display implementation
+//! - All `ErrorKind` variants
+//! - `with_source()` method
+//! - `ResultExt` trait
 //! - From<anyhow::Error> conversion
-//! - transpile_bail! macro
-//! - TypeMismatch variant
+//! - `transpile_bail`! macro
+//! - `TypeMismatch` variant
 //! - Edge cases
 
 #![allow(non_snake_case)]
@@ -27,7 +27,7 @@ use depyler_core::error::*;
 fn test_depyler_0349_source_location_display() {
     let loc = SourceLocation { file: "main.py".to_string(), line: 42, column: 15 };
 
-    let display = format!("{}", loc);
+    let display = format!("{loc}");
     assert_eq!(display, "main.py:42:15");
 }
 
@@ -43,7 +43,7 @@ fn test_depyler_0349_source_location_clone_eq() {
 fn test_depyler_0349_source_location_debug() {
     let loc = SourceLocation { file: "example.py".to_string(), line: 1, column: 1 };
 
-    let debug = format!("{:?}", loc);
+    let debug = format!("{loc:?}");
     assert!(debug.contains("SourceLocation"));
     assert!(debug.contains("example.py"));
 }
@@ -55,14 +55,14 @@ fn test_depyler_0349_source_location_debug() {
 #[test]
 fn test_depyler_0349_error_kind_parse_error() {
     let err = TranspileError::new(ErrorKind::ParseError);
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("Python parse error"));
 }
 
 #[test]
 fn test_depyler_0349_error_kind_unsupported_feature() {
     let err = TranspileError::new(ErrorKind::UnsupportedFeature("generators".to_string()));
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("Unsupported Python feature"));
 }
 
@@ -71,14 +71,14 @@ fn test_depyler_0349_error_kind_type_inference() {
     let err = TranspileError::new(ErrorKind::TypeInferenceError(
         "cannot infer type for variable 'x'".to_string(),
     ));
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("Type inference error"));
 }
 
 #[test]
 fn test_depyler_0349_error_kind_invalid_type_annotation() {
     let err = TranspileError::new(ErrorKind::InvalidTypeAnnotation("List[int, str]".to_string()));
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("Invalid type annotation"));
 }
 
@@ -89,7 +89,7 @@ fn test_depyler_0349_error_kind_type_mismatch() {
         found: "str".to_string(),
         context: "function parameter".to_string(),
     });
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("Type mismatch"));
 }
 
@@ -98,7 +98,7 @@ fn test_depyler_0349_error_kind_code_generation() {
     let err = TranspileError::new(ErrorKind::CodeGenerationError(
         "failed to generate function body".to_string(),
     ));
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("Code generation error"));
 }
 
@@ -107,7 +107,7 @@ fn test_depyler_0349_error_kind_verification() {
     let err = TranspileError::new(ErrorKind::VerificationError(
         "generated code does not compile".to_string(),
     ));
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("Verification failed"));
 }
 
@@ -115,7 +115,7 @@ fn test_depyler_0349_error_kind_verification() {
 fn test_depyler_0349_error_kind_internal() {
     let err =
         TranspileError::new(ErrorKind::InternalError("unexpected compiler state".to_string()));
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("Internal error"));
 }
 
@@ -220,7 +220,7 @@ fn test_depyler_0349_from_anyhow_with_context() {
     let transpile_err: TranspileError = anyhow_err.into();
     let with_ctx = transpile_err.with_context("loading configuration");
 
-    let display = format!("{}", with_ctx);
+    let display = format!("{with_ctx}");
     assert!(display.contains("Internal error"));
     assert!(display.contains("loading configuration"));
 }
@@ -271,7 +271,7 @@ fn test_depyler_0349_type_mismatch_all_fields() {
         context: "assignment statement".to_string(),
     });
 
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("Type mismatch"));
 }
 
@@ -286,7 +286,7 @@ fn test_depyler_0349_type_mismatch_with_location() {
     })
     .with_location(loc);
 
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("types.py:15:8"));
     assert!(display.contains("Type mismatch"));
 }
@@ -298,7 +298,7 @@ fn test_depyler_0349_type_mismatch_with_location() {
 #[test]
 fn test_depyler_0349_empty_context_not_displayed() {
     let err = TranspileError::new(ErrorKind::ParseError);
-    let display = format!("{}", err);
+    let display = format!("{err}");
 
     // Should not contain "Context:" section when context is empty
     assert!(!display.contains("Context:"));
@@ -307,7 +307,7 @@ fn test_depyler_0349_empty_context_not_displayed() {
 #[test]
 fn test_depyler_0349_location_none_not_displayed() {
     let err = TranspileError::new(ErrorKind::CodeGenerationError("test".to_string()));
-    let display = format!("{}", err);
+    let display = format!("{err}");
 
     // Should not show location info when None
     assert!(!display.contains(" at "));
@@ -321,7 +321,7 @@ fn test_depyler_0349_multiple_context_items() {
         .with_context("context 3")
         .with_context("context 4");
 
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("Context:"));
     assert!(display.contains("1. context 1"));
     assert!(display.contains("2. context 2"));
@@ -341,7 +341,7 @@ fn test_depyler_0349_full_error_all_features() {
         .with_context("in method 'process'")
         .with_source(io_err);
 
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("Type inference error"));
     assert!(display.contains("complex.py:100:50"));
     assert!(display.contains("Context:"));
@@ -370,8 +370,8 @@ mod property_tests {
                 column,
             };
 
-            let display = format!("{}", loc);
-            assert!(display.contains(&format!("{}:{}", line, column)));
+            let display = format!("{loc}");
+            assert!(display.contains(&format!("{line}:{column}")));
         }
 
         #[test]
@@ -381,7 +381,7 @@ mod property_tests {
             let mut err = TranspileError::new(ErrorKind::ParseError);
 
             for i in 0..ctx_count {
-                err = err.with_context(format!("context {}", i));
+                err = err.with_context(format!("context {i}"));
             }
 
             assert_eq!(err.context.len(), ctx_count);
@@ -403,7 +403,7 @@ mod property_tests {
                 .with_context("property test");
 
             // Should never panic on display
-            let _display = format!("{}", err);
+            let _display = format!("{err}");
         }
     }
 }

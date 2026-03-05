@@ -35,12 +35,12 @@ use rustpython_parser::{parse, Mode};
 #[test]
 fn test_infer_type_bool_constant() {
     // Target: Line 974 - delete match arm ast::Constant::Bool(_)
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.enabled = True
         self.disabled = False
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -53,12 +53,12 @@ class Config:
 #[test]
 fn test_infer_type_int_constant() {
     // Target: Line 971 - delete match arm ast::Constant::Int(_)
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.count = 42
         self.total = 100
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -71,11 +71,11 @@ class Config:
 #[test]
 fn test_infer_type_none_constant() {
     // Target: Line 975 - delete match arm ast::Constant::None
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.value = None
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -124,11 +124,11 @@ class Config:
 #[test]
 fn test_infer_type_set_expr() {
     // Target: Line 982 - delete match arm ast::Expr::Set(_)
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.unique = {1, 2, 3}
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -145,14 +145,14 @@ class Config:
 #[test]
 fn test_convert_class_with_methods() {
     // Target: Line 534 - delete match arm ast::Stmt::FunctionDef(method)
-    let python = r#"
+    let python = r"
 class Service:
     def method1(self):
         x = 1
 
     def method2(self, param):
         y = param
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -170,11 +170,11 @@ class Service:
 #[test]
 fn test_convert_module_with_assignments() {
     // Target: Line 195 - delete match arm ast::Stmt::Assign(assign)
-    let python = r#"
+    let python = r"
 UserId = int
 Name = str
 result = 42
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -188,11 +188,11 @@ result = 42
 #[test]
 fn test_convert_module_with_async_functions() {
     // Target: Line 181 - delete match arm ast::Stmt::AsyncFunctionDef(f)
-    let python = r#"
+    let python = r"
 class Service:
     async def fetch(self):
         x = 1
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -209,10 +209,10 @@ class Service:
 #[test]
 fn test_type_alias_with_subscript() {
     // Target: Line 357 - delete match arm ast::Expr::Subscript(_)
-    let python = r#"
+    let python = r"
 UserId = list[int]
 Names = dict[str, str]
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -226,9 +226,9 @@ Names = dict[str, str]
 #[test]
 fn test_type_alias_with_call() {
     // Target: Line 359 - delete match arm ast::Expr::Call(call)
-    let python = r#"
+    let python = r"
 T = TypeVar('T')
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let _hir = bridge.python_to_hir(ast).expect("conversion failed");
@@ -244,9 +244,9 @@ T = TypeVar('T')
 #[test]
 fn test_annotated_type_alias_with_subscript() {
     // Target: Line 410 - delete match arm ast::Expr::Subscript(_)
-    let python = r#"
+    let python = r"
 Container = list[int]
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -258,9 +258,9 @@ Container = list[int]
 #[test]
 fn test_annotated_type_alias_with_call() {
     // Target: Line 412 - delete match arm ast::Expr::Call(call)
-    let python = r#"
+    let python = r"
 T = TypeVar('T')
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let _hir = bridge.python_to_hir(ast).expect("conversion failed");
@@ -275,11 +275,11 @@ T = TypeVar('T')
 #[test]
 fn test_binary_operator_bitor() {
     // Target: Line 1080 - delete match arm ast::Operator::BitOr
-    let python = r#"
+    let python = r"
 def compute():
     result = 1 | 2
     return result
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let _hir = bridge.python_to_hir(ast).expect("conversion failed");
@@ -291,11 +291,11 @@ def compute():
 #[test]
 fn test_binary_operator_bitxor() {
     // Target: Line 1081 - delete match arm ast::Operator::BitXor
-    let python = r#"
+    let python = r"
 def compute():
     result = 1 ^ 2
     return result
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let _hir = bridge.python_to_hir(ast).expect("conversion failed");
@@ -306,11 +306,11 @@ def compute():
 #[test]
 fn test_binary_operator_lshift() {
     // Target: Line 1082 - delete match arm ast::Operator::LShift
-    let python = r#"
+    let python = r"
 def compute():
     result = 1 << 2
     return result
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let _hir = bridge.python_to_hir(ast).expect("conversion failed");
@@ -321,11 +321,11 @@ def compute():
 #[test]
 fn test_binary_operator_rshift() {
     // Target: Line 1083 - delete match arm ast::Operator::RShift
-    let python = r#"
+    let python = r"
 def compute():
     result = 8 >> 2
     return result
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let _hir = bridge.python_to_hir(ast).expect("conversion failed");
@@ -336,11 +336,11 @@ def compute():
 #[test]
 fn test_binary_operator_pow() {
     // Target: Line 1078 - delete match arm ast::Operator::Pow
-    let python = r#"
+    let python = r"
 def compute():
     result = 2 ** 3
     return result
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let _hir = bridge.python_to_hir(ast).expect("conversion failed");
@@ -355,11 +355,11 @@ def compute():
 #[test]
 fn test_cmpop_in() {
     // Target: Line 1110 - delete match arm ast::CmpOp::In
-    let python = r#"
+    let python = r"
 def check():
     items = [1, 2, 3]
     x = 2
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let _hir = bridge.python_to_hir(ast).expect("conversion failed");
@@ -371,11 +371,11 @@ def check():
 #[test]
 fn test_cmpop_noteq() {
     // Target: Line 1105 - delete match arm ast::CmpOp::NotEq
-    let python = r#"
+    let python = r"
 def check():
     x = 1
     y = 2
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let _hir = bridge.python_to_hir(ast).expect("conversion failed");
@@ -390,10 +390,10 @@ def check():
 #[test]
 fn test_extract_assign_target_subscript() {
     // Target: Line 1043 - delete match arm ast::Expr::Subscript(s)
-    let python = r#"
+    let python = r"
 def update():
     items = [1, 2, 3]
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let _hir = bridge.python_to_hir(ast).expect("conversion failed");
@@ -426,13 +426,13 @@ class Config:
 #[test]
 fn test_extract_generic_params_tuple() {
     // Target: Line 846 - delete match arm ast::Expr::Tuple(tuple)
-    let python = r#"
+    let python = r"
 T = TypeVar('T')
 U = TypeVar('U')
 
 class Container:
     value: T
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -451,14 +451,14 @@ class Container:
 #[test]
 fn test_convert_method_negation() {
     // Target: Line 609 - delete ! in convert_method
-    let python = r#"
+    let python = r"
 class Service:
     def process(self):
         x = 1
 
     def compute(self, data):
         y = data
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -473,11 +473,11 @@ class Service:
 #[test]
 fn test_protocol_negation() {
     // Target: Lines 470, 489 - delete ! in try_convert_protocol
-    let python = r#"
+    let python = r"
 class Protocol:
     def method(self):
         x = 1
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -493,11 +493,11 @@ class Protocol:
 #[test]
 fn test_extract_async_function_annotations() {
     // Target: Line 308 - replace TranspilationAnnotations with Default::default()
-    let python = r#"
+    let python = r"
 class Service:
     async def fetch(self):
         x = 1
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -510,12 +510,12 @@ class Service:
 #[test]
 fn test_extract_class_type_params() {
     // Target: Line 831 - replace Vec<String> with vec![] / vec!["xyzzy"] / vec![String::new()]
-    let python = r#"
+    let python = r"
 T = TypeVar('T')
 
 class Container:
     value: T
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");

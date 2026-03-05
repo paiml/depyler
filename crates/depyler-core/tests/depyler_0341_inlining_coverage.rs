@@ -3,7 +3,7 @@
 //! **EXTREME TDD Protocol - Coverage Boost**
 //!
 //! Target: inlining.rs 13.42% → 85%+ coverage
-//! TDG Score: 77.5/100 (B) - Better quality than expr_gen but WORST coverage
+//! TDG Score: 77.5/100 (B) - Better quality than `expr_gen` but WORST coverage
 //!
 //! This test suite validates the inlining analyzer functionality:
 //! - Configuration management
@@ -151,8 +151,8 @@ fn test_analyze_large_function() {
     let mut body = vec![];
     for i in 0..30 {
         body.push(HirStmt::Assign {
-            target: AssignTarget::Symbol(format!("var_{}", i)),
-            value: HirExpr::Literal(Literal::Int(i as i64)),
+            target: AssignTarget::Symbol(format!("var_{i}")),
+            value: HirExpr::Literal(Literal::Int(i64::from(i))),
             type_annotation: Some(Type::Int),
         });
     }
@@ -232,7 +232,7 @@ mod property_tests {
 
             let functions: Vec<HirFunction> = (0..func_count)
                 .map(|i| HirFunction {
-                    name: format!("func_{}", i),
+                    name: format!("func_{i}"),
                     params: smallvec![],
                     ret_type: Type::Int,
                     body: vec![],

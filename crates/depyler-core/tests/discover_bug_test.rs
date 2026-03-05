@@ -21,7 +21,7 @@ fn test_transpile_basic_class_test() {
 
     match result {
         Ok(_) => println!("✅ basic_class_test.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in basic_class_test.py: {}", e),
+        Err(e) => panic!("❌ Found bug in basic_class_test.py: {e}"),
     }
 }
 
@@ -42,7 +42,7 @@ fn test_transpile_ast_converters_demo() {
 
     match result {
         Ok(_) => println!("✅ ast_converters_demo.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in ast_converters_demo.py: {}", e),
+        Err(e) => panic!("❌ Found bug in ast_converters_demo.py: {e}"),
     }
 }
 
@@ -62,7 +62,7 @@ fn test_transpile_array_test() {
 
     match result {
         Ok(_) => println!("✅ array_test.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in array_test.py: {}", e),
+        Err(e) => panic!("❌ Found bug in array_test.py: {e}"),
     }
 }
 
@@ -82,7 +82,7 @@ fn test_transpile_basic_lambda() {
 
     match result {
         Ok(_) => println!("✅ basic_lambda.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in basic_lambda.py: {}", e),
+        Err(e) => panic!("❌ Found bug in basic_lambda.py: {e}"),
     }
 }
 
@@ -102,7 +102,7 @@ fn test_transpile_deep_nested_dict() {
 
     match result {
         Ok(_) => println!("✅ deep_nested_dict.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in deep_nested_dict.py: {}", e),
+        Err(e) => panic!("❌ Found bug in deep_nested_dict.py: {e}"),
     }
 }
 
@@ -122,7 +122,7 @@ fn test_transpile_dict_assign() {
 
     match result {
         Ok(_) => println!("✅ dict_assign.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in dict_assign.py: {}", e),
+        Err(e) => panic!("❌ Found bug in dict_assign.py: {e}"),
     }
 }
 
@@ -142,7 +142,7 @@ fn test_transpile_simple_class() {
 
     match result {
         Ok(_) => println!("✅ simple_class_test.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in simple_class_test.py: {}", e),
+        Err(e) => panic!("❌ Found bug in simple_class_test.py: {e}"),
     }
 }
 
@@ -162,7 +162,7 @@ fn test_transpile_basic_imports() {
 
     match result {
         Ok(_) => println!("✅ test_basic_imports.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in test_basic_imports.py: {}", e),
+        Err(e) => panic!("❌ Found bug in test_basic_imports.py: {e}"),
     }
 }
 
@@ -182,7 +182,7 @@ fn test_transpile_module_mapping() {
 
     match result {
         Ok(_) => println!("✅ module_mapping_demo.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in module_mapping_demo.py: {}", e),
+        Err(e) => panic!("❌ Found bug in module_mapping_demo.py: {e}"),
     }
 }
 
@@ -202,7 +202,7 @@ fn test_transpile_floor_division() {
 
     match result {
         Ok(_) => println!("✅ floor_division_test.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in floor_division_test.py: {}", e),
+        Err(e) => panic!("❌ Found bug in floor_division_test.py: {e}"),
     }
 }
 
@@ -222,7 +222,7 @@ fn test_transpile_dict_assign_typed() {
 
     match result {
         Ok(_) => println!("✅ dict_assign_typed.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in dict_assign_typed.py: {}", e),
+        Err(e) => panic!("❌ Found bug in dict_assign_typed.py: {e}"),
     }
 }
 
@@ -242,7 +242,7 @@ fn test_transpile_lambda_advanced() {
 
     match result {
         Ok(_) => println!("✅ lambda_advanced_test.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in lambda_advanced_test.py: {}", e),
+        Err(e) => panic!("❌ Found bug in lambda_advanced_test.py: {e}"),
     }
 }
 
@@ -262,7 +262,7 @@ fn test_transpile_custom_attributes() {
 
     match result {
         Ok(_) => println!("✅ custom_attributes_demo.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in custom_attributes_demo.py: {}", e),
+        Err(e) => panic!("❌ Found bug in custom_attributes_demo.py: {e}"),
     }
 }
 
@@ -282,7 +282,7 @@ fn test_transpile_type_hints_simple() {
 
     match result {
         Ok(_) => println!("✅ test_type_hints_simple.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in test_type_hints_simple.py: {}", e),
+        Err(e) => panic!("❌ Found bug in test_type_hints_simple.py: {e}"),
     }
 }
 
@@ -302,7 +302,7 @@ fn test_transpile_tuple_key_dict() {
 
     match result {
         Ok(_) => println!("✅ tuple_key_dict.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in tuple_key_dict.py: {}", e),
+        Err(e) => panic!("❌ Found bug in tuple_key_dict.py: {e}"),
     }
 }
 
@@ -322,7 +322,7 @@ fn test_transpile_type_inference_demo() {
 
     match result {
         Ok(_) => println!("✅ type_inference_demo.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in type_inference_demo.py: {}", e),
+        Err(e) => panic!("❌ Found bug in type_inference_demo.py: {e}"),
     }
 }
 
@@ -342,7 +342,7 @@ fn test_transpile_with_statement() {
 
     match result {
         Ok(_) => println!("✅ test_with_statement.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in test_with_statement.py: {}", e),
+        Err(e) => panic!("❌ Found bug in test_with_statement.py: {e}"),
     }
 }
 
@@ -362,7 +362,7 @@ fn test_transpile_functional_programming_combined() {
 
     match result {
         Ok(_) => println!("✅ functional_programming_combined.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in functional_programming_combined.py: {}", e),
+        Err(e) => panic!("❌ Found bug in functional_programming_combined.py: {e}"),
     }
 }
 
@@ -382,7 +382,7 @@ fn test_transpile_data_analysis_combined() {
 
     match result {
         Ok(_) => println!("✅ data_analysis_combined.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in data_analysis_combined.py: {}", e),
+        Err(e) => panic!("❌ Found bug in data_analysis_combined.py: {e}"),
     }
 }
 
@@ -402,7 +402,7 @@ fn test_transpile_text_processing_combined() {
 
     match result {
         Ok(_) => println!("✅ text_processing_combined.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in text_processing_combined.py: {}", e),
+        Err(e) => panic!("❌ Found bug in text_processing_combined.py: {e}"),
     }
 }
 
@@ -422,7 +422,7 @@ fn test_transpile_simulation_combined() {
 
     match result {
         Ok(_) => println!("✅ simulation_combined.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in simulation_combined.py: {}", e),
+        Err(e) => panic!("❌ Found bug in simulation_combined.py: {e}"),
     }
 }
 
@@ -442,7 +442,7 @@ fn test_transpile_debugging_workflow() {
 
     match result {
         Ok(_) => println!("✅ debugging_workflow.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in debugging_workflow.py: {}", e),
+        Err(e) => panic!("❌ Found bug in debugging_workflow.py: {e}"),
     }
 }
 
@@ -462,7 +462,7 @@ fn test_transpile_lifetime_demo() {
 
     match result {
         Ok(_) => println!("✅ lifetime_demo.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in lifetime_demo.py: {}", e),
+        Err(e) => panic!("❌ Found bug in lifetime_demo.py: {e}"),
     }
 }
 
@@ -482,7 +482,7 @@ fn test_transpile_lambda_demo() {
 
     match result {
         Ok(_) => println!("✅ lambda_demo.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in lambda_demo.py: {}", e),
+        Err(e) => panic!("❌ Found bug in lambda_demo.py: {e}"),
     }
 }
 
@@ -501,6 +501,6 @@ fn test_transpile_demo() {
 
     match result {
         Ok(_) => println!("✅ demo.py transpiles successfully"),
-        Err(e) => panic!("❌ Found bug in demo.py: {}", e),
+        Err(e) => panic!("❌ Found bug in demo.py: {e}"),
     }
 }

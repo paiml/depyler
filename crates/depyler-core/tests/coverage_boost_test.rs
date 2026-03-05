@@ -1,6 +1,6 @@
 //! Additional coverage tests to boost coverage to 95%+
 //!
-//! These tests target specific uncovered code paths in expr_gen.rs, stmt_gen.rs, etc.
+//! These tests target specific uncovered code paths in `expr_gen.rs`, `stmt_gen.rs`, etc.
 
 use depyler_core::DepylerPipeline;
 
@@ -11,7 +11,7 @@ fn transpile_ok(code: &str) -> bool {
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {}", e))
+    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {e}"))
 }
 
 // ============ Slicing edge cases ============
@@ -803,8 +803,8 @@ fn test_bytes_literal() {
 
 #[test]
 fn test_raw_string() {
-    let code = r#"def f() -> str:
-    return r'\n'"#;
+    let code = r"def f() -> str:
+    return r'\n'";
     assert!(transpile_ok(code));
 }
 

@@ -7,12 +7,12 @@ use depyler_core::ast_bridge::python_to_hir;
 use depyler_core::hir::Type;
 use rustpython_parser::{parse, Mode};
 
-/// Test: Field initialized as [] should infer type from append(typed_param)
+/// Test: Field initialized as [] should infer type from `append(typed_param)`
 /// TODO: Implement bidirectional field type inference from method usage
 #[test]
 #[ignore = "needs bidirectional field type inference"]
 fn test_depyler_0977_list_field_infer_from_append() {
-    let python = r#"
+    let python = r"
 class Logger:
     def __init__(self):
         self.messages = []
@@ -20,7 +20,7 @@ class Logger:
     def log(self, msg: str) -> int:
         self.messages.append(msg)
         return len(self.messages)
-"#;
+";
 
     let ast = parse(python, Mode::Module, "<test>").unwrap();
     let (hir, _) = python_to_hir(ast).unwrap();
@@ -84,14 +84,14 @@ class Config:
 #[test]
 #[ignore = "needs dict field type inference from subscript"]
 fn test_depyler_0977_dict_field_infer_from_subscript_assign() {
-    let python = r#"
+    let python = r"
 class Cache:
     def __init__(self):
         self.data = {}
 
     def set(self, key: str, value: int):
         self.data[key] = value
-"#;
+";
 
     let ast = parse(python, Mode::Module, "<test>").unwrap();
     let (hir, _) = python_to_hir(ast).unwrap();

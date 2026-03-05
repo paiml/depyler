@@ -1,4 +1,4 @@
-//! Test error paths in expr_gen.rs for coverage
+//! Test error paths in `expr_gen.rs` for coverage
 //! Tests all bail! paths to ensure error handling is covered
 
 use depyler_core::DepylerPipeline;

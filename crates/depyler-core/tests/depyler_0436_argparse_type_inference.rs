@@ -19,8 +19,8 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 fn unique_temp_path() -> (String, String) {
     let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
-    let rs_file = format!("/tmp/depyler_0436_{}_{}.rs", pid, id);
-    let rlib_file = format!("/tmp/depyler_0436_{}_{}.rlib", pid, id);
+    let rs_file = format!("/tmp/depyler_0436_{pid}_{id}.rs");
+    let rlib_file = format!("/tmp/depyler_0436_{pid}_{id}.rlib");
     (rs_file, rlib_file)
 }
 
@@ -50,26 +50,24 @@ def port_validator(value):
     // CRITICAL: Parameter should be &str, NOT serde_json::Value
     assert!(
         rust.contains("value: &str"),
-        "Parameter 'value' should be &str for argparse validators. Got: {}",
-        rust
+        "Parameter 'value' should be &str for argparse validators. Got: {rust}"
     );
 
     // Should NOT use serde_json::Value
     assert!(
         !rust.contains("value: serde_json::Value"),
-        "Should not use serde_json::Value for string parameters: {}",
-        rust
+        "Should not use serde_json::Value for string parameters: {rust}"
     );
 }
 
 #[test]
 fn test_DEPYLER_0436_int_call_should_parse_not_cast() {
     // int() on string parameter should use .parse(), not cast
-    let python = r#"
+    let python = r"
 def validator(value):
     num = int(value)
     return num
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
@@ -79,12 +77,11 @@ def validator(value):
     // Should use .parse() for string to int conversion
     assert!(
         rust.contains(".parse") || rust.contains("parse::<i32>"),
-        "int(string_value) should use .parse(), not cast. Got: {}",
-        rust
+        "int(string_value) should use .parse(), not cast. Got: {rust}"
     );
 
     // Should NOT use cast syntax (value) as i32
-    assert!(!rust.contains("(value) as i32"), "Should not use cast for string parsing: {}", rust);
+    assert!(!rust.contains("(value) as i32"), "Should not use cast for string parsing: {rust}");
 }
 
 #[test]
@@ -107,15 +104,13 @@ def validator(value):
     // DEPYLER-0436: Parameter should be &str, NOT serde_json::Value
     assert!(
         rust.contains("value: &str"),
-        "Parameter 'value' should be &str even in try/except. Got: {}",
-        rust
+        "Parameter 'value' should be &str even in try/except. Got: {rust}"
     );
 
     // Should NOT use serde_json::Value
     assert!(
         !rust.contains("value: serde_json::Value") && !rust.contains("value: &serde_json::Value"),
-        "Should not use serde_json::Value for string parameters: {}",
-        rust
+        "Should not use serde_json::Value for string parameters: {rust}"
     );
 
     // NOTE: Result return type is DEPYLER-0437's responsibility (try/except control flow)
@@ -162,11 +157,10 @@ def port_number(value):
 
     assert!(
         !stderr.contains("E0605"),
-        "Should not have cast errors (E0605 - non-primitive cast). Stderr: {}",
-        stderr
+        "Should not have cast errors (E0605 - non-primitive cast). Stderr: {stderr}"
     );
 
-    assert!(!stderr.contains("cannot cast"), "Should not have cast errors. Stderr: {}", stderr);
+    assert!(!stderr.contains("cannot cast"), "Should not have cast errors. Stderr: {stderr}");
 
-    assert!(output.status.success(), "Compilation should succeed. Stderr: {}", stderr);
+    assert!(output.status.success(), "Compilation should succeed. Stderr: {stderr}");
 }

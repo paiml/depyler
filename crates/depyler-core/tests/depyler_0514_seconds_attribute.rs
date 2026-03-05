@@ -42,14 +42,14 @@ fn transpile_to_rust(python_code: &str) -> Result<String, String> {
 #[test]
 fn test_DEPYLER_0514_seconds_field_not_timedelta() {
     // RED: .seconds should be preserved as field access, not converted to num_seconds()
-    let python = r#"
+    let python = r"
 class Timer:
     def __init__(self, seconds: int):
         self.seconds = seconds
 
 def get_seconds(timer: Timer) -> int:
     return timer.seconds
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -63,28 +63,26 @@ def get_seconds(timer: Timer) -> int:
     // Should NOT contain timedelta-specific conversion
     assert!(
         !rust_code.contains("num_seconds()"),
-        "DEPYLER-0514: .seconds should not be converted to .num_seconds() for non-timedelta types.\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0514: .seconds should not be converted to .num_seconds() for non-timedelta types.\nGenerated:\n{rust_code}"
     );
 
     // Should preserve simple field access
     assert!(
         rust_code.contains("timer.seconds") || rust_code.contains("self.seconds"),
-        "DEPYLER-0514: .seconds should be preserved as field access.\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0514: .seconds should be preserved as field access.\nGenerated:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_DEPYLER_0514_seconds_field_in_custom_class() {
     // Custom class with .seconds field
-    let python = r#"
+    let python = r"
 class Config:
     seconds: int
 
     def get_timeout(self) -> int:
         return self.seconds
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -97,22 +95,21 @@ class Config:
 
     assert!(
         !rust_code.contains("num_seconds()"),
-        "DEPYLER-0514: Should not apply timedelta conversion.\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0514: Should not apply timedelta conversion.\nGenerated:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_DEPYLER_0514_seconds_lambda_key() {
     // .seconds in lambda key function (similar to DEPYLER-0357 .name issue)
-    let python = r#"
+    let python = r"
 class Task:
     def __init__(self, seconds: int):
         self.seconds = seconds
 
 def sort_tasks(tasks: list[Task]) -> list[Task]:
     return sorted(tasks, key=lambda t: t.seconds)
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -125,18 +122,17 @@ def sort_tasks(tasks: list[Task]) -> list[Task]:
 
     assert!(
         !rust_code.contains("num_seconds()"),
-        "DEPYLER-0514: Lambda key should preserve field access.\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0514: Lambda key should preserve field access.\nGenerated:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_DEPYLER_0514_seconds_dict_access() {
     // .seconds accessed through dict or dynamic object
-    let python = r#"
+    let python = r"
 def get_timer_seconds(obj) -> int:
     return obj.seconds
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -150,8 +146,7 @@ def get_timer_seconds(obj) -> int:
     // Should preserve simple attribute access
     assert!(
         !rust_code.contains("num_seconds()") || rust_code.contains("obj.seconds"),
-        "DEPYLER-0514: Should preserve field access for unknown types.\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0514: Should preserve field access for unknown types.\nGenerated:\n{rust_code}"
     );
 }
 
@@ -159,12 +154,12 @@ def get_timer_seconds(obj) -> int:
 fn test_DEPYLER_0514_actual_timedelta_still_works() {
     // Ensure actual timedelta.seconds still works (if we have type info)
     // This is a future enhancement - for now we'll just remove the aggressive rewrite
-    let python = r#"
+    let python = r"
 from datetime import timedelta
 
 def get_delta_seconds(td: timedelta) -> int:
     return td.seconds
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(

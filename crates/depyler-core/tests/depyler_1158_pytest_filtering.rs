@@ -39,12 +39,12 @@ fn uses_pytest_fixtures(source: &str) -> bool {
 
     fixtures.iter().any(|fixture| {
         // Check for fixture as function parameter: def test_foo(tmp_path):
-        source.contains(&format!("({}", fixture))
-            || source.contains(&format!(", {}", fixture))
-            || source.contains(&format!("{},", fixture))
-            || source.contains(&format!("{})", fixture))
+        source.contains(&format!("({fixture}"))
+            || source.contains(&format!(", {fixture}"))
+            || source.contains(&format!("{fixture},"))
+            || source.contains(&format!("{fixture})"))
             // Check for fixture attribute access: tmp_path.write_text()
-            || source.contains(&format!("{}.", fixture))
+            || source.contains(&format!("{fixture}."))
     })
 }
 
@@ -74,35 +74,35 @@ fn should_exclude_from_convergence(filename: &str, source: &str) -> bool {
 
 #[test]
 fn test_DEPYLER_1158_detect_pytest_import() {
-    let source = r#"
+    let source = r"
 import pytest
 
 def test_something():
     assert True
-"#;
+";
 
     assert!(has_pytest_import(source), "Should detect 'import pytest'");
 }
 
 #[test]
 fn test_DEPYLER_1158_detect_from_pytest_import() {
-    let source = r#"
+    let source = r"
 from pytest import fixture, mark
 
 @fixture
 def my_fixture():
     return 42
-"#;
+";
 
     assert!(has_pytest_import(source), "Should detect 'from pytest import'");
 }
 
 #[test]
 fn test_DEPYLER_1158_no_pytest_import() {
-    let source = r#"
+    let source = r"
 def add(a, b):
     return a + b
-"#;
+";
 
     assert!(!has_pytest_import(source), "Should not detect pytest import");
 }
@@ -146,20 +146,20 @@ def test_output(capsys):
 
 #[test]
 fn test_DEPYLER_1158_detect_multiple_fixtures() {
-    let source = r#"
+    let source = r"
 def test_complex(tmp_path, monkeypatch, capsys):
     pass
-"#;
+";
 
     assert!(uses_pytest_fixtures(source), "Should detect multiple fixtures");
 }
 
 #[test]
 fn test_DEPYLER_1158_no_fixtures() {
-    let source = r#"
+    let source = r"
 def test_simple():
     assert 1 + 1 == 2
-"#;
+";
 
     assert!(!uses_pytest_fixtures(source), "Should not detect fixtures");
 }
@@ -170,25 +170,25 @@ def test_simple():
 
 #[test]
 fn test_DEPYLER_1158_exclude_conftest() {
-    let source = r#"
+    let source = r"
 import pytest
 
 @pytest.fixture
 def sample_data():
     return [1, 2, 3]
-"#;
+";
 
     assert!(should_exclude_from_convergence("conftest.py", source), "Should exclude conftest.py");
 }
 
 #[test]
 fn test_DEPYLER_1158_exclude_pytest_test_file() {
-    let source = r#"
+    let source = r"
 import pytest
 
 def test_wordcount(tmp_path):
     pass
-"#;
+";
 
     assert!(
         should_exclude_from_convergence("test_wordcount.py", source),
@@ -199,10 +199,10 @@ def test_wordcount(tmp_path):
 #[test]
 fn test_DEPYLER_1158_include_regular_test() {
     // A test file that doesn't use pytest
-    let source = r#"
+    let source = r"
 def test_add():
     assert 1 + 1 == 2
-"#;
+";
 
     assert!(
         !should_exclude_from_convergence("test_add.py", source),

@@ -25,11 +25,11 @@ fn transpile_python(python: &str) -> anyhow::Result<String> {
 
 #[test]
 fn test_DEPYLER_1160_cross_type_mul_i64_i32() {
-    let python = r#"
+    let python = r"
 def scale_value(x, multiplier):
     # x is int (i64 in Rust), multiplier might be smaller int (i32)
     return x * multiplier
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -37,10 +37,10 @@ def scale_value(x, multiplier):
 
 #[test]
 fn test_DEPYLER_1160_cross_type_mul_i32_i64() {
-    let python = r#"
+    let python = r"
 def multiply(a: int, b: int) -> int:
     return a * b
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -52,13 +52,13 @@ def multiply(a: int, b: int) -> int:
 
 #[test]
 fn test_DEPYLER_1160_primitive_add_depyler_value() {
-    let python = r#"
+    let python = r"
 def sum_items(items):
     total = 0
     for item in items:
         total = total + item
     return total
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -66,10 +66,10 @@ def sum_items(items):
 
 #[test]
 fn test_DEPYLER_1160_depyler_value_add_primitive() {
-    let python = r#"
+    let python = r"
 def increment_all(items):
     return [x + 1 for x in items]
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -81,10 +81,10 @@ def increment_all(items):
 
 #[test]
 fn test_DEPYLER_1160_frozenset_basic() {
-    let python = r#"
+    let python = r"
 def create_frozenset():
     return frozenset([1, 2, 3])
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -92,12 +92,12 @@ def create_frozenset():
 
 #[test]
 fn test_DEPYLER_1160_frozenset_operations() {
-    let python = r#"
+    let python = r"
 def frozenset_union(a, b):
     fs1 = frozenset(a)
     fs2 = frozenset(b)
     return fs1 | fs2
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -109,10 +109,10 @@ def frozenset_union(a, b):
 
 #[test]
 fn test_DEPYLER_1160_dict_get_with_string() {
-    let python = r#"
+    let python = r"
 def get_value(d, key):
     return d.get(key)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -120,12 +120,12 @@ def get_value(d, key):
 
 #[test]
 fn test_DEPYLER_1160_dict_get_mut() {
-    let python = r#"
+    let python = r"
 def update_dict(d, key, value):
     if key in d:
         d[key] = value
     return d
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -137,10 +137,10 @@ def update_dict(d, key, value):
 
 #[test]
 fn test_DEPYLER_1160_compare_different_types() {
-    let python = r#"
+    let python = r"
 def compare_value(x, expected):
     return x == expected
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -153,28 +153,28 @@ def compare_value(x, expected):
 #[test]
 fn test_DEPYLER_1160_depyler_value_has_display() {
     // DepylerValue should implement Display for print()
-    let python = r#"
+    let python = r"
 def print_value(x):
     print(x)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
     // Should use Display-compatible formatting
-    assert!(rust.contains("println!") || rust.contains("print!"), "Should use println!: {}", rust);
+    assert!(rust.contains("println!") || rust.contains("print!"), "Should use println!: {rust}");
 }
 
 #[test]
 fn test_DEPYLER_1160_depyler_value_has_hash() {
     // DepylerValue should implement Hash for use as dict key
-    let python = r#"
+    let python = r"
 def use_as_key(value):
     d = {}
     d[value] = 1
     return d
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -183,10 +183,10 @@ def use_as_key(value):
 #[test]
 fn test_DEPYLER_1160_depyler_value_has_eq() {
     // DepylerValue should implement Eq for comparisons
-    let python = r#"
+    let python = r"
 def are_equal(a, b):
     return a == b
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());

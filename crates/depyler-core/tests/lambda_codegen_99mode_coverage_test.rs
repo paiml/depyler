@@ -1,6 +1,6 @@
-//! Coverage tests for lambda_codegen.rs
+//! Coverage tests for `lambda_codegen.rs`
 //!
-//! DEPYLER-99MODE-001: Targets lambda_codegen.rs (1,195 lines)
+//! DEPYLER-99MODE-001: Targets `lambda_codegen.rs` (1,195 lines)
 //! Covers: AWS Lambda code generation, handler templates,
 //! event type mapping, Cargo.toml generation, deployment artifacts.
 

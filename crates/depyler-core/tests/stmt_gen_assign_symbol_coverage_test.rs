@@ -1,6 +1,6 @@
-//! Targeted coverage tests for codegen_assign_symbol function
+//! Targeted coverage tests for `codegen_assign_symbol` function
 //!
-//! Target: codegen_assign_symbol (lines 1004-1034, complexity 13)
+//! Target: `codegen_assign_symbol` (lines 1004-1034, complexity 13)
 //! Coverage focus: Variable declaration vs reassignment, mutability, type annotations
 //!
 //! Test Strategy:
@@ -18,11 +18,11 @@ use depyler_core::DepylerPipeline;
 #[test]
 fn test_simple_variable_declaration() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def create_value() -> int:
     x = 42
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn create_value"));
@@ -34,12 +34,12 @@ def create_value() -> int:
 #[test]
 fn test_variable_reassignment() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def modify_value() -> int:
     x = 10
     x = 20
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn modify_value"));
@@ -51,12 +51,12 @@ def modify_value() -> int:
 #[test]
 fn test_mutable_variable_declaration() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def increment() -> int:
     counter = 0
     counter = counter + 1
     return counter
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn increment"));
@@ -68,11 +68,11 @@ def increment() -> int:
 #[test]
 fn test_declaration_with_type_annotation() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def typed_var() -> int:
     x: int = 42
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn typed_var"));
@@ -84,12 +84,12 @@ def typed_var() -> int:
 #[test]
 fn test_mutable_with_type_annotation() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def typed_mutable() -> int:
     count: int = 0
     count = count + 1
     return count
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn typed_mutable"));
@@ -101,13 +101,13 @@ def typed_mutable() -> int:
 #[test]
 fn test_multiple_variable_declarations() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def multiple_vars() -> int:
     a = 1
     b = 2
     c = 3
     return a + b + c
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn multiple_vars"));
@@ -119,14 +119,14 @@ def multiple_vars() -> int:
 #[test]
 fn test_mixed_declaration_reassignment() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def mixed_pattern() -> int:
     x = 10
     y = 20
     x = x + y
     y = y * 2
     return x + y
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn mixed_pattern"));
@@ -138,11 +138,11 @@ def mixed_pattern() -> int:
 #[test]
 fn test_variable_with_expression() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def complex_assignment(a: int, b: int) -> int:
     result = (a * 2) + (b * 3)
     return result
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn complex_assignment"));
@@ -154,13 +154,13 @@ def complex_assignment(a: int, b: int) -> int:
 #[test]
 fn test_variable_shadowing() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def shadowing_example(x: int) -> int:
     y = x * 2
     if x > 0:
         y = x * 3
     return y
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn shadowing_example"));
@@ -172,11 +172,11 @@ def shadowing_example(x: int) -> int:
 #[test]
 fn test_type_annotation_list() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def list_variable() -> list[int]:
     numbers: list[int] = [1, 2, 3]
     return numbers
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn list_variable"));
@@ -188,11 +188,11 @@ def list_variable() -> list[int]:
 #[test]
 fn test_type_annotation_dict() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def dict_variable() -> dict[str, int]:
     data: dict[str, int] = {}
     return data
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn dict_variable"));
@@ -214,12 +214,11 @@ fn test_property_assignment_patterns() {
 
     for (name, assignment) in test_cases {
         let python_code = format!(
-            r#"
-def test_{}() -> int:
-    {}
+            r"
+def test_{name}() -> int:
+    {assignment}
     return x
-"#,
-            name, assignment
+"
         );
         let result = pipeline.transpile(&python_code);
 
@@ -230,39 +229,39 @@ def test_{}() -> int:
 /// Mutation Test: Declaration vs reassignment logic
 ///
 /// Targets mutations in:
-/// 1. is_declared check (line 1016)
-/// 2. mutable_vars check (line 1022)
+/// 1. `is_declared` check (line 1016)
+/// 2. `mutable_vars` check (line 1022)
 /// 3. Type annotation handling
 #[test]
 fn test_mutation_declaration_logic() {
     let pipeline = DepylerPipeline::new();
 
     // Test Case 1: First declaration must have 'let'
-    let first_decl = r#"
+    let first_decl = r"
 def test1() -> int:
     x = 42
     return x
-"#;
+";
     let rust1 = pipeline.transpile(first_decl).unwrap();
     assert!(rust1.contains("fn test1"));
 
     // Test Case 2: Reassignment must not have 'let'
-    let reassign = r#"
+    let reassign = r"
 def test2() -> int:
     x = 10
     x = 20
     return x
-"#;
+";
     let rust2 = pipeline.transpile(reassign).unwrap();
     assert!(rust2.contains("fn test2"));
 
     // Test Case 3: Mutable variable must have 'mut'
-    let mutable = r#"
+    let mutable = r"
 def test3() -> int:
     x = 0
     x = x + 1
     return x
-"#;
+";
     let rust3 = pipeline.transpile(mutable).unwrap();
     assert!(rust3.contains("fn test3"));
 }

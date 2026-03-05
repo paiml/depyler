@@ -1,4 +1,4 @@
-//! Session 8 batch 3: Coverage tests for stmt_gen_complex.rs
+//! Session 8 batch 3: Coverage tests for `stmt_gen_complex.rs`
 //! Targets: try/except code generation, nested functions, variable hoisting,
 //! generator exception handling, argparse patterns
 
@@ -21,7 +21,7 @@ fn transpile(python_code: &str) -> String {
 #[test]
 fn test_try_except_variable_hoisting() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> int:
     result = 0
     try:
@@ -29,7 +29,7 @@ def f(s: str) -> int:
     except ValueError:
         result = -1
     return result
-"#,
+",
     );
     assert!(code.contains("result") && code.contains("let"), "Should hoist variable: {code}");
 }
@@ -37,7 +37,7 @@ def f(s: str) -> int:
 #[test]
 fn test_try_except_with_else() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> int:
     try:
         x = int(s)
@@ -46,7 +46,7 @@ def f(s: str) -> int:
     else:
         return x
     return 0
-"#,
+",
     );
     assert!(code.contains("fn f") && code.contains("-1"), "Should handle try/except/else: {code}");
 }
@@ -75,13 +75,13 @@ def f(path: str) -> str:
 #[test]
 fn test_try_except_type_conversion() {
     let code = transpile(
-        r#"
+        r"
 def safe_float(s: str) -> float:
     try:
         return float(s)
     except ValueError:
         return 0.0
-"#,
+",
     );
     assert!(
         code.contains("f64") || code.contains("parse") || code.contains("0.0"),
@@ -92,7 +92,7 @@ def safe_float(s: str) -> float:
 #[test]
 fn test_try_except_multiple_exception_types() {
     let code = transpile(
-        r#"
+        r"
 def f(data: dict, key: str) -> int:
     try:
         return data[key]
@@ -102,7 +102,7 @@ def f(data: dict, key: str) -> int:
         return -2
     except Exception:
         return -3
-"#,
+",
     );
     assert!(code.contains("fn f"), "Should handle multiple exception types: {code}");
 }
@@ -110,7 +110,7 @@ def f(data: dict, key: str) -> int:
 #[test]
 fn test_try_except_nested() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> int:
     try:
         try:
@@ -119,7 +119,7 @@ def f(s: str) -> int:
             return -1
     except Exception:
         return -2
-"#,
+",
     );
     assert!(code.contains("-1") || code.contains("-2"), "Should handle nested try: {code}");
 }
@@ -145,12 +145,12 @@ def f(x: int) -> int:
 #[test]
 fn test_nested_function() {
     let code = transpile(
-        r#"
+        r"
 def outer(x: int) -> int:
     def inner(y: int) -> int:
         return y * 2
     return inner(x)
-"#,
+",
     );
     assert!(
         code.contains("inner") || code.contains("fn "),
@@ -161,12 +161,12 @@ def outer(x: int) -> int:
 #[test]
 fn test_nested_function_as_closure() {
     let code = transpile(
-        r#"
+        r"
 def make_adder(n: int) -> int:
     def add(x: int) -> int:
         return x + n
     return add(10)
-"#,
+",
     );
     assert!(
         code.contains("fn make_adder") || code.contains("add"),
@@ -177,14 +177,14 @@ def make_adder(n: int) -> int:
 #[test]
 fn test_nested_recursive_function() {
     let code = transpile(
-        r#"
+        r"
 def outer() -> int:
     def factorial(n: int) -> int:
         if n <= 1:
             return 1
         return n * factorial(n - 1)
     return factorial(5)
-"#,
+",
     );
     assert!(code.contains("factorial"), "Should handle recursive nested function: {code}");
 }
@@ -194,13 +194,13 @@ def outer() -> int:
 #[test]
 fn test_generator_function_yield() {
     let code = transpile(
-        r#"
+        r"
 def count_up(n: int) -> int:
     i = 0
     while i < n:
         yield i
         i += 1
-"#,
+",
     );
     assert!(
         code.contains("Iterator") || code.contains("iter") || code.contains("next"),
@@ -211,17 +211,17 @@ def count_up(n: int) -> int:
 #[test]
 fn test_generator_range_yield() {
     let code = transpile(
-        r#"
+        r"
 def squares(n: int) -> int:
     for i in range(n):
         yield i * i
-"#,
+",
     );
     assert!(
         code.contains("Iterator")
             || code.contains("iter")
             || code.contains("next")
-            || code.contains("*"),
+            || code.contains('*'),
         "Should generate range-based generator: {code}"
     );
 }
@@ -231,7 +231,7 @@ def squares(n: int) -> int:
 #[test]
 fn test_try_except_in_loop() {
     let code = transpile(
-        r#"
+        r"
 def parse_numbers(items: list) -> list:
     result = []
     for item in items:
@@ -240,7 +240,7 @@ def parse_numbers(items: list) -> list:
         except ValueError:
             pass
     return result
-"#,
+",
     );
     assert!(
         code.contains("for") || code.contains("iter"),
@@ -251,7 +251,7 @@ def parse_numbers(items: list) -> list:
 #[test]
 fn test_try_except_with_return_in_handler() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> int:
     try:
         total = 0
@@ -260,7 +260,7 @@ def f(items: list) -> int:
         return total
     except TypeError:
         return -1
-"#,
+",
     );
     assert!(
         code.contains("total") || code.contains("return"),
@@ -271,14 +271,14 @@ def f(items: list) -> int:
 #[test]
 fn test_try_except_with_assignment() {
     let code = transpile(
-        r#"
+        r"
 def safe_div(a: int, b: int) -> float:
     try:
         result = a / b
     except ZeroDivisionError:
         result = 0.0
     return result
-"#,
+",
     );
     assert!(code.contains("result"), "Should handle try/except assignment: {code}");
 }
@@ -355,25 +355,25 @@ def f(path1: str, path2: str) -> str:
 #[test]
 fn test_multi_target_assignment() {
     let code = transpile(
-        r#"
+        r"
 def f() -> int:
     x = y = z = 0
     return x + y + z
-"#,
+",
     );
-    assert!(code.contains("let") && code.contains("0"), "Should handle chained assignment: {code}");
+    assert!(code.contains("let") && code.contains('0'), "Should handle chained assignment: {code}");
 }
 
 #[test]
 fn test_augmented_assignment_in_loop() {
     let code = transpile(
-        r#"
+        r"
 def sum_squares(n: int) -> int:
     total = 0
     for i in range(n):
         total += i * i
     return total
-"#,
+",
     );
     assert!(
         code.contains("+=") || code.contains("total"),
@@ -384,12 +384,12 @@ def sum_squares(n: int) -> int:
 #[test]
 fn test_tuple_unpack_from_function() {
     let code = transpile(
-        r#"
+        r"
 def f() -> int:
     a, b = 1, 2
     x, y, z = 10, 20, 30
     return a + b + x + y + z
-"#,
+",
     );
     assert!(code.contains("let") && code.contains("10"), "Should unpack tuples: {code}");
 }
@@ -399,14 +399,14 @@ def f() -> int:
 #[test]
 fn test_pass_in_if_else() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int) -> int:
     if x > 0:
         pass
     else:
         return -1
     return x
-"#,
+",
     );
     assert!(code.contains("fn f"), "Should handle pass in if block: {code}");
 }
@@ -414,14 +414,14 @@ def f(x: int) -> int:
 #[test]
 fn test_pass_in_except() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int) -> int:
     try:
         return x / 1
     except Exception:
         pass
     return 0
-"#,
+",
     );
     assert!(code.contains("fn f"), "Should handle pass in except: {code}");
 }
@@ -431,14 +431,14 @@ def f(x: int) -> int:
 #[test]
 fn test_break_in_nested_loop() {
     let code = transpile(
-        r#"
+        r"
 def find_pair(items: list, target: int) -> bool:
     for i in range(len(items)):
         for j in range(i + 1, len(items)):
             if items[i] + items[j] == target:
                 return True
     return False
-"#,
+",
     );
     assert!(
         code.contains("for") || code.contains("return true") || code.contains("return false"),
@@ -449,7 +449,7 @@ def find_pair(items: list, target: int) -> bool:
 #[test]
 fn test_while_true_break() {
     let code = transpile(
-        r#"
+        r"
 def f() -> int:
     x = 0
     while True:
@@ -457,7 +457,7 @@ def f() -> int:
         if x > 10:
             break
     return x
-"#,
+",
     );
     assert!(
         code.contains("loop") || code.contains("while") || code.contains("break"),
@@ -470,12 +470,12 @@ def f() -> int:
 #[test]
 fn test_recursive_function() {
     let code = transpile(
-        r#"
+        r"
 def fibonacci(n: int) -> int:
     if n <= 1:
         return n
     return fibonacci(n - 1) + fibonacci(n - 2)
-"#,
+",
     );
     assert!(
         code.contains("fn fibonacci") && code.contains("fibonacci("),
@@ -486,13 +486,13 @@ def fibonacci(n: int) -> int:
 #[test]
 fn test_function_with_early_return() {
     let code = transpile(
-        r#"
+        r"
 def find_first(items: list, target: int) -> int:
     for i in range(len(items)):
         if items[i] == target:
             return i
     return -1
-"#,
+",
     );
     assert!(code.contains("return") && code.contains("-1"), "Should handle early return: {code}");
 }
@@ -524,11 +524,11 @@ def grade(score: int) -> str:
 #[test]
 fn test_global_variable_access() {
     let code = transpile(
-        r#"
+        r"
 MAX_VALUE: int = 100
 def check(x: int) -> bool:
     return x <= MAX_VALUE
-"#,
+",
     );
     assert!(
         code.contains("MAX_VALUE") || code.contains("100"),
@@ -541,13 +541,13 @@ def check(x: int) -> bool:
 #[test]
 fn test_list_comprehension_with_condition() {
     let code = transpile(
-        r#"
+        r"
 def even_squares(n: int) -> list:
     return [i * i for i in range(n) if i % 2 == 0]
-"#,
+",
     );
     assert!(
-        code.contains("filter") || code.contains("iter") || code.contains("%"),
+        code.contains("filter") || code.contains("iter") || code.contains('%'),
         "Should generate filtered comprehension: {code}"
     );
 }
@@ -555,10 +555,10 @@ def even_squares(n: int) -> list:
 #[test]
 fn test_dict_comprehension() {
     let code = transpile(
-        r#"
+        r"
 def index_map(items: list) -> dict:
     return {i: item for i, item in enumerate(items)}
-"#,
+",
     );
     assert!(
         code.contains("HashMap") || code.contains("collect") || code.contains("enumerate"),
@@ -569,10 +569,10 @@ def index_map(items: list) -> dict:
 #[test]
 fn test_set_comprehension() {
     let code = transpile(
-        r#"
+        r"
 def unique_lengths(words: list) -> set:
     return {len(w) for w in words}
-"#,
+",
     );
     assert!(
         code.contains("HashSet") || code.contains("collect") || code.contains("len"),
@@ -617,10 +617,10 @@ def reverse_words(s: str) -> str:
 #[test]
 fn test_int_to_str() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int) -> str:
     return str(x)
-"#,
+",
     );
     assert!(
         code.contains("to_string") || code.contains("format"),
@@ -631,10 +631,10 @@ def f(x: int) -> str:
 #[test]
 fn test_str_to_int() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> int:
     return int(s)
-"#,
+",
     );
     assert!(code.contains("parse") || code.contains("i64"), "Should convert str to int: {code}");
 }
@@ -642,10 +642,10 @@ def f(s: str) -> int:
 #[test]
 fn test_float_to_int() {
     let code = transpile(
-        r#"
+        r"
 def f(x: float) -> int:
     return int(x)
-"#,
+",
     );
     assert!(
         code.contains("as i64") || code.contains("as i32") || code.contains("round"),
@@ -658,10 +658,10 @@ def f(x: float) -> int:
 #[test]
 fn test_async_function() {
     let code = transpile(
-        r#"
+        r"
 async def fetch(url: str) -> str:
     return url
-"#,
+",
     );
     assert!(
         code.contains("async") || code.contains("fn fetch"),
@@ -689,12 +689,12 @@ def f(x: int, y: int) -> int:
 #[test]
 fn test_assert_type_check() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int) -> int:
     assert x > 0
     assert x < 1000
     return x * 2
-"#,
+",
     );
     assert!(
         code.contains("assert") || code.contains("debug_assert"),
@@ -707,12 +707,12 @@ def f(x: int) -> int:
 #[test]
 fn test_del_variable() {
     let code = transpile(
-        r#"
+        r"
 def f() -> int:
     x = 42
     del x
     return 0
-"#,
+",
     );
     assert!(code.contains("fn f") && code.contains("42"), "Should handle del statement: {code}");
 }

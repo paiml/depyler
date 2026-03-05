@@ -19,7 +19,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b75_class_with_property() {
-    let code = r#"
+    let code = r"
 class Circle:
     def __init__(self, radius: float):
         self.radius = radius
@@ -31,14 +31,14 @@ class Circle:
     @property
     def diameter(self) -> float:
         return 2.0 * self.radius
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Circle"), "Got: {}", result);
+    assert!(result.contains("Circle"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b75_class_with_repr() {
-    let code = r##"
+    let code = r#"
 class Point:
     def __init__(self, x: float, y: float):
         self.x = x
@@ -49,14 +49,14 @@ class Point:
 
     def __eq__(self, other) -> bool:
         return self.x == other.x and self.y == other.y
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("Point"), "Got: {}", result);
+    assert!(result.contains("Point"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b75_class_with_add() {
-    let code = r#"
+    let code = r"
 class Vector2D:
     def __init__(self, x: float, y: float):
         self.x = x
@@ -70,14 +70,14 @@ class Vector2D:
 
     def length(self) -> float:
         return (self.x * self.x + self.y * self.y) ** 0.5
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Vector2D"), "Got: {}", result);
+    assert!(result.contains("Vector2D"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b75_class_with_len() {
-    let code = r#"
+    let code = r"
 class Buffer:
     def __init__(self):
         self.data = []
@@ -90,14 +90,14 @@ class Buffer:
 
     def is_empty(self) -> bool:
         return len(self.data) == 0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Buffer"), "Got: {}", result);
+    assert!(result.contains("Buffer"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b75_class_with_contains() {
-    let code = r#"
+    let code = r"
 class IntSet:
     def __init__(self):
         self.items = set()
@@ -110,9 +110,9 @@ class IntSet:
 
     def remove(self, item: int):
         self.items.discard(item)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("IntSet"), "Got: {}", result);
+    assert!(result.contains("IntSet"), "Got: {result}");
 }
 
 #[test]
@@ -134,13 +134,13 @@ class Cat(Animal):
         return self.name + " says Meow!"
 "#;
     let result = transpile(code);
-    assert!(result.contains("Animal"), "Got: {}", result);
-    assert!(result.contains("Dog"), "Got: {}", result);
+    assert!(result.contains("Animal"), "Got: {result}");
+    assert!(result.contains("Dog"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b75_class_with_classmethod() {
-    let code = r#"
+    let code = r"
 class Color:
     def __init__(self, r: int, g: int, b: int):
         self.r = r
@@ -158,14 +158,14 @@ class Color:
     @classmethod
     def blue(cls):
         return Color(0, 0, 255)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Color"), "Got: {}", result);
+    assert!(result.contains("Color"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b75_class_with_static() {
-    let code = r#"
+    let code = r"
 class MathUtils:
     @staticmethod
     def gcd(a: int, b: int) -> int:
@@ -176,14 +176,14 @@ class MathUtils:
     @staticmethod
     def lcm(a: int, b: int) -> int:
         return a * b // MathUtils.gcd(a, b)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("MathUtils"), "Got: {}", result);
+    assert!(result.contains("MathUtils"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b75_class_with_iter() {
-    let code = r#"
+    let code = r"
 class Range:
     def __init__(self, start: int, stop: int):
         self.start = start
@@ -199,14 +199,14 @@ class Range:
         value = self.current
         self.current += 1
         return value
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Range"), "Got: {}", result);
+    assert!(result.contains("Range"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b75_class_with_getitem() {
-    let code = r#"
+    let code = r"
 class Grid:
     def __init__(self, rows: int, cols: int):
         self.rows = rows
@@ -220,9 +220,9 @@ class Grid:
     def __setitem__(self, key: tuple, value: int):
         row, col = key
         self.data[row * self.cols + col] = value
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Grid"), "Got: {}", result);
+    assert!(result.contains("Grid"), "Got: {result}");
 }
 
 #[test]
@@ -242,7 +242,7 @@ class Config:
         return self.host + ":" + str(self.port)
 "#;
     let result = transpile(code);
-    assert!(result.contains("Config"), "Got: {}", result);
+    assert!(result.contains("Config"), "Got: {result}");
 }
 
 #[test]
@@ -270,12 +270,12 @@ class Cache:
         return len(self.data)
 "#;
     let result = transpile(code);
-    assert!(result.contains("Cache"), "Got: {}", result);
+    assert!(result.contains("Cache"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b75_class_composition() {
-    let code = r#"
+    let code = r"
 class Address:
     def __init__(self, street: str, city: str, state: str):
         self.street = street
@@ -290,8 +290,8 @@ class Person:
 
     def set_address(self, street: str, city: str, state: str):
         self.address = Address(street, city, state)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Address"), "Got: {}", result);
-    assert!(result.contains("Person"), "Got: {}", result);
+    assert!(result.contains("Address"), "Got: {result}");
+    assert!(result.contains("Person"), "Got: {result}");
 }

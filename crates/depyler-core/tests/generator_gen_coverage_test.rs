@@ -1,6 +1,6 @@
-//! Comprehensive coverage tests for generator_gen.rs
+//! Comprehensive coverage tests for `generator_gen.rs`
 //!
-//! Target: generator_gen.rs (663 lines) - Generator transformation logic
+//! Target: `generator_gen.rs` (663 lines) - Generator transformation logic
 //! Coverage focus: State machine generation, yield handling, type inference
 //!
 //! Test Strategy:
@@ -18,17 +18,17 @@ use depyler_core::DepylerPipeline;
 
 /// Unit Test: Generator yielding float literals
 ///
-/// Verifies: Lines 96, 160-162, 198 - Float literal inference, default_float()
+/// Verifies: Lines 96, 160-162, 198 - Float literal inference, `default_float()`
 /// Expected: Iterator with type Item = f64, state struct with default 0.0 fields
 #[test]
 fn test_generator_float_literal_yield() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def float_generator():
     yield 3.14
     yield 2.718
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn float_generator"));
@@ -37,17 +37,17 @@ def float_generator():
 
 /// Unit Test: Generator yielding bool literals
 ///
-/// Verifies: Lines 99, 168-170 - Bool literal inference, default_bool()
+/// Verifies: Lines 99, 168-170 - Bool literal inference, `default_bool()`
 /// Expected: Iterator with type Item = bool
 #[test]
 fn test_generator_bool_literal_yield() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def bool_generator():
     yield True
     yield False
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn bool_generator"));
@@ -56,7 +56,7 @@ def bool_generator():
 
 /// Unit Test: Generator yielding bytes literals
 ///
-/// Verifies: Line 98 - Bytes literal → Type::Custom("bytes")
+/// Verifies: Line 98 - Bytes literal → `Type::Custom("bytes`")
 /// Expected: Iterator with custom bytes type
 #[test]
 fn test_generator_bytes_literal_yield() {
@@ -81,10 +81,10 @@ def bytes_generator():
 fn test_generator_none_literal_yield() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def none_generator():
     yield None
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn none_generator"));
@@ -93,8 +93,8 @@ def none_generator():
 
 /// Unit Test: Generator with string state variable
 ///
-/// Verifies: Lines 176-178, 200 - String type → default_string()
-/// Expected: State struct with s: String initialized to String::new()
+/// Verifies: Lines 176-178, 200 - String type → `default_string()`
+/// Expected: State struct with s: String initialized to `String::new()`
 #[test]
 fn test_generator_string_state_variable() {
     let pipeline = DepylerPipeline::new();
@@ -118,35 +118,35 @@ def string_accumulator():
 
 /// Unit Test: Generator with explicit return type annotation
 ///
-/// Verifies: Line 81 - func.ret_type.clone() branch (NOT Type::Unknown)
+/// Verifies: Line 81 - `func.ret_type.clone()` branch (NOT `Type::Unknown`)
 /// Expected: Use explicit return type, not inferred from yield
 #[test]
 fn test_generator_explicit_return_type() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def typed_generator() -> int:
     yield 1
     yield 2
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn typed_generator"));
     // Should use explicit int return type
 }
 
-/// Unit Test: Generator name with double underscores (snake_case edge case)
+/// Unit Test: Generator name with double underscores (`snake_case` edge case)
 ///
-/// Verifies: Line 222 - empty string case in snake_case→PascalCase conversion
+/// Verifies: Line 222 - empty string case in `snake_case→PascalCase` conversion
 /// Expected: Handle empty words gracefully
 #[test]
 fn test_generator_empty_word_in_snake_case() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def gen__with__double_underscores():
     yield 1
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn gen__with__double_underscores"));
@@ -161,13 +161,13 @@ def gen__with__double_underscores():
 fn test_generator_no_captured_params() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def standalone_generator():
     x = 0
     yield x
     x = x + 1
     yield x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn standalone_generator"));
@@ -182,11 +182,11 @@ def standalone_generator():
 fn test_generator_captured_params_no_state_vars() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def repeat_param(value: int):
     yield value
     yield value
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn repeat_param"));
@@ -195,17 +195,17 @@ def repeat_param(value: int):
 
 /// Unit Test: Generator with complex yield expression
 ///
-/// Verifies: Line 103 - HirExpr::_ → Type::Unknown fallback
+/// Verifies: Line 103 - `HirExpr::`_ → `Type::Unknown` fallback
 /// Expected: Iterator with inferred type from expression
 #[test]
 fn test_generator_complex_yield_expression() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def expression_generator(n: int):
     yield n * 2 + 1
     yield n ** 2
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn expression_generator"));
@@ -214,7 +214,7 @@ def expression_generator(n: int):
 
 /// Unit Test: Generator with sequential yields (multi-state machine)
 ///
-/// Verifies: Lines 283-345 - generate_simple_multi_state_match (Phase 3A)
+/// Verifies: Lines 283-345 - `generate_simple_multi_state_match` (Phase 3A)
 /// Expected: State machine with states 0,1,2,3, each yielding and transitioning
 #[test]
 fn test_generator_multi_state_sequential_yields() {
@@ -234,19 +234,19 @@ def sequential_yields():
 
 /// Unit Test: Generator with loop containing single yield
 ///
-/// Verifies: Lines 359-415 - generate_simple_loop_with_yield (Phase 3B)
+/// Verifies: Lines 359-415 - `generate_simple_loop_with_yield` (Phase 3B)
 /// Expected: State machine with init state + loop state checking condition
 #[test]
 fn test_generator_loop_with_single_yield() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def count_loop(limit: int):
     i = 0
     while i < limit:
         yield i
         i = i + 1
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn count_loop"));
@@ -261,13 +261,13 @@ def count_loop(limit: int):
 fn test_generator_fallback_single_state() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def complex_nested():
     for i in [1, 2, 3]:
         while True:
             yield i
             break
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn complex_nested"));
@@ -282,11 +282,11 @@ def complex_nested():
 fn test_generator_empty_yields() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def no_yields():
     x = 1
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn no_yields"));
@@ -301,13 +301,13 @@ def no_yields():
 fn test_generator_mixed_types_state_vars() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def mixed_types():
     x = 42
     y = True
     z = 3.14
     yield x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn mixed_types"));
@@ -320,13 +320,13 @@ def mixed_types():
 
 /// Unit Test: Generator with attribute access in yield
 ///
-/// Verifies: Lines 474 - HirExpr::Attribute in expression analysis
+/// Verifies: Lines 474 - `HirExpr::Attribute` in expression analysis
 /// Expected: Properly handle attribute access in yield value
 #[test]
 fn test_generator_attribute_access_in_yield() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 class Point:
     def __init__(self, x: int):
         self.x = x
@@ -334,7 +334,7 @@ class Point:
 def attribute_yield():
     p = Point(10)
     yield p.x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn attribute_yield"));
@@ -343,17 +343,17 @@ def attribute_yield():
 
 /// Unit Test: Generator yielding tuples
 ///
-/// Verifies: Lines 476-477 - HirExpr::Tuple handling
+/// Verifies: Lines 476-477 - `HirExpr::Tuple` handling
 /// Expected: Iterator yielding tuple types
 #[test]
 fn test_generator_tuple_in_yield() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def tuple_generator():
     yield (1, 2, 3)
     yield (4, 5)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn tuple_generator"));
@@ -362,7 +362,7 @@ def tuple_generator():
 
 /// Unit Test: Generator yielding dicts
 ///
-/// Verifies: Lines 479-481 - HirExpr::Dict analysis
+/// Verifies: Lines 479-481 - `HirExpr::Dict` analysis
 /// Expected: Iterator yielding HashMap/dict type
 #[test]
 fn test_generator_dict_in_yield() {
@@ -381,16 +381,16 @@ def dict_generator():
 
 /// Unit Test: Generator with if-expression in yield
 ///
-/// Verifies: Lines 482-485 - HirExpr::IfExpr handling
+/// Verifies: Lines 482-485 - `HirExpr::IfExpr` handling
 /// Expected: Ternary expression in yield value
 #[test]
 fn test_generator_if_expression_in_yield() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def conditional_yield(x: int):
     yield x if x > 0 else -x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn conditional_yield"));
@@ -399,18 +399,18 @@ def conditional_yield(x: int):
 
 /// Unit Test: Generator with slice in yield
 ///
-/// Verifies: Lines 489-503 - HirExpr::Slice with start/stop/step
+/// Verifies: Lines 489-503 - `HirExpr::Slice` with start/stop/step
 /// Expected: Slice operations in yield expressions
 #[test]
 fn test_generator_slice_in_yield() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def slice_generator():
     arr = [1, 2, 3, 4, 5]
     yield arr[1:3]
     yield arr[::2]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn slice_generator"));
@@ -419,13 +419,13 @@ def slice_generator():
 
 /// Unit Test: Generator with while loop and break
 ///
-/// Verifies: Lines 542-544 - HirStmt::While in variable usage analysis
+/// Verifies: Lines 542-544 - `HirStmt::While` in variable usage analysis
 /// Expected: Proper loop state machine with break handling
 #[test]
 fn test_generator_while_loop_with_break() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def while_with_break():
     i = 0
     while i < 10:
@@ -433,7 +433,7 @@ def while_with_break():
             break
         yield i
         i = i + 1
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn while_with_break"));
@@ -442,17 +442,17 @@ def while_with_break():
 
 /// Unit Test: Generator yielding sets
 ///
-/// Verifies: Lines 477 - HirExpr::Set handling
-/// Expected: Iterator yielding HashSet type
+/// Verifies: Lines 477 - `HirExpr::Set` handling
+/// Expected: Iterator yielding `HashSet` type
 #[test]
 fn test_generator_set_in_yield() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def set_generator():
     yield {1, 2, 3}
     yield {4, 5}
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn set_generator"));
@@ -479,11 +479,10 @@ fn test_property_generator_literal_types() {
 
     for (type_name, yield_stmt) in test_cases {
         let python_code = format!(
-            r#"
-def test_{}_gen():
-    {}
-"#,
-            type_name, yield_stmt
+            r"
+def test_{type_name}_gen():
+    {yield_stmt}
+"
         );
         let result = pipeline.transpile(&python_code);
 
@@ -499,14 +498,13 @@ fn test_property_generator_yield_counts() {
     let pipeline = DepylerPipeline::new();
 
     for count in [1, 2, 3, 5, 10] {
-        let yields = (0..count).map(|i| format!("    yield {}", i)).collect::<Vec<_>>().join("\n");
+        let yields = (0..count).map(|i| format!("    yield {i}")).collect::<Vec<_>>().join("\n");
 
         let python_code = format!(
-            r#"
-def test_gen_{}():
-{}
-"#,
-            count, yields
+            r"
+def test_gen_{count}():
+{yields}
+"
         );
         let result = pipeline.transpile(&python_code);
 
@@ -526,7 +524,7 @@ def test_gen_{}():
 fn test_integration_complex_generator() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def complex_generator(limit: int):
     # State variables
     count = 0
@@ -545,7 +543,7 @@ def complex_generator(limit: int):
 
     # Final yield
     yield count
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn complex_generator"));
@@ -559,31 +557,31 @@ fn test_mutation_generator_state_machines() {
     let pipeline = DepylerPipeline::new();
 
     // Test Case 1: Simple sequential yields
-    let seq_code = r#"
+    let seq_code = r"
 def test1():
     yield 1
     yield 2
-"#;
+";
     let rust1 = pipeline.transpile(seq_code).unwrap();
     assert!(rust1.contains("fn test1"));
 
     // Test Case 2: Loop with yield
-    let loop_code = r#"
+    let loop_code = r"
 def test2():
     i = 0
     while i < 3:
         yield i
         i = i + 1
-"#;
+";
     let rust2 = pipeline.transpile(loop_code).unwrap();
     assert!(rust2.contains("fn test2"));
 
     // Test Case 3: Nested structure
-    let nested_code = r#"
+    let nested_code = r"
 def test3():
     for x in [1, 2]:
         yield x
-"#;
+";
     let rust3 = pipeline.transpile(nested_code).unwrap();
     assert!(rust3.contains("fn test3"));
 }

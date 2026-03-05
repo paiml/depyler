@@ -32,31 +32,28 @@ def create_config():
     // Should infer HashMap return type, NOT i32
     assert!(
         !rust.contains("pub fn create_config() -> i32"),
-        "Dict return should NOT be typed as i32. Generated:\n{}",
-        rust
+        "Dict return should NOT be typed as i32. Generated:\n{rust}"
     );
 
     // Should be HashMap or Value
     assert!(
         rust.contains("HashMap") || rust.contains("Value"),
-        "Dict return should be HashMap or Value. Generated:\n{}",
-        rust
+        "Dict return should be HashMap or Value. Generated:\n{rust}"
     );
 }
 
 #[test]
 fn test_depyler_0448_int_return_infers_i32() {
-    let python = r#"
+    let python = r"
 def get_count():
     return 42
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should infer i32 return type
     assert!(
         rust.contains("pub fn get_count() -> i32"),
-        "Int return should be typed as i32. Generated:\n{}",
-        rust
+        "Int return should be typed as i32. Generated:\n{rust}"
     );
 }
 
@@ -71,63 +68,58 @@ def get_name():
     // Should infer String return type
     assert!(
         rust.contains("pub fn get_name() -> String") || rust.contains("pub fn get_name() -> &str"),
-        "String return should be typed as String or &str. Generated:\n{}",
-        rust
+        "String return should be typed as String or &str. Generated:\n{rust}"
     );
 }
 
 #[test]
 fn test_depyler_0448_bool_return_infers_bool() {
-    let python = r#"
+    let python = r"
 def is_valid():
     return True
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should infer bool return type
     assert!(
         rust.contains("pub fn is_valid() -> bool"),
-        "Bool return should be typed as bool. Generated:\n{}",
-        rust
+        "Bool return should be typed as bool. Generated:\n{rust}"
     );
 }
 
 #[test]
 fn test_depyler_0448_float_return_infers_f64() {
-    let python = r#"
+    let python = r"
 def get_pi():
     return 3.14159
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should infer f64 return type
     assert!(
         rust.contains("pub fn get_pi() -> f64"),
-        "Float return should be typed as f64. Generated:\n{}",
-        rust
+        "Float return should be typed as f64. Generated:\n{rust}"
     );
 }
 
 #[test]
 fn test_depyler_0448_list_return_infers_vec() {
-    let python = r#"
+    let python = r"
 def get_items():
     return [1, 2, 3]
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should infer Vec return type, NOT i32
     assert!(
         !rust.contains("pub fn get_items() -> i32"),
-        "List return should NOT be typed as i32. Generated:\n{}",
-        rust
+        "List return should NOT be typed as i32. Generated:\n{rust}"
     );
 
     // Should be Vec or Value
     assert!(
         rust.contains("Vec") || rust.contains("Value"),
-        "List return should be Vec or Value. Generated:\n{}",
-        rust
+        "List return should be Vec or Value. Generated:\n{rust}"
     );
 }
 
@@ -146,12 +138,11 @@ def get_mixed(flag):
     // Mixed types should use Value, NOT i32
     assert!(
         !rust.contains("pub fn get_mixed") || !rust.contains("-> i32"),
-        "Mixed return types should NOT default to i32. Generated:\n{}",
-        rust
+        "Mixed return types should NOT default to i32. Generated:\n{rust}"
     );
 
     // Should use Value
-    assert!(rust.contains("Value"), "Mixed return types should use Value. Generated:\n{}", rust);
+    assert!(rust.contains("Value"), "Mixed return types should use Value. Generated:\n{rust}");
 }
 
 #[test]
@@ -165,25 +156,23 @@ def do_something():
     // No explicit return should NOT be i32
     assert!(
         !rust.contains("pub fn do_something() -> i32"),
-        "Function with no return should NOT default to i32. Generated:\n{}",
-        rust
+        "Function with no return should NOT default to i32. Generated:\n{rust}"
     );
 }
 
 #[test]
 fn test_depyler_0448_none_return_infers_unit() {
-    let python = r#"
+    let python = r"
 def returns_none():
     return None
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // None return should be unit type () - function with no return type
     // Note: Generated code contains "-> i32" in trait impls, so check specifically
     assert!(
         rust.contains("pub fn returns_none()") && !rust.contains("fn returns_none() -> i32"),
-        "None return should be unit type, NOT i32. Generated:\n{}",
-        rust
+        "None return should be unit type, NOT i32. Generated:\n{rust}"
     );
 }
 
@@ -201,30 +190,27 @@ DEFAULT_CONFIG = {"host": "localhost", "port": 5432}
     // Should infer HashMap type for constant, NOT i32
     assert!(
         !rust.contains("pub const DEFAULT_CONFIG: i32"),
-        "Dict constant should NOT be typed as i32. Generated:\n{}",
-        rust
+        "Dict constant should NOT be typed as i32. Generated:\n{rust}"
     );
 
     // Should be HashMap or Value
     assert!(
         rust.contains("HashMap") || rust.contains("Value"),
-        "Dict constant should be HashMap or Value. Generated:\n{}",
-        rust
+        "Dict constant should be HashMap or Value. Generated:\n{rust}"
     );
 }
 
 #[test]
 fn test_depyler_0448_int_constant_infers_i32() {
-    let python = r#"
+    let python = r"
 MAX_RETRIES = 3
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should infer i32 type for constant
     assert!(
         rust.contains("pub const MAX_RETRIES: i32"),
-        "Int constant should be typed as i32. Generated:\n{}",
-        rust
+        "Int constant should be typed as i32. Generated:\n{rust}"
     );
 }
 
@@ -238,23 +224,21 @@ APP_NAME = "MyApp"
     // Should infer string type for constant
     assert!(
         rust.contains("&str") || rust.contains("String"),
-        "String constant should be typed as &str or String. Generated:\n{}",
-        rust
+        "String constant should be typed as &str or String. Generated:\n{rust}"
     );
 }
 
 #[test]
 fn test_depyler_0448_bool_constant_infers_bool() {
-    let python = r#"
+    let python = r"
 DEBUG_MODE = True
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should infer bool type for constant
     assert!(
         rust.contains("pub const DEBUG_MODE: bool"),
-        "Bool constant should be typed as bool. Generated:\n{}",
-        rust
+        "Bool constant should be typed as bool. Generated:\n{rust}"
     );
 }
 
@@ -268,15 +252,13 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
     // Should infer Vec type for constant, NOT i32
     assert!(
         !rust.contains("pub const ALLOWED_HOSTS: i32"),
-        "List constant should NOT be typed as i32. Generated:\n{}",
-        rust
+        "List constant should NOT be typed as i32. Generated:\n{rust}"
     );
 
     // Should be Vec or array
     assert!(
-        rust.contains("Vec") || rust.contains("[") || rust.contains("Value"),
-        "List constant should be Vec, array, or Value. Generated:\n{}",
-        rust
+        rust.contains("Vec") || rust.contains('[') || rust.contains("Value"),
+        "List constant should be Vec, array, or Value. Generated:\n{rust}"
     );
 }
 
@@ -286,20 +268,19 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 #[test]
 fn test_depyler_0448_if_else_same_type_returns() {
-    let python = r#"
+    let python = r"
 def get_value(flag):
     if flag:
         return 10
     else:
         return 20
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should infer i32 since both branches return int
     assert!(
         rust.contains("pub fn get_value") && rust.contains("-> i32"),
-        "Consistent int returns should be typed as i32. Generated:\n{}",
-        rust
+        "Consistent int returns should be typed as i32. Generated:\n{rust}"
     );
 }
 
@@ -319,8 +300,7 @@ def categorize(score):
     // Should infer String since all branches return strings
     assert!(
         rust.contains("pub fn categorize") && rust.contains("String"),
-        "Consistent string returns should be typed as String. Generated:\n{}",
-        rust
+        "Consistent string returns should be typed as String. Generated:\n{rust}"
     );
 }
 
@@ -345,31 +325,28 @@ def load_config(path):
     assert!(
         !rust.contains("fn load_config(path: String) -> i32")
             && !rust.contains("fn load_config(_path: String) -> i32"),
-        "load_config should NOT return i32. Generated:\n{}",
-        rust
+        "load_config should NOT return i32. Generated:\n{rust}"
     );
 
     // DEFAULT_CONFIG should NOT be i32
     assert!(
         !rust.contains("pub const DEFAULT_CONFIG: i32"),
-        "DEFAULT_CONFIG should NOT be i32. Generated:\n{}",
-        rust
+        "DEFAULT_CONFIG should NOT be i32. Generated:\n{rust}"
     );
 }
 
 #[test]
 fn test_depyler_0448_create_dict_function() {
-    let python = r#"
+    let python = r"
 def create_dict():
     return {}
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Empty dict should NOT return i32
     assert!(
         !rust.contains("pub fn create_dict() -> i32"),
-        "Empty dict return should NOT be i32. Generated:\n{}",
-        rust
+        "Empty dict return should NOT be i32. Generated:\n{rust}"
     );
 }
 
@@ -392,8 +369,7 @@ def get_nested():
     // Nested dict should NOT return i32
     assert!(
         !rust.contains("pub fn get_nested() -> i32"),
-        "Nested dict return should NOT be i32. Generated:\n{}",
-        rust
+        "Nested dict return should NOT be i32. Generated:\n{rust}"
     );
 }
 
@@ -403,14 +379,14 @@ def get_nested():
 
 #[test]
 fn test_depyler_0448_multiple_return_statements() {
-    let python = r#"
+    let python = r"
 def process(data):
     if not data:
         return None
     if len(data) > 10:
         return data[:10]
     return data
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should NOT default to i32
@@ -419,26 +395,24 @@ def process(data):
     assert!(
         !rust.contains("pub fn process(data: Vec<DepylerValue>) -> i32")
             && !rust.contains("pub fn process(data: &Vec<DepylerValue>) -> i32"),
-        "Multiple returns should NOT default to i32. Generated:\n{}",
-        rust
+        "Multiple returns should NOT default to i32. Generated:\n{rust}"
     );
 }
 
 #[test]
 fn test_depyler_0448_early_return() {
-    let python = r#"
+    let python = r"
 def validate(value):
     if value < 0:
         return False
     return True
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should infer bool
     assert!(
         rust.contains("pub fn validate") && rust.contains("-> bool"),
-        "Bool returns should be typed as bool. Generated:\n{}",
-        rust
+        "Bool returns should be typed as bool. Generated:\n{rust}"
     );
 }
 
@@ -454,8 +428,7 @@ def calculate():
     // Returning dict variable should NOT be i32
     assert!(
         !rust.contains("pub fn calculate() -> i32"),
-        "Dict variable return should NOT be i32. Generated:\n{}",
-        rust
+        "Dict variable return should NOT be i32. Generated:\n{rust}"
     );
 }
 
@@ -495,7 +468,6 @@ def get_config(use_default):
     assert!(
         !rust.contains("fn get_config(use_default: bool) -> i32")
             && !rust.contains("fn get_config() -> i32"),
-        "Conditional dict returns should NOT be i32. Generated:\n{}",
-        rust
+        "Conditional dict returns should NOT be i32. Generated:\n{rust}"
     );
 }

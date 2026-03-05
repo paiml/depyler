@@ -40,20 +40,20 @@ class API:
         return cls()
 "#;
     let result = transpile(code);
-    assert!(result.contains("API"), "Got: {}", result);
+    assert!(result.contains("API"), "Got: {result}");
 }
 
 // ===== Async patterns =====
 
 #[test]
 fn test_s12_b44_async_simple() {
-    let code = r#"
+    let code = r"
 async def fetch(url: str) -> str:
     data = await get_data(url)
     return data
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn fetch"), "Got: {}", result);
+    assert!(result.contains("fn fetch"), "Got: {result}");
 }
 
 #[test]
@@ -67,28 +67,28 @@ async def safe_fetch(url: str) -> str:
         return ""
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn safe_fetch"), "Got: {}", result);
+    assert!(result.contains("fn safe_fetch"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b44_async_loop() {
-    let code = r#"
+    let code = r"
 async def process_all(urls: list) -> list:
     results = []
     for url in urls:
         data = await fetch(url)
         results.append(data)
     return results
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn process_all"), "Got: {}", result);
+    assert!(result.contains("fn process_all"), "Got: {result}");
 }
 
 // ===== Property patterns =====
 
 #[test]
 fn test_s12_b44_property_getter() {
-    let code = r#"
+    let code = r"
 class Square:
     def __init__(self, side: float):
         self.side = side
@@ -100,16 +100,16 @@ class Square:
     @property
     def perimeter(self) -> float:
         return 4.0 * self.side
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Square"), "Got: {}", result);
+    assert!(result.contains("Square"), "Got: {result}");
 }
 
 // ===== Global with complex usage =====
 
 #[test]
 fn test_s12_b44_global_counter() {
-    let code = r#"
+    let code = r"
 _counter = 0
 
 def next_id() -> int:
@@ -120,9 +120,9 @@ def next_id() -> int:
 def reset():
     global _counter
     _counter = 0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn next_id"), "Got: {}", result);
+    assert!(result.contains("fn next_id"), "Got: {result}");
 }
 
 // ===== Multiple inheritance =====
@@ -150,32 +150,32 @@ class Item(Printable, Comparable):
         return self.value - other.value
 "#;
     let result = transpile(code);
-    assert!(result.contains("Item"), "Got: {}", result);
+    assert!(result.contains("Item"), "Got: {result}");
 }
 
 // ===== Complex delete operations =====
 
 #[test]
 fn test_s12_b44_del_list_item() {
-    let code = r#"
+    let code = r"
 def remove_at(items: list, idx: int) -> list:
     del items[idx]
     return items
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn remove_at"), "Got: {}", result);
+    assert!(result.contains("fn remove_at"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b44_del_dict_key() {
-    let code = r#"
+    let code = r"
 def remove_key(d: dict, key: str) -> dict:
     if key in d:
         del d[key]
     return d
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn remove_key"), "Got: {}", result);
+    assert!(result.contains("fn remove_key"), "Got: {result}");
 }
 
 // ===== Complex string formatting =====
@@ -189,7 +189,7 @@ def summary(items: list) -> str:
     return f"Count: {n}, Sum: {total}, Avg: {total / n if n > 0 else 0}"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn summary"), "Got: {}", result);
+    assert!(result.contains("fn summary"), "Got: {result}");
 }
 
 #[test]
@@ -199,7 +199,7 @@ def make_report(name: str, score: int, rank: int) -> str:
     return f"{name} scored {score} (rank {rank})"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn make_report"), "Got: {}", result);
+    assert!(result.contains("fn make_report"), "Got: {result}");
 }
 
 // ===== Complex iteration patterns =====
@@ -214,38 +214,38 @@ def numbered(items: list, start: int) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn numbered"), "Got: {}", result);
+    assert!(result.contains("fn numbered"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b44_zip_three() {
-    let code = r#"
+    let code = r"
 def combine_three(a: list, b: list, c: list) -> list:
     result = []
     for x, y, z in zip(a, b, c):
         result.append(x + y + z)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn combine_three"), "Got: {}", result);
+    assert!(result.contains("fn combine_three"), "Got: {result}");
 }
 
 // ===== Complex list operations =====
 
 #[test]
 fn test_s12_b44_list_slice_assign() {
-    let code = r#"
+    let code = r"
 def replace_middle(items: list, start: int, end: int, new_items: list) -> list:
     result = items[:start] + new_items + items[end:]
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn replace_middle"), "Got: {}", result);
+    assert!(result.contains("fn replace_middle"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b44_list_concat() {
-    let code = r#"
+    let code = r"
 def merge_sorted(a: list, b: list) -> list:
     result = []
     i = 0
@@ -264,16 +264,16 @@ def merge_sorted(a: list, b: list) -> list:
         result.append(b[j])
         j += 1
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn merge_sorted"), "Got: {}", result);
+    assert!(result.contains("fn merge_sorted"), "Got: {result}");
 }
 
 // ===== Nested class pattern =====
 
 #[test]
 fn test_s12_b44_nested_class() {
-    let code = r#"
+    let code = r"
 class Outer:
     def __init__(self):
         self.value = 0
@@ -287,34 +287,34 @@ class Outer:
 
     def create_inner(self, x: int):
         return Outer.Inner(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Outer"), "Got: {}", result);
+    assert!(result.contains("Outer"), "Got: {result}");
 }
 
 // ===== Complex numeric patterns =====
 
 #[test]
 fn test_s12_b44_complex_math() {
-    let code = r#"
+    let code = r"
 def distance(x1: float, y1: float, x2: float, y2: float) -> float:
     dx = x2 - x1
     dy = y2 - y1
     return (dx ** 2 + dy ** 2) ** 0.5
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn distance"), "Got: {}", result);
+    assert!(result.contains("fn distance"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b44_compound_interest() {
-    let code = r#"
+    let code = r"
 def compound_interest(principal: float, rate: float, years: int) -> float:
     amount = principal
     for i in range(years):
         amount *= (1.0 + rate)
     return amount - principal
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn compound_interest"), "Got: {}", result);
+    assert!(result.contains("fn compound_interest"), "Got: {result}");
 }

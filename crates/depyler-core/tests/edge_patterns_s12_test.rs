@@ -21,16 +21,16 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b61_nested_dict_access() {
-    let code = r#"
+    let code = r"
 def deep_get(data: dict, k1: str, k2: str, default: int) -> int:
     if k1 in data:
         inner = data[k1]
         if k2 in inner:
             return inner[k2]
     return default
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn deep_get"), "Got: {}", result);
+    assert!(result.contains("fn deep_get"), "Got: {result}");
 }
 
 #[test]
@@ -40,30 +40,30 @@ def is_letter(c: str) -> bool:
     return "a" <= c <= "z" or "A" <= c <= "Z"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn is_letter"), "Got: {}", result);
+    assert!(result.contains("fn is_letter"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b61_multiple_assignment() {
-    let code = r#"
+    let code = r"
 def init() -> tuple:
     x = y = z = 0
     return (x, y, z)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn init"), "Got: {}", result);
+    assert!(result.contains("fn init"), "Got: {result}");
 }
 
 // ===== Empty function body =====
 
 #[test]
 fn test_s12_b61_pass_function() {
-    let code = r#"
+    let code = r"
 def noop():
     pass
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn noop"), "Got: {}", result);
+    assert!(result.contains("fn noop"), "Got: {result}");
 }
 
 #[test]
@@ -74,57 +74,57 @@ def documented():
     pass
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn documented"), "Got: {}", result);
+    assert!(result.contains("fn documented"), "Got: {result}");
 }
 
 // ===== Complex unpacking =====
 
 #[test]
 fn test_s12_b61_tuple_in_for() {
-    let code = r#"
+    let code = r"
 def sum_pairs(pairs: list) -> int:
     total = 0
     for a, b in pairs:
         total += a + b
     return total
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sum_pairs"), "Got: {}", result);
+    assert!(result.contains("fn sum_pairs"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b61_triple_unpack() {
-    let code = r#"
+    let code = r"
 def process_triples(items: list) -> list:
     result = []
     for a, b, c in items:
         result.append(a + b + c)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn process_triples"), "Got: {}", result);
+    assert!(result.contains("fn process_triples"), "Got: {result}");
 }
 
 // ===== Boolean edge cases =====
 
 #[test]
 fn test_s12_b61_short_circuit_and() {
-    let code = r#"
+    let code = r"
 def safe_check(items: list, idx: int) -> bool:
     return idx < len(items) and items[idx] > 0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn safe_check"), "Got: {}", result);
+    assert!(result.contains("fn safe_check"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b61_short_circuit_or() {
-    let code = r#"
+    let code = r"
 def default_value(x, default: int) -> int:
     return x or default
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn default_value"), "Got: {}", result);
+    assert!(result.contains("fn default_value"), "Got: {result}");
 }
 
 // ===== Nested function calls =====
@@ -136,96 +136,96 @@ def process(text: str) -> str:
     return " ".join(sorted(set(text.lower().split())))
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn process"), "Got: {}", result);
+    assert!(result.contains("fn process"), "Got: {result}");
 }
 
 // ===== Complex string operations =====
 
 #[test]
 fn test_s12_b61_multiline_builder() {
-    let code = r##"
+    let code = r#"
 def build_html(title: str, items: list) -> str:
     html = f"<h1>{title}</h1>\n<ul>\n"
     for item in items:
         html += f"<li>{item}</li>\n"
     html += "</ul>"
     return html
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn build_html"), "Got: {}", result);
+    assert!(result.contains("fn build_html"), "Got: {result}");
 }
 
 // ===== Numeric edge cases =====
 
 #[test]
 fn test_s12_b61_zero_division_guard() {
-    let code = r#"
+    let code = r"
 def safe_div(a: float, b: float) -> float:
     if b == 0.0:
         return 0.0
     return a / b
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn safe_div"), "Got: {}", result);
+    assert!(result.contains("fn safe_div"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b61_negative_index() {
-    let code = r#"
+    let code = r"
 def last_item(items: list) -> int:
     return items[-1]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn last_item"), "Got: {}", result);
+    assert!(result.contains("fn last_item"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b61_negative_slice() {
-    let code = r#"
+    let code = r"
 def last_three(items: list) -> list:
     return items[-3:]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn last_three"), "Got: {}", result);
+    assert!(result.contains("fn last_three"), "Got: {result}");
 }
 
 // ===== Complex lambda patterns =====
 
 #[test]
 fn test_s12_b61_lambda_in_sorted() {
-    let code = r#"
+    let code = r"
 def sort_by_second(pairs: list) -> list:
     return sorted(pairs, key=lambda x: x[1])
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sort_by_second"), "Got: {}", result);
+    assert!(result.contains("fn sort_by_second"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b61_lambda_in_filter() {
-    let code = r#"
+    let code = r"
 def adults(people: list) -> list:
     return list(filter(lambda p: p[1] >= 18, people))
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn adults"), "Got: {}", result);
+    assert!(result.contains("fn adults"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b61_lambda_in_map() {
-    let code = r#"
+    let code = r"
 def double_all(items: list) -> list:
     return list(map(lambda x: x * 2, items))
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn double_all"), "Got: {}", result);
+    assert!(result.contains("fn double_all"), "Got: {result}");
 }
 
 // ===== Complex class patterns =====
 
 #[test]
 fn test_s12_b61_class_with_many_types() {
-    let code = r##"
+    let code = r#"
 class Config:
     def __init__(self):
         self.name = ""
@@ -243,14 +243,14 @@ class Config:
 
     def to_string(self) -> str:
         return f"{self.name}:{self.port}"
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("Config"), "Got: {}", result);
+    assert!(result.contains("Config"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b61_class_with_default_factory() {
-    let code = r#"
+    let code = r"
 class Counter:
     def __init__(self):
         self.counts = {}
@@ -268,16 +268,16 @@ class Counter:
         items = list(self.counts.items())
         items.sort(key=lambda x: x[1], reverse=True)
         return items[:n]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Counter"), "Got: {}", result);
+    assert!(result.contains("Counter"), "Got: {result}");
 }
 
 // ===== Walrus operator patterns =====
 
 #[test]
 fn test_s12_b61_walrus_in_while() {
-    let code = r#"
+    let code = r"
 def read_chunks(data: list) -> list:
     result = []
     i = 0
@@ -286,32 +286,32 @@ def read_chunks(data: list) -> list:
         result.append(chunk)
         i += 3
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn read_chunks"), "Got: {}", result);
+    assert!(result.contains("fn read_chunks"), "Got: {result}");
 }
 
 // ===== Complex print patterns =====
 
 #[test]
 fn test_s12_b61_print_formatted() {
-    let code = r##"
+    let code = r#"
 def print_table(headers: list, rows: list) -> str:
     result = " | ".join(headers) + "\n"
     result += "-" * len(result) + "\n"
     for row in rows:
         result += " | ".join(str(x) for x in row) + "\n"
     return result
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn print_table"), "Got: {}", result);
+    assert!(result.contains("fn print_table"), "Got: {result}");
 }
 
 // ===== Multiple decorators =====
 
 #[test]
 fn test_s12_b61_class_all_decorators() {
-    let code = r#"
+    let code = r"
 class Utils:
     @staticmethod
     def add(a: int, b: int) -> int:
@@ -324,7 +324,7 @@ class Utils:
     @classmethod
     def create(cls):
         return cls()
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Utils"), "Got: {}", result);
+    assert!(result.contains("Utils"), "Got: {result}");
 }

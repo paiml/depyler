@@ -6,7 +6,7 @@ use depyler_core::DepylerPipeline;
 fn test_list_operations() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def work_with_lists():
     # List creation
     numbers = [1, 2, 3, 4, 5]
@@ -23,13 +23,13 @@ def work_with_lists():
     squares = [x * x for x in numbers]
     
     return len(numbers)
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("List operations result: {:?}", result);
+    println!("List operations result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated list code:\n{}", rust_code);
+        println!("Generated list code:\n{rust_code}");
 
         // Check for Vec usage
         assert!(
@@ -65,10 +65,10 @@ def work_with_dicts():
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Dict operations result: {:?}", result);
+    println!("Dict operations result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated dict code:\n{}", rust_code);
+        println!("Generated dict code:\n{rust_code}");
 
         // Check for HashMap usage
         assert!(rust_code.contains("HashMap"), "Should use HashMap for Python dicts");
@@ -96,14 +96,14 @@ def work_with_tuples():
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Tuple operations result: {:?}", result);
+    println!("Tuple operations result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated tuple code:\n{}", rust_code);
+        println!("Generated tuple code:\n{rust_code}");
 
         // Check for tuple usage
         assert!(
-            rust_code.contains("(") && rust_code.contains(")"),
+            rust_code.contains('(') && rust_code.contains(')'),
             "Should use Rust tuples for Python tuples"
         );
     }
@@ -134,10 +134,10 @@ def work_with_nested():
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Nested collections result: {:?}", result);
+    println!("Nested collections result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated nested code:\n{}", rust_code);
+        println!("Generated nested code:\n{rust_code}");
 
         // Check for nested Vec and HashMap
         assert!(
@@ -156,7 +156,7 @@ def work_with_nested():
 fn test_collection_type_annotations() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 from typing import List, Dict, Tuple, Optional
 
 def typed_collections(
@@ -171,13 +171,13 @@ def typed_collections(
         result.append(str(num))
     
     return result
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Type annotations result: {:?}", result);
+    println!("Type annotations result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated typed code:\n{}", rust_code);
+        println!("Generated typed code:\n{rust_code}");
 
         // Check for proper Rust type mappings
         assert!(
@@ -221,7 +221,7 @@ def collection_methods():
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Collection methods result: {:?}", result);
+    println!("Collection methods result: {result:?}");
 
     // This might fail since not all methods are implemented
     // Just check what we get
@@ -253,10 +253,10 @@ def iterate_collections():
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Collection iteration result: {:?}", result);
+    println!("Collection iteration result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated iteration code:\n{}", rust_code);
+        println!("Generated iteration code:\n{rust_code}");
 
         // Check for proper iteration patterns
         assert!(rust_code.contains("for"), "Should generate for loops");

@@ -27,12 +27,12 @@ def safe_get(d: dict, key: str) -> str:
         return "default"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn safe_get"), "Got: {}", result);
+    assert!(result.contains("fn safe_get"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b66_try_except_variable() {
-    let code = r#"
+    let code = r"
 def safe_parse(s: str) -> int:
     result = 0
     try:
@@ -40,14 +40,14 @@ def safe_parse(s: str) -> int:
     except ValueError:
         result = -1
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn safe_parse"), "Got: {}", result);
+    assert!(result.contains("fn safe_parse"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b66_try_finally() {
-    let code = r#"
+    let code = r"
 def process(x: int) -> int:
     result = 0
     try:
@@ -55,14 +55,14 @@ def process(x: int) -> int:
     finally:
         pass
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn process"), "Got: {}", result);
+    assert!(result.contains("fn process"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b66_nested_try() {
-    let code = r#"
+    let code = r"
 def double_parse(a: str, b: str) -> int:
     try:
         x = int(a)
@@ -73,14 +73,14 @@ def double_parse(a: str, b: str) -> int:
             return x
     except ValueError:
         return 0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn double_parse"), "Got: {}", result);
+    assert!(result.contains("fn double_parse"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b66_multi_except_types() {
-    let code = r#"
+    let code = r"
 def robust(s: str) -> int:
     try:
         return int(s)
@@ -90,23 +90,23 @@ def robust(s: str) -> int:
         return -2
     except OverflowError:
         return -3
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn robust"), "Got: {}", result);
+    assert!(result.contains("fn robust"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b66_except_with_as() {
-    let code = r##"
+    let code = r#"
 def describe_error(s: str) -> str:
     try:
         int(s)
         return "ok"
     except ValueError as e:
         return f"error: {e}"
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn describe_error"), "Got: {}", result);
+    assert!(result.contains("fn describe_error"), "Got: {result}");
 }
 
 #[test]
@@ -117,12 +117,12 @@ def check_range(x: int, lo: int, hi: int):
         raise ValueError("out of range")
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn check_range"), "Got: {}", result);
+    assert!(result.contains("fn check_range"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b66_try_in_loop() {
-    let code = r#"
+    let code = r"
 def safe_sum(items: list) -> int:
     total = 0
     for item in items:
@@ -131,14 +131,14 @@ def safe_sum(items: list) -> int:
         except ValueError:
             pass
     return total
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn safe_sum"), "Got: {}", result);
+    assert!(result.contains("fn safe_sum"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b66_try_with_else() {
-    let code = r#"
+    let code = r"
 def parse_or_default(s: str, default: int) -> int:
     try:
         value = int(s)
@@ -146,14 +146,14 @@ def parse_or_default(s: str, default: int) -> int:
         return default
     else:
         return value
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn parse_or_default"), "Got: {}", result);
+    assert!(result.contains("fn parse_or_default"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b66_try_except_finally_full() {
-    let code = r#"
+    let code = r"
 def full_try(x: int) -> int:
     result = 0
     try:
@@ -163,9 +163,9 @@ def full_try(x: int) -> int:
     finally:
         pass
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn full_try"), "Got: {}", result);
+    assert!(result.contains("fn full_try"), "Got: {result}");
 }
 
 #[test]
@@ -177,12 +177,12 @@ def require(value, name: str):
     return value
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn require"), "Got: {}", result);
+    assert!(result.contains("fn require"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b66_error_accumulator() {
-    let code = r#"
+    let code = r"
 def validate_all(items: list) -> list:
     errors = []
     for i, item in enumerate(items):
@@ -191,7 +191,7 @@ def validate_all(items: list) -> list:
         except ValueError:
             errors.append(i)
     return errors
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn validate_all"), "Got: {}", result);
+    assert!(result.contains("fn validate_all"), "Got: {result}");
 }

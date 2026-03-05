@@ -1,5 +1,5 @@
-//! EXTREME TDD: Tests for inlining.rs InliningAnalyzer
-//! Coverage: analyze_program, build_call_graph, detect_recursion, calculate_metrics
+//! EXTREME TDD: Tests for inlining.rs `InliningAnalyzer`
+//! Coverage: `analyze_program`, `build_call_graph`, `detect_recursion`, `calculate_metrics`
 
 use depyler_core::hir::{
     AssignTarget, BinOp, FunctionProperties, HirExpr, HirFunction, HirParam, HirProgram, HirStmt,
@@ -24,7 +24,7 @@ fn create_function_with_size(name: &str, num_stmts: usize) -> HirFunction {
     let mut body = Vec::new();
     for i in 0..num_stmts {
         body.push(HirStmt::Assign {
-            target: AssignTarget::Symbol(format!("x{}", i)),
+            target: AssignTarget::Symbol(format!("x{i}")),
             value: HirExpr::Literal(Literal::Int(i as i64)),
             type_annotation: None,
         });

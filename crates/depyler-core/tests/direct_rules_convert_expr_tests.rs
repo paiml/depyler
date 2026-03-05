@@ -1,5 +1,5 @@
-//! EXTREME TDD: Tests for direct_rules_convert expression functions
-//! Coverage: convert_expr, convert_expr_with_context, convert_expr_with_param_types
+//! EXTREME TDD: Tests for `direct_rules_convert` expression functions
+//! Coverage: `convert_expr`, `convert_expr_with_context`, `convert_expr_with_param_types`
 
 use depyler_core::DepylerPipeline;
 
@@ -246,10 +246,10 @@ fn test_expr_call_sum() {
 
 #[test]
 fn test_expr_call_range() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> list:
     return list(range(n))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -307,30 +307,30 @@ fn test_expr_method_str_endswith() {
 
 #[test]
 fn test_expr_method_list_append() {
-    let code = r#"
+    let code = r"
 def f(items: list, x: int) -> list:
     items.append(x)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_expr_method_list_pop() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     return items.pop()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_expr_method_list_extend() {
-    let code = r#"
+    let code = r"
 def f(a: list, b: list) -> list:
     a.extend(b)
     return a
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -412,12 +412,12 @@ fn test_expr_slice_reverse() {
 
 #[test]
 fn test_expr_attr_self() {
-    let code = r#"
+    let code = r"
 class Point:
     x: int
     def get_x(self) -> int:
         return self.x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -500,10 +500,10 @@ def f(x: int) -> str:
 
 #[test]
 fn test_expr_lambda_simple() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return sorted(items, key=lambda x: x * -1)
-"#;
+";
     assert!(transpile_ok(code));
 }
 

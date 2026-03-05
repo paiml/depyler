@@ -12,7 +12,7 @@
 //! Root cause: `collect_used_vars_expr_inner` in optimizer.rs doesn't handle
 //! `HirExpr::DictComp`, so variables in the iterator expression are not collected.
 //!
-//! Fix: Add DictComp case to collect used vars from key, value, and generators.
+//! Fix: Add `DictComp` case to collect used vars from key, value, and generators.
 
 #![allow(non_snake_case)]
 
@@ -102,8 +102,7 @@ serde_json = "1.0"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
@@ -113,20 +112,19 @@ serde_json = "1.0"
 #[test]
 fn test_dict_comp_iterator_var_preserved() {
     // Use return instead of print to avoid HashMap Display trait issue
-    let python = r#"
+    let python = r"
 def get_squares():
     nums = [1, 2, 3]
     d = {str(n): n * n for n in nums}
     return d
-"#;
+";
 
     let rust = transpile_with_dce(python).expect("Transpilation should succeed");
 
     // The nums variable should NOT be eliminated
     assert!(
         rust.contains("let nums") || rust.contains("let mut nums"),
-        "nums should be preserved, not eliminated by DCE. Generated:\n{}",
-        rust
+        "nums should be preserved, not eliminated by DCE. Generated:\n{rust}"
     );
 
     // The dict comprehension should reference nums in the iterator
@@ -136,8 +134,7 @@ def get_squares():
     assert!(
         rust_no_whitespace.contains("nums.iter()")
             || rust_no_whitespace.contains("nums.as_slice().iter()"),
-        "Dict comprehension should iterate over nums. Generated:\n{}",
-        rust
+        "Dict comprehension should iterate over nums. Generated:\n{rust}"
     );
 
     // Note: Type inference issue (HashMap<String, Value> vs HashMap<String, int>)
@@ -160,13 +157,11 @@ def get_mapped():
     // Both keys and values should be preserved (not eliminated by DCE)
     assert!(
         rust.contains("let keys") || rust.contains("let mut keys"),
-        "keys should be preserved. Generated:\n{}",
-        rust
+        "keys should be preserved. Generated:\n{rust}"
     );
     assert!(
         rust.contains("let values") || rust.contains("let mut values"),
-        "values should be preserved. Generated:\n{}",
-        rust
+        "values should be preserved. Generated:\n{rust}"
     );
     // Note: Compilation skipped - separate type inference issues
 }
@@ -174,20 +169,19 @@ def get_mapped():
 /// Test: Nested dict comprehension
 #[test]
 fn test_dict_comp_nested() {
-    let python = r#"
+    let python = r"
 def get_nested():
     items = [1, 2, 3]
     d = {str(x): {str(y): x * y for y in items} for x in items}
     return d
-"#;
+";
 
     let rust = transpile_with_dce(python).expect("Transpilation should succeed");
 
     // items should be preserved (used in both outer and inner comprehensions)
     assert!(
         rust.contains("let items") || rust.contains("let mut items"),
-        "items should be preserved for nested dict comp. Generated:\n{}",
-        rust
+        "items should be preserved for nested dict comp. Generated:\n{rust}"
     );
     // Note: Compilation skipped - separate nested comprehension codegen issues
 }
@@ -195,26 +189,24 @@ def get_nested():
 /// Test: Dict comprehension with condition
 #[test]
 fn test_dict_comp_with_condition() {
-    let python = r#"
+    let python = r"
 def get_filtered():
     nums = [1, 2, 3, 4, 5]
     threshold = 2
     d = {str(n): n * n for n in nums if n > threshold}
     return d
-"#;
+";
 
     let rust = transpile_with_dce(python).expect("Transpilation should succeed");
 
     // Both nums and threshold should be preserved (not eliminated by DCE)
     assert!(
         rust.contains("let nums") || rust.contains("let mut nums"),
-        "nums should be preserved. Generated:\n{}",
-        rust
+        "nums should be preserved. Generated:\n{rust}"
     );
     assert!(
         rust.contains("let threshold") || rust.contains("threshold"),
-        "threshold should be preserved. Generated:\n{}",
-        rust
+        "threshold should be preserved. Generated:\n{rust}"
     );
     // Note: Compilation skipped - separate type inference issues
 }

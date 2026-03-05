@@ -35,27 +35,27 @@ def process(items: list, threshold: float, prefix: str) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn process"), "Got: {}", result);
+    assert!(result.contains("fn process"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b39_optional_param() {
-    let code = r#"
+    let code = r"
 def find(items: list, target: int, start: int = 0) -> int:
     for i in range(start, len(items)):
         if items[i] == target:
             return i
     return -1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn find"), "Got: {}", result);
+    assert!(result.contains("fn find"), "Got: {result}");
 }
 
 // ===== Multi-value returns =====
 
 #[test]
 fn test_s12_b39_return_three() {
-    let code = r#"
+    let code = r"
 def min_max_avg(items: list) -> tuple:
     mn = items[0]
     mx = items[0]
@@ -67,9 +67,9 @@ def min_max_avg(items: list) -> tuple:
             mx = item
         total += item
     return (mn, mx, total / len(items))
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn min_max_avg"), "Got: {}", result);
+    assert!(result.contains("fn min_max_avg"), "Got: {result}");
 }
 
 #[test]
@@ -84,7 +84,7 @@ def analyze(text: str) -> dict:
     }
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn analyze"), "Got: {}", result);
+    assert!(result.contains("fn analyze"), "Got: {result}");
 }
 
 // ===== Nested data structures =====
@@ -99,12 +99,12 @@ def get_names(records: list) -> list:
     return names
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn get_names"), "Got: {}", result);
+    assert!(result.contains("fn get_names"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b39_dict_of_lists() {
-    let code = r#"
+    let code = r"
 def group_by_first_letter(words: list) -> dict:
     groups = {}
     for word in words:
@@ -113,22 +113,22 @@ def group_by_first_letter(words: list) -> dict:
             groups[key] = []
         groups[key].append(word)
     return groups
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn group_by_first_letter"), "Got: {}", result);
+    assert!(result.contains("fn group_by_first_letter"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b39_nested_dict_access() {
-    let code = r#"
+    let code = r"
 def deep_get(data: dict, keys: list):
     current = data
     for key in keys:
         current = current[key]
     return current
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn deep_get"), "Got: {}", result);
+    assert!(result.contains("fn deep_get"), "Got: {result}");
 }
 
 // ===== Complex string operations =====
@@ -143,7 +143,7 @@ def format_row(items: list, widths: list) -> str:
     return " | ".join(parts)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn format_row"), "Got: {}", result);
+    assert!(result.contains("fn format_row"), "Got: {result}");
 }
 
 #[test]
@@ -165,44 +165,44 @@ def wrap(text: str, width: int) -> list:
     return lines
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn wrap"), "Got: {}", result);
+    assert!(result.contains("fn wrap"), "Got: {result}");
 }
 
 // ===== Numeric operations =====
 
 #[test]
 fn test_s12_b39_float_comparison() {
-    let code = r#"
+    let code = r"
 def approx_equal(a: float, b: float, eps: float) -> bool:
     return abs(a - b) < eps
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn approx_equal"), "Got: {}", result);
+    assert!(result.contains("fn approx_equal"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b39_clamp() {
-    let code = r#"
+    let code = r"
 def clamp(x: float, lo: float, hi: float) -> float:
     return max(lo, min(x, hi))
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn clamp"), "Got: {}", result);
+    assert!(result.contains("fn clamp"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b39_lerp() {
-    let code = r#"
+    let code = r"
 def lerp(a: float, b: float, t: float) -> float:
     return a + (b - a) * t
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn lerp"), "Got: {}", result);
+    assert!(result.contains("fn lerp"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b39_mean_std() {
-    let code = r#"
+    let code = r"
 def mean(items: list) -> float:
     return sum(items) / len(items)
 
@@ -212,27 +212,27 @@ def variance(items: list) -> float:
     for x in items:
         total += (x - avg) ** 2
     return total / len(items)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn mean"), "Got: {}", result);
-    assert!(result.contains("fn variance"), "Got: {}", result);
+    assert!(result.contains("fn mean"), "Got: {result}");
+    assert!(result.contains("fn variance"), "Got: {result}");
 }
 
 // ===== Complex boolean logic =====
 
 #[test]
 fn test_s12_b39_leap_year() {
-    let code = r#"
+    let code = r"
 def is_leap(year: int) -> bool:
     return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn is_leap"), "Got: {}", result);
+    assert!(result.contains("fn is_leap"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b39_validate_date() {
-    let code = r#"
+    let code = r"
 def valid_date(year: int, month: int, day: int) -> bool:
     if month < 1 or month > 12:
         return False
@@ -246,31 +246,31 @@ def valid_date(year: int, month: int, day: int) -> bool:
         if day == 29 and year % 4 != 0:
             return False
     return True
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn valid_date"), "Got: {}", result);
+    assert!(result.contains("fn valid_date"), "Got: {result}");
 }
 
 // ===== Complex comprehension patterns =====
 
 #[test]
 fn test_s12_b39_comp_enumerate() {
-    let code = r#"
+    let code = r"
 def indexed(items: list) -> list:
     return [(i, item) for i, item in enumerate(items)]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn indexed"), "Got: {}", result);
+    assert!(result.contains("fn indexed"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b39_comp_zip() {
-    let code = r#"
+    let code = r"
 def sum_pairs(a: list, b: list) -> list:
     return [x + y for x, y in zip(a, b)]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sum_pairs"), "Got: {}", result);
+    assert!(result.contains("fn sum_pairs"), "Got: {result}");
 }
 
 #[test]
@@ -280,17 +280,17 @@ def classify(items: list) -> list:
     return ["pos" if x > 0 else "neg" for x in items]
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn classify"), "Got: {}", result);
+    assert!(result.contains("fn classify"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b39_comp_transform_filter() {
-    let code = r#"
+    let code = r"
 def positive_squares(items: list) -> list:
     return [x * x for x in items if x > 0]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn positive_squares"), "Got: {}", result);
+    assert!(result.contains("fn positive_squares"), "Got: {result}");
 }
 
 // ===== Pattern matching on types =====
@@ -309,14 +309,14 @@ def stringify(value) -> str:
         return "unknown"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn stringify"), "Got: {}", result);
+    assert!(result.contains("fn stringify"), "Got: {result}");
 }
 
 // ===== Complex class with properties =====
 
 #[test]
 fn test_s12_b39_bank_account() {
-    let code = r##"
+    let code = r#"
 class BankAccount:
     def __init__(self, owner: str, balance: float):
         self.owner = owner
@@ -351,7 +351,7 @@ class BankAccount:
             if t > 0.0:
                 total += t
         return total
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("BankAccount"), "Got: {}", result);
+    assert!(result.contains("BankAccount"), "Got: {result}");
 }

@@ -1,4 +1,4 @@
-//! Session 12 Batch 19: Deep coverage for func_gen.rs and type_gen.rs
+//! Session 12 Batch 19: Deep coverage for `func_gen.rs` and `type_gen.rs`
 //!
 //! Targets cold paths in function generation:
 //! - Functions with multiple return types
@@ -31,12 +31,12 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_many_params() {
-    let code = r#"
+    let code = r"
 def many_args(a: int, b: int, c: int, d: int, e: int) -> int:
     return a + b + c + d + e
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn many_args"), "Got: {}", result);
+    assert!(result.contains("fn many_args"), "Got: {result}");
 }
 
 #[test]
@@ -48,90 +48,90 @@ def mixed_types(name: str, age: int, weight: float, active: bool) -> str:
     return ""
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn mixed_types"), "Got: {}", result);
+    assert!(result.contains("fn mixed_types"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_function_returning_list() {
-    let code = r#"
+    let code = r"
 def make_range(start: int, end: int) -> list:
     result = []
     for i in range(start, end):
         result.append(i)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn make_range"), "Got: {}", result);
+    assert!(result.contains("fn make_range"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_function_returning_dict() {
-    let code = r#"
+    let code = r"
 def make_dict(keys: list, values: list) -> dict:
     result = {}
     for i in range(len(keys)):
         result[keys[i]] = values[i]
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn make_dict"), "Got: {}", result);
+    assert!(result.contains("fn make_dict"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_function_returning_tuple() {
-    let code = r#"
+    let code = r"
 def divide_with_remainder(a: int, b: int) -> tuple:
     quotient = a // b
     remainder = a % b
     return (quotient, remainder)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn divide_with_remainder"), "Got: {}", result);
+    assert!(result.contains("fn divide_with_remainder"), "Got: {result}");
 }
 
 // ===== Recursive patterns =====
 
 #[test]
 fn test_s12_recursive_fibonacci() {
-    let code = r#"
+    let code = r"
 def fib(n: int) -> int:
     if n <= 1:
         return n
     return fib(n - 1) + fib(n - 2)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn fib"), "Got: {}", result);
+    assert!(result.contains("fn fib"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_recursive_power() {
-    let code = r#"
+    let code = r"
 def power(base: int, exp: int) -> int:
     if exp == 0:
         return 1
     return base * power(base, exp - 1)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn power"), "Got: {}", result);
+    assert!(result.contains("fn power"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_tail_recursive_sum() {
-    let code = r#"
+    let code = r"
 def sum_to(n: int, acc: int = 0) -> int:
     if n <= 0:
         return acc
     return sum_to(n - 1, acc + n)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sum_to"), "Got: {}", result);
+    assert!(result.contains("fn sum_to"), "Got: {result}");
 }
 
 // ===== Nested functions =====
 
 #[test]
 fn test_s12_nested_helper() {
-    let code = r#"
+    let code = r"
 def process_items(items: list) -> list:
     def transform(x: int) -> int:
         return x * 2 + 1
@@ -139,28 +139,28 @@ def process_items(items: list) -> list:
     for item in items:
         result.append(transform(item))
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn process_items"), "Got: {}", result);
+    assert!(result.contains("fn process_items"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_nested_with_closure() {
-    let code = r#"
+    let code = r"
 def make_multiplier(factor: int):
     def multiply(x: int) -> int:
         return x * factor
     return multiply
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn make_multiplier"), "Got: {}", result);
+    assert!(result.contains("fn make_multiplier"), "Got: {result}");
 }
 
 // ===== Class method patterns =====
 
 #[test]
 fn test_s12_class_with_init_and_methods() {
-    let code = r#"
+    let code = r"
 class BankAccount:
     def __init__(self, owner: str, balance: float = 0.0):
         self.owner = owner
@@ -177,16 +177,16 @@ class BankAccount:
 
     def get_balance(self) -> float:
         return self.balance
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("BankAccount"), "Got: {}", result);
-    assert!(result.contains("deposit"), "Got: {}", result);
-    assert!(result.contains("withdraw"), "Got: {}", result);
+    assert!(result.contains("BankAccount"), "Got: {result}");
+    assert!(result.contains("deposit"), "Got: {result}");
+    assert!(result.contains("withdraw"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_class_with_static() {
-    let code = r#"
+    let code = r"
 class Validator:
     @staticmethod
     def is_positive(x: int) -> bool:
@@ -203,30 +203,30 @@ class Validator:
         if x > hi:
             return hi
         return x
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Validator"), "Got: {}", result);
+    assert!(result.contains("Validator"), "Got: {result}");
 }
 
 // ===== Complex typing patterns =====
 
 #[test]
 fn test_s12_optional_return() {
-    let code = r#"
+    let code = r"
 from typing import Optional
 
 def safe_divide(a: float, b: float) -> Optional[float]:
     if b == 0:
         return None
     return a / b
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn safe_divide"), "Got: {}", result);
+    assert!(result.contains("fn safe_divide"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_list_of_tuples() {
-    let code = r#"
+    let code = r"
 from typing import List, Tuple
 
 def pairs(items: List[int]) -> List[Tuple[int, int]]:
@@ -234,9 +234,9 @@ def pairs(items: List[int]) -> List[Tuple[int, int]]:
     for i in range(0, len(items) - 1, 2):
         result.append((items[i], items[i + 1]))
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn pairs"), "Got: {}", result);
+    assert!(result.contains("fn pairs"), "Got: {result}");
 }
 
 // ===== Functions with docstrings =====
@@ -257,14 +257,14 @@ def calculate_area(width: float, height: float) -> float:
     return width * height
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn calculate_area"), "Got: {}", result);
+    assert!(result.contains("fn calculate_area"), "Got: {result}");
 }
 
 // ===== Complex algorithm functions =====
 
 #[test]
 fn test_s12_quicksort() {
-    let code = r#"
+    let code = r"
 def quicksort(arr: list) -> list:
     if len(arr) <= 1:
         return arr
@@ -280,14 +280,14 @@ def quicksort(arr: list) -> list:
         else:
             right.append(x)
     return quicksort(left) + middle + quicksort(right)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn quicksort"), "Got: {}", result);
+    assert!(result.contains("fn quicksort"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_lcs_algorithm() {
-    let code = r#"
+    let code = r"
 def longest_common_subsequence(s1: str, s2: str) -> int:
     m = len(s1)
     n = len(s2)
@@ -307,14 +307,14 @@ def longest_common_subsequence(s1: str, s2: str) -> int:
                 else:
                     dp[i][j] = dp[i][j - 1]
     return dp[m][n]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn longest_common_subsequence"), "Got: {}", result);
+    assert!(result.contains("fn longest_common_subsequence"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_topological_sort() {
-    let code = r#"
+    let code = r"
 def topological_sort(graph: dict) -> list:
     visited = set()
     result = []
@@ -332,9 +332,9 @@ def topological_sort(graph: dict) -> list:
         dfs(node)
     result.reverse()
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn topological_sort"), "Got: {}", result);
+    assert!(result.contains("fn topological_sort"), "Got: {result}");
 }
 
 // ===== Multiple functions interacting =====
@@ -358,9 +358,9 @@ def vowel_ratio(s: str) -> float:
     return count_vowels(s) / len(s)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn is_vowel"), "Got: {}", result);
-    assert!(result.contains("fn count_vowels"), "Got: {}", result);
-    assert!(result.contains("fn vowel_ratio"), "Got: {}", result);
+    assert!(result.contains("fn is_vowel"), "Got: {result}");
+    assert!(result.contains("fn count_vowels"), "Got: {result}");
+    assert!(result.contains("fn vowel_ratio"), "Got: {result}");
 }
 
 #[test]
@@ -385,7 +385,7 @@ def format_user(user: dict) -> str:
     return user["name"] + " <" + user["email"] + ">"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn create_user"), "Got: {}", result);
-    assert!(result.contains("fn validate_user"), "Got: {}", result);
-    assert!(result.contains("fn format_user"), "Got: {}", result);
+    assert!(result.contains("fn create_user"), "Got: {result}");
+    assert!(result.contains("fn validate_user"), "Got: {result}");
+    assert!(result.contains("fn format_user"), "Got: {result}");
 }

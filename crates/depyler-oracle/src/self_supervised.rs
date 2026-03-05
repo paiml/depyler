@@ -1482,7 +1482,7 @@ mod tests {
         };
 
         let score = gen.quality_score(&good_example, &func);
-        assert!(score >= 0.7, "Good example should have high quality score: {}", score);
+        assert!(score >= 0.7, "Good example should have high quality score: {score}");
     }
 
     #[test]
@@ -1512,7 +1512,7 @@ mod tests {
         ];
 
         let score = SyntheticGenerator::diversity_score(&gen, &examples);
-        assert!(score > 0.5, "Diverse examples should have high diversity: {:.2}", score);
+        assert!(score > 0.5, "Diverse examples should have high diversity: {score:.2}");
     }
 
     // ========================================================================
@@ -1789,7 +1789,7 @@ mod tests {
 
                 // Verify bounds are valid
                 for i in 0..dim {
-                    assert!(lower[i] <= upper[i], "Invalid bounds at dim {}", i);
+                    assert!(lower[i] <= upper[i], "Invalid bounds at dim {i}");
                 }
             }
             _ => panic!("Expected Continuous search space"),

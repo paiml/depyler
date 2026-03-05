@@ -1,6 +1,6 @@
-//! Coverage tests for rust_gen/walrus_helpers.rs
+//! Coverage tests for `rust_gen/walrus_helpers.rs`
 //!
-//! DEPYLER-99MODE-001: Targets walrus_helpers.rs (789 lines)
+//! DEPYLER-99MODE-001: Targets `walrus_helpers.rs` (789 lines)
 //! Covers: walrus operator (:=) transpilation, named expressions
 //! in conditions, while loops, and comprehensions.
 
@@ -16,18 +16,18 @@ fn transpile_ok(code: &str) -> bool {
 
 #[test]
 fn test_walrus_if_condition() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     if len(items) > 0:
         return items[0]
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_walrus_while_pattern() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     total = 0
     i = 0
@@ -35,7 +35,7 @@ def f(items: list) -> int:
         total += items[i]
         i += 1
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -45,19 +45,19 @@ def f(items: list) -> int:
 
 #[test]
 fn test_walrus_assign_before_if() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> int:
     n = len(s)
     if n > 10:
         return n
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_walrus_assign_before_while() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     result = []
     i = 0
@@ -65,7 +65,7 @@ def f(items: list) -> list:
         result.append(items[i])
         i += 1
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -75,19 +75,19 @@ def f(items: list) -> list:
 
 #[test]
 fn test_walrus_comprehension_filter() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return [x for x in items if x > 0]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_walrus_comprehension_transform() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return [x * 2 for x in items]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -97,7 +97,7 @@ def f(items: list) -> list:
 
 #[test]
 fn test_walrus_nested_conditions() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     n = len(items)
     if n > 0:
@@ -105,17 +105,17 @@ def f(items: list) -> int:
         if first > 0:
             return first
     return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_walrus_boolean_chain() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     n = len(s)
     return n > 0 and n < 100
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -133,7 +133,7 @@ def f(text: str) -> str:
 
 #[test]
 fn test_walrus_function_call_result() {
-    let code = r#"
+    let code = r"
 def compute(x: int) -> int:
     return x * x
 
@@ -144,6 +144,6 @@ def f(items: list) -> list:
         if val > 10:
             result.append(val)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }

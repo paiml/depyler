@@ -1,6 +1,6 @@
-//! Coverage tests for string_optimization.rs
+//! Coverage tests for `string_optimization.rs`
 //!
-//! DEPYLER-99MODE-001: Targets string_optimization.rs (1,302 lines)
+//! DEPYLER-99MODE-001: Targets `string_optimization.rs` (1,302 lines)
 //! Covers: static str detection, borrowed str, owned string,
 //! string concatenation, interning, Cow patterns, string in collections.
 
@@ -49,19 +49,19 @@ def f():
 
 #[test]
 fn test_stropt_borrowed_param() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> int:
     return len(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stropt_borrowed_method() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.upper()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -203,11 +203,11 @@ def f(x: int) -> str:
 
 #[test]
 fn test_stropt_string_in_for() {
-    let code = r#"
+    let code = r"
 def f(items: list):
     for item in items:
         print(str(item))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -226,7 +226,7 @@ def f(items: list) -> str:
 
 #[test]
 fn test_stropt_word_processing() {
-    let code = r#"
+    let code = r"
 def f(text: str) -> list:
     words = text.split()
     result = []
@@ -234,7 +234,7 @@ def f(text: str) -> list:
         if len(word) > 3:
             result.append(word.upper())
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 

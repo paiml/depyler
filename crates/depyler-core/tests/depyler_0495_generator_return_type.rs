@@ -14,7 +14,7 @@ use std::io::Write;
 #[test]
 fn test_generator_iterator_int_return_type() {
     // Generator with Iterator[int] return type
-    let python = r#"
+    let python = r"
 from typing import Iterator
 
 def count_up(n: int) -> Iterator[int]:
@@ -22,34 +22,31 @@ def count_up(n: int) -> Iterator[int]:
     while i < n:
         yield i
         i += 1
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust code:\n{}", rust);
+    println!("Generated Rust code:\n{rust}");
 
     // Should have correct function signature: impl Iterator<Item = i32>
     // NOT: impl Iterator<Item = Iterator<i32>>
     assert!(
         rust.contains("impl Iterator<Item = i32>") || rust.contains("impl Iterator<Item=i32>"),
-        "BUG: Function return type should be 'impl Iterator<Item = i32>'\nGenerated:\n{}",
-        rust
+        "BUG: Function return type should be 'impl Iterator<Item = i32>'\nGenerated:\n{rust}"
     );
 
     // Should NOT have nested Iterator
     assert!(
         !rust.contains("Iterator<Item = Iterator<i32>>")
             && !rust.contains("Iterator<Item=Iterator<i32>>"),
-        "BUG: Return type incorrectly nested Iterator<Item = Iterator<i32>>\nGenerated:\n{}",
-        rust
+        "BUG: Return type incorrectly nested Iterator<Item = Iterator<i32>>\nGenerated:\n{rust}"
     );
 
     // Should have correct associated type in impl block
     assert!(
         rust.contains("type Item = i32;"),
-        "BUG: Associated type should be 'type Item = i32;' not 'type Item = Iterator<i32>;'\nGenerated:\n{}",
-        rust
+        "BUG: Associated type should be 'type Item = i32;' not 'type Item = Iterator<i32>;'\nGenerated:\n{rust}"
     );
 }
 
@@ -68,33 +65,30 @@ def word_gen() -> Iterator[str]:
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust code:\n{}", rust);
+    println!("Generated Rust code:\n{rust}");
 
     // Should have String, not Iterator<String>
     assert!(
         rust.contains("impl Iterator<Item = String>")
             || rust.contains("impl Iterator<Item=String>"),
-        "BUG: Function return type should be 'impl Iterator<Item = String>'\nGenerated:\n{}",
-        rust
+        "BUG: Function return type should be 'impl Iterator<Item = String>'\nGenerated:\n{rust}"
     );
 
     assert!(
         !rust.contains("Iterator<Item = Iterator<String>>"),
-        "BUG: Return type incorrectly nested Iterator<Item = Iterator<String>>\nGenerated:\n{}",
-        rust
+        "BUG: Return type incorrectly nested Iterator<Item = Iterator<String>>\nGenerated:\n{rust}"
     );
 
     assert!(
         rust.contains("type Item = String;"),
-        "BUG: Associated type should be 'type Item = String;'\nGenerated:\n{}",
-        rust
+        "BUG: Associated type should be 'type Item = String;'\nGenerated:\n{rust}"
     );
 }
 
 #[test]
 fn test_generator_optional_param_with_iterator_return() {
     // Fibonacci generator with Optional parameter and Iterator return
-    let python = r#"
+    let python = r"
 from typing import Iterator, Optional
 
 def fibonacci_generator(limit: Optional[int] = None) -> Iterator[int]:
@@ -104,39 +98,36 @@ def fibonacci_generator(limit: Optional[int] = None) -> Iterator[int]:
         yield a
         a, b = b, a + b
         count += 1
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust code:\n{}", rust);
+    println!("Generated Rust code:\n{rust}");
 
     // Function signature should be impl Iterator<Item = i32>
     assert!(
         rust.contains("impl Iterator<Item = i32>") || rust.contains("impl Iterator<Item=i32>"),
-        "BUG: fibonacci_generator return type should be 'impl Iterator<Item = i32>'\nGenerated:\n{}",
-        rust
+        "BUG: fibonacci_generator return type should be 'impl Iterator<Item = i32>'\nGenerated:\n{rust}"
     );
 
     // Should NOT be nested
     assert!(
         !rust.contains("Iterator<Item = Iterator<"),
-        "BUG: Return type should not nest Iterator\nGenerated:\n{}",
-        rust
+        "BUG: Return type should not nest Iterator\nGenerated:\n{rust}"
     );
 
     // Impl block should have type Item = i32
     assert!(
         rust.contains("type Item = i32;"),
-        "BUG: Impl Iterator should have 'type Item = i32;'\nGenerated:\n{}",
-        rust
+        "BUG: Impl Iterator should have 'type Item = i32;'\nGenerated:\n{rust}"
     );
 }
 
 #[test]
 fn test_generator_compilation_no_e0107_error() {
     // Verify generated code compiles without E0107 error
-    let python = r#"
+    let python = r"
 from typing import Iterator
 
 def simple_gen(n: int) -> Iterator[int]:
@@ -144,7 +135,7 @@ def simple_gen(n: int) -> Iterator[int]:
     while i < n:
         yield i
         i += 1
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
@@ -163,38 +154,36 @@ def simple_gen(n: int) -> Iterator[int]:
         .expect("Failed to run rustc");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    println!("rustc output:\n{}", stderr);
+    println!("rustc output:\n{stderr}");
 
     // Should NOT have E0107 error (trait takes 0 generic arguments)
     assert!(
         !stderr.contains("E0107"),
-        "BUG: Generated code has E0107 error (trait takes 0 generic arguments)\nrustc stderr:\n{}",
-        stderr
+        "BUG: Generated code has E0107 error (trait takes 0 generic arguments)\nrustc stderr:\n{stderr}"
     );
 
     // Should NOT have E0191 error (associated type Item must be specified)
     assert!(
         !stderr.contains("E0191"),
-        "BUG: Generated code has E0191 error (associated type Item must be specified)\nrustc stderr:\n{}",
-        stderr
+        "BUG: Generated code has E0191 error (associated type Item must be specified)\nrustc stderr:\n{stderr}"
     );
 }
 
 #[test]
 fn test_generator_iterator_tuple_return_type() {
     // Generator returning tuple elements
-    let python = r#"
+    let python = r"
 from typing import Iterator, Tuple
 
 def pair_gen(n: int) -> Iterator[Tuple[int, int]]:
     for i in range(n):
         yield (i, i * 2)
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust code:\n{}", rust);
+    println!("Generated Rust code:\n{rust}");
 
     // Should have impl Iterator<Item = (i32, i32)> or similar tuple type
     // NOT Iterator<Item = Iterator<(i32, i32)>>
@@ -203,15 +192,13 @@ def pair_gen(n: int) -> Iterator[Tuple[int, int]]:
 
     assert!(
         has_correct_return,
-        "BUG: Should have tuple return type, not nested Iterator\nGenerated:\n{}",
-        rust
+        "BUG: Should have tuple return type, not nested Iterator\nGenerated:\n{rust}"
     );
 
     // Definitely should NOT have nested Iterator
     assert!(
         !rust.contains("Iterator<Item = Iterator<"),
-        "BUG: Return type incorrectly nested\nGenerated:\n{}",
-        rust
+        "BUG: Return type incorrectly nested\nGenerated:\n{rust}"
     );
 }
 
@@ -219,7 +206,7 @@ def pair_gen(n: int) -> Iterator[Tuple[int, int]]:
 #[ignore = "Complex List[T] element type - deferred"]
 fn test_generator_iterator_list_return_type() {
     // Generator returning lists
-    let python = r#"
+    let python = r"
 from typing import Iterator, List
 
 def batch_gen(n: int) -> Iterator[List[int]]:
@@ -229,25 +216,23 @@ def batch_gen(n: int) -> Iterator[List[int]]:
         if len(batch) >= 3:
             yield batch
             batch = []
-"#;
+";
 
     let compiler = DepylerPipeline::new();
     let rust = compiler.transpile(python).expect("Transpilation failed");
 
-    println!("Generated Rust code:\n{}", rust);
+    println!("Generated Rust code:\n{rust}");
 
     // Should have impl Iterator<Item = Vec<i32>>
     // NOT Iterator<Item = Iterator<Vec<i32>>>
     assert!(
         rust.contains("impl Iterator<Item = Vec<i32>>")
             || rust.contains("impl Iterator<Item=Vec<i32>>"),
-        "BUG: Should have Vec<i32> element type\nGenerated:\n{}",
-        rust
+        "BUG: Should have Vec<i32> element type\nGenerated:\n{rust}"
     );
 
     assert!(
         !rust.contains("Iterator<Item = Iterator<"),
-        "BUG: Return type incorrectly nested\nGenerated:\n{}",
-        rust
+        "BUG: Return type incorrectly nested\nGenerated:\n{rust}"
     );
 }

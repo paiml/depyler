@@ -1,5 +1,5 @@
 //! Edge case function tests for increasing code coverage
-//! Targets less common function patterns in func_gen.rs
+//! Targets less common function patterns in `func_gen.rs`
 
 use depyler_core::DepylerPipeline;
 

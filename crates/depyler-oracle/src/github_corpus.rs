@@ -431,11 +431,11 @@ mod tests {
             println!("  Avg confidence: {:.2}", stats.avg_confidence);
             println!("  By category:");
             for (cat, count) in &stats.by_category {
-                println!("    {}: {}", cat, count);
+                println!("    {cat}: {count}");
             }
             println!("  By expert domain:");
             for (domain, count) in &stats.by_expert {
-                println!("    {:?}: {}", domain, count);
+                println!("    {domain:?}: {count}");
             }
 
             // Convert to depyler format
@@ -444,7 +444,7 @@ mod tests {
 
             assert!(stats.total_examples > 0, "Should have training examples");
         } else {
-            println!("OIP training data not found at {:?}, skipping", oip_path);
+            println!("OIP training data not found at {oip_path:?}, skipping");
         }
     }
 

@@ -1063,8 +1063,7 @@ mod tests {
         let type_mismatch_count = stats
             .iter()
             .find(|(cat, _)| *cat == ErrorCategory::TypeMismatch)
-            .map(|(_, c)| *c)
-            .unwrap_or(0);
+            .map_or(0, |(_, c)| *c);
         assert!(type_mismatch_count >= 8, "TypeMismatch should have most samples");
     }
 

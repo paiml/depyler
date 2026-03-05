@@ -1,4 +1,4 @@
-//! EXTREME TDD Tests for func_gen.rs
+//! EXTREME TDD Tests for `func_gen.rs`
 //!
 //! Comprehensive coverage for function generation including:
 //! - Function signatures
@@ -655,7 +655,7 @@ mod edge_cases {
     fn test_function_with_many_statements() {
         let mut code = "def f():\n".to_string();
         for i in 0..50 {
-            code.push_str(&format!("    x{} = {}\n", i, i));
+            code.push_str(&format!("    x{i} = {i}\n"));
         }
         code.push_str("    return x0");
         assert!(transpile_ok(&code));
@@ -697,13 +697,13 @@ mod edge_cases {
     #[test]
     fn test_very_long_function_name() {
         let name = "a".repeat(100);
-        let code = format!("def {}():\n    pass", name);
+        let code = format!("def {name}():\n    pass");
         assert!(transpile_ok(&code));
     }
 
     #[test]
     fn test_many_parameters() {
-        let params: Vec<String> = (0..20).map(|i| format!("p{}: int", i)).collect();
+        let params: Vec<String> = (0..20).map(|i| format!("p{i}: int")).collect();
         let code = format!("def f({}):\n    pass", params.join(", "));
         assert!(transpile_ok(&code));
     }
@@ -756,7 +756,7 @@ mod falsification {
         let mut code = "def f():\n".to_string();
         for i in 0..20 {
             code.push_str(&"    ".repeat(i + 1));
-            code.push_str(&format!("def nested{}():\n", i));
+            code.push_str(&format!("def nested{i}():\n"));
         }
         code.push_str(&"    ".repeat(21));
         code.push_str("return 42\n");

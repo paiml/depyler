@@ -13,8 +13,8 @@ static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 fn unique_temp_path() -> (String, String) {
     let id = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
-    let rs_file = format!("/tmp/depyler_0950_test_{}_{}.rs", pid, id);
-    let out_file = format!("/tmp/depyler_0950_test_{}_{}", pid, id);
+    let rs_file = format!("/tmp/depyler_0950_test_{pid}_{id}.rs");
+    let out_file = format!("/tmp/depyler_0950_test_{pid}_{id}");
     (rs_file, out_file)
 }
 
@@ -59,13 +59,13 @@ fn compile_errors(code: &str) -> String {
 /// Test that we can identify function calls within a module
 #[test]
 fn test_depyler_0950_phase1_call_graph_simple() {
-    let python = r#"
+    let python = r"
 def helper(x: int) -> int:
     return x + 1
 
 def main(n: int) -> int:
     return helper(n)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -76,20 +76,20 @@ def main(n: int) -> int:
     // Generated code must compile
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
 /// Test cross-function type propagation: caller passes f64, callee expects inferred type
 #[test]
 fn test_depyler_0950_phase1_cross_function_type_propagation() {
-    let python = r#"
+    let python = r"
 def process(x):
     return x * 2
 
 def main() -> float:
     return process(3.14)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -101,13 +101,10 @@ def main() -> float:
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
         // This is the E0308 we're trying to fix
-        if errors.contains("E0308") {
-            panic!(
-                "E0308 type mismatch - cross-function type propagation needed.\nErrors:\n{}\n\nGenerated code:\n{}",
-                errors, code
-            );
-        }
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        assert!(!errors.contains("E0308"), 
+            "E0308 type mismatch - cross-function type propagation needed.\nErrors:\n{errors}\n\nGenerated code:\n{code}"
+        );
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
@@ -118,14 +115,14 @@ def main() -> float:
 /// Test numeric type unification: int vs float at call site
 #[test]
 fn test_depyler_0950_phase2_numeric_unification() {
-    let python = r#"
+    let python = r"
 def add(a, b):
     return a + b
 
 def main() -> float:
     x = add(1, 2.5)  # int + float -> should unify to float
     return x
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -135,21 +132,21 @@ def main() -> float:
 
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!("Numeric type unification failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Numeric type unification failed. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
 /// Test return type backward propagation
 #[test]
 fn test_depyler_0950_phase2_return_type_propagation() {
-    let python = r#"
+    let python = r"
 def compute(x):
     return x * x
 
 def main() -> int:
     result: int = compute(5)
     return result
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -160,7 +157,7 @@ def main() -> int:
     // Return type annotation should propagate to compute()
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!("Return type propagation failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Return type propagation failed. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
@@ -171,7 +168,7 @@ def main() -> int:
 /// Test that multiple call sites unify parameter types
 #[test]
 fn test_depyler_0950_phase3_multiple_callsites_unification() {
-    let python = r#"
+    let python = r"
 def process(value):
     return value + 1
 
@@ -179,7 +176,7 @@ def main():
     a = process(10)      # int call site
     b = process(20)      # int call site
     return a + b
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -190,8 +187,7 @@ def main():
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
         panic!(
-            "Multiple callsite unification failed. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
+            "Multiple callsite unification failed. Errors:\n{errors}\n\nGenerated code:\n{code}"
         );
     }
 }
@@ -199,7 +195,7 @@ def main():
 /// Test diamond call pattern (A calls B and C, B and C both call D)
 #[test]
 fn test_depyler_0950_phase3_diamond_call_pattern() {
-    let python = r#"
+    let python = r"
 def leaf(x):
     return x * 2
 
@@ -211,7 +207,7 @@ def branch_b(n):
 
 def root(value: int) -> int:
     return branch_a(value) + branch_b(value)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -222,8 +218,7 @@ def root(value: int) -> int:
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
         panic!(
-            "Diamond call pattern unification failed. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
+            "Diamond call pattern unification failed. Errors:\n{errors}\n\nGenerated code:\n{code}"
         );
     }
 }
@@ -235,7 +230,7 @@ def root(value: int) -> int:
 /// Test chained function calls with type propagation
 #[test]
 fn test_depyler_0950_phase4_chained_calls() {
-    let python = r#"
+    let python = r"
 def step1(x):
     return x + 0.5
 
@@ -247,7 +242,7 @@ def step3(x):
 
 def main() -> float:
     return step3(10)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -257,7 +252,7 @@ def main() -> float:
 
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!("Chained call propagation failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Chained call propagation failed. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
@@ -268,10 +263,10 @@ def main() -> float:
 /// Test int to float coercion
 #[test]
 fn test_depyler_0950_phase5_int_to_float_coercion() {
-    let python = r#"
+    let python = r"
 def mix_types(a: int, b: float) -> float:
     return a + b
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -282,17 +277,17 @@ def mix_types(a: int, b: float) -> float:
     // Should generate: a as f64 + b
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!("Int to float coercion failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Int to float coercion failed. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
 /// Test mixed arithmetic with automatic widening
 #[test]
 fn test_depyler_0950_phase5_mixed_arithmetic_widening() {
-    let python = r#"
+    let python = r"
 def calculate(x: int, y: float, z: int) -> float:
     return x * y + z
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -302,10 +297,7 @@ def calculate(x: int, y: float, z: int) -> float:
 
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Mixed arithmetic widening failed. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Mixed arithmetic widening failed. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
@@ -316,7 +308,7 @@ def calculate(x: int, y: float, z: int) -> float:
 /// Test that explicit casts are inserted at type boundaries
 #[test]
 fn test_depyler_0950_phase6_explicit_cast_insertion() {
-    let python = r#"
+    let python = r"
 def to_int(x: float) -> int:
     return int(x)
 
@@ -328,7 +320,7 @@ def main() -> int:
     i = to_int(f)
     f2 = to_float(i)
     return to_int(f2)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -338,7 +330,7 @@ def main() -> int:
 
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!("Explicit cast insertion failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Explicit cast insertion failed. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
@@ -366,7 +358,7 @@ def main() -> str:
 
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!("String/&str unification failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("String/&str unification failed. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
@@ -386,7 +378,7 @@ def greet(name: str) -> str:
 
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!("String concat mixed failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("String concat mixed failed. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
@@ -397,7 +389,7 @@ def greet(name: str) -> str:
 /// Test recursive function with type inference
 #[test]
 fn test_depyler_0950_integration_recursive() {
-    let python = r#"
+    let python = r"
 def factorial(n):
     if n <= 1:
         return 1
@@ -405,7 +397,7 @@ def factorial(n):
 
 def main() -> int:
     return factorial(5)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -416,8 +408,7 @@ def main() -> int:
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
         panic!(
-            "Recursive function type inference failed. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
+            "Recursive function type inference failed. Errors:\n{errors}\n\nGenerated code:\n{code}"
         );
     }
 }
@@ -425,7 +416,7 @@ def main() -> int:
 /// Test mutually recursive functions
 #[test]
 fn test_depyler_0950_integration_mutual_recursion() {
-    let python = r#"
+    let python = r"
 def is_even(n):
     if n == 0:
         return True
@@ -438,7 +429,7 @@ def is_odd(n):
 
 def main() -> bool:
     return is_even(4)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -449,8 +440,7 @@ def main() -> bool:
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
         panic!(
-            "Mutual recursion type inference failed. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
+            "Mutual recursion type inference failed. Errors:\n{errors}\n\nGenerated code:\n{code}"
         );
     }
 }
@@ -458,7 +448,7 @@ def main() -> bool:
 /// Test higher-order function pattern (callback)
 #[test]
 fn test_depyler_0950_integration_callback_pattern() {
-    let python = r#"
+    let python = r"
 from typing import List
 
 def apply_to_all(items: List[int], transform) -> List[int]:
@@ -473,7 +463,7 @@ def double(x: int) -> int:
 def main() -> List[int]:
     nums = [1, 2, 3]
     return apply_to_all(nums, double)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);

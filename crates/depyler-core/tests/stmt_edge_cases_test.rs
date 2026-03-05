@@ -1,5 +1,5 @@
 //! Edge case statement tests for increasing code coverage
-//! Targets less common statement patterns in stmt_gen.rs
+//! Targets less common statement patterns in `stmt_gen.rs`
 
 use depyler_core::DepylerPipeline;
 

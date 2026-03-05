@@ -21,32 +21,32 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_profiling_simple_loop() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_profiling_nested_loops() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     for i in range(n):
         for j in range(n):
             total += i * j
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_profiling_while_loop() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     i = 0
@@ -54,7 +54,7 @@ def f(n: int) -> int:
         total += i
         i += 1
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -94,11 +94,11 @@ def f(x: int) -> str:
 
 #[test]
 fn test_profiling_list_creation() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [1, 2, 3, 4, 5]
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -114,13 +114,13 @@ def f() -> dict:
 
 #[test]
 fn test_profiling_collection_iteration() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     total = 0
     for item in items:
         total += item
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -130,7 +130,7 @@ def f(items: list) -> int:
 
 #[test]
 fn test_profiling_function_calls() {
-    let code = r#"
+    let code = r"
 def helper(x: int) -> int:
     return x * 2
 
@@ -139,19 +139,19 @@ def f(n: int) -> int:
     for i in range(n):
         total += helper(i)
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_profiling_method_calls() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     items.append(1)
     items.append(2)
     items.reverse()
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -161,12 +161,12 @@ def f(items: list) -> list:
 
 #[test]
 fn test_profiling_simple_conditional() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     if x > 0:
         return x * 2
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -191,10 +191,10 @@ def f(x: int, y: int) -> str:
 
 #[test]
 fn test_profiling_binary_expr() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int, c: int) -> int:
     return (a + b) * c - a % b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -213,7 +213,7 @@ def f(s: str) -> str:
 
 #[test]
 fn test_profiling_hot_path_algorithm() {
-    let code = r#"
+    let code = r"
 def bubble_sort(items: list) -> list:
     n = len(items)
     for i in range(n):
@@ -221,13 +221,13 @@ def bubble_sort(items: list) -> list:
             if items[j] > items[j + 1]:
                 items[j], items[j + 1] = items[j + 1], items[j]
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_profiling_multi_function_hot() {
-    let code = r#"
+    let code = r"
 def is_prime(n: int) -> bool:
     if n < 2:
         return False
@@ -242,7 +242,7 @@ def count_primes(limit: int) -> int:
         if is_prime(n):
             count += 1
     return count
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -252,16 +252,16 @@ def count_primes(limit: int) -> int:
 
 #[test]
 fn test_profiling_iterator_opportunity() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return [x * 2 for x in items if x > 0]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_profiling_memory_layout() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: float, y: float):
         self.x = x
@@ -269,13 +269,13 @@ class Point:
 
     def distance(self) -> float:
         return (self.x ** 2 + self.y ** 2) ** 0.5
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_profiling_comprehensive() {
-    let code = r#"
+    let code = r"
 def matrix_multiply(a: list, b: list) -> list:
     rows_a = len(a)
     cols_b = len(b[0])
@@ -289,6 +289,6 @@ def matrix_multiply(a: list, b: list) -> list:
             row.append(total)
         result.append(row)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }

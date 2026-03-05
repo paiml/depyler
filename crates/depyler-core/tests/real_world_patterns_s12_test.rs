@@ -42,8 +42,8 @@ def filter_errors(lines: list) -> list:
     return errors
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn parse_log_line"), "Got: {}", result);
-    assert!(result.contains("fn filter_errors"), "Got: {}", result);
+    assert!(result.contains("fn parse_log_line"), "Got: {result}");
+    assert!(result.contains("fn filter_errors"), "Got: {result}");
 }
 
 #[test]
@@ -61,7 +61,7 @@ def parse_config(content: str) -> dict:
     return config
 "##;
     let result = transpile(code);
-    assert!(result.contains("fn parse_config"), "Got: {}", result);
+    assert!(result.contains("fn parse_config"), "Got: {result}");
 }
 
 #[test]
@@ -85,7 +85,7 @@ def parse_url(url: str) -> dict:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn parse_url"), "Got: {}", result);
+    assert!(result.contains("fn parse_url"), "Got: {result}");
 }
 
 // ===== CLI argument parsing =====
@@ -116,24 +116,24 @@ def parse_args(args: list) -> dict:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn parse_args"), "Got: {}", result);
+    assert!(result.contains("fn parse_args"), "Got: {result}");
 }
 
 // ===== Matrix operations =====
 
 #[test]
 fn test_s12_matrix_determinant_2x2() {
-    let code = r#"
+    let code = r"
 def det2x2(m: list) -> int:
     return m[0][0] * m[1][1] - m[0][1] * m[1][0]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn det2x2"), "Got: {}", result);
+    assert!(result.contains("fn det2x2"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_matrix_identity() {
-    let code = r#"
+    let code = r"
 def identity(n: int) -> list:
     result = []
     for i in range(n):
@@ -145,9 +145,9 @@ def identity(n: int) -> list:
                 row.append(0)
         result.append(row)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn identity"), "Got: {}", result);
+    assert!(result.contains("fn identity"), "Got: {result}");
 }
 
 // ===== Text processing =====
@@ -172,12 +172,12 @@ def word_wrap(text: str, width: int) -> str:
     return "\n".join(lines)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn word_wrap"), "Got: {}", result);
+    assert!(result.contains("fn word_wrap"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_deduplicate() {
-    let code = r#"
+    let code = r"
 def deduplicate(items: list) -> list:
     seen = set()
     result = []
@@ -186,16 +186,16 @@ def deduplicate(items: list) -> list:
             seen.add(item)
             result.append(item)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn deduplicate"), "Got: {}", result);
+    assert!(result.contains("fn deduplicate"), "Got: {result}");
 }
 
 // ===== Statistics =====
 
 #[test]
 fn test_s12_median() {
-    let code = r#"
+    let code = r"
 def median(values: list) -> float:
     sorted_vals = sorted(values)
     n = len(sorted_vals)
@@ -204,14 +204,14 @@ def median(values: list) -> float:
     else:
         mid = n // 2
         return (sorted_vals[mid - 1] + sorted_vals[mid]) / 2.0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn median"), "Got: {}", result);
+    assert!(result.contains("fn median"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_moving_average() {
-    let code = r#"
+    let code = r"
 def moving_average(values: list, window: int) -> list:
     if len(values) < window:
         return []
@@ -222,9 +222,9 @@ def moving_average(values: list, window: int) -> list:
             total += values[i + j]
         result.append(total / window)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn moving_average"), "Got: {}", result);
+    assert!(result.contains("fn moving_average"), "Got: {result}");
 }
 
 // ===== Crypto/encoding patterns =====
@@ -247,15 +247,15 @@ def simple_decode(encoded: str) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn simple_encode"), "Got: {}", result);
-    assert!(result.contains("fn simple_decode"), "Got: {}", result);
+    assert!(result.contains("fn simple_encode"), "Got: {result}");
+    assert!(result.contains("fn simple_decode"), "Got: {result}");
 }
 
 // ===== Tree operations =====
 
 #[test]
 fn test_s12_tree_depth() {
-    let code = r#"
+    let code = r"
 class TreeNode:
     def __init__(self, value: int):
         self.value = value
@@ -272,9 +272,9 @@ class TreeNode:
         if left_depth > right_depth:
             return left_depth + 1
         return right_depth + 1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("TreeNode"), "Got: {}", result);
+    assert!(result.contains("TreeNode"), "Got: {result}");
 }
 
 // ===== State machine patterns =====
@@ -309,7 +309,7 @@ def tokenize(text: str) -> list:
     return tokens
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn tokenize"), "Got: {}", result);
+    assert!(result.contains("fn tokenize"), "Got: {result}");
 }
 
 // ===== Complex data validation =====
@@ -330,7 +330,7 @@ def is_valid_ip(ip: str) -> bool:
     return True
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn is_valid_ip"), "Got: {}", result);
+    assert!(result.contains("fn is_valid_ip"), "Got: {result}");
 }
 
 #[test]
@@ -352,7 +352,7 @@ def is_valid_date(date_str: str) -> bool:
     return True
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn is_valid_date"), "Got: {}", result);
+    assert!(result.contains("fn is_valid_date"), "Got: {result}");
 }
 
 // ===== Complex I/O patterns =====
@@ -376,7 +376,7 @@ def csv_to_dicts(content: str) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn csv_to_dicts"), "Got: {}", result);
+    assert!(result.contains("fn csv_to_dicts"), "Got: {result}");
 }
 
 // ===== Complex class with multiple patterns =====
@@ -404,5 +404,5 @@ class PriorityQueue:
         return len(self.items)
 "#;
     let result = transpile(code);
-    assert!(result.contains("PriorityQueue"), "Got: {}", result);
+    assert!(result.contains("PriorityQueue"), "Got: {result}");
 }

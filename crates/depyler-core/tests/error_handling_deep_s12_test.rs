@@ -19,7 +19,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b86_retry_pattern() {
-    let code = r#"
+    let code = r"
 def retry(func, max_attempts: int):
     for i in range(max_attempts):
         try:
@@ -27,14 +27,14 @@ def retry(func, max_attempts: int):
         except Exception:
             if i == max_attempts - 1:
                 raise
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn retry"), "Got: {}", result);
+    assert!(result.contains("fn retry"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b86_resource_cleanup() {
-    let code = r##"
+    let code = r#"
 def process_file(path: str) -> str:
     content = ""
     try:
@@ -45,9 +45,9 @@ def process_file(path: str) -> str:
     except PermissionError:
         content = "no permission"
     return content
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn process_file"), "Got: {}", result);
+    assert!(result.contains("fn process_file"), "Got: {result}");
 }
 
 #[test]
@@ -65,26 +65,26 @@ def parse_config(text: str) -> dict:
         return {}
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn parse_config"), "Got: {}", result);
+    assert!(result.contains("fn parse_config"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b86_custom_error() {
-    let code = r##"
+    let code = r#"
 def validate_age(age: int) -> int:
     if age < 0:
         raise ValueError("Age cannot be negative")
     if age > 150:
         raise ValueError("Age too large")
     return age
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn validate_age"), "Got: {}", result);
+    assert!(result.contains("fn validate_age"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b86_error_accumulator() {
-    let code = r#"
+    let code = r"
 def parse_numbers(items: list) -> tuple:
     numbers = []
     errors = []
@@ -94,14 +94,14 @@ def parse_numbers(items: list) -> tuple:
         except ValueError:
             errors.append(item)
     return (numbers, errors)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn parse_numbers"), "Got: {}", result);
+    assert!(result.contains("fn parse_numbers"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b86_nested_try_except() {
-    let code = r#"
+    let code = r"
 def safe_operation(a: str, b: str) -> int:
     try:
         x = int(a)
@@ -112,14 +112,14 @@ def safe_operation(a: str, b: str) -> int:
             return x
     except ValueError:
         return 0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn safe_operation"), "Got: {}", result);
+    assert!(result.contains("fn safe_operation"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b86_finally_cleanup() {
-    let code = r#"
+    let code = r"
 def counted_operation(counter: list) -> int:
     counter.append(1)
     try:
@@ -127,9 +127,9 @@ def counted_operation(counter: list) -> int:
         return result
     finally:
         counter.append(2)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn counted_operation"), "Got: {}", result);
+    assert!(result.contains("fn counted_operation"), "Got: {result}");
 }
 
 #[test]
@@ -148,20 +148,20 @@ def full_error_handling(s: str) -> str:
     return status
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn full_error_handling"), "Got: {}", result);
+    assert!(result.contains("fn full_error_handling"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b86_raise_from() {
-    let code = r##"
+    let code = r#"
 def convert(value: str) -> int:
     try:
         return int(value)
     except ValueError:
         raise TypeError("Cannot convert to int")
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn convert"), "Got: {}", result);
+    assert!(result.contains("fn convert"), "Got: {result}");
 }
 
 #[test]
@@ -175,5 +175,5 @@ def safe_call(func) -> str:
         return "error"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn safe_call"), "Got: {}", result);
+    assert!(result.contains("fn safe_call"), "Got: {result}");
 }

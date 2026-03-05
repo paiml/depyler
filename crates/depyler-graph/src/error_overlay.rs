@@ -138,10 +138,10 @@ mod tests {
 
     #[test]
     fn test_overlay_simple() {
-        let python = r#"
+        let python = r"
 def foo():
     return 42
-"#;
+";
 
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
@@ -156,13 +156,13 @@ def foo():
 
     #[test]
     fn test_find_associated_node() {
-        let python = r#"
+        let python = r"
 def foo():
     return 42
 
 def bar():
     return 100
-"#;
+";
 
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
@@ -276,13 +276,13 @@ def caller():
 
     #[test]
     fn test_find_associated_node_closest_match() {
-        let python = r#"
+        let python = r"
 def first():
     pass
 
 def second():
     pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -317,7 +317,7 @@ def second():
 
     #[test]
     fn test_upstream_suspects_method_inheritance() {
-        let python = r#"
+        let python = r"
 class Base:
     def method(self):
         pass
@@ -325,7 +325,7 @@ class Base:
 class Derived(Base):
     def method(self):
         pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -393,13 +393,13 @@ class Derived(Base):
 
     #[test]
     fn test_s9b7_upstream_suspects_for_function_node() {
-        let python = r#"
+        let python = r"
 def dep():
     return 1
 
 def caller():
     dep()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let overlay = ErrorOverlay::new(&graph);
@@ -433,7 +433,7 @@ def caller():
             association_confidence: 0.0,
             upstream_suspects: vec![],
         };
-        let debug = format!("{:?}", error);
+        let debug = format!("{error:?}");
         assert!(debug.contains("OverlaidError"));
         let cloned = error.clone();
         assert_eq!(cloned.code, "E0308");
@@ -471,14 +471,14 @@ def caller():
         // Very far away: confidence drops below 0.3
         let (node, conf) = overlay.find_associated_node(100);
         // At distance 99, conf = 1/(1 + 99/10) = 1/10.9 ≈ 0.092 < 0.3 -> None
-        assert!(node.is_none(), "Expected None for far distance, got {:?}, conf={}", node, conf);
+        assert!(node.is_none(), "Expected None for far distance, got {node:?}, conf={conf}");
         assert_eq!(conf, 0.0);
     }
 
     #[test]
     fn test_s12_find_associated_node_equidistant() {
         // Two nodes at equal distance - should pick one consistently
-        let python = r#"
+        let python = r"
 def first():
     pass
 
@@ -486,7 +486,7 @@ def first():
 
 def second():
     pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let overlay = ErrorOverlay::new(&graph);
@@ -499,7 +499,7 @@ def second():
 
     #[test]
     fn test_s12_upstream_suspects_with_inheritance() {
-        let python = r#"
+        let python = r"
 class Animal:
     def speak(self):
         pass
@@ -511,7 +511,7 @@ class Dog(Animal):
 class Cat(Animal):
     def speak(self):
         pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let overlay = ErrorOverlay::new(&graph);
@@ -524,12 +524,12 @@ class Cat(Animal):
     #[test]
     fn test_s12_upstream_suspects_function_not_method() {
         // Functions (not methods) should not check inheritance
-        let python = r#"
+        let python = r"
 def standalone():
     return 1
 def caller():
     return standalone()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let overlay = ErrorOverlay::new(&graph);
@@ -560,7 +560,7 @@ def caller():
 
     #[test]
     fn test_s12_overlay_multiple_nodes_closest() {
-        let python = r#"
+        let python = r"
 def alpha():
     pass
 
@@ -569,7 +569,7 @@ def beta():
 
 def gamma():
     pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let overlay = ErrorOverlay::new(&graph);

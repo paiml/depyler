@@ -1,5 +1,5 @@
-//! EXTREME TDD: Tests for inlining.rs InliningDecision and InliningReason
-//! Coverage: InliningDecision, InliningReason variants, decision making
+//! EXTREME TDD: Tests for inlining.rs `InliningDecision` and `InliningReason`
+//! Coverage: `InliningDecision`, `InliningReason` variants, decision making
 
 use depyler_core::inlining::{InliningDecision, InliningReason};
 
@@ -8,63 +8,63 @@ use depyler_core::inlining::{InliningDecision, InliningReason};
 #[test]
 fn test_reason_trivial() {
     let reason = InliningReason::Trivial;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("Trivial"));
 }
 
 #[test]
 fn test_reason_single_use() {
     let reason = InliningReason::SingleUse;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("SingleUse"));
 }
 
 #[test]
 fn test_reason_small_hot_function() {
     let reason = InliningReason::SmallHotFunction;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("SmallHotFunction"));
 }
 
 #[test]
 fn test_reason_enables_optimization() {
     let reason = InliningReason::EnablesOptimization;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("EnablesOptimization"));
 }
 
 #[test]
 fn test_reason_too_large() {
     let reason = InliningReason::TooLarge;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("TooLarge"));
 }
 
 #[test]
 fn test_reason_recursive() {
     let reason = InliningReason::Recursive;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("Recursive"));
 }
 
 #[test]
 fn test_reason_has_side_effects() {
     let reason = InliningReason::HasSideEffects;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("HasSideEffects"));
 }
 
 #[test]
 fn test_reason_contains_loops() {
     let reason = InliningReason::ContainsLoops;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("ContainsLoops"));
 }
 
 #[test]
 fn test_reason_cost_too_high() {
     let reason = InliningReason::CostTooHigh;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("CostTooHigh"));
 }
 
@@ -239,7 +239,7 @@ fn test_decision_debug() {
         reason: InliningReason::Trivial,
         cost_benefit: 10.0,
     };
-    let debug_str = format!("{:?}", decision);
+    let debug_str = format!("{decision:?}");
     assert!(debug_str.contains("InliningDecision"));
     assert!(debug_str.contains("should_inline"));
     assert!(debug_str.contains("true"));
@@ -252,7 +252,7 @@ fn test_decision_debug_false() {
         reason: InliningReason::TooLarge,
         cost_benefit: 0.0,
     };
-    let debug_str = format!("{:?}", decision);
+    let debug_str = format!("{decision:?}");
     assert!(debug_str.contains("should_inline"));
     assert!(debug_str.contains("false"));
 }
@@ -395,12 +395,12 @@ fn test_all_reason_variants_covered() {
 
     for reason in all_reasons {
         // Each reason should be debuggable
-        let debug_str = format!("{:?}", reason);
+        let debug_str = format!("{reason:?}");
         assert!(!debug_str.is_empty());
 
         // Each reason should be clonable
         let cloned = reason.clone();
-        let cloned_debug = format!("{:?}", cloned);
+        let cloned_debug = format!("{cloned:?}");
         assert_eq!(debug_str, cloned_debug);
     }
 }
@@ -420,7 +420,7 @@ fn test_decision_true_with_positive_reasons() {
         let decision =
             InliningDecision { should_inline: true, reason: reason.clone(), cost_benefit: 2.0 };
         // Positive reasons imply should_inline = true
-        assert!(decision.should_inline, "Reason {:?} should allow inlining", reason);
+        assert!(decision.should_inline, "Reason {reason:?} should allow inlining");
     }
 }
 
@@ -438,6 +438,6 @@ fn test_decision_false_with_negative_reasons() {
         let decision =
             InliningDecision { should_inline: false, reason: reason.clone(), cost_benefit: 0.0 };
         // Negative reasons imply should_inline = false
-        assert!(!decision.should_inline, "Reason {:?} should prevent inlining", reason);
+        assert!(!decision.should_inline, "Reason {reason:?} should prevent inlining");
     }
 }

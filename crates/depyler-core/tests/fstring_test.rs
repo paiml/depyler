@@ -23,20 +23,18 @@ def greet(name: str) -> str:
 
     // Should contain format! macro (flexible whitespace)
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(has_format, "F-string should generate format!() macro.\nGot:\n{}", rust_code);
+    assert!(has_format, "F-string should generate format!() macro.\nGot:\n{rust_code}");
 
     // Should have the format string template
     assert!(
         rust_code.contains("\"Hello {}\""),
-        "F-string template should be \"Hello {{}}\".\nGot:\n{}",
-        rust_code
+        "F-string template should be \"Hello {{}}\".\nGot:\n{rust_code}"
     );
 
     // Should have the variable as argument
     assert!(
         rust_code.contains("name"),
-        "F-string should pass 'name' to format!().\nGot:\n{}",
-        rust_code
+        "F-string should pass 'name' to format!().\nGot:\n{rust_code}"
     );
 }
 
@@ -54,12 +52,11 @@ def describe(name: str, age: int) -> str:
     let rust_code = result.unwrap();
 
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(has_format, "Should generate format!().\nGot:\n{}", rust_code);
+    assert!(has_format, "Should generate format!().\nGot:\n{rust_code}");
 
     assert!(
         rust_code.contains("{} is {} years old"),
-        "Template should have two {{}}.\nGot:\n{}",
-        rust_code
+        "Template should have two {{}}.\nGot:\n{rust_code}"
     );
 }
 
@@ -79,7 +76,7 @@ def test() -> str:
     let rust_code = result.unwrap();
 
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(has_format, "F-string in assignment should work.\nGot:\n{}", rust_code);
+    assert!(has_format, "F-string in assignment should work.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -98,8 +95,7 @@ def test() -> str:
     // Empty f-string should just be empty string
     assert!(
         rust_code.contains("\"\"") || rust_code.contains("String::new()"),
-        "Empty f-string should be empty string.\nGot:\n{}",
-        rust_code
+        "Empty f-string should be empty string.\nGot:\n{rust_code}"
     );
 }
 
@@ -119,8 +115,7 @@ def test() -> str:
     // F-string with no variables should be plain string
     assert!(
         rust_code.contains("\"Hello World\""),
-        "F-string with no vars should be plain string.\nGot:\n{}",
-        rust_code
+        "F-string with no vars should be plain string.\nGot:\n{rust_code}"
     );
 }
 
@@ -138,12 +133,11 @@ def test(x: int, y: float) -> str:
     let rust_code = result.unwrap();
 
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(has_format, "F-string with numbers should work.\nGot:\n{}", rust_code);
+    assert!(has_format, "F-string with numbers should work.\nGot:\n{rust_code}");
 
     assert!(
         rust_code.contains("x={}, y={}"),
-        "Template should preserve literal text.\nGot:\n{}",
-        rust_code
+        "Template should preserve literal text.\nGot:\n{rust_code}"
     );
 }
 
@@ -163,8 +157,7 @@ def test() -> str:
     // {{}} in Python f-string → {{}} in Rust format string (still escaped)
     assert!(
         rust_code.contains("{{literal braces}}") || rust_code.contains("{literal braces}"),
-        "Escaped braces should be preserved.\nGot:\n{}",
-        rust_code
+        "Escaped braces should be preserved.\nGot:\n{rust_code}"
     );
 }
 
@@ -184,7 +177,7 @@ def test(first: str, last: str) -> str:
 
     // Should contain string concatenation with format!
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(has_format, "Concatenated f-strings should work.\nGot:\n{}", rust_code);
+    assert!(has_format, "Concatenated f-strings should work.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -204,7 +197,7 @@ def test(name: str) -> str:
     let rust_code = result.unwrap();
 
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(has_format, "F-string as function argument should work.\nGot:\n{}", rust_code);
+    assert!(has_format, "F-string as function argument should work.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -223,5 +216,5 @@ You are {age} years old"""
     let rust_code = result.unwrap();
 
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(has_format, "Multiline f-string should work.\nGot:\n{}", rust_code);
+    assert!(has_format, "Multiline f-string should work.\nGot:\n{rust_code}");
 }

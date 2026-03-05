@@ -1,6 +1,6 @@
-//! Coverage tests for expr_gen_instance_methods.rs
+//! Coverage tests for `expr_gen_instance_methods.rs`
 //!
-//! DEPYLER-99MODE-001: Targets expr_gen_instance_methods.rs (57.30% -> 75%+)
+//! DEPYLER-99MODE-001: Targets `expr_gen_instance_methods.rs` (57.30% -> 75%+)
 //! Covers: string methods, list methods, dict methods, set methods,
 //! regex methods, file I/O, datetime, pathlib, CSV, type inference helpers.
 
@@ -21,13 +21,13 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_list_append_typed_int() {
-    let code = r#"
+    let code = r"
 from typing import List
 def f() -> List[int]:
     items: List[int] = [1, 2, 3]
     items.append(4)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -45,151 +45,151 @@ def f() -> List[str]:
 
 #[test]
 fn test_list_append_typed_float() {
-    let code = r#"
+    let code = r"
 from typing import List
 def f() -> List[float]:
     items: List[float] = [1.0, 2.0]
     items.append(3.0)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_append_typed_bool() {
-    let code = r#"
+    let code = r"
 from typing import List
 def f() -> List[bool]:
     items: List[bool] = [True, False]
     items.append(True)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_extend_typed() {
-    let code = r#"
+    let code = r"
 from typing import List
 def f() -> List[int]:
     items: List[int] = [1, 2]
     items.extend([3, 4, 5])
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_pop_no_args() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     return items.pop()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_pop_with_index() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     return items.pop(0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_insert() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [1, 2, 3]
     items.insert(1, 10)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_remove() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [1, 2, 3, 2]
     items.remove(2)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_index_method() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     items = [10, 20, 30]
     return items.index(20)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_count_method() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     items = [1, 2, 2, 3, 2]
     return items.count(2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_copy_method() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [1, 2, 3]
     return items.copy()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_clear_method() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     items = [1, 2, 3]
     items.clear()
     return len(items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_reverse_method() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [3, 1, 2]
     items.reverse()
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_sort_basic() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [3, 1, 2]
     items.sort()
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_sort_reverse() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [3, 1, 2]
     items.sort(reverse=True)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -343,82 +343,82 @@ def f() -> int:
 
 #[test]
 fn test_str_upper() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.upper()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_lower() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.lower()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_capitalize() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.capitalize()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_title() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.title()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_swapcase() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.swapcase()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_casefold() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.casefold()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_strip() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.strip()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_lstrip() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.lstrip()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_rstrip() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.rstrip()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -433,10 +433,10 @@ def f(s: str) -> str:
 
 #[test]
 fn test_str_split_no_args() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> list:
     return s.split()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -469,10 +469,10 @@ def f(s: str) -> list:
 
 #[test]
 fn test_str_splitlines() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> list:
     return s.splitlines()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -569,118 +569,118 @@ def f(s: str) -> bool:
 
 #[test]
 fn test_str_isdigit() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     return s.isdigit()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_isalpha() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     return s.isalpha()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_isalnum() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     return s.isalnum()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_isspace() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     return s.isspace()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_isupper() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     return s.isupper()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_islower() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     return s.islower()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_istitle() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     return s.istitle()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_isnumeric() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     return s.isnumeric()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_isdecimal() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     return s.isdecimal()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_isascii() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     return s.isascii()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_isidentifier() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     return s.isidentifier()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_isprintable() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     return s.isprintable()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_center() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.center(20)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -695,37 +695,37 @@ def f(s: str) -> str:
 
 #[test]
 fn test_str_ljust() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.ljust(20)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_rjust() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.rjust(20)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_zfill() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.zfill(10)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_str_encode() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bytes:
     return s.encode()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -767,10 +767,10 @@ def f(name: str) -> str:
 
 #[test]
 fn test_str_expandtabs() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.expandtabs(4)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -790,159 +790,159 @@ def f() -> str:
 
 #[test]
 fn test_set_add() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     s = {1, 2, 3}
     s.add(4)
     return len(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_remove() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     s = {1, 2, 3}
     s.remove(2)
     return len(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_discard() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     s = {1, 2, 3}
     s.discard(4)
     return len(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_clear() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     s = {1, 2, 3}
     s.clear()
     return len(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_update() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     s = {1, 2}
     s.update({3, 4})
     return len(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_intersection_update() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     s = {1, 2, 3, 4}
     s.intersection_update({2, 3, 5})
     return len(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_difference_update() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     s = {1, 2, 3, 4}
     s.difference_update({2, 3})
     return len(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_union() {
-    let code = r#"
+    let code = r"
 from typing import Set
 def f() -> Set[int]:
     s1 = {1, 2, 3}
     s2 = {3, 4, 5}
     return s1.union(s2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_intersection() {
-    let code = r#"
+    let code = r"
 from typing import Set
 def f() -> Set[int]:
     s1 = {1, 2, 3}
     s2 = {2, 3, 4}
     return s1.intersection(s2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_difference() {
-    let code = r#"
+    let code = r"
 from typing import Set
 def f() -> Set[int]:
     s1 = {1, 2, 3}
     s2 = {2, 3}
     return s1.difference(s2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_symmetric_difference() {
-    let code = r#"
+    let code = r"
 from typing import Set
 def f() -> Set[int]:
     s1 = {1, 2, 3}
     s2 = {2, 3, 4}
     return s1.symmetric_difference(s2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_issubset() {
-    let code = r#"
+    let code = r"
 def f() -> bool:
     s1 = {1, 2}
     s2 = {1, 2, 3, 4}
     return s1.issubset(s2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_issuperset() {
-    let code = r#"
+    let code = r"
 def f() -> bool:
     s1 = {1, 2, 3, 4}
     s2 = {1, 2}
     return s1.issuperset(s2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_isdisjoint() {
-    let code = r#"
+    let code = r"
 def f() -> bool:
     s1 = {1, 2}
     s2 = {3, 4}
     return s1.isdisjoint(s2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1086,21 +1086,21 @@ def f(path: str) -> str:
 
 #[test]
 fn test_file_readlines() {
-    let code = r#"
+    let code = r"
 def f(path: str) -> list:
     with open(path) as f:
         return f.readlines()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_file_readline() {
-    let code = r#"
+    let code = r"
 def f(path: str) -> str:
     with open(path) as f:
         return f.readline()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1116,31 +1116,31 @@ def f(path: str, data: str):
 
 #[test]
 fn test_stdin_read() {
-    let code = r#"
+    let code = r"
 import sys
 def f() -> str:
     return sys.stdin.read()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stdin_readline() {
-    let code = r#"
+    let code = r"
 import sys
 def f() -> str:
     return sys.stdin.readline()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stdin_readlines() {
-    let code = r#"
+    let code = r"
 import sys
 def f() -> list:
     return sys.stdin.readlines()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1150,12 +1150,12 @@ def f() -> list:
 
 #[test]
 fn test_datetime_now() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 def f() -> str:
     dt = datetime.now()
     return dt.isoformat()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1172,34 +1172,34 @@ def f() -> str:
 
 #[test]
 fn test_datetime_timestamp() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 def f() -> float:
     dt = datetime.now()
     return dt.timestamp()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_datetime_date() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 def f():
     dt = datetime.now()
     d = dt.date()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_datetime_time() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 def f():
     dt = datetime.now()
     t = dt.time()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1209,75 +1209,75 @@ def f():
 
 #[test]
 fn test_pathlib_exists() {
-    let code = r#"
+    let code = r"
 from pathlib import Path
 def f(p: str) -> bool:
     return Path(p).exists()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_pathlib_is_file() {
-    let code = r#"
+    let code = r"
 from pathlib import Path
 def f(p: str) -> bool:
     return Path(p).is_file()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_pathlib_is_dir() {
-    let code = r#"
+    let code = r"
 from pathlib import Path
 def f(p: str) -> bool:
     return Path(p).is_dir()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_pathlib_parent() {
-    let code = r#"
+    let code = r"
 from pathlib import Path
 def f(p: str) -> str:
     path = Path(p)
     return str(path.parent)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_pathlib_name() {
-    let code = r#"
+    let code = r"
 from pathlib import Path
 def f(p: str) -> str:
     path = Path(p)
     return path.name
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_pathlib_stem() {
-    let code = r#"
+    let code = r"
 from pathlib import Path
 def f(p: str) -> str:
     path = Path(p)
     return path.stem
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_pathlib_suffix() {
-    let code = r#"
+    let code = r"
 from pathlib import Path
 def f(p: str) -> str:
     path = Path(p)
     return path.suffix
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1298,7 +1298,7 @@ def f() -> str:
 
 #[test]
 fn test_class_method_dispatch() {
-    let code = r#"
+    let code = r"
 class Counter:
     def __init__(self):
         self.count = 0
@@ -1306,13 +1306,13 @@ class Counter:
         self.count += 1
     def get_count(self) -> int:
         return self.count
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_class_method_with_args() {
-    let code = r#"
+    let code = r"
 class Calculator:
     def __init__(self):
         self.result = 0
@@ -1322,25 +1322,25 @@ class Calculator:
         self.result *= x
     def get(self) -> int:
         return self.result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_class_method_return_str() {
-    let code = r#"
+    let code = r"
 class Formatter:
     def __init__(self, prefix: str):
         self.prefix = prefix
     def format(self, text: str) -> str:
         return self.prefix + text
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_class_dunder_len() {
-    let code = r#"
+    let code = r"
 class MyList:
     def __init__(self):
         self.items = []
@@ -1348,20 +1348,20 @@ class MyList:
         return len(self.items)
     def add(self, item: int):
         self.items.append(item)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_class_dunder_str() {
-    let code = r#"
+    let code = r"
 class Person:
     def __init__(self, name: str, age: int):
         self.name = name
         self.age = age
     def __str__(self) -> str:
         return self.name
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1384,10 +1384,10 @@ class Point:
 
 #[test]
 fn test_chained_str_methods() {
-    let code = r#"
+    let code = r"
 def f(text: str) -> str:
     return text.strip().lower()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1415,12 +1415,12 @@ def f(line: str) -> list:
 
 #[test]
 fn test_typed_list_assignment_int() {
-    let code = r#"
+    let code = r"
 from typing import List
 def f() -> int:
     nums: List[int] = [1, 2, 3, 4, 5]
     return sum(nums)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1459,31 +1459,31 @@ def f() -> str:
 
 #[test]
 fn test_untyped_list_operations() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     items = [1, 2, 3]
     items.append(4)
     items.extend([5, 6])
     return len(items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_list_comprehension_with_methods() {
-    let code = r#"
+    let code = r"
 def f(words: list) -> list:
     return [w.upper() for w in words]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_dict_comprehension_with_methods() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> dict:
     return {item: len(item) for item in items}
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1502,10 +1502,10 @@ def f(data: bytes) -> str:
 
 #[test]
 fn test_bytes_hex() {
-    let code = r#"
+    let code = r"
 def f(data: bytes) -> str:
     return data.hex()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1544,7 +1544,7 @@ def parse_csv_line(line: str) -> list:
 
 #[test]
 fn test_list_filter_and_transform() {
-    let code = r#"
+    let code = r"
 from typing import List
 def process(items: List[str]) -> List[str]:
     result: List[str] = []
@@ -1552,55 +1552,55 @@ def process(items: List[str]) -> List[str]:
         if item.strip():
             result.append(item.upper())
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_dict_merge_pattern() {
-    let code = r#"
+    let code = r"
 def merge(d1: dict, d2: dict) -> dict:
     result = d1.copy()
     result.update(d2)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_set_operations_chain() {
-    let code = r#"
+    let code = r"
 from typing import Set
 def common_unique(a: list, b: list) -> Set[int]:
     set_a = set(a)
     set_b = set(b)
     return set_a.intersection(set_b)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_string_validation_pattern() {
-    let code = r#"
+    let code = r"
 def is_valid_identifier(s: str) -> bool:
     if not s:
         return False
     if not s[0].isalpha():
         return False
     return s.isalnum()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_dict_items_filter() {
-    let code = r#"
+    let code = r"
 def filter_by_value(d: dict, threshold: int) -> dict:
     result = {}
     for k, v in d.items():
         if v > threshold:
             result[k] = v
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }

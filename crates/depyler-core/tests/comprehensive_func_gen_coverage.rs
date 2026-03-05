@@ -1,4 +1,4 @@
-//! Comprehensive tests for func_gen.rs coverage
+//! Comprehensive tests for `func_gen.rs` coverage
 //! DEPYLER-COVERAGE-95: Target 95% coverage on function generation
 
 use depyler_core::DepylerPipeline;

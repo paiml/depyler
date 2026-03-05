@@ -28,7 +28,7 @@ fn create_function_with_size(name: &str, size: usize) -> HirFunction {
     let mut body = Vec::new();
     for i in 0..size {
         body.push(HirStmt::Assign {
-            target: AssignTarget::Symbol(format!("x{}", i)),
+            target: AssignTarget::Symbol(format!("x{i}")),
             value: HirExpr::Literal(Literal::Int(i as i64)),
             type_annotation: None,
         });
@@ -194,7 +194,7 @@ fn test_inlining_config_clone() {
 #[test]
 fn test_inlining_config_debug() {
     let config = InliningConfig::default();
-    let debug_str = format!("{:?}", config);
+    let debug_str = format!("{config:?}");
     assert!(debug_str.contains("InliningConfig"));
     assert!(debug_str.contains("max_inline_size"));
 }
@@ -244,7 +244,7 @@ fn test_inlining_decision_debug() {
         reason: InliningReason::SmallHotFunction,
         cost_benefit: 2.5,
     };
-    let debug_str = format!("{:?}", decision);
+    let debug_str = format!("{decision:?}");
     assert!(debug_str.contains("InliningDecision"));
     assert!(debug_str.contains("should_inline"));
 }
@@ -256,63 +256,63 @@ fn test_inlining_decision_debug() {
 #[test]
 fn test_inlining_reason_trivial() {
     let reason = InliningReason::Trivial;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("Trivial"));
 }
 
 #[test]
 fn test_inlining_reason_single_use() {
     let reason = InliningReason::SingleUse;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("SingleUse"));
 }
 
 #[test]
 fn test_inlining_reason_small_hot_function() {
     let reason = InliningReason::SmallHotFunction;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("SmallHotFunction"));
 }
 
 #[test]
 fn test_inlining_reason_enables_optimization() {
     let reason = InliningReason::EnablesOptimization;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("EnablesOptimization"));
 }
 
 #[test]
 fn test_inlining_reason_too_large() {
     let reason = InliningReason::TooLarge;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("TooLarge"));
 }
 
 #[test]
 fn test_inlining_reason_recursive() {
     let reason = InliningReason::Recursive;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("Recursive"));
 }
 
 #[test]
 fn test_inlining_reason_has_side_effects() {
     let reason = InliningReason::HasSideEffects;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("HasSideEffects"));
 }
 
 #[test]
 fn test_inlining_reason_contains_loops() {
     let reason = InliningReason::ContainsLoops;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("ContainsLoops"));
 }
 
 #[test]
 fn test_inlining_reason_cost_too_high() {
     let reason = InliningReason::CostTooHigh;
-    let debug_str = format!("{:?}", reason);
+    let debug_str = format!("{reason:?}");
     assert!(debug_str.contains("CostTooHigh"));
 }
 

@@ -1,7 +1,7 @@
-//! Coverage tests for rust_gen/argparse_transform.rs
+//! Coverage tests for `rust_gen/argparse_transform.rs`
 //!
-//! DEPYLER-99MODE-001: Targets argparse_transform.rs (3,206 lines)
-//! Covers: ArgumentParser creation, positional/optional args, actions,
+//! DEPYLER-99MODE-001: Targets `argparse_transform.rs` (3,206 lines)
+//! Covers: `ArgumentParser` creation, positional/optional args, actions,
 //! nargs, defaults, choices, subcommands, argument groups.
 
 use depyler_core::DepylerPipeline;

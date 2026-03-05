@@ -4,12 +4,12 @@
 //!
 //! Target: Add support for Python nested functions → Rust inner functions/closures
 //!
-//! Impact: Enables csv_filter.py and log_analyzer.py to transpile successfully
+//! Impact: Enables `csv_filter.py` and `log_analyzer.py` to transpile successfully
 //!
 //! This test suite validates:
 //! - Simple nested functions (no captures) → Rust inner functions
 //! - Nested functions with captures → Rust closures
-//! - Real-world examples (csv_filter, log_analyzer)
+//! - Real-world examples (`csv_filter`, `log_analyzer`)
 
 #![allow(non_snake_case)] // Test naming convention
 
@@ -22,12 +22,12 @@ use depyler_core::DepylerPipeline;
 #[test]
 #[ignore = "Known failing - DEPYLER-0427"]
 fn test_DEPYLER_0427_simple_nested_function() {
-    let python = r#"
+    let python = r"
 def outer():
     def inner(x):
         return x * 2
     return inner(5)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -47,12 +47,12 @@ def outer():
 #[test]
 #[ignore = "Known failing - DEPYLER-0427"]
 fn test_DEPYLER_0427_nested_with_multiple_params() {
-    let python = r#"
+    let python = r"
 def outer():
     def add(a, b):
         return a + b
     return add(3, 4)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -72,14 +72,14 @@ def outer():
 
 #[test]
 fn test_DEPYLER_0427_nested_called_multiple_times() {
-    let python = r#"
+    let python = r"
 def outer():
     def double(x):
         return x * 2
     a = double(5)
     b = double(10)
     return a + b
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -96,12 +96,12 @@ def outer():
 
 #[test]
 fn test_DEPYLER_0427_nested_with_closure_single_capture() {
-    let python = r#"
+    let python = r"
 def outer(y):
     def inner(x):
         return x + y
     return inner(5)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -122,12 +122,12 @@ def outer(y):
 
 #[test]
 fn test_DEPYLER_0427_nested_with_multiple_captures() {
-    let python = r#"
+    let python = r"
 def outer(y, z):
     def inner(x):
         return x + y + z
     return inner(5)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -204,7 +204,7 @@ fn test_DEPYLER_0427_csv_filter_full_file() {
 
     // Check if file exists first
     if !std::path::Path::new(csv_filter_path).exists() {
-        eprintln!("WARNING: csv_filter.py not found at {}, skipping test", csv_filter_path);
+        eprintln!("WARNING: csv_filter.py not found at {csv_filter_path}, skipping test");
         return;
     }
 
@@ -235,7 +235,7 @@ fn test_DEPYLER_0427_log_analyzer_full_file() {
 
     // Check if file exists first
     if !std::path::Path::new(log_analyzer_path).exists() {
-        eprintln!("WARNING: log_analyzer.py not found at {}, skipping test", log_analyzer_path);
+        eprintln!("WARNING: log_analyzer.py not found at {log_analyzer_path}, skipping test");
         return;
     }
 
@@ -268,12 +268,12 @@ def outer():
 
 #[test]
 fn test_DEPYLER_0427_nested_function_with_type_hints() {
-    let python = r#"
+    let python = r"
 def outer():
     def inner(x: int) -> int:
         return x * 2
     return inner(5)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);

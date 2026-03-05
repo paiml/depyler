@@ -19,11 +19,11 @@ use depyler_core::DepylerPipeline;
 fn test_DEPYLER_0828_float_param_vs_int_var() {
     let pipeline = DepylerPipeline::new();
 
-    let python = r#"
+    let python = r"
 def test(x: float) -> bool:
     y = 5  # integer variable
     return x < y
-"#;
+";
 
     let result = pipeline.transpile(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -34,8 +34,7 @@ def test(x: float) -> bool:
     // Either by casting y to f64, or by making y be f64 from the start
     assert!(
         rust_code.contains("as f64") || rust_code.contains("5.0") || rust_code.contains("5_f64"),
-        "Should cast integer to float or use float literal: {}",
-        rust_code
+        "Should cast integer to float or use float literal: {rust_code}"
     );
 }
 
@@ -46,11 +45,11 @@ def test(x: float) -> bool:
 fn test_DEPYLER_0828_int_param_vs_float_var() {
     let pipeline = DepylerPipeline::new();
 
-    let python = r#"
+    let python = r"
 def test(x: int) -> bool:
     y = 5.0  # float variable
     return x < y
-"#;
+";
 
     let result = pipeline.transpile(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -60,8 +59,7 @@ def test(x: int) -> bool:
     // The generated code should have proper cast
     assert!(
         rust_code.contains("as f64") || rust_code.contains("x < y"),
-        "Should cast or handle properly: {}",
-        rust_code
+        "Should cast or handle properly: {rust_code}"
     );
 }
 
@@ -70,7 +68,7 @@ def test(x: int) -> bool:
 fn test_DEPYLER_0828_all_comparison_ops() {
     let pipeline = DepylerPipeline::new();
 
-    let python = r#"
+    let python = r"
 def test_lt(x: float, y: int) -> bool:
     return x < y
 
@@ -88,7 +86,7 @@ def test_eq(x: float, y: int) -> bool:
 
 def test_ne(x: float, y: int) -> bool:
     return x != y
-"#;
+";
 
     let result = pipeline.transpile(python);
     assert!(result.is_ok(), "Should transpile all comparisons: {:?}", result.err());
@@ -100,9 +98,7 @@ def test_ne(x: float, y: int) -> bool:
     let cast_count = rust_code.matches("as f64").count();
     assert!(
         cast_count >= 6,
-        "Should have at least 6 'as f64' casts (one per function), found {}: {}",
-        cast_count,
-        rust_code
+        "Should have at least 6 'as f64' casts (one per function), found {cast_count}: {rust_code}"
     );
 }
 
@@ -111,10 +107,10 @@ def test_ne(x: float, y: int) -> bool:
 fn test_DEPYLER_0828_literal_still_works() {
     let pipeline = DepylerPipeline::new();
 
-    let python = r#"
+    let python = r"
 def test(x: float) -> bool:
     return x < 5  # literal, should already work
-"#;
+";
 
     let result = pipeline.transpile(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -124,7 +120,6 @@ def test(x: float) -> bool:
     // Should contain the float representation of 5
     assert!(
         rust_code.contains("5.0") || rust_code.contains("5_f64") || rust_code.contains("5f64"),
-        "Literal should be converted to float: {}",
-        rust_code
+        "Literal should be converted to float: {rust_code}"
     );
 }

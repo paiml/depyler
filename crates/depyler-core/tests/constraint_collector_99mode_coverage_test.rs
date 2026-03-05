@@ -1,6 +1,6 @@
-//! Coverage tests for constraint_collector.rs
+//! Coverage tests for `constraint_collector.rs`
 //!
-//! DEPYLER-99MODE-001: Targets type_system/constraint_collector.rs (2,442 lines)
+//! DEPYLER-99MODE-001: Targets `type_system/constraint_collector.rs` (2,442 lines)
 //! Covers: arithmetic constraints, comparison/bool constraints,
 //! bitwise constraints, collection constraints, method-based inference,
 //! function call propagation, return type constraints.
@@ -22,64 +22,64 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_constraint_add_ints() {
-    let code = r#"
+    let code = r"
 def f(x, y):
     return x + y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_sub_ints() {
-    let code = r#"
+    let code = r"
 def f(x, y):
     return x - y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_mul() {
-    let code = r#"
+    let code = r"
 def f(x, y):
     return x * y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_div() {
-    let code = r#"
+    let code = r"
 def f(x, y):
     return x / y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_floor_div() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: int) -> int:
     return x // y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_modulo() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: int) -> int:
     return x % y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_power() {
-    let code = r#"
+    let code = r"
 def f(x: int, n: int) -> float:
     return x ** n
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -89,55 +89,55 @@ def f(x: int, n: int) -> float:
 
 #[test]
 fn test_constraint_lt() {
-    let code = r#"
+    let code = r"
 def f(a, b):
     return a < b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_gt() {
-    let code = r#"
+    let code = r"
 def f(a, b):
     return a > b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_eq() {
-    let code = r#"
+    let code = r"
 def f(a, b):
     return a == b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_neq() {
-    let code = r#"
+    let code = r"
 def f(a, b):
     return a != b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_lte() {
-    let code = r#"
+    let code = r"
 def f(a, b):
     return a <= b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_gte() {
-    let code = r#"
+    let code = r"
 def f(a, b):
     return a >= b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -147,28 +147,28 @@ def f(a, b):
 
 #[test]
 fn test_constraint_bool_and() {
-    let code = r#"
+    let code = r"
 def f(a, b):
     return a and b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_bool_or() {
-    let code = r#"
+    let code = r"
 def f(a, b):
     return a or b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_bool_not() {
-    let code = r#"
+    let code = r"
 def f(a) -> bool:
     return not a
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -178,46 +178,46 @@ def f(a) -> bool:
 
 #[test]
 fn test_constraint_bitand() {
-    let code = r#"
+    let code = r"
 def f(a, b):
     return a & b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_bitor() {
-    let code = r#"
+    let code = r"
 def f(a, b):
     return a | b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_bitxor() {
-    let code = r#"
+    let code = r"
 def f(a, b):
     return a ^ b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_lshift() {
-    let code = r#"
+    let code = r"
 def f(a, b):
     return a << b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_rshift() {
-    let code = r#"
+    let code = r"
 def f(a, b):
     return a >> b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -227,19 +227,19 @@ def f(a, b):
 
 #[test]
 fn test_constraint_list_homogeneous() {
-    let code = r#"
+    let code = r"
 def f():
     return [1, 2, 3]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_list_empty() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     return []
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -254,10 +254,10 @@ def f():
 
 #[test]
 fn test_constraint_dict_empty() {
-    let code = r#"
+    let code = r"
 def f() -> dict:
     return {}
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -272,10 +272,10 @@ def f():
 
 #[test]
 fn test_constraint_set_literal() {
-    let code = r#"
+    let code = r"
 def f():
     return {1, 2, 3}
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -285,10 +285,10 @@ def f():
 
 #[test]
 fn test_constraint_string_method_upper() {
-    let code = r#"
+    let code = r"
 def f(text):
     return text.upper()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -303,51 +303,51 @@ def f(text):
 
 #[test]
 fn test_constraint_list_method_append() {
-    let code = r#"
+    let code = r"
 def f(items):
     items.append(1)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_list_method_extend() {
-    let code = r#"
+    let code = r"
 def f(items):
     items.extend([4, 5, 6])
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_dict_method_keys() {
-    let code = r#"
+    let code = r"
 def f(mapping):
     return list(mapping.keys())
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_dict_method_values() {
-    let code = r#"
+    let code = r"
 def f(mapping):
     return list(mapping.values())
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_dict_method_items() {
-    let code = r#"
+    let code = r"
 def f(mapping):
     result = []
     for k, v in mapping.items():
         result.append(k)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -357,34 +357,34 @@ def f(mapping):
 
 #[test]
 fn test_constraint_call_known_func() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
 
 def caller(x, y):
     return add(x, y)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_call_chain() {
-    let code = r#"
+    let code = r"
 def double(x: int) -> int:
     return x * 2
 
 def quadruple(x):
     return double(double(x))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_len_call() {
-    let code = r#"
+    let code = r"
 def f(items):
     return len(items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -394,10 +394,10 @@ def f(items):
 
 #[test]
 fn test_constraint_return_annotated() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     return 42
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -414,10 +414,10 @@ def f(flag: bool) -> str:
 
 #[test]
 fn test_constraint_return_expression() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     return x * 2 + 1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -427,11 +427,11 @@ def f(x: int) -> int:
 
 #[test]
 fn test_constraint_assign_simple() {
-    let code = r#"
+    let code = r"
 def f():
     x = 5
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -448,13 +448,13 @@ def f():
 
 #[test]
 fn test_constraint_augmented_assign() {
-    let code = r#"
+    let code = r"
 def f():
     x = 0
     x += 1
     x *= 2
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -464,12 +464,12 @@ def f():
 
 #[test]
 fn test_constraint_if_condition_bool() {
-    let code = r#"
+    let code = r"
 def f(x):
     if x:
         return 1
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -489,14 +489,14 @@ def f(x):
 
 #[test]
 fn test_constraint_while_condition() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     while n > 0:
         total += n
         n -= 1
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -506,19 +506,19 @@ def f(n: int) -> int:
 
 #[test]
 fn test_constraint_slice_string() {
-    let code = r#"
+    let code = r"
 def f(text: str) -> str:
     return text[1:4]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_slice_list() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return items[1:3]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -528,25 +528,25 @@ def f(items: list) -> list:
 
 #[test]
 fn test_constraint_for_range() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_for_collection() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     total = 0
     for item in items:
         total += item
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -556,13 +556,13 @@ def f(items: list) -> int:
 
 #[test]
 fn test_constraint_try_except() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -572,7 +572,7 @@ def f(s: str) -> int:
 
 #[test]
 fn test_constraint_complex_function() {
-    let code = r#"
+    let code = r"
 def process(data, threshold):
     result = []
     count = 0
@@ -581,13 +581,13 @@ def process(data, threshold):
             result.append(item * 2)
             count += 1
     return count
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_constraint_multi_function() {
-    let code = r#"
+    let code = r"
 def square(x: int) -> int:
     return x * x
 
@@ -596,6 +596,6 @@ def sum_squares(items: list) -> int:
     for item in items:
         total += square(item)
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }

@@ -22,7 +22,7 @@ def parse_value(s: str) -> int:
     assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Should contain both handlers
     assert!(rust_code.contains("Value error"), "Should contain ValueError handler");
@@ -45,8 +45,7 @@ def parse_value(s: str) -> int:
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "❌ DEPYLER-0361: Generated code should compile!\n\nGenerated code:\n{}\n\nCompilation errors:\n{}",
-            rust_code, stderr
+            "❌ DEPYLER-0361: Generated code should compile!\n\nGenerated code:\n{rust_code}\n\nCompilation errors:\n{stderr}"
         );
     }
 

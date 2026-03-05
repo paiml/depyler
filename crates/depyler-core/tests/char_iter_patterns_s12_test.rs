@@ -1,9 +1,9 @@
 //! Session 12 Batch 38: Character iteration and type dispatch cold paths
 //!
-//! Targets char_iter_vars optimization branches in expr_gen_instance_methods.rs
-//! and type-specific dispatch paths in direct_rules_convert.rs:
+//! Targets `char_iter_vars` optimization branches in `expr_gen_instance_methods.rs`
+//! and type-specific dispatch paths in `direct_rules_convert.rs`:
 //! - String character iteration with method calls (isalpha, isdigit, etc.)
-//! - Dict items() iteration with k,v unpacking
+//! - Dict `items()` iteration with k,v unpacking
 //! - Complex string processing with char-level ops
 //! - Type-specific method dispatch (str vs list vs dict)
 
@@ -25,44 +25,44 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b38_count_alpha() {
-    let code = r#"
+    let code = r"
 def count_alpha(s: str) -> int:
     count = 0
     for c in s:
         if c.isalpha():
             count += 1
     return count
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn count_alpha"), "Got: {}", result);
+    assert!(result.contains("fn count_alpha"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b38_count_digits() {
-    let code = r#"
+    let code = r"
 def count_digits(s: str) -> int:
     count = 0
     for c in s:
         if c.isdigit():
             count += 1
     return count
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn count_digits"), "Got: {}", result);
+    assert!(result.contains("fn count_digits"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b38_count_spaces() {
-    let code = r#"
+    let code = r"
 def count_spaces(s: str) -> int:
     count = 0
     for c in s:
         if c.isspace():
             count += 1
     return count
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn count_spaces"), "Got: {}", result);
+    assert!(result.contains("fn count_spaces"), "Got: {result}");
 }
 
 #[test]
@@ -80,7 +80,7 @@ def classify_chars(s: str) -> dict:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn classify_chars"), "Got: {}", result);
+    assert!(result.contains("fn classify_chars"), "Got: {result}");
 }
 
 #[test]
@@ -94,7 +94,7 @@ def filter_alnum(s: str) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn filter_alnum"), "Got: {}", result);
+    assert!(result.contains("fn filter_alnum"), "Got: {result}");
 }
 
 #[test]
@@ -112,7 +112,7 @@ def swap_case_manual(s: str) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn swap_case_manual"), "Got: {}", result);
+    assert!(result.contains("fn swap_case_manual"), "Got: {result}");
 }
 
 // ===== Dict items iteration =====
@@ -127,21 +127,21 @@ def format_dict(d: dict) -> str:
     return ", ".join(parts)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn format_dict"), "Got: {}", result);
+    assert!(result.contains("fn format_dict"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b38_dict_items_filter() {
-    let code = r#"
+    let code = r"
 def filter_by_value(d: dict, threshold: int) -> dict:
     result = {}
     for key, value in d.items():
         if value > threshold:
             result[key] = value
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn filter_by_value"), "Got: {}", result);
+    assert!(result.contains("fn filter_by_value"), "Got: {result}");
 }
 
 #[test]
@@ -157,7 +157,7 @@ def max_value_key(d: dict) -> str:
     return best_key
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn max_value_key"), "Got: {}", result);
+    assert!(result.contains("fn max_value_key"), "Got: {result}");
 }
 
 // ===== Complex string processing =====
@@ -177,12 +177,12 @@ def camel_to_snake(s: str) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn camel_to_snake"), "Got: {}", result);
+    assert!(result.contains("fn camel_to_snake"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b38_count_words() {
-    let code = r#"
+    let code = r"
 def count_words(text: str) -> int:
     in_word = False
     count = 0
@@ -195,9 +195,9 @@ def count_words(text: str) -> int:
                 count += 1
                 in_word = True
     return count
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn count_words"), "Got: {}", result);
+    assert!(result.contains("fn count_words"), "Got: {result}");
 }
 
 #[test]
@@ -214,19 +214,19 @@ def is_valid_id(s: str) -> bool:
     return True
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn is_valid_id"), "Got: {}", result);
+    assert!(result.contains("fn is_valid_id"), "Got: {result}");
 }
 
 // ===== String method edge cases =====
 
 #[test]
 fn test_s12_b38_str_format_call() {
-    let code = r#"
+    let code = r"
 def format_msg(template: str, name: str, count: int) -> str:
     return template.format(name, count)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn format_msg"), "Got: {}", result);
+    assert!(result.contains("fn format_msg"), "Got: {result}");
 }
 
 #[test]
@@ -240,7 +240,7 @@ def join_nonempty(items: list) -> str:
     return " ".join(filtered)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn join_nonempty"), "Got: {}", result);
+    assert!(result.contains("fn join_nonempty"), "Got: {result}");
 }
 
 #[test]
@@ -250,28 +250,28 @@ def normalize_whitespace(s: str) -> str:
     return " ".join(s.split())
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn normalize_whitespace"), "Got: {}", result);
+    assert!(result.contains("fn normalize_whitespace"), "Got: {result}");
 }
 
 // ===== Complex list patterns =====
 
 #[test]
 fn test_s12_b38_interleave() {
-    let code = r#"
+    let code = r"
 def interleave(a: list, b: list) -> list:
     result = []
     for i in range(min(len(a), len(b))):
         result.append(a[i])
         result.append(b[i])
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn interleave"), "Got: {}", result);
+    assert!(result.contains("fn interleave"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b38_chunk_list() {
-    let code = r#"
+    let code = r"
 def chunk(items: list, size: int) -> list:
     result = []
     for i in range(0, len(items), size):
@@ -280,30 +280,30 @@ def chunk(items: list, size: int) -> list:
             chunk_items.append(items[j])
         result.append(chunk_items)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn chunk"), "Got: {}", result);
+    assert!(result.contains("fn chunk"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b38_rotate_list() {
-    let code = r#"
+    let code = r"
 def rotate(items: list, k: int) -> list:
     n = len(items)
     if n == 0:
         return items
     k = k % n
     return items[n - k:] + items[:n - k]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn rotate"), "Got: {}", result);
+    assert!(result.contains("fn rotate"), "Got: {result}");
 }
 
 // ===== Complex boolean patterns =====
 
 #[test]
 fn test_s12_b38_all_same() {
-    let code = r#"
+    let code = r"
 def all_same(items: list) -> bool:
     if not items:
         return True
@@ -312,37 +312,37 @@ def all_same(items: list) -> bool:
         if item != first:
             return False
     return True
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn all_same"), "Got: {}", result);
+    assert!(result.contains("fn all_same"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b38_is_sorted() {
-    let code = r#"
+    let code = r"
 def is_sorted(items: list) -> bool:
     for i in range(1, len(items)):
         if items[i] < items[i - 1]:
             return False
     return True
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn is_sorted"), "Got: {}", result);
+    assert!(result.contains("fn is_sorted"), "Got: {result}");
 }
 
 // ===== Multiple return types =====
 
 #[test]
 fn test_s12_b38_find_or_none() {
-    let code = r#"
+    let code = r"
 def find_first(items: list, pred: str) -> int:
     for i in range(len(items)):
         if items[i] == pred:
             return i
     return -1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn find_first"), "Got: {}", result);
+    assert!(result.contains("fn find_first"), "Got: {result}");
 }
 
 // ===== Global constants =====
@@ -361,5 +361,5 @@ def get_default() -> str:
     return DEFAULT_NAME
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn validate_size"), "Got: {}", result);
+    assert!(result.contains("fn validate_size"), "Got: {result}");
 }

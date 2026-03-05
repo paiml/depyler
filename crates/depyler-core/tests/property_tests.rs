@@ -64,7 +64,7 @@ fn py_float() -> impl Strategy<Value = f64> {
 fn simple_expr() -> impl Strategy<Value = String> {
     prop_oneof![
         py_int().prop_map(|n| n.to_string()),
-        py_float().prop_map(|f| format!("{:.6}", f)),
+        py_float().prop_map(|f| format!("{f:.6}")),
         Just("True".to_string()),
         Just("False".to_string()),
         Just("None".to_string()),
@@ -154,7 +154,7 @@ proptest! {
     // Test that simple assignments transpile
     #[test]
     fn test_simple_assignment(name in identifier(), expr in simple_expr()) {
-        let code = format!("{} = {}", name, expr);
+        let code = format!("{name} = {expr}");
         // We don't require success, just that it doesn't panic
         let _ = DepylerPipeline::new().transpile(&code);
     }
@@ -162,21 +162,21 @@ proptest! {
     // Test binary expressions
     #[test]
     fn test_binary_expr(left in py_int(), op in binop(), right in 1i64..100) {
-        let code = format!("x = {} {} {}", left, op, right);
+        let code = format!("x = {left} {op} {right}");
         let _ = DepylerPipeline::new().transpile(&code);
     }
 
     // Test augmented assignments
     #[test]
     fn test_augmented_assign(op in augop(), val in 1i64..100) {
-        let code = format!("def f():\n    x = 10\n    x {} {}", op, val);
+        let code = format!("def f():\n    x = 10\n    x {op} {val}");
         let _ = DepylerPipeline::new().transpile(&code);
     }
 
     // Test simple functions
     #[test]
     fn test_simple_function(name in identifier(), ret in simple_expr()) {
-        let code = format!("def {}():\n    return {}", name, ret);
+        let code = format!("def {name}():\n    return {ret}");
         let _ = DepylerPipeline::new().transpile(&code);
     }
 
@@ -188,7 +188,7 @@ proptest! {
         p2 in identifier(),
     ) {
         if p1 != p2 && name != p1 && name != p2 {
-            let code = format!("def {}({}, {}):\n    return {} + {}", name, p1, p2, p1, p2);
+            let code = format!("def {name}({p1}, {p2}):\n    return {p1} + {p2}");
             let _ = DepylerPipeline::new().transpile(&code);
         }
     }
@@ -197,8 +197,7 @@ proptest! {
     #[test]
     fn test_if_stmt(cond in 0i64..10, then_val in py_int(), else_val in py_int()) {
         let code = format!(
-            "def f(x):\n    if x > {}:\n        return {}\n    else:\n        return {}",
-            cond, then_val, else_val
+            "def f(x):\n    if x > {cond}:\n        return {then_val}\n    else:\n        return {else_val}"
         );
         let _ = DepylerPipeline::new().transpile(&code);
     }
@@ -207,8 +206,7 @@ proptest! {
     #[test]
     fn test_for_range(start in 0i64..10, end in 10i64..20) {
         let code = format!(
-            "def f():\n    total = 0\n    for i in range({}, {}):\n        total += i\n    return total",
-            start, end
+            "def f():\n    total = 0\n    for i in range({start}, {end}):\n        total += i\n    return total"
         );
         let _ = DepylerPipeline::new().transpile(&code);
     }
@@ -217,8 +215,7 @@ proptest! {
     #[test]
     fn test_while_loop(limit in 1i64..20) {
         let code = format!(
-            "def f():\n    x = 0\n    while x < {}:\n        x += 1\n    return x",
-            limit
+            "def f():\n    x = 0\n    while x < {limit}:\n        x += 1\n    return x"
         );
         let _ = DepylerPipeline::new().transpile(&code);
     }
@@ -226,14 +223,14 @@ proptest! {
     // Test list comprehensions
     #[test]
     fn test_list_comprehension(n in 1i64..20, mul in 1i64..5) {
-        let code = format!("x = [i * {} for i in range({})]", mul, n);
+        let code = format!("x = [i * {mul} for i in range({n})]");
         let _ = DepylerPipeline::new().transpile(&code);
     }
 
     // Test dict comprehensions
     #[test]
     fn test_dict_comprehension(n in 1i64..10) {
-        let code = format!("x = {{i: i * 2 for i in range({})}}", n);
+        let code = format!("x = {{i: i * 2 for i in range({n})}}");
         let _ = DepylerPipeline::new().transpile(&code);
     }
 
@@ -241,8 +238,7 @@ proptest! {
     #[test]
     fn test_try_except(val in py_int(), default in py_int()) {
         let code = format!(
-            "def f():\n    try:\n        return {}\n    except:\n        return {}",
-            val, default
+            "def f():\n    try:\n        return {val}\n    except:\n        return {default}"
         );
         let _ = DepylerPipeline::new().transpile(&code);
     }
@@ -252,8 +248,7 @@ proptest! {
     fn test_class_init(class_name in identifier(), field1 in identifier(), field2 in identifier()) {
         if class_name != field1 && class_name != field2 && field1 != field2 {
             let code = format!(
-                "class {}:\n    def __init__(self, {}, {}):\n        self.{} = {}\n        self.{} = {}",
-                class_name, field1, field2, field1, field1, field2, field2
+                "class {class_name}:\n    def __init__(self, {field1}, {field2}):\n        self.{field1} = {field1}\n        self.{field2} = {field2}"
             );
             let _ = DepylerPipeline::new().transpile(&code);
         }
@@ -262,7 +257,7 @@ proptest! {
     // Test lambdas
     #[test]
     fn test_lambda_expr(mul in 1i64..10, add in 0i64..10) {
-        let code = format!("f = lambda x: x * {} + {}", mul, add);
+        let code = format!("f = lambda x: x * {mul} + {add}");
         let _ = DepylerPipeline::new().transpile(&code);
     }
 
@@ -270,8 +265,7 @@ proptest! {
     #[test]
     fn test_ternary(threshold in 0i64..20, then_val in py_int(), else_val in py_int()) {
         let code = format!(
-            "def f(x):\n    return {} if x > {} else {}",
-            then_val, threshold, else_val
+            "def f(x):\n    return {then_val} if x > {threshold} else {else_val}"
         );
         let _ = DepylerPipeline::new().transpile(&code);
     }
@@ -279,7 +273,7 @@ proptest! {
     // Test f-strings
     #[test]
     fn test_fstring(val in py_int()) {
-        let code = format!("x = f'value: {{{}}}'", val);
+        let code = format!("x = f'value: {{{val}}}'");
         let _ = DepylerPipeline::new().transpile(&code);
     }
 
@@ -289,9 +283,9 @@ proptest! {
         let inner = "1".to_string();
         let mut result = inner;
         for _ in 0..depth {
-            result = format!("[{}]", result);
+            result = format!("[{result}]");
         }
-        let code = format!("x = {}", result);
+        let code = format!("x = {result}");
         let _ = DepylerPipeline::new().transpile(&code);
     }
 
@@ -303,7 +297,7 @@ proptest! {
         for i in 0..n {
             code = format!("{}.{}()", code, methods[i % methods.len()]);
         }
-        let code = format!("x = {}", code);
+        let code = format!("x = {code}");
         let _ = DepylerPipeline::new().transpile(&code);
     }
 
@@ -311,14 +305,14 @@ proptest! {
     #[test]
     fn test_comparison_chain(a in 0i64..10, b in 10i64..20, c in 20i64..30) {
         // Use b for a different chain pattern
-        let code = format!("def f(x):\n    return {} < {} < x < {}", a, b, c);
+        let code = format!("def f(x):\n    return {a} < {b} < x < {c}");
         let _ = DepylerPipeline::new().transpile(&code);
     }
 
     // Test slicing
     #[test]
     fn test_slice(start in 0i64..5, end in 5i64..10) {
-        let code = format!("def f(x):\n    return x[{}:{}]", start, end);
+        let code = format!("def f(x):\n    return x[{start}:{end}]");
         let _ = DepylerPipeline::new().transpile(&code);
     }
 
@@ -326,8 +320,7 @@ proptest! {
     #[test]
     fn test_generator(n in 1i64..20) {
         let code = format!(
-            "def gen(n):\n    for i in range({}):\n        yield i",
-            n
+            "def gen(n):\n    for i in range({n}):\n        yield i"
         );
         let _ = DepylerPipeline::new().transpile(&code);
     }
@@ -341,8 +334,7 @@ proptest! {
     ) {
         if class_name != f1 && class_name != f2 && f1 != f2 {
             let code = format!(
-                "from dataclasses import dataclass\n\n@dataclass\nclass {}:\n    {}: int\n    {}: str",
-                class_name, f1, f2
+                "from dataclasses import dataclass\n\n@dataclass\nclass {class_name}:\n    {f1}: int\n    {f2}: str"
             );
             let _ = DepylerPipeline::new().transpile(&code);
         }
@@ -352,8 +344,7 @@ proptest! {
     #[test]
     fn test_match_int(val1 in py_int(), val2 in py_int()) {
         let code = format!(
-            "def f(x):\n    match x:\n        case {}:\n            return 'a'\n        case {}:\n            return 'b'\n        case _:\n            return 'c'",
-            val1, val2
+            "def f(x):\n    match x:\n        case {val1}:\n            return 'a'\n        case {val2}:\n            return 'b'\n        case _:\n            return 'c'"
         );
         let _ = DepylerPipeline::new().transpile(&code);
     }
@@ -361,7 +352,7 @@ proptest! {
     // Test async functions
     #[test]
     fn test_async_function(name in identifier(), ret in py_int()) {
-        let code = format!("async def {}():\n    return {}", name, ret);
+        let code = format!("async def {name}():\n    return {ret}");
         let _ = DepylerPipeline::new().transpile(&code);
     }
 }

@@ -1,6 +1,6 @@
-//! Extended coverage tests for stmt_gen.rs
+//! Extended coverage tests for `stmt_gen.rs`
 //!
-//! Target: stmt_gen.rs gaps (288 uncovered lines at 78.26%)
+//! Target: `stmt_gen.rs` gaps (288 uncovered lines at 78.26%)
 //! Coverage focus: Error paths, core statements, type awareness
 //!
 //! Test Strategy:
@@ -48,12 +48,12 @@ def test():
 fn test_complex_tuple_unpacking_unsupported() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test():
     nested = ((1, 2), (3, 4))
     (a, (b, c)) = nested  # Nested tuple unpacking
     return a + b + c
-"#;
+";
     let result = pipeline.transpile(python_code);
 
     // May error or handle gracefully depending on implementation
@@ -106,18 +106,18 @@ def test():
 
 /// Unit Test: Augmented assignment with unsupported operator
 ///
-/// Verifies: Lines 807-814 - BinOp match fallback
+/// Verifies: Lines 807-814 - `BinOp` match fallback
 /// Expected: Error or graceful handling for floor division
 #[test]
 fn test_augmented_assignment_floor_division() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test():
     x = 10
     x //= 3  # Floor division augmented assignment
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn test"));
@@ -130,13 +130,13 @@ def test():
 
 /// Unit Test: Break with label (if supported)
 ///
-/// Verifies: Lines 126-129 - label path in codegen_break_stmt
-/// Expected: break 'label_name; if labels are used
+/// Verifies: Lines 126-129 - label path in `codegen_break_stmt`
+/// Expected: break '`label_name`; if labels are used
 #[test]
 fn test_break_in_nested_loop() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test():
     for i in range(10):
         for j in range(10):
@@ -145,7 +145,7 @@ def test():
         if i > 5:
             break  # Outer loop break
     return i
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn test"));
@@ -154,13 +154,13 @@ def test():
 
 /// Unit Test: Continue with label
 ///
-/// Verifies: Lines 138-141 - label path in codegen_continue_stmt
-/// Expected: continue 'label_name; if labels are used
+/// Verifies: Lines 138-141 - label path in `codegen_continue_stmt`
+/// Expected: continue '`label_name`; if labels are used
 #[test]
 fn test_continue_in_nested_loop() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test():
     count = 0
     for i in range(10):
@@ -172,7 +172,7 @@ def test():
             continue  # Outer loop continue
         count = count + 100
     return count
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn test"));
@@ -187,7 +187,7 @@ def test():
 fn test_with_statement_with_target() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 class ContextManager:
     def __enter__(self):
         return self
@@ -198,7 +198,7 @@ class ContextManager:
 def test():
     with ContextManager() as ctx:
         return ctx
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn test"));
@@ -207,12 +207,12 @@ def test():
 /// Unit Test: If condition with Result<bool> unwrap
 ///
 /// Verifies: Lines 417-422 - Result<bool> auto-unwrap in if condition
-/// Expected: .unwrap_or(false) for function returning Result<bool>
+/// Expected: .`unwrap_or(false)` for function returning Result<bool>
 #[test]
 fn test_if_condition_result_bool_unwrap() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def is_even(n: int) -> bool:
     return n % 2 == 0
 
@@ -220,7 +220,7 @@ def test(x: int) -> int:
     if is_even(x):
         return 1
     return 0
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn is_even"));
@@ -235,10 +235,10 @@ def test(x: int) -> int:
 fn test_return_with_type_conversion_usize_to_i32() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def get_length(items: list[int]) -> int:
     return len(items)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn get_length"));
@@ -253,7 +253,7 @@ def get_length(items: list[int]) -> int:
 fn test_return_early_with_ok_some() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 from typing import Optional
 
 def maybe_find(items: list[int], target: int) -> Optional[int]:
@@ -261,7 +261,7 @@ def maybe_find(items: list[int], target: int) -> Optional[int]:
         if item == target:
             return item  # Early return (not final statement)
     return None
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn maybe_find"));
@@ -276,12 +276,12 @@ def maybe_find(items: list[int], target: int) -> Optional[int]:
 fn test_return_none_optional_result() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 from typing import Optional
 
 def optional_result() -> Optional[int]:
     return None
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn optional_result"));
@@ -296,14 +296,14 @@ def optional_result() -> Optional[int]:
 fn test_return_empty_optional_result_early() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 from typing import Optional
 
 def early_exit(flag: bool) -> Optional[int]:
     if flag:
         return  # Empty return in Optional Result function
     return 42
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn early_exit"));
@@ -317,12 +317,12 @@ def early_exit(flag: bool) -> Optional[int]:
 fn test_return_empty_result_early() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def validate(x: int):
     if x < 0:
         return  # Empty return in Result function (early)
     print(x)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn validate"));
@@ -336,13 +336,13 @@ def validate(x: int):
 fn test_return_final_statement_implicit() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def implicit_return(x: int) -> int:
     if x > 0:
         x * 2
     else:
         0
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn implicit_return"));
@@ -352,41 +352,41 @@ def implicit_return(x: int) -> int:
 // TIER 3: Helper Functions & Type Awareness
 // ============================================================================
 
-/// Unit Test: expr_returns_usize with count() method
+/// Unit Test: `expr_returns_usize` with `count()` method
 ///
-/// Verifies: Line 49 - expr_returns_usize with "count" method
-/// Expected: Returns true for count()
+/// Verifies: Line 49 - `expr_returns_usize` with "count" method
+/// Expected: Returns true for `count()`
 #[test]
 fn test_expr_returns_usize_method_count() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def count_occurrences(text: str, char: str) -> int:
     return text.count(char)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn count_occurrences"));
 }
 
-/// Unit Test: expr_returns_usize with len() builtin
+/// Unit Test: `expr_returns_usize` with `len()` builtin
 ///
-/// Verifies: Line 53 - expr_returns_usize with "len" call
-/// Expected: Returns true for len()
+/// Verifies: Line 53 - `expr_returns_usize` with "len" call
+/// Expected: Returns true for `len()`
 #[test]
 fn test_expr_returns_usize_builtin_len() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def get_size(items: list[int]) -> int:
     return len(items)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn get_size"));
 }
 
-/// Unit Test: expr_returns_usize with binary expression
+/// Unit Test: `expr_returns_usize` with binary expression
 ///
 /// Verifies: Lines 56-58 - recursive binary expr check
 /// Expected: Returns true if either operand is usize
@@ -394,10 +394,10 @@ def get_size(items: list[int]) -> int:
 fn test_expr_returns_usize_binary_expr() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def total_size(a: list[int], b: list[int]) -> int:
     return len(a) + len(b)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn total_size"));
@@ -405,16 +405,16 @@ def total_size(a: list[int], b: list[int]) -> int:
 
 /// Unit Test: Variable usage detection in lambda
 ///
-/// Verifies: Line 487 - is_var_used_in_expr for Lambda
+/// Verifies: Line 487 - `is_var_used_in_expr` for Lambda
 /// Expected: Detects variable used in lambda capture
 #[test]
 fn test_is_var_used_in_lambda() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def create_adder(x: int):
     return lambda y: x + y  # x captured in lambda
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn create_adder"));
@@ -422,16 +422,16 @@ def create_adder(x: int):
 
 /// Unit Test: Variable usage in if expression (ternary)
 ///
-/// Verifies: Lines 482-486 - is_var_used_in_expr for IfExpr
+/// Verifies: Lines 482-486 - `is_var_used_in_expr` for `IfExpr`
 /// Expected: Detects x in test/body/orelse
 #[test]
 fn test_is_var_used_in_if_expr() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def abs_value(x: int) -> int:
     return x if x > 0 else -x  # x in ternary expression
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn abs_value"));
@@ -439,16 +439,16 @@ def abs_value(x: int) -> int:
 
 /// Unit Test: Variable usage in slice operations
 ///
-/// Verifies: Lines 488-504 - is_var_used_in_expr for Slice
+/// Verifies: Lines 488-504 - `is_var_used_in_expr` for Slice
 /// Expected: Detects variable in slice start/stop/step
 #[test]
 fn test_is_var_used_in_slice() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def get_window(data: list[int], start: int, size: int) -> list[int]:
     return data[start:start+size]  # start in slice bounds
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn get_window"));
@@ -456,16 +456,16 @@ def get_window(data: list[int], start: int, size: int) -> list[int]:
 
 /// Unit Test: Variable usage in set/frozenset
 ///
-/// Verifies: Lines 475-478 - Set/FrozenSet in is_var_used_in_expr
+/// Verifies: Lines 475-478 - Set/FrozenSet in `is_var_used_in_expr`
 /// Expected: Detects variable in set literal
 #[test]
 fn test_is_var_used_in_set_literal() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def create_set(x: int) -> set[int]:
     return {x, x+1, x+2}  # x in set literal
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn create_set"));
@@ -474,12 +474,12 @@ def create_set(x: int) -> set[int]:
 /// Unit Test: Class instance type tracking
 ///
 /// Verifies: Lines 846-851 - class constructor type tracking
-/// Expected: Tracks instance as Type::Custom("Point") (DEPYLER-0232)
+/// Expected: Tracks instance as `Type::Custom("Point`") (DEPYLER-0232)
 #[test]
 fn test_assign_class_instance_type_tracking() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
@@ -488,25 +488,25 @@ class Point:
 def test():
     p = Point(1, 2)  # Track custom class instance
     return p.x + p.y
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("struct Point") || rust_code.contains("class Point"));
 }
 
-/// Unit Test: set() builtin constructor type tracking
+/// Unit Test: `set()` builtin constructor type tracking
 ///
-/// Verifies: Lines 854-862 - set() constructor type tracking
-/// Expected: Tracks as Type::Set(Int) (DEPYLER-0309)
+/// Verifies: Lines 854-862 - `set()` constructor type tracking
+/// Expected: Tracks as `Type::Set(Int)` (DEPYLER-0309)
 #[test]
 fn test_assign_set_builtin_constructor() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test():
     s = set([1, 2, 3])  # set() constructor
     return 1 in s
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn test"));
@@ -516,10 +516,10 @@ def test():
 // TIER 4: Edge Cases & Complex Nesting
 // ============================================================================
 
-/// Unit Test: Nested dict subscript assignment with get_mut chain
+/// Unit Test: Nested dict subscript assignment with `get_mut` chain
 ///
-/// Verifies: Lines 1095-1112 - nested get_mut chain building
-/// Expected: Multiple .get_mut() calls chained
+/// Verifies: Lines 1095-1112 - nested `get_mut` chain building
+/// Expected: Multiple .`get_mut()` calls chained
 #[test]
 fn test_nested_dict_get_mut_chain() {
     let pipeline = DepylerPipeline::new();
@@ -537,18 +537,18 @@ def test():
 
 /// Unit Test: Index assignment with type-aware Vec detection
 ///
-/// Verifies: Lines 1049-1080 - type-aware Vec vs HashMap detection
-/// Expected: .insert() for Vec (DEPYLER-0304)
+/// Verifies: Lines 1049-1080 - type-aware Vec vs `HashMap` detection
+/// Expected: .`insert()` for Vec (DEPYLER-0304)
 #[test]
 fn test_assign_index_vec_with_type_info() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test():
     items: list[int] = [1, 2, 3]
     items[0] = 99  # Type-aware Vec assignment
     return items[0]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn test"));
@@ -582,13 +582,13 @@ def test():
 fn test_assign_tuple_all_mutable() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test():
     a, b = 1, 2
     a = 3  # a is mutated later
     b = 4  # b is mutated later
     return a + b
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn test"));
@@ -624,14 +624,14 @@ def test():
 fn test_assign_function_return_type_tracking() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def merge(a: list[int], b: list[int]) -> list[int]:
     return a + b
 
 def test():
     result = merge([1], [2])  # Track return type
     return len(result)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn merge"));
@@ -641,16 +641,16 @@ def test():
 /// Unit Test: String method return type tracking
 ///
 /// Verifies: Lines 947-953 - String method return type tracking
-/// Expected: Tracks as Type::String
+/// Expected: Tracks as `Type::String`
 #[test]
 fn test_assign_method_call_string_methods() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test(text: str) -> str:
     upper_text = text.upper()  # String method tracking
     return upper_text
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn test"));
@@ -670,55 +670,55 @@ fn test_property_statement_types() {
     let test_cases = vec![
         (
             "if",
-            r#"
+            r"
 def test_if():
     x = 10
     if x > 0:
         return 1
     else:
         return 0
-"#,
+",
         ),
         (
             "while",
-            r#"
+            r"
 def test_while():
     x = 10
     while x > 0:
         x = x - 1
     return x
-"#,
+",
         ),
         (
             "for",
-            r#"
+            r"
 def test_for():
     for i in range(10):
         print(i)
-"#,
+",
         ),
         (
             "break",
-            r#"
+            r"
 def test_break():
     for i in range(10):
         break
-"#,
+",
         ),
         (
             "continue",
-            r#"
+            r"
 def test_continue():
     for i in range(10):
         continue
-"#,
+",
         ),
         (
             "return",
-            r#"
+            r"
 def test_return():
     return 42
-"#,
+",
         ),
     ];
 
@@ -743,11 +743,10 @@ fn test_property_return_type_conversions() {
 
     for (func_name, param_type, return_type, return_stmt) in test_cases {
         let python_code = format!(
-            r#"
-def test_{}(items: {}) -> {}:
-    {}
-"#,
-            func_name, param_type, return_type, return_stmt
+            r"
+def test_{func_name}(items: {param_type}) -> {return_type}:
+    {return_stmt}
+"
         );
         let result = pipeline.transpile(&python_code);
 
@@ -762,7 +761,7 @@ def test_{}(items: {}) -> {}:
 fn test_integration_complex_statement_combinations() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 from typing import Optional
 
 def complex_logic(items: list[int], target: int) -> Optional[int]:
@@ -785,7 +784,7 @@ def complex_logic(items: list[int], target: int) -> Optional[int]:
 
     # Final return
     return None
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn complex_logic"));
@@ -799,34 +798,34 @@ fn test_mutation_statement_conversions() {
     let pipeline = DepylerPipeline::new();
 
     // Test Case 1: If statement
-    let if_code = r#"
+    let if_code = r"
 def test1(x: int) -> int:
     if x > 0:
         return 1
     else:
         return -1
-"#;
+";
     let rust1 = pipeline.transpile(if_code).unwrap();
     assert!(rust1.contains("fn test1"));
 
     // Test Case 2: For loop
-    let for_code = r#"
+    let for_code = r"
 def test2(items: list[int]) -> int:
     total = 0
     for item in items:
         total = total + item
     return total
-"#;
+";
     let rust2 = pipeline.transpile(for_code).unwrap();
     assert!(rust2.contains("fn test2"));
 
     // Test Case 3: While loop
-    let while_code = r#"
+    let while_code = r"
 def test3(n: int) -> int:
     while n > 0:
         n = n - 1
     return n
-"#;
+";
     let rust3 = pipeline.transpile(while_code).unwrap();
     assert!(rust3.contains("fn test3"));
 }

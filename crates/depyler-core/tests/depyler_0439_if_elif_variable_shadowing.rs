@@ -19,8 +19,8 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 fn unique_temp_path() -> (String, String) {
     let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
-    let rs_file = format!("/tmp/depyler_0439_{}_{}.rs", pid, id);
-    let rlib_file = format!("/tmp/libdepyler_0439_{}_{}.rlib", pid, id);
+    let rs_file = format!("/tmp/depyler_0439_{pid}_{id}.rs");
+    let rlib_file = format!("/tmp/libdepyler_0439_{pid}_{id}.rlib");
     (rs_file, rlib_file)
 }
 
@@ -53,8 +53,7 @@ def test_func():
     let let_mut_x_count = result.matches("let mut x").count();
     assert_eq!(
         let_mut_x_count, 1,
-        "Expected exactly 1 'let mut x' declaration, found {}\nGenerated code:\n{}",
-        let_mut_x_count, result
+        "Expected exactly 1 'let mut x' declaration, found {let_mut_x_count}\nGenerated code:\n{result}"
     );
 
     // Should NOT have duplicate declarations
@@ -72,7 +71,7 @@ def test_func():
 /// Verifies: Multiple nesting levels (3 elif statements)
 #[test]
 fn test_depyler_0439_triple_elif_chain_no_duplicates() {
-    let source = r#"
+    let source = r"
 def test_func():
     a = True
     b = False
@@ -90,7 +89,7 @@ def test_func():
     else:
         value = 5
     return value
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(source).unwrap();
@@ -99,8 +98,7 @@ def test_func():
     let let_mut_value_count = result.matches("let mut value").count();
     assert_eq!(
         let_mut_value_count, 1,
-        "Expected exactly 1 'let mut value' declaration, found {}\nGenerated code:\n{}",
-        let_mut_value_count, result
+        "Expected exactly 1 'let mut value' declaration, found {let_mut_value_count}\nGenerated code:\n{result}"
     );
 
     // Verify compilation
@@ -139,16 +137,14 @@ def test_func():
     let outer_count = result.matches("let mut outer").count();
     assert_eq!(
         outer_count, 1,
-        "Expected exactly 1 'let mut outer' declaration, found {}",
-        outer_count
+        "Expected exactly 1 'let mut outer' declaration, found {outer_count}"
     );
 
     // Should have ONE `let mut inner` at inner level (independent variable)
     let inner_count = result.matches("let mut inner").count();
     assert_eq!(
         inner_count, 1,
-        "Expected exactly 1 'let mut inner' declaration, found {}",
-        inner_count
+        "Expected exactly 1 'let mut inner' declaration, found {inner_count}"
     );
 }
 
@@ -185,8 +181,7 @@ def process_args():
     let format_count = result.matches("let mut output_format").count();
     assert_eq!(
         format_count, 1,
-        "Expected exactly 1 'let mut output_format' declaration, found {}\nGenerated code:\n{}",
-        format_count, result
+        "Expected exactly 1 'let mut output_format' declaration, found {format_count}\nGenerated code:\n{result}"
     );
 }
 
@@ -198,7 +193,7 @@ def process_args():
 /// Verifies: Initial value + elif reassignment pattern
 #[test]
 fn test_depyler_0439_initial_assignment_plus_elif() {
-    let source = r#"
+    let source = r"
 def test_func():
     a = True
     b = False
@@ -208,7 +203,7 @@ def test_func():
     elif b:
         x = 2
     return x
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(source).unwrap();
@@ -218,8 +213,7 @@ def test_func():
     let x_decl_count = result.matches("let mut x").count();
     assert_eq!(
         x_decl_count, 1,
-        "Expected exactly 1 'let mut x' declaration (initial assignment), found {}\nGenerated code:\n{}",
-        x_decl_count, result
+        "Expected exactly 1 'let mut x' declaration (initial assignment), found {x_decl_count}\nGenerated code:\n{result}"
     );
 }
 
@@ -231,7 +225,7 @@ def test_func():
 /// Verifies: Multiple hoisted variables simultaneously
 #[test]
 fn test_depyler_0439_multiple_variables_elif_chain() {
-    let source = r#"
+    let source = r"
 def test_func():
     condition = True
     other = False
@@ -247,18 +241,18 @@ def test_func():
         a = 5
         b = 6
     return (a, b)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(source).unwrap();
 
     // Should have ONLY ONE `let mut a` declaration
     let a_count = result.matches("let mut a").count();
-    assert_eq!(a_count, 1, "Expected exactly 1 'let mut a' declaration, found {}", a_count);
+    assert_eq!(a_count, 1, "Expected exactly 1 'let mut a' declaration, found {a_count}");
 
     // Should have ONLY ONE `let mut b` declaration
     let b_count = result.matches("let mut b").count();
-    assert_eq!(b_count, 1, "Expected exactly 1 'let mut b' declaration, found {}", b_count);
+    assert_eq!(b_count, 1, "Expected exactly 1 'let mut b' declaration, found {b_count}");
 }
 
 /// Unit Test 7: Compilation Test - Generated Code Must Compile
@@ -307,9 +301,7 @@ def test_func():
 
     assert!(
         output.status.success(),
-        "Compilation failed!\nGenerated code:\n{}\n\nCompiler errors:\n{}",
-        result,
-        stderr
+        "Compilation failed!\nGenerated code:\n{result}\n\nCompiler errors:\n{stderr}"
     );
 
     // Cleanup
@@ -325,7 +317,7 @@ def test_func():
 /// Verifies: Performance and correctness at depth
 #[test]
 fn test_depyler_0439_deeply_nested_elif_stress_test() {
-    let source = r#"
+    let source = r"
 def test_func():
     c1 = False
     c2 = False
@@ -346,7 +338,7 @@ def test_func():
     else:
         value = 6
     return value
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(source).unwrap();
@@ -355,8 +347,7 @@ def test_func():
     let value_count = result.matches("let mut value").count();
     assert_eq!(
         value_count, 1,
-        "Expected exactly 1 'let mut value' declaration in deep elif chain, found {}\nGenerated code:\n{}",
-        value_count, result
+        "Expected exactly 1 'let mut value' declaration in deep elif chain, found {value_count}\nGenerated code:\n{result}"
     );
 
     // Verify no shadowing patterns
@@ -379,7 +370,7 @@ fn test_depyler_0439_property_single_declaration_invariant() {
         // 2 branches (if-else)
         (
             2,
-            r#"
+            r"
 def test_func():
     c1 = True
     x = None
@@ -388,12 +379,12 @@ def test_func():
     else:
         x = 2
     return x
-"#,
+",
         ),
         // 3 branches (if-elif-else)
         (
             3,
-            r#"
+            r"
 def test_func():
     c1 = False
     c2 = True
@@ -405,12 +396,12 @@ def test_func():
     else:
         x = 3
     return x
-"#,
+",
         ),
         // 5 branches
         (
             5,
-            r#"
+            r"
 def test_func():
     c1 = False
     c2 = False
@@ -428,7 +419,7 @@ def test_func():
     else:
         x = 5
     return x
-"#,
+",
         ),
     ];
 
@@ -440,8 +431,7 @@ def test_func():
 
         assert_eq!(
             x_count, 1,
-            "Property violated: {}-branch elif chain should have exactly 1 'let mut x', found {}\nSource:\n{}\n\nGenerated:\n{}",
-            branches, x_count, source, result
+            "Property violated: {branches}-branch elif chain should have exactly 1 'let mut x', found {x_count}\nSource:\n{source}\n\nGenerated:\n{result}"
         );
     }
 }

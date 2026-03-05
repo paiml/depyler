@@ -9,10 +9,10 @@
 //! data = {"items": [1, 2, 3], "tags": ["a", "b"]}
 //! ```
 //!
-//! Root cause: The transpiler generates HashMap<String, Vec<i32>> but then
+//! Root cause: The transpiler generates `HashMap`<String, Vec<i32>> but then
 //! tries to insert Vec<String>, causing E0308 type mismatch.
 //!
-//! Fix: Detect heterogeneous value types and use serde_json::Value
+//! Fix: Detect heterogeneous value types and use `serde_json::Value`
 
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::hir::HirModule;
@@ -99,15 +99,14 @@ serde_json = "1.0"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
 
 /// Test: Dict with different value types (list of int vs list of str)
 /// This is the core bug - heterogeneous dict values
-/// Note: Full compilation requires proper serde_json::Value iteration (separate issue)
+/// Note: Full compilation requires proper `serde_json::Value` iteration (separate issue)
 #[test]
 fn test_heterogeneous_dict_list_values_detection() {
     let python = r#"
@@ -121,12 +120,11 @@ def main():
 
     // Verify generated code uses DepylerValue for heterogeneous dicts
     // DEPYLER-1051: Hybrid Fallback uses DepylerValue::Dict
-    if !rust.contains("DepylerValue::Dict") {
-        panic!("Heterogeneous dict should use DepylerValue::Dict. Generated:\n{}", rust);
-    }
-    if !rust.contains("DepylerValue::Str") {
-        panic!("Should use DepylerValue::Str. Generated:\n{}", rust);
-    }
+    assert!(
+        rust.contains("DepylerValue::Dict"),
+        "Heterogeneous dict should use DepylerValue::Dict. Generated:\n{rust}"
+    );
+    assert!(rust.contains("DepylerValue::Str"), "Should use DepylerValue::Str. Generated:\n{rust}");
 
     // Should compile without type mismatch errors (E0308)
     assert_compiles(&rust, "heterogeneous_dict_list_values_detection");
@@ -146,8 +144,7 @@ def main():
     // Should use serde_json::Value for heterogeneous values
     assert!(
         rust.contains("serde_json") || rust.contains("Value"),
-        "Heterogeneous dict should use serde_json::Value. Generated:\n{}",
-        rust
+        "Heterogeneous dict should use serde_json::Value. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "heterogeneous_dict_primitives");
@@ -167,14 +164,13 @@ def main():
     // Should use serde_json::Value for heterogeneous nested values
     assert!(
         rust.contains("serde_json") || rust.contains("Value"),
-        "Nested heterogeneous dict should use serde_json::Value. Generated:\n{}",
-        rust
+        "Nested heterogeneous dict should use serde_json::Value. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "heterogeneous_nested_dict");
 }
 
-/// Test: Homogeneous dict should still use HashMap (not serde_json)
+/// Test: Homogeneous dict should still use `HashMap` (not `serde_json`)
 #[test]
 fn test_homogeneous_dict_uses_hashmap() {
     let python = r#"
@@ -186,7 +182,7 @@ def main():
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Homogeneous dict (all int values) should use HashMap directly
-    assert!(rust.contains("HashMap"), "Homogeneous dict should use HashMap. Generated:\n{}", rust);
+    assert!(rust.contains("HashMap"), "Homogeneous dict should use HashMap. Generated:\n{rust}");
 
     assert_compiles(&rust, "homogeneous_dict_uses_hashmap");
 }

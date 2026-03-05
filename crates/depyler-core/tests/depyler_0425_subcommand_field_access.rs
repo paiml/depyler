@@ -9,7 +9,7 @@ use depyler_core::DepylerPipeline;
 
 fn transpile_str(python: &str) -> Result<String, Box<dyn std::error::Error>> {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(python).map_err(|e| e.into())
+    pipeline.transpile(python).map_err(std::convert::Into::into)
 }
 
 #[test]
@@ -46,15 +46,13 @@ if __name__ == "__main__":
         rust_code.contains("if let Commands::Clone") ||
         rust_code.contains("Commands::Clone { url }") ||
         rust_code.contains("Commands::Clone { ref url"),
-        "Generated code must pattern match Commands::Clone variant to access url field.\nGenerated:\n{}",
-        rust_code
+        "Generated code must pattern match Commands::Clone variant to access url field.\nGenerated:\n{rust_code}"
     );
 
     // Must NOT try to access args.url directly (would fail compilation)
     assert!(
         !rust_code.contains("args.url"),
-        "Generated code must NOT access args.url directly (field doesn't exist on Args struct).\nGenerated:\n{}",
-        rust_code
+        "Generated code must NOT access args.url directly (field doesn't exist on Args struct).\nGenerated:\n{rust_code}"
     );
 }
 
@@ -93,8 +91,7 @@ if __name__ == "__main__":
         rust_code.contains("Commands::Clone")
             && (rust_code.contains("{ url") || rust_code.contains("url,"))
             && rust_code.contains("branch"),
-        "Generated code must extract both url and branch from Commands::Clone.\nGenerated:\n{}",
-        rust_code
+        "Generated code must extract both url and branch from Commands::Clone.\nGenerated:\n{rust_code}"
     );
 }
 
@@ -132,22 +129,19 @@ if __name__ == "__main__":
     // Global field (verbose) should still use args.verbose
     assert!(
         rust_code.contains("args.verbose"),
-        "Global fields like verbose should still use args.verbose.\nGenerated:\n{}",
-        rust_code
+        "Global fields like verbose should still use args.verbose.\nGenerated:\n{rust_code}"
     );
 
     // Subcommand field (url) should be extracted via pattern matching
     assert!(
         rust_code.contains("Commands::Clone") && rust_code.contains("url"),
-        "Subcommand fields must be extracted via pattern matching.\nGenerated:\n{}",
-        rust_code
+        "Subcommand fields must be extracted via pattern matching.\nGenerated:\n{rust_code}"
     );
 
     // Should NOT have args.url
     assert!(
         !rust_code.contains("args.url"),
-        "Should not access args.url directly.\nGenerated:\n{}",
-        rust_code
+        "Should not access args.url directly.\nGenerated:\n{rust_code}"
     );
 }
 
@@ -190,21 +184,18 @@ if __name__ == "__main__":
     // Each handler must pattern match its specific variant
     assert!(
         rust_code.contains("Commands::Clone") && rust_code.contains("url"),
-        "handle_clone must extract url from Commands::Clone.\nGenerated:\n{}",
-        rust_code
+        "handle_clone must extract url from Commands::Clone.\nGenerated:\n{rust_code}"
     );
 
     assert!(
         rust_code.contains("Commands::Push") && rust_code.contains("remote"),
-        "handle_push must extract remote from Commands::Push.\nGenerated:\n{}",
-        rust_code
+        "handle_push must extract remote from Commands::Push.\nGenerated:\n{rust_code}"
     );
 
     // Should NOT have direct field access
     assert!(
         !rust_code.contains("args.url") && !rust_code.contains("args.remote"),
-        "Should not access subcommand fields directly on args.\nGenerated:\n{}",
-        rust_code
+        "Should not access subcommand fields directly on args.\nGenerated:\n{rust_code}"
     );
 }
 
@@ -279,39 +270,33 @@ if __name__ == "__main__":
     // All three handlers must use pattern matching
     assert!(
         rust_code.contains("Commands::Clone") && rust_code.contains("{ url }"),
-        "handle_clone must extract url via pattern matching.\nGenerated:\n{}",
-        rust_code
+        "handle_clone must extract url via pattern matching.\nGenerated:\n{rust_code}"
     );
 
     assert!(
         rust_code.contains("Commands::Push") && rust_code.contains("{ remote }"),
-        "handle_push must extract remote via pattern matching.\nGenerated:\n{}",
-        rust_code
+        "handle_push must extract remote via pattern matching.\nGenerated:\n{rust_code}"
     );
 
     assert!(
         rust_code.contains("Commands::Pull") && rust_code.contains("{ remote }"),
-        "handle_pull must extract remote via pattern matching.\nGenerated:\n{}",
-        rust_code
+        "handle_pull must extract remote via pattern matching.\nGenerated:\n{rust_code}"
     );
 
     // Must NOT have direct field access (causes compilation errors)
     assert!(
         !rust_code.contains("args.url"),
-        "Must not access args.url directly (E0609 error).\nGenerated:\n{}",
-        rust_code
+        "Must not access args.url directly (E0609 error).\nGenerated:\n{rust_code}"
     );
 
     assert!(
         !rust_code.contains("args.remote"),
-        "Must not access args.remote directly (E0609 error).\nGenerated:\n{}",
-        rust_code
+        "Must not access args.remote directly (E0609 error).\nGenerated:\n{rust_code}"
     );
 
     // Global fields should still work
     assert!(
         rust_code.contains("args.verbose"),
-        "Global field args.verbose should still be accessible.\nGenerated:\n{}",
-        rust_code
+        "Global field args.verbose should still be accessible.\nGenerated:\n{rust_code}"
     );
 }

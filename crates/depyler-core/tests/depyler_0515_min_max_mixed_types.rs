@@ -1,16 +1,16 @@
 //! DEPYLER-0515 / GH-72: min/max Operations with Mixed Numeric Types
 //!
-//! **ROOT CAUSE**: Direct mapping to std::cmp::min/max without type coercion
+//! **ROOT CAUSE**: Direct mapping to `std::cmp::min/max` without type coercion
 //!
 //! **Five Whys**:
-//! 1. Why does min(5, 3.14) fail? std::cmp::min requires same types
-//! 2. Why does std::cmp::min require same types? Rust's type system is strict
+//! 1. Why does min(5, 3.14) fail? `std::cmp::min` requires same types
+//! 2. Why does `std::cmp::min` require same types? Rust's type system is strict
 //! 3. Why not use a different approach? Current implementation doesn't handle type coercion
 //! 4. Why wasn't this caught? Python's duck typing allows mixed numeric types
-//! 5. ROOT: Direct mapping to std::cmp::min without detecting/handling type mismatches
+//! 5. ROOT: Direct mapping to `std::cmp::min` without detecting/handling type mismatches
 //!
 //! **Problem**: Python allows min/max with mixed numeric types (int/float), but
-//! Rust's std::cmp::min/max requires both arguments to have the same type.
+//! Rust's `std::cmp::min/max` requires both arguments to have the same type.
 //!
 //! **Examples**:
 //! - Python: `min(5, 3.14)` → returns 3.14 ✅
@@ -41,10 +41,10 @@ fn transpile_to_rust(python_code: &str) -> Result<String, String> {
 #[test]
 fn test_DEPYLER_0515_min_literal_mixed_types() {
     // RED: min(5, 3.14) with literal int and float
-    let python = r#"
+    let python = r"
 def test_min() -> float:
     return min(5, 3.14)
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -69,18 +69,17 @@ def test_min() -> float:
 
     assert!(
         has_valid_pattern || !normalized.contains("std::cmp::min"),
-        "DEPYLER-0515: Should not use std::cmp::min for mixed types.\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0515: Should not use std::cmp::min for mixed types.\nGenerated:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_DEPYLER_0515_min_variable_mixed_types() {
     // Variable mixed with float literal
-    let python = r#"
+    let python = r"
 def test_min(x: int) -> float:
     return min(x, 3.14)
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -95,18 +94,17 @@ def test_min(x: int) -> float:
     let normalized = rust_code.replace(char::is_whitespace, "");
     assert!(
         !normalized.contains("std::cmp::min(x,3.14)"),
-        "DEPYLER-0515: Should convert types, not use std::cmp::min directly.\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0515: Should convert types, not use std::cmp::min directly.\nGenerated:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_DEPYLER_0515_max_literal_mixed_types() {
     // max() has the same issue
-    let python = r#"
+    let python = r"
 def test_max() -> float:
     return max(5, 3.14)
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -124,17 +122,16 @@ def test_max() -> float:
 
     assert!(
         has_valid_pattern || !normalized.contains("std::cmp::max"),
-        "DEPYLER-0515: Should not use std::cmp::max for mixed types.\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0515: Should not use std::cmp::max for mixed types.\nGenerated:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_DEPYLER_0515_max_variable_mixed_types() {
-    let python = r#"
+    let python = r"
 def test_max(x: int) -> float:
     return max(x, 3.14)
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -148,8 +145,7 @@ def test_max(x: int) -> float:
     let normalized = rust_code.replace(char::is_whitespace, "");
     assert!(
         !normalized.contains("std::cmp::max(x,3.14)"),
-        "DEPYLER-0515: Should convert types, not use std::cmp::max directly.\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0515: Should convert types, not use std::cmp::max directly.\nGenerated:\n{rust_code}"
     );
 }
 
@@ -157,10 +153,10 @@ def test_max(x: int) -> float:
 #[ignore = "DEPYLER-0515: min() codegen produces addition instead of min - requires AST fix"]
 fn test_DEPYLER_0515_min_same_type_still_works() {
     // Ensure we don't break same-type min/max
-    let python = r#"
+    let python = r"
 def test_min(a: int, b: int) -> int:
     return min(a, b)
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -174,21 +170,20 @@ def test_min(a: int, b: int) -> int:
     // For same types, std::cmp::min is fine
     assert!(
         rust_code.contains("std::cmp::min") || rust_code.contains(".min("),
-        "DEPYLER-0515: Should generate valid min call.\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0515: Should generate valid min call.\nGenerated:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_DEPYLER_0515_actual_example_from_issue() {
     // Exact example from GitHub issue #72
-    let python = r#"
+    let python = r"
 def example() -> float:
     return min(5, 3.14)
 
 def example2(x: int) -> float:
     return min(x, 3.14)
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(

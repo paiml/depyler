@@ -1,14 +1,14 @@
 //! Coverage Edge Cases Tests
 //!
-//! These tests specifically target low-coverage code paths in expr_gen.rs,
-//! stmt_gen.rs, func_gen.rs, and direct_rules.rs to boost overall coverage.
+//! These tests specifically target low-coverage code paths in `expr_gen.rs`,
+//! `stmt_gen.rs`, `func_gen.rs`, and `direct_rules.rs` to boost overall coverage.
 
 use depyler_core::DepylerPipeline;
 
 #[allow(dead_code)]
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {}", e))
+    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {e}"))
 }
 
 fn transpile_ok(code: &str) -> bool {

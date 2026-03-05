@@ -7,7 +7,7 @@ prop_compose! {
         filename in "[a-zA-Z][a-zA-Z0-9_]{0,15}",
         extension in prop::sample::select(vec!["py", "pyi"])
     ) -> String {
-        format!("{}.{}", filename, extension)
+        format!("{filename}.{extension}")
     }
 }
 
@@ -18,7 +18,7 @@ prop_compose! {
         var_name in "[a-z][a-z0-9_]{0,10}",
         value in 0..100i32
     ) -> String {
-        format!("def {}():\n    {} = {}\n    return {}", func_name, var_name, value, var_name)
+        format!("def {func_name}():\n    {var_name} = {value}\n    return {var_name}")
     }
 }
 
@@ -232,7 +232,7 @@ fn test_edge_case_operations() {
     let mut server = LspServer::new();
 
     // Test with empty document
-    server.did_open("empty.py".to_string(), "".to_string(), 1);
+    server.did_open("empty.py".to_string(), String::new(), 1);
 
     // These should not panic
     let _ = server.completion("empty.py", Position { line: 0, character: 0 });

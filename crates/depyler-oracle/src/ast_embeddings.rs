@@ -936,8 +936,7 @@ fn hello(name: &str) -> String {
         let norm: f32 = embedding.vector.iter().map(|x| x * x).sum::<f32>().sqrt();
         assert!(
             (norm - 1.0).abs() < 0.01 || norm == 0.0,
-            "Embedding should be normalized, got {}",
-            norm
+            "Embedding should be normalized, got {norm}"
         );
     }
 
@@ -945,21 +944,21 @@ fn hello(name: &str) -> String {
     fn test_similar_code_similar_embeddings() {
         let embedder = AstEmbedder::with_defaults();
 
-        let source1 = r#"
+        let source1 = r"
 def add(a, b):
     result = a + b
     return result
-"#;
-        let source2 = r#"
+";
+        let source2 = r"
 def add(x, y):
     sum = x + y
     return sum
-"#;
-        let source3 = r#"
+";
+        let source3 = r"
 class Foo:
     def __init__(self):
         self.data = []
-"#;
+";
 
         let emb1 = embedder.embed_python(source1);
         let emb2 = embedder.embed_python(source2);
@@ -972,9 +971,7 @@ class Foo:
         // Similar functions should have higher similarity than different structures
         assert!(
             sim_1_2 > sim_1_3,
-            "Similar functions should have higher similarity: {} vs {}",
-            sim_1_2,
-            sim_1_3
+            "Similar functions should have higher similarity: {sim_1_2} vs {sim_1_3}"
         );
     }
 
@@ -1024,12 +1021,12 @@ class Foo:
     #[test]
     fn test_path_context_extraction_python() {
         let embedder = AstEmbedder::with_defaults();
-        let source = r#"
+        let source = r"
 def calculate(x, y):
     result = x + y
     total = result * 2
     return total
-"#;
+";
         let embedding = embedder.embed_python(source);
 
         // Should extract function def + 2 assignments
@@ -1056,7 +1053,7 @@ def calculate(x, y):
     fn test_phase2_python_proper_ast_parsing() {
         // This tests that rustpython-parser is being used for proper AST extraction
         let embedder = AstEmbedder::with_defaults();
-        let source = r#"
+        let source = r"
 def fibonacci(n: int) -> int:
     if n <= 1:
         return n
@@ -1069,7 +1066,7 @@ class Calculator:
     def add(self, x: int) -> int:
         self.value += x
         return self.value
-"#;
+";
         let embedding = embedder.embed_python(source);
 
         // Should extract many path contexts with proper AST parsing
@@ -1085,7 +1082,7 @@ class Calculator:
     fn test_phase2_rust_proper_ast_parsing() {
         // This tests that syn is being used for proper Rust AST extraction
         let embedder = AstEmbedder::with_defaults();
-        let source = r#"
+        let source = r"
 pub struct Calculator {
     value: i32,
 }
@@ -1107,7 +1104,7 @@ fn fibonacci(n: i32) -> i32 {
     }
     fibonacci(n - 1) + fibonacci(n - 2)
 }
-"#;
+";
         let embedding = embedder.embed_rust(source);
 
         // Should extract struct, impl, methods, function, parameters, etc.
@@ -1121,11 +1118,11 @@ fn fibonacci(n: i32) -> i32 {
     #[test]
     fn test_phase2_python_async_function() {
         let embedder = AstEmbedder::with_defaults();
-        let source = r#"
+        let source = r"
 async def fetch_data(url: str) -> dict:
     response = await client.get(url)
     return response.json()
-"#;
+";
         let embedding = embedder.embed_python(source);
 
         // Should extract async function def, parameters, etc.
@@ -1139,13 +1136,13 @@ async def fetch_data(url: str) -> dict:
     #[test]
     fn test_phase2_rust_struct_fields() {
         let embedder = AstEmbedder::with_defaults();
-        let source = r#"
+        let source = r"
 struct Point {
     x: f64,
     y: f64,
     label: String,
 }
-"#;
+";
         let embedding = embedder.embed_rust(source);
 
         // Should extract struct + 3 fields
@@ -1160,11 +1157,11 @@ struct Point {
     fn test_phase2_heuristic_fallback_on_parse_error() {
         let embedder = AstEmbedder::with_defaults();
         // Invalid Python syntax - should fall back to heuristic extraction
-        let source = r#"
+        let source = r"
 def broken(
     # This has syntax error
 def another(): pass
-"#;
+";
         // Should not panic, uses heuristic fallback
         let embedding = embedder.embed_python(source);
         assert_eq!(embedding.vector.len(), 128);
@@ -1173,7 +1170,7 @@ def another(): pass
     #[test]
     fn test_phase2_python_class_extraction() {
         let embedder = AstEmbedder::with_defaults();
-        let source = r#"
+        let source = r"
 class DataProcessor:
     def __init__(self, name: str):
         self.name = name
@@ -1187,7 +1184,7 @@ class DataProcessor:
 
     def transform(self, item):
         return item.upper()
-"#;
+";
         let embedding = embedder.embed_python(source);
 
         // Class + 3 methods + parameters + assignments
@@ -1213,8 +1210,7 @@ class DataProcessor:
         // Identical embeddings should have similarity ~1.0
         assert!(
             (similarity - 1.0).abs() < 0.01,
-            "Identical embeddings should have similarity ~1.0, got {}",
-            similarity
+            "Identical embeddings should have similarity ~1.0, got {similarity}"
         );
     }
 
@@ -1222,16 +1218,16 @@ class DataProcessor:
     fn test_cosine_similarity_similar_code() {
         let embedder = AstEmbedder::with_defaults();
 
-        let source1 = r#"
+        let source1 = r"
 def add(a, b):
     result = a + b
     return result
-"#;
-        let source2 = r#"
+";
+        let source2 = r"
 def add(x, y):
     sum = x + y
     return sum
-"#;
+";
 
         let emb1 = embedder.embed_python(source1);
         let emb2 = embedder.embed_python(source2);
@@ -1241,8 +1237,7 @@ def add(x, y):
         // Similar functions should have positive similarity
         assert!(
             similarity > 0.1,
-            "Similar functions should have similarity > 0.1, got {}",
-            similarity
+            "Similar functions should have similarity > 0.1, got {similarity}"
         );
     }
 
@@ -1250,11 +1245,11 @@ def add(x, y):
     fn test_cosine_similarity_different_code() {
         let embedder = AstEmbedder::with_defaults();
 
-        let source1 = r#"
+        let source1 = r"
 def simple_add(a, b):
     return a + b
-"#;
-        let source2 = r#"
+";
+        let source2 = r"
 class ComplexProcessor:
     def __init__(self):
         self.data = []
@@ -1264,7 +1259,7 @@ class ComplexProcessor:
         for item in items:
             self.data.append(item)
         return self.data
-"#;
+";
 
         let emb1 = embedder.embed_python(source1);
         let emb2 = embedder.embed_python(source2);
@@ -1274,8 +1269,7 @@ class ComplexProcessor:
         // Different structures should have lower similarity
         assert!(
             similarity < 0.8,
-            "Different code structures should have similarity < 0.8, got {}",
-            similarity
+            "Different code structures should have similarity < 0.8, got {similarity}"
         );
     }
 
@@ -1289,8 +1283,7 @@ class ComplexProcessor:
         // Empty (zero) vectors have dot product 0
         assert!(
             similarity.abs() < 0.01,
-            "Empty embeddings should have similarity ~0, got {}",
-            similarity
+            "Empty embeddings should have similarity ~0, got {similarity}"
         );
     }
 
@@ -1319,10 +1312,7 @@ class ComplexProcessor:
                 let sim = emb1.cosine_similarity(emb2);
                 assert!(
                     (-1.001..=1.001).contains(&sim),
-                    "Similarity at ({}, {}) out of range: {}",
-                    i,
-                    j,
-                    sim
+                    "Similarity at ({i}, {j}) out of range: {sim}"
                 );
             }
         }
@@ -1343,13 +1333,13 @@ class ComplexProcessor:
         let embedder = AstEmbedder::with_defaults();
 
         let source1 = "def simple(): pass";
-        let source2 = r#"
+        let source2 = r"
 class Complex:
     def __init__(self):
         self.data = []
     def method(self, x):
         return x
-"#;
+";
 
         let emb1 = embedder.embed_python(source1);
         let emb2 = embedder.embed_python(source2);
@@ -1373,9 +1363,7 @@ class Complex:
 
         assert!(
             (sim_1_2 - sim_2_1).abs() < 0.0001,
-            "Cosine similarity should be symmetric: {} vs {}",
-            sim_1_2,
-            sim_2_1
+            "Cosine similarity should be symmetric: {sim_1_2} vs {sim_2_1}"
         );
     }
 
@@ -1383,20 +1371,20 @@ class Complex:
     fn test_cosine_similarity_cross_language() {
         let embedder = AstEmbedder::with_defaults();
 
-        let python_source = r#"
+        let python_source = r"
 def fibonacci(n):
     if n <= 1:
         return n
     return fibonacci(n - 1) + fibonacci(n - 2)
-"#;
-        let rust_source = r#"
+";
+        let rust_source = r"
 fn fibonacci(n: i32) -> i32 {
     if n <= 1 {
         return n;
     }
     fibonacci(n - 1) + fibonacci(n - 2)
 }
-"#;
+";
 
         let py_emb = embedder.embed_python(python_source);
         let rs_emb = embedder.embed_rust(rust_source);
@@ -1406,8 +1394,7 @@ fn fibonacci(n: i32) -> i32 {
         // Cross-language similarity should be valid (may be lower due to AST diff)
         assert!(
             (-1.0..=1.0).contains(&similarity),
-            "Cross-language similarity should be valid: {}",
-            similarity
+            "Cross-language similarity should be valid: {similarity}"
         );
     }
 }
