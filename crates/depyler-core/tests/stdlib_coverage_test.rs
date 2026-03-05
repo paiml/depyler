@@ -1,4 +1,4 @@
-//! Coverage tests for stdlib module methods in expr_gen.rs
+//! Coverage tests for stdlib module methods in `expr_gen.rs`
 //!
 //! These tests ensure all Python stdlib function mappings are exercised.
 
@@ -6,7 +6,7 @@ use depyler_core::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {}", e))
+    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {e}"))
 }
 
 fn transpile_ok(code: &str) -> bool {

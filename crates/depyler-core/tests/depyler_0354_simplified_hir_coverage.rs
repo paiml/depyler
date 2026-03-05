@@ -1,21 +1,21 @@
-//! DEPYLER-0354: simplified_hir.rs Coverage Tests
+//! DEPYLER-0354: `simplified_hir.rs` Coverage Tests
 //!
 //! **EXTREME TDD Protocol - Coverage Boost**
 //!
-//! Target: simplified_hir.rs 0% → 85%+ coverage
+//! Target: `simplified_hir.rs` 0% → 85%+ coverage
 //! TDG Score: Excellent (A+) - Clean data structures with derive macros
 //!
 //! This test suite validates simplified HIR data structures:
 //! - Hir struct construction and access
-//! - HirMetadata with Default trait
-//! - All 16 HirExpr variants
-//! - HirStatement variants
-//! - HirParam construction
-//! - All 5 HirLiteral types
-//! - All 15 HirBinaryOp variants
-//! - All 3 HirUnaryOp variants
-//! - All 8 HirType variants
-//! - Clone, PartialEq, Debug traits
+//! - `HirMetadata` with Default trait
+//! - All 16 `HirExpr` variants
+//! - `HirStatement` variants
+//! - `HirParam` construction
+//! - All 5 `HirLiteral` types
+//! - All 15 `HirBinaryOp` variants
+//! - All 3 `HirUnaryOp` variants
+//! - All 8 `HirType` variants
+//! - Clone, `PartialEq`, Debug traits
 //! - Serde serialization/deserialization
 //! - Nested and recursive structures
 
@@ -53,7 +53,7 @@ fn test_depyler_0354_hir_struct_clone() {
 fn test_depyler_0354_hir_struct_debug_format() {
     let hir = Hir { root: HirExpr::Identifier("x".to_string()), metadata: HirMetadata::default() };
 
-    let debug = format!("{:?}", hir);
+    let debug = format!("{hir:?}");
     assert!(debug.contains("Hir"));
     assert!(debug.contains("Identifier"));
 }
@@ -146,7 +146,7 @@ fn test_depyler_0354_literal_none() {
 #[test]
 fn test_depyler_0354_literal_debug_format() {
     let lit = HirLiteral::Integer(42);
-    let debug = format!("{:?}", lit);
+    let debug = format!("{lit:?}");
     assert!(debug.contains("Integer"));
     assert!(debug.contains("42"));
 }
@@ -184,7 +184,7 @@ fn test_depyler_0354_binary_op_comparison() {
     ];
 
     for op in ops {
-        let debug = format!("{:?}", op);
+        let debug = format!("{op:?}");
         assert!(!debug.is_empty());
     }
 }
@@ -287,7 +287,7 @@ fn test_depyler_0354_type_named() {
 #[test]
 fn test_depyler_0354_type_nested_list() {
     let nested = HirType::List(Box::new(HirType::List(Box::new(HirType::Int))));
-    let debug = format!("{:?}", nested);
+    let debug = format!("{nested:?}");
     assert!(debug.contains("List"));
 }
 
@@ -371,7 +371,7 @@ fn test_depyler_0354_expr_list_with_elements() {
         HirExpr::Literal(HirLiteral::Integer(3)),
     ]);
 
-    let debug = format!("{:?}", expr);
+    let debug = format!("{expr:?}");
     assert!(debug.contains("List"));
 }
 
@@ -416,7 +416,7 @@ fn test_depyler_0354_expr_continue_without_label() {
 #[test]
 fn test_depyler_0354_expr_await() {
     let expr = HirExpr::Await(Box::new(HirExpr::Identifier("future".to_string())));
-    let debug = format!("{:?}", expr);
+    let debug = format!("{expr:?}");
     assert!(debug.contains("Await"));
 }
 
@@ -444,7 +444,7 @@ fn test_depyler_0354_expr_binary_comparison() {
         right: Box::new(HirExpr::Literal(HirLiteral::Integer(10))),
     };
 
-    let debug = format!("{:?}", expr);
+    let debug = format!("{expr:?}");
     assert!(debug.contains("Binary"));
 }
 
@@ -486,7 +486,7 @@ fn test_depyler_0354_expr_unary_negate() {
         operand: Box::new(HirExpr::Literal(HirLiteral::Integer(5))),
     };
 
-    let debug = format!("{:?}", expr);
+    let debug = format!("{expr:?}");
     assert!(debug.contains("Unary"));
 }
 
@@ -524,7 +524,7 @@ fn test_depyler_0354_expr_call_with_args() {
         ],
     };
 
-    let debug = format!("{:?}", expr);
+    let debug = format!("{expr:?}");
     assert!(debug.contains("Call"));
 }
 
@@ -566,7 +566,7 @@ fn test_depyler_0354_expr_if_with_else() {
         else_branch: Some(Box::new(HirExpr::Literal(HirLiteral::Integer(0)))),
     };
 
-    let debug = format!("{:?}", expr);
+    let debug = format!("{expr:?}");
     assert!(debug.contains("If"));
 }
 
@@ -618,7 +618,7 @@ fn test_depyler_0354_expr_block_multiple_statements() {
     ];
 
     let expr = HirExpr::Block(stmts);
-    let debug = format!("{:?}", expr);
+    let debug = format!("{expr:?}");
     assert!(debug.contains("Block"));
 }
 
@@ -656,7 +656,7 @@ fn test_depyler_0354_expr_function_with_params() {
         return_type: Some(HirType::Int),
     };
 
-    let debug = format!("{:?}", expr);
+    let debug = format!("{expr:?}");
     assert!(debug.contains("Function"));
 }
 
@@ -698,7 +698,7 @@ fn test_depyler_0354_expr_lambda_with_params() {
         }),
     };
 
-    let debug = format!("{:?}", expr);
+    let debug = format!("{expr:?}");
     assert!(debug.contains("Lambda"));
 }
 
@@ -769,7 +769,7 @@ fn test_depyler_0354_expr_while_nested() {
         body: Box::new(inner_while),
     };
 
-    let debug = format!("{:?}", outer_while);
+    let debug = format!("{outer_while:?}");
     assert!(debug.contains("While"));
 }
 
@@ -797,7 +797,7 @@ fn test_depyler_0354_statement_let_mutable() {
         is_mutable: true,
     };
 
-    let debug = format!("{:?}", stmt);
+    let debug = format!("{stmt:?}");
     assert!(debug.contains("Let"));
 }
 
@@ -878,7 +878,7 @@ fn test_depyler_0354_function_with_control_flow() {
         return_type: Some(HirType::Int),
     };
 
-    let debug = format!("{:?}", expr);
+    let debug = format!("{expr:?}");
     assert!(debug.contains("Function"));
     assert!(debug.contains("factorial"));
 }
@@ -978,7 +978,7 @@ mod property_tests {
                 .collect();
 
             let expr = HirExpr::List(elements);
-            let _debug = format!("{:?}", expr);
+            let _debug = format!("{expr:?}");
         }
 
         #[test]
@@ -1011,13 +1011,13 @@ fn test_depyler_0354_deeply_nested_binary_expressions() {
         };
     }
 
-    let _debug = format!("{:?}", expr);
+    let _debug = format!("{expr:?}");
 }
 
 #[test]
 fn test_depyler_0354_empty_string_identifiers() {
-    let expr = HirExpr::Identifier("".to_string());
-    assert_eq!(expr, HirExpr::Identifier("".to_string()));
+    let expr = HirExpr::Identifier(String::new());
+    assert_eq!(expr, HirExpr::Identifier(String::new()));
 }
 
 #[test]
@@ -1034,9 +1034,9 @@ fn test_depyler_0354_float_special_values() {
     let neg_infinity = HirLiteral::Float(f64::NEG_INFINITY);
     let zero = HirLiteral::Float(0.0);
 
-    let _d1 = format!("{:?}", infinity);
-    let _d2 = format!("{:?}", neg_infinity);
-    let _d3 = format!("{:?}", zero);
+    let _d1 = format!("{infinity:?}");
+    let _d2 = format!("{neg_infinity:?}");
+    let _d3 = format!("{zero:?}");
 }
 
 #[test]

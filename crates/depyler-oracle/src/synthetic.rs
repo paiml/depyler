@@ -432,7 +432,7 @@ mod tests {
     #[test]
     fn test_synthetic_config_debug() {
         let config = SyntheticConfig::default();
-        let debug_str = format!("{:?}", config);
+        let debug_str = format!("{config:?}");
         assert!(debug_str.contains("SyntheticConfig"));
         assert!(debug_str.contains("2000"));
     }
@@ -487,9 +487,9 @@ mod tests {
         let lifetime_count = dataset.samples_for_category(ErrorCategory::LifetimeError).len();
 
         // Each category should have ~100 samples
-        assert!(type_count >= 100, "TypeMismatch: {}", type_count);
-        assert!(borrow_count >= 100, "BorrowChecker: {}", borrow_count);
-        assert!(lifetime_count >= 100, "LifetimeError: {}", lifetime_count);
+        assert!(type_count >= 100, "TypeMismatch: {type_count}");
+        assert!(borrow_count >= 100, "BorrowChecker: {borrow_count}");
+        assert!(lifetime_count >= 100, "LifetimeError: {lifetime_count}");
     }
 
     #[test]
@@ -636,6 +636,6 @@ mod tests {
 
         // Total should be > 12,000 (synthetic alone is 12,000)
         let total = verificar.len() + depyler.len() + synthetic.len();
-        assert!(total >= 12000, "Expected 12000+ samples, got {}", total);
+        assert!(total >= 12000, "Expected 12000+ samples, got {total}");
     }
 }

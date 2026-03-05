@@ -19,8 +19,8 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 fn unique_temp_path() -> (String, String) {
     let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
-    let rs_file = format!("/tmp/depyler_0440_{}_{}.rs", pid, id);
-    let rlib_file = format!("/tmp/libdepyler_0440_{}_{}.rlib", pid, id);
+    let rs_file = format!("/tmp/depyler_0440_{pid}_{id}.rs");
+    let rlib_file = format!("/tmp/libdepyler_0440_{pid}_{id}.rlib");
     (rs_file, rlib_file)
 }
 
@@ -49,15 +49,13 @@ def test_func():
     // Should NOT have `let mut result = None;`
     assert!(
         !rust_code.contains("let mut result = None"),
-        "Should skip initial None assignment\nGenerated:\n{}",
-        rust_code
+        "Should skip initial None assignment\nGenerated:\n{rust_code}"
     );
 
     // Should have hoisted declaration
     assert!(
         rust_code.contains("let mut result"),
-        "Should have hoisted variable declaration\nGenerated:\n{}",
-        rust_code
+        "Should have hoisted variable declaration\nGenerated:\n{rust_code}"
     );
 
     // Verify compilation
@@ -72,9 +70,7 @@ def test_func():
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         output.status.success(),
-        "Compilation failed!\nGenerated code:\n{}\n\nCompiler errors:\n{}",
-        rust_code,
-        stderr
+        "Compilation failed!\nGenerated code:\n{rust_code}\n\nCompiler errors:\n{stderr}"
     );
 
     // Cleanup
@@ -90,7 +86,7 @@ def test_func():
 /// Verifies: Works with multiple elif branches
 #[test]
 fn test_depyler_0440_none_with_elif_chain() {
-    let source = r#"
+    let source = r"
 def test_func():
     a = True
     b = False
@@ -105,7 +101,7 @@ def test_func():
     else:
         value = 4
     return value
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(source).unwrap();
@@ -113,8 +109,7 @@ def test_func():
     // Should NOT have `let mut value = None;`
     assert!(
         !rust_code.contains("let mut value = None"),
-        "Should skip initial None assignment for elif chain\nGenerated:\n{}",
-        rust_code
+        "Should skip initial None assignment for elif chain\nGenerated:\n{rust_code}"
     );
 
     // Verify compilation
@@ -129,9 +124,7 @@ def test_func():
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         output.status.success(),
-        "Compilation failed!\nGenerated code:\n{}\n\nCompiler errors:\n{}",
-        rust_code,
-        stderr
+        "Compilation failed!\nGenerated code:\n{rust_code}\n\nCompiler errors:\n{stderr}"
     );
 
     // Cleanup
@@ -170,13 +163,11 @@ def test_func():
     // Should NOT have `let mut x = None;` or `let mut y = None;`
     assert!(
         !rust_code.contains("let mut x = None"),
-        "Should skip initial None assignment for x\nGenerated:\n{}",
-        rust_code
+        "Should skip initial None assignment for x\nGenerated:\n{rust_code}"
     );
     assert!(
         !rust_code.contains("let mut y = None"),
-        "Should skip initial None assignment for y\nGenerated:\n{}",
-        rust_code
+        "Should skip initial None assignment for y\nGenerated:\n{rust_code}"
     );
 
     // Verify compilation
@@ -191,9 +182,7 @@ def test_func():
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         output.status.success(),
-        "Compilation failed!\nGenerated code:\n{}\n\nCompiler errors:\n{}",
-        rust_code,
-        stderr
+        "Compilation failed!\nGenerated code:\n{rust_code}\n\nCompiler errors:\n{stderr}"
     );
 
     // Cleanup
@@ -228,8 +217,7 @@ def test_func():
     // SHOULD have `let mut result = None;` because it's never reassigned
     assert!(
         rust_code.contains("let mut result = None"),
-        "Should KEEP None when not reassigned in if\nGenerated:\n{}",
-        rust_code
+        "Should KEEP None when not reassigned in if\nGenerated:\n{rust_code}"
     );
 }
 
@@ -274,9 +262,7 @@ def test_func():
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         output.status.success(),
-        "Compilation failed for partial reassignment!\nGenerated code:\n{}\n\nCompiler errors:\n{}",
-        rust_code,
-        stderr
+        "Compilation failed for partial reassignment!\nGenerated code:\n{rust_code}\n\nCompiler errors:\n{stderr}"
     );
 
     // Cleanup
@@ -315,15 +301,13 @@ def test_func():
     // Outer should skip None
     assert!(
         !rust_code.contains("let mut outer = None"),
-        "Should skip initial None for outer\nGenerated:\n{}",
-        rust_code
+        "Should skip initial None for outer\nGenerated:\n{rust_code}"
     );
 
     // Inner should skip None
     assert!(
         !rust_code.contains("let mut inner = None"),
-        "Should skip initial None for inner\nGenerated:\n{}",
-        rust_code
+        "Should skip initial None for inner\nGenerated:\n{rust_code}"
     );
 
     // Verify compilation
@@ -338,9 +322,7 @@ def test_func():
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         output.status.success(),
-        "Compilation failed!\nGenerated code:\n{}\n\nCompiler errors:\n{}",
-        rust_code,
-        stderr
+        "Compilation failed!\nGenerated code:\n{rust_code}\n\nCompiler errors:\n{stderr}"
     );
 
     // Cleanup
@@ -350,7 +332,7 @@ def test_func():
 
 /// Unit Test 7: CLI Output Format Pattern (Real World)
 ///
-/// From example_complex - the exact pattern that exposed this bug.
+/// From `example_complex` - the exact pattern that exposed this bug.
 /// This is the pattern users actually write.
 ///
 /// Verifies: Real-world CLI configuration pattern
@@ -380,8 +362,7 @@ def process_args():
     // Should NOT have `let mut output_format = None;`
     assert!(
         !rust_code.contains("let mut output_format = None"),
-        "Should skip initial None for output_format\nGenerated:\n{}",
-        rust_code
+        "Should skip initial None for output_format\nGenerated:\n{rust_code}"
     );
 
     // Verify compilation
@@ -396,9 +377,7 @@ def process_args():
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         output.status.success(),
-        "Compilation failed on real-world pattern!\nGenerated code:\n{}\n\nCompiler errors:\n{}",
-        rust_code,
-        stderr
+        "Compilation failed on real-world pattern!\nGenerated code:\n{rust_code}\n\nCompiler errors:\n{stderr}"
     );
 
     // Cleanup
@@ -416,7 +395,7 @@ def process_args():
 fn test_depyler_0440_property_none_placeholder_compiles() {
     let test_cases = [
         // 2 branches (if-else)
-        r#"
+        r"
 def test_func():
     c = True
     x = None
@@ -425,7 +404,7 @@ def test_func():
     else:
         x = 2
     return x
-"#,
+",
         // 3 branches (if-elif-else)
         r#"
 def test_func():
@@ -441,7 +420,7 @@ def test_func():
     return x
 "#,
         // 5 branches
-        r#"
+        r"
 def test_func():
     c1 = False
     c2 = False
@@ -459,7 +438,7 @@ def test_func():
     else:
         x = 50
     return x
-"#,
+",
     ];
 
     let pipeline = DepylerPipeline::new();
@@ -479,8 +458,7 @@ def test_func():
 
         assert!(
             output.status.success(),
-            "Property violated: Test case {} failed to compile\nSource:\n{}\n\nGenerated:\n{}\n\nErrors:\n{}",
-            i, source, rust_code, stderr
+            "Property violated: Test case {i} failed to compile\nSource:\n{source}\n\nGenerated:\n{rust_code}\n\nErrors:\n{stderr}"
         );
 
         // Cleanup

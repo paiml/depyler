@@ -1,6 +1,6 @@
-//! Coverage tests for rust_gen/expr_type_helpers.rs
+//! Coverage tests for `rust_gen/expr_type_helpers.rs`
 //!
-//! DEPYLER-99MODE-001: Targets expr_type_helpers.rs (799 lines)
+//! DEPYLER-99MODE-001: Targets `expr_type_helpers.rs` (799 lines)
 //! Covers: type inference for expressions, int/float detection,
 //! borrowing requirements, variable name heuristics.
 
@@ -66,54 +66,54 @@ fn test_expr_type_modulo_int() {
 
 #[test]
 fn test_expr_type_mixed_arithmetic() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: float) -> float:
     return float(x) + y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_expr_type_string_method() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.upper()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_expr_type_list_method() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     return len(items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_expr_type_comparison() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> bool:
     return x > 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_expr_type_ternary() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     return x if x > 0 else -x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_expr_type_complex_expression() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int, c: int) -> int:
     return (a + b) * c - a // b
-"#;
+";
     assert!(transpile_ok(code));
 }

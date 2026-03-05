@@ -1,8 +1,8 @@
 //! DEPYLER-0380: String Literals and os Module Transpilation Bugs
 //!
 //! This test suite covers three critical P0 bugs:
-//! - Bug #1: String literal to String conversion (missing .to_string())
-//! - Bug #2: os.getenv() with default values (incorrect transpilation)
+//! - Bug #1: String literal to String conversion (missing .`to_string()`)
+//! - Bug #2: `os.getenv()` with default values (incorrect transpilation)
 //! - Bug #3: `in os.environ` membership test (wrong method)
 //!
 //! Test Strategy:
@@ -138,13 +138,10 @@ def test() -> str:
     // Single argument version should use ? operator
     // Note: This may fail if function doesn't return Result, which is expected
     // The transpiler should handle this appropriately
-    match result {
-        Ok(code) => {
-            assert!(code.contains("std::env::var"));
-        }
-        Err(_) => {
-            // Expected if function signature doesn't support Result
-        }
+    if let Ok(code) = result {
+        assert!(code.contains("std::env::var"));
+    } else {
+        // Expected if function signature doesn't support Result
     }
 }
 
@@ -222,18 +219,18 @@ def test() -> bool:
     let result = transpile_and_compile(python).unwrap();
     assert!(result.contains("std::env::var"));
     assert!(result.contains(".is_ok()"));
-    assert!(result.contains("!"), "Should negate for 'not in'");
+    assert!(result.contains('!'), "Should negate for 'not in'");
 }
 
 #[test]
 fn test_depyler_0380_bug3_environ_variable_key() {
-    let python = r#"
+    let python = r"
 import os
 
 def test(key: str) -> bool:
     exists: bool = key in os.environ
     return exists
-"#;
+";
 
     let result = transpile_and_compile(python).unwrap();
     assert!(result.contains("std::env::var"));
@@ -329,10 +326,9 @@ mod property_tests {
             let python = format!(
                 r#"
 def test() -> str:
-    value: str = "{}"
+    value: str = "{s}"
     return value
-"#,
-                s
+"#
             );
 
             let result = match transpile_and_compile(&python) {
@@ -364,10 +360,9 @@ def test() -> str:
 import os
 
 def test() -> str:
-    value: str = os.getenv("{}", "{}")
+    value: str = os.getenv("{var_name}", "{default}")
     return value
-"#,
-                var_name, default
+"#
             );
 
             let result = match transpile_and_compile(&python) {
@@ -399,10 +394,9 @@ def test() -> str:
 import os
 
 def test() -> bool:
-    exists: bool = "{}" in os.environ
+    exists: bool = "{var_name}" in os.environ
     return exists
-"#,
-                var_name
+"#
             );
 
             let result = match transpile_and_compile(&python) {

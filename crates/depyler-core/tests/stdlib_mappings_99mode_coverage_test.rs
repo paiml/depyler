@@ -1,6 +1,6 @@
-//! Coverage tests for stdlib_mappings.rs
+//! Coverage tests for `stdlib_mappings.rs`
 //!
-//! DEPYLER-99MODE-001: Targets stdlib_mappings.rs (869 lines)
+//! DEPYLER-99MODE-001: Targets `stdlib_mappings.rs` (869 lines)
 //! Covers: Python stdlib API to Rust mapping, CSV module,
 //! file I/O patterns, plugin system, method/property mapping.
 
@@ -16,23 +16,23 @@ fn transpile_ok(code: &str) -> bool {
 
 #[test]
 fn test_stdlib_map_json_loads() {
-    let code = r#"
+    let code = r"
 import json
 
 def f(s: str) -> dict:
     return json.loads(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stdlib_map_json_dumps() {
-    let code = r#"
+    let code = r"
 import json
 
 def f(d: dict) -> str:
     return json.dumps(d)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -42,23 +42,23 @@ def f(d: dict) -> str:
 
 #[test]
 fn test_stdlib_map_math_sqrt() {
-    let code = r#"
+    let code = r"
 import math
 
 def f(x: float) -> float:
     return math.sqrt(x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stdlib_map_math_pi() {
-    let code = r#"
+    let code = r"
 import math
 
 def f(r: float) -> float:
     return math.pi * r * r
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -68,12 +68,12 @@ def f(r: float) -> float:
 
 #[test]
 fn test_stdlib_map_os_getcwd() {
-    let code = r#"
+    let code = r"
 import os
 
 def f() -> str:
     return os.getcwd()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -94,7 +94,7 @@ def f(key: str) -> str:
 
 #[test]
 fn test_stdlib_map_defaultdict() {
-    let code = r#"
+    let code = r"
 from collections import defaultdict
 
 def f(items: list) -> dict:
@@ -102,7 +102,7 @@ def f(items: list) -> dict:
     for item in items:
         counts[item] += 1
     return dict(counts)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -112,12 +112,12 @@ def f(items: list) -> dict:
 
 #[test]
 fn test_stdlib_map_hashlib() {
-    let code = r#"
+    let code = r"
 import hashlib
 
 def f(data: str) -> str:
     return hashlib.sha256(data.encode()).hexdigest()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -153,12 +153,12 @@ def f(text: str) -> str:
 
 #[test]
 fn test_stdlib_map_base64() {
-    let code = r#"
+    let code = r"
 import base64
 
 def f(data: str) -> str:
     return base64.b64encode(data.encode()).decode()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -168,12 +168,12 @@ def f(data: str) -> str:
 
 #[test]
 fn test_stdlib_map_random() {
-    let code = r#"
+    let code = r"
 import random
 
 def f() -> int:
     return random.randint(1, 100)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -183,12 +183,12 @@ def f() -> int:
 
 #[test]
 fn test_stdlib_map_datetime() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 
 def f() -> str:
     return str(datetime.now())
-"#;
+";
     assert!(transpile_ok(code));
 }
 

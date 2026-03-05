@@ -1,8 +1,8 @@
-//! Coverage tests for direct_rules.rs
+//! Coverage tests for `direct_rules.rs`
 //!
-//! DEPYLER-99MODE-001: Targets direct_rules.rs (5,648 lines)
-//! Covers: apply_rules, class-to-struct conversion, method_mutates_self,
-//! stdlib shadowing, type safety, NewType aliases, enum generation.
+//! DEPYLER-99MODE-001: Targets `direct_rules.rs` (5,648 lines)
+//! Covers: `apply_rules`, class-to-struct conversion, `method_mutates_self`,
+//! stdlib shadowing, type safety, `NewType` aliases, enum generation.
 
 use depyler_core::DepylerPipeline;
 
@@ -20,19 +20,19 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_direct_rules_simple_class() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
         self.y = y
-"#;
+";
     let rust = transpile(code);
     assert!(rust.contains("struct") || rust.contains("Point"));
 }
 
 #[test]
 fn test_direct_rules_class_with_methods() {
-    let code = r#"
+    let code = r"
 class Calculator:
     def __init__(self):
         self.result = 0
@@ -43,43 +43,43 @@ class Calculator:
 
     def get_result(self) -> int:
         return self.result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_direct_rules_class_no_init() {
-    let code = r#"
+    let code = r"
 class Helper:
     def process(self, x: int) -> int:
         return x * 2
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_direct_rules_class_str_method() {
-    let code = r#"
+    let code = r"
 class Dog:
     def __init__(self, name: str):
         self.name = name
 
     def __str__(self) -> str:
         return self.name
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_direct_rules_class_repr_method() {
-    let code = r#"
+    let code = r"
 class Item:
     def __init__(self, id: int):
         self.id = id
 
     def __repr__(self) -> str:
         return str(self.id)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -89,53 +89,53 @@ class Item:
 
 #[test]
 fn test_direct_rules_immutable_method() {
-    let code = r#"
+    let code = r"
 class Obj:
     def __init__(self, val: int):
         self.val = val
 
     def get_val(self) -> int:
         return self.val
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_direct_rules_mutable_method() {
-    let code = r#"
+    let code = r"
 class Obj:
     def __init__(self, val: int):
         self.val = val
 
     def set_val(self, new_val: int):
         self.val = new_val
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_direct_rules_mutable_list_method() {
-    let code = r#"
+    let code = r"
 class Container:
     def __init__(self):
         self.items = []
 
     def add(self, item: int):
         self.items.append(item)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_direct_rules_augmented_assign_method() {
-    let code = r#"
+    let code = r"
 class Counter:
     def __init__(self):
         self.count = 0
 
     def increment(self):
         self.count += 1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -188,38 +188,38 @@ def f(x: int) -> str:
 
 #[test]
 fn test_direct_rules_for_range() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_direct_rules_while_loop() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     i = 0
     while i < n:
         i += 1
     return i
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_direct_rules_nested_loops() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     for i in range(n):
         for j in range(n):
             total += 1
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -229,13 +229,13 @@ def f(n: int) -> int:
 
 #[test]
 fn test_direct_rules_try_except() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     try:
         return 100 // x
     except:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -262,10 +262,10 @@ fn test_direct_rules_assert() {
 
 #[test]
 fn test_direct_rules_type_annotations() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: float, s: str) -> bool:
     return len(s) > 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -281,7 +281,7 @@ fn test_direct_rules_type_conversion() {
 
 #[test]
 fn test_direct_rules_two_classes() {
-    let code = r#"
+    let code = r"
 class Dog:
     def __init__(self, name: str):
         self.name = name
@@ -289,13 +289,13 @@ class Dog:
 class Cat:
     def __init__(self, name: str):
         self.name = name
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_direct_rules_class_and_functions() {
-    let code = r#"
+    let code = r"
 def helper(x: int) -> int:
     return x * 2
 
@@ -305,7 +305,7 @@ class Processor:
 
     def process(self, x: int) -> int:
         return x * self.factor
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -315,7 +315,7 @@ class Processor:
 
 #[test]
 fn test_direct_rules_stack_class() {
-    let code = r#"
+    let code = r"
 class Stack:
     def __init__(self):
         self.items = []
@@ -331,13 +331,13 @@ class Stack:
 
     def size(self) -> int:
         return len(self.items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_direct_rules_algorithm() {
-    let code = r#"
+    let code = r"
 def binary_search(items: list, target: int) -> int:
     lo = 0
     hi = len(items) - 1
@@ -350,32 +350,32 @@ def binary_search(items: list, target: int) -> int:
         else:
             hi = mid - 1
     return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_direct_rules_string_processing() {
-    let code = r#"
+    let code = r"
 def process(text: str) -> list:
     words = text.split()
     result = []
     for word in words:
         result.append(word.upper())
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_direct_rules_dict_counting() {
-    let code = r#"
+    let code = r"
 def count_items(items: list) -> dict:
     counts = {}
     for item in items:
         counts[item] = counts.get(item, 0) + 1
     return counts
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -387,10 +387,10 @@ fn test_direct_rules_comprehension() {
 
 #[test]
 fn test_direct_rules_lambda_sorted() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return sorted(items, key=lambda x: -x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -405,10 +405,10 @@ def greet(name: str, age: int) -> str:
 
 #[test]
 fn test_direct_rules_tuple_unpack() {
-    let code = r#"
+    let code = r"
 def swap(a: int, b: int) -> tuple:
     a, b = b, a
     return (a, b)
-"#;
+";
     assert!(transpile_ok(code));
 }

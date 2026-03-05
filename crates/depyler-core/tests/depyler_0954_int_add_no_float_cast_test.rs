@@ -3,7 +3,7 @@
 //! Bug: `a + b` where both are i32 generates `(a as f64) + b`
 //! Expected: `a + b` (no casting when both operands are integers)
 //!
-//! Root cause: Variable "b" was incorrectly matched by is_float_var heuristic
+//! Root cause: Variable "b" was incorrectly matched by `is_float_var` heuristic
 //! for color channel names (r, g, b, h, s, v...). The comment says "b" should
 //! be excluded as too generic, but it was included in the matches.
 
@@ -85,8 +85,7 @@ path = "src/lib.rs"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
@@ -97,25 +96,23 @@ path = "src/lib.rs"
 /// Good Rust: `a + b` - correct integer addition
 #[test]
 fn test_int_add_no_float_cast() {
-    let python = r#"
+    let python = r"
 def f(a: int, b: int) -> int:
     return a + b
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Should NOT contain "(a as f64)" - spurious float cast
     assert!(
         !rust.contains("as f64"),
-        "Integer addition should not cast to f64. Generated:\n{}",
-        rust
+        "Integer addition should not cast to f64. Generated:\n{rust}"
     );
 
     // Should contain simple addition without cast
     assert!(
         rust.contains("a + b") || rust.contains("a +b") || rust.contains("a+ b"),
-        "Should have simple integer addition. Generated:\n{}",
-        rust
+        "Should have simple integer addition. Generated:\n{rust}"
     );
 
     // Should compile without type errors
@@ -125,18 +122,17 @@ def f(a: int, b: int) -> int:
 /// Test that other single-letter int params also work
 #[test]
 fn test_int_mul_with_x_y() {
-    let python = r#"
+    let python = r"
 def f(x: int, y: int) -> int:
     return x * y
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Should NOT contain float casting
     assert!(
         !rust.contains("as f64"),
-        "Integer multiplication should not cast to f64. Generated:\n{}",
-        rust
+        "Integer multiplication should not cast to f64. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "int_mul_x_y");
@@ -145,10 +141,10 @@ def f(x: int, y: int) -> int:
 /// Test that float operations still work correctly
 #[test]
 fn test_float_add_still_works() {
-    let python = r#"
+    let python = r"
 def f(a: float, b: float) -> float:
     return a + b
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
     assert_compiles(&rust, "float_add");
@@ -157,10 +153,10 @@ def f(a: float, b: float) -> float:
 /// Test mixed int/float still casts correctly
 #[test]
 fn test_int_float_mix_casts() {
-    let python = r#"
+    let python = r"
 def f(n: int, rate: float) -> float:
     return n * rate
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 

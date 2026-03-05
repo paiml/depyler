@@ -697,10 +697,10 @@ mod tests {
         let external = TextSampleSource::External;
         let production = TextSampleSource::Production;
 
-        assert!(format!("{:?}", synthetic).contains("Synthetic"));
-        assert!(format!("{:?}", hand_crafted).contains("HandCrafted"));
-        assert!(format!("{:?}", external).contains("External"));
-        assert!(format!("{:?}", production).contains("Production"));
+        assert!(format!("{synthetic:?}").contains("Synthetic"));
+        assert!(format!("{hand_crafted:?}").contains("HandCrafted"));
+        assert!(format!("{external:?}").contains("External"));
+        assert!(format!("{production:?}").contains("Production"));
     }
 
     #[test]

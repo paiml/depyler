@@ -1,6 +1,6 @@
-//! Coverage tests for cargo_first.rs
+//! Coverage tests for `cargo_first.rs`
 //!
-//! DEPYLER-99MODE-001: Targets cargo_first.rs (1,017 lines)
+//! DEPYLER-99MODE-001: Targets `cargo_first.rs` (1,017 lines)
 //! Covers: ephemeral Cargo workspace creation, dependency auto-detection,
 //! cargo check verification, error filtering.
 
@@ -22,19 +22,19 @@ fn test_cargo_first_simple_function() {
 
 #[test]
 fn test_cargo_first_multiple_functions() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
 
 def multiply(a: int, b: int) -> int:
     return a * b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_cargo_first_class() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: float, y: float):
         self.x = x
@@ -42,7 +42,7 @@ class Point:
 
     def distance(self) -> float:
         return (self.x * self.x + self.y * self.y) ** 0.5
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -52,12 +52,12 @@ class Point:
 
 #[test]
 fn test_cargo_first_json_dep() {
-    let code = r#"
+    let code = r"
 import json
 
 def parse(s: str) -> dict:
     return json.loads(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -74,18 +74,18 @@ def find(text: str) -> list:
 
 #[test]
 fn test_cargo_first_hashlib_dep() {
-    let code = r#"
+    let code = r"
 import hashlib
 
 def hash_it(data: str) -> str:
     return hashlib.sha256(data.encode()).hexdigest()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_cargo_first_collections_dep() {
-    let code = r#"
+    let code = r"
 from collections import defaultdict
 
 def count(items: list) -> dict:
@@ -93,7 +93,7 @@ def count(items: list) -> dict:
     for item in items:
         d[item] += 1
     return dict(d)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -103,7 +103,7 @@ def count(items: list) -> dict:
 
 #[test]
 fn test_cargo_first_no_deps() {
-    let code = r#"
+    let code = r"
 def fibonacci(n: int) -> int:
     if n <= 1:
         return n
@@ -112,20 +112,20 @@ def fibonacci(n: int) -> int:
     for i in range(2, n + 1):
         a, b = b, a + b
     return b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_cargo_first_builtins_only() {
-    let code = r#"
+    let code = r"
 def process(items: list) -> list:
     result = []
     for item in items:
         if item > 0:
             result.append(item * 2)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -135,14 +135,14 @@ def process(items: list) -> list:
 
 #[test]
 fn test_cargo_first_multi_dep() {
-    let code = r#"
+    let code = r"
 import json
 import hashlib
 
 def secure_serialize(data: dict) -> str:
     json_str = json.dumps(data)
     return hashlib.sha256(json_str.encode()).hexdigest()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -166,19 +166,19 @@ class Config:
 
 #[test]
 fn test_cargo_first_exception_handling() {
-    let code = r#"
+    let code = r"
 def safe_divide(a: int, b: int) -> int:
     try:
         return a // b
     except:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_cargo_first_complex_algorithm() {
-    let code = r#"
+    let code = r"
 def binary_search(items: list, target: int) -> int:
     lo = 0
     hi = len(items) - 1
@@ -191,6 +191,6 @@ def binary_search(items: list, target: int) -> int:
         else:
             hi = mid - 1
     return -1
-"#;
+";
     assert!(transpile_ok(code));
 }

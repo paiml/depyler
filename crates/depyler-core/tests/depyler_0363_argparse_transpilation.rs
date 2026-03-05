@@ -13,7 +13,7 @@ fn transpile(python_code: &str) -> String {
     let pipeline = DepylerPipeline::new();
     match pipeline.transpile(python_code) {
         Ok(rust_code) => rust_code,
-        Err(e) => panic!("Transpilation failed: {:?}", e),
+        Err(e) => panic!("Transpilation failed: {e:?}"),
     }
 }
 
@@ -46,16 +46,16 @@ fn compile_rust_as_bin(rust_code: &str) -> Result<(), String> {
 #[test]
 #[ignore] // RED phase - expected to fail
 fn test_depyler_0363_argparse_basic_import() {
-    let python = r#"
+    let python = r"
 import argparse
 
 def main():
     return 0
-"#;
+";
 
     let rust = transpile(python);
 
-    eprintln!("Generated Rust code:\n{}\n", rust);
+    eprintln!("Generated Rust code:\n{rust}\n");
 
     // Must NOT contain Python artifacts
     assert!(!rust.contains("argparse"), "Should not contain 'argparse' in Rust output");
@@ -80,7 +80,7 @@ def main():
 
     let rust = transpile(python);
 
-    eprintln!("Generated Rust code:\n{}\n", rust);
+    eprintln!("Generated Rust code:\n{rust}\n");
 
     // Should contain clap usage
     assert!(rust.contains("clap"), "Should use clap crate");
@@ -116,7 +116,7 @@ def main() -> int:
 
     let rust = transpile(python);
 
-    eprintln!("Generated Rust code:\n{}\n", rust);
+    eprintln!("Generated Rust code:\n{rust}\n");
 
     // CURRENT CAPABILITIES (without DEPYLER-0364):
     // - Can extract argument name: ✓
@@ -166,17 +166,17 @@ def main():
 #[test]
 #[ignore] // RED phase - expected to fail
 fn test_depyler_0363_path_read_text_method() {
-    let python = r#"
+    let python = r"
 from pathlib import Path
 
 def read_file(filepath: Path) -> str:
     content = filepath.read_text()
     return content
-"#;
+";
 
     let rust = transpile(python);
 
-    eprintln!("Generated Rust code:\n{}\n", rust);
+    eprintln!("Generated Rust code:\n{rust}\n");
 
     // Should use fs::read_to_string
     assert!(
@@ -199,15 +199,15 @@ def read_file(filepath: Path) -> str:
 #[test]
 #[ignore] // RED phase - expected to fail
 fn test_depyler_0363_string_splitlines_method() {
-    let python = r#"
+    let python = r"
 def count_lines(text: str) -> int:
     lines = text.splitlines()
     return len(lines)
-"#;
+";
 
     let rust = transpile(python);
 
-    eprintln!("Generated Rust code:\n{}\n", rust);
+    eprintln!("Generated Rust code:\n{rust}\n");
 
     // Should use .lines()
     assert!(rust.contains(".lines()"), "Should use .lines() method");
@@ -221,15 +221,15 @@ def count_lines(text: str) -> int:
 #[test]
 #[ignore] // RED phase - expected to fail
 fn test_depyler_0363_string_split_whitespace() {
-    let python = r#"
+    let python = r"
 def count_words(text: str) -> int:
     words = text.split()
     return len(words)
-"#;
+";
 
     let rust = transpile(python);
 
-    eprintln!("Generated Rust code:\n{}\n", rust);
+    eprintln!("Generated Rust code:\n{rust}\n");
 
     // Should use .split_whitespace()
     assert!(rust.contains("split_whitespace"), "Should use split_whitespace()");
@@ -254,7 +254,7 @@ def safe_read(filepath: Path) -> str:
 
     let rust = transpile(python);
 
-    eprintln!("Generated Rust code:\n{}\n", rust);
+    eprintln!("Generated Rust code:\n{rust}\n");
 
     // Should use match on Result
     assert!(rust.contains("match"), "Should use match for error handling");
@@ -329,10 +329,10 @@ if __name__ == "__main__":
 fn test_depyler_0363_property_argparse_always_compiles() {
     // Simple smoke test - full property test would use proptest crate
     let test_cases = [
-        r#"
+        r"
 import argparse
 parser = argparse.ArgumentParser()
-        "#,
+        ",
         r#"
 import argparse
 parser = argparse.ArgumentParser(description="test")
@@ -348,6 +348,6 @@ parser.add_argument("-v", "--verbose", action="store_true")
     for (i, python) in test_cases.iter().enumerate() {
         let rust = transpile(python);
         compile_rust_as_bin(&rust)
-            .unwrap_or_else(|e| panic!("Test case {} failed to compile: {}", i, e));
+            .unwrap_or_else(|e| panic!("Test case {i} failed to compile: {e}"));
     }
 }

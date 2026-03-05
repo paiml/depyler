@@ -1,6 +1,6 @@
-//! Coverage tests for argparse_transform.rs
+//! Coverage tests for `argparse_transform.rs`
 //!
-//! DEPYLER-99MODE-001: Targets argparse_transform.rs uncovered paths
+//! DEPYLER-99MODE-001: Targets `argparse_transform.rs` uncovered paths
 //! Covers: subcommand patterns, field access analysis, enum generation,
 //! struct generation, type inference edge cases, keyword escaping.
 

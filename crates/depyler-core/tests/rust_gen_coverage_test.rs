@@ -1,11 +1,11 @@
-//! Comprehensive coverage tests for rust_gen.rs
+//! Comprehensive coverage tests for `rust_gen.rs`
 //!
-//! Target: rust_gen.rs (1433 lines) - Main code generation module
+//! Target: `rust_gen.rs` (1433 lines) - Main code generation module
 //! TDG Score: 73.8/100 (B-) - LOWEST in codebase
-//! Coverage focus: analyze_mutable_vars, deduplicate_use_statements, conditional imports
+//! Coverage focus: `analyze_mutable_vars`, `deduplicate_use_statements`, conditional imports
 //!
 //! Test Strategy:
-//! - TIER 1: analyze_mutable_vars (complexity 7) - core mutability analysis
+//! - TIER 1: `analyze_mutable_vars` (complexity 7) - core mutability analysis
 //! - TIER 2: Helper functions (deduplicate, imports, string optimization)
 //! - TIER 3: Integration and property tests
 //!
@@ -19,18 +19,18 @@ use depyler_core::DepylerPipeline;
 
 /// Unit Test: Simple variable reassignment detection
 ///
-/// Verifies: Basic reassignment (x = 1; x = 2) → mutable_vars contains "x"
-/// Lines: rust_gen.rs analyze_mutable_vars - reassignment path
+/// Verifies: Basic reassignment (x = 1; x = 2) → `mutable_vars` contains "x"
+/// Lines: `rust_gen.rs` `analyze_mutable_vars` - reassignment path
 #[test]
 fn test_analyze_mutable_vars_simple_reassignment() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test():
     x = 1
     x = 2
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // x is reassigned, should be declared as "let mut x"
@@ -46,14 +46,14 @@ def test():
 fn test_depyler_0312_parameter_reassignment_requires_mut() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def gcd(a: int, b: int) -> int:
     while b != 0:
         temp = a % b
         a = b
         b = temp
     return a
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Parameters a and b are reassigned → should be mut
@@ -61,21 +61,21 @@ def gcd(a: int, b: int) -> int:
     // Should have mutable parameters since they're reassigned
 }
 
-/// Unit Test: List mutation via .push() method
+/// Unit Test: List mutation via .`push()` method
 ///
 /// Verifies: Mutating methods mark variables as mutable
-/// Lines: rust_gen.rs analyze_expr_for_mutations - is_mutating_method("push")
+/// Lines: `rust_gen.rs` `analyze_expr_for_mutations` - `is_mutating_method("push`")
 #[test]
 fn test_analyze_mutable_vars_list_push_mutation() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def accumulate():
     items = []
     items.append(1)
     items.append(2)
     return items
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // items is mutated via append → should be "let mut items"
@@ -86,12 +86,12 @@ def accumulate():
 /// Unit Test: Multiple mutating method calls
 ///
 /// Verifies: Various mutating methods (.extend, .insert, .remove, .pop)
-/// Lines: rust_gen.rs is_mutating_method - full method set
+/// Lines: `rust_gen.rs` `is_mutating_method` - full method set
 #[test]
 fn test_analyze_mutable_vars_multiple_mutating_methods() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def mutate_list():
     items = [1, 2, 3]
     items.extend([4, 5])
@@ -99,17 +99,17 @@ def mutate_list():
     items.remove(2)
     items.pop()
     return items
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn mutate_list"));
     assert!(rust_code.contains("mut items"));
 }
 
-/// Unit Test: Dict mutation via .update() and indexing
+/// Unit Test: Dict mutation via .`update()` and indexing
 ///
 /// Verifies: Dict mutating methods
-/// Lines: rust_gen.rs mutating methods for dict types
+/// Lines: `rust_gen.rs` mutating methods for dict types
 #[test]
 fn test_analyze_mutable_vars_dict_mutation() {
     let pipeline = DepylerPipeline::new();
@@ -130,17 +130,17 @@ def mutate_dict():
 /// Unit Test: Immutable variable (no reassignment or mutation)
 ///
 /// Verifies: Variables never reassigned/mutated remain immutable
-/// Lines: rust_gen.rs - variable NOT added to mutable_vars
+/// Lines: `rust_gen.rs` - variable NOT added to `mutable_vars`
 #[test]
 fn test_analyze_mutable_vars_immutable_variable() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def immutable_test():
     x = 5
     y = x * 2
     return y
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn immutable_test"));
@@ -150,18 +150,18 @@ def immutable_test():
 /// Unit Test: Loop with mutation
 ///
 /// Verifies: Variables mutated in loops
-/// Lines: rust_gen.rs - recursive stmt analysis including loops
+/// Lines: `rust_gen.rs` - recursive stmt analysis including loops
 #[test]
 fn test_analyze_mutable_vars_loop_mutation() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def count_up(limit: int) -> int:
     counter = 0
     while counter < limit:
         counter = counter + 1
     return counter
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn count_up"));
@@ -171,12 +171,12 @@ def count_up(limit: int) -> int:
 /// Unit Test: Conditional reassignment
 ///
 /// Verifies: Reassignment inside if blocks
-/// Lines: rust_gen.rs - analyze_mutable_vars recursive on if statements
+/// Lines: `rust_gen.rs` - `analyze_mutable_vars` recursive on if statements
 #[test]
 fn test_analyze_mutable_vars_conditional_reassignment() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def conditional(flag: bool) -> int:
     x = 1
     if flag:
@@ -184,7 +184,7 @@ def conditional(flag: bool) -> int:
     else:
         x = 3
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn conditional"));
@@ -194,18 +194,18 @@ def conditional(flag: bool) -> int:
 /// Unit Test: Nested method call mutation
 ///
 /// Verifies: Method calls on nested expressions
-/// Lines: rust_gen.rs analyze_expr_for_mutations - recursive on args
+/// Lines: `rust_gen.rs` `analyze_expr_for_mutations` - recursive on args
 #[test]
 fn test_analyze_mutable_vars_nested_method_call() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def nested_mutation():
     items = []
     items.append([1, 2, 3])
     items[0].append(4)
     return items
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn nested_mutation"));
@@ -217,29 +217,29 @@ def nested_mutation():
 
 /// Unit Test: Duplicate use statement removal
 ///
-/// Verifies: deduplicate_use_statements() removes exact duplicates
+/// Verifies: `deduplicate_use_statements()` removes exact duplicates
 /// Lines: rust_gen.rs:319-341
 #[test]
 fn test_deduplicate_use_statements() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 from collections import defaultdict
 from collections import Counter
 from typing import Dict
 from typing import List
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should not have duplicate "use std::collections::" statements
     let use_count = rust_code.matches("use std::collections").count();
     // Deduplication should reduce redundant imports
-    assert!(use_count <= 2, "Too many duplicate use statements: {}", use_count);
+    assert!(use_count <= 2, "Too many duplicate use statements: {use_count}");
 }
 
-/// Unit Test: HashMap import when needed
+/// Unit Test: `HashMap` import when needed
 ///
-/// Verifies: generate_conditional_imports() adds HashMap when needed
+/// Verifies: `generate_conditional_imports()` adds `HashMap` when needed
 /// Lines: rust_gen.rs:342-373 - conditional import generation
 #[test]
 fn test_conditional_import_hashmap() {
@@ -255,18 +255,18 @@ def use_dict() -> dict:
     assert!(rust_code.contains("HashMap") || rust_code.contains("dict"));
 }
 
-/// Unit Test: HashSet import when needed
+/// Unit Test: `HashSet` import when needed
 ///
-/// Verifies: Conditional import for HashSet
-/// Lines: rust_gen.rs generate_conditional_imports - needs_hashset
+/// Verifies: Conditional import for `HashSet`
+/// Lines: `rust_gen.rs` `generate_conditional_imports` - `needs_hashset`
 #[test]
 fn test_conditional_import_hashset() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def use_set() -> set:
     return {1, 2, 3}
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should import HashSet when set is used
@@ -276,16 +276,16 @@ def use_set() -> set:
 /// Unit Test: Arc/Mutex imports for async
 ///
 /// Verifies: Conditional imports for concurrency primitives
-/// Lines: rust_gen.rs generate_conditional_imports - needs_arc, needs_mutex
+/// Lines: `rust_gen.rs` `generate_conditional_imports` - `needs_arc`, `needs_mutex`
 #[test]
 fn test_conditional_import_arc_mutex() {
     let pipeline = DepylerPipeline::new();
 
     // This is a placeholder - actual async detection would need more context
-    let python_code = r#"
+    let python_code = r"
 def simple():
     return 42
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Basic transpilation should work
@@ -296,7 +296,7 @@ def simple():
 // TIER 3: String Optimization Analysis
 // ============================================================================
 
-/// Unit Test: analyze_string_optimization() integration
+/// Unit Test: `analyze_string_optimization()` integration
 ///
 /// Verifies: String optimizer is invoked for functions
 /// Lines: rust_gen.rs:43-47
@@ -319,7 +319,7 @@ def string_heavy():
 /// Unit Test: Multiple string operations
 ///
 /// Verifies: String optimizer analyzes all functions
-/// Lines: rust_gen.rs analyze_string_optimization - loop over functions
+/// Lines: `rust_gen.rs` `analyze_string_optimization` - loop over functions
 #[test]
 fn test_analyze_string_optimization_multiple_functions() {
     let pipeline = DepylerPipeline::new();
@@ -352,7 +352,7 @@ def func3() -> str:
 fn test_integration_complex_mutability() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def complex_mutations(initial: int) -> list:
     # Parameter mutation
     initial = initial * 2
@@ -372,7 +372,7 @@ def complex_mutations(initial: int) -> list:
         results.pop()
 
     return results
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn complex_mutations"));
@@ -396,12 +396,12 @@ fn test_property_reassignment_implies_mut() {
 
     for (pattern, description) in test_cases {
         let python_code = format!(
-            r#"
+            r"
 def test_{}():
     {}
     return x
-"#,
-            description.replace(" ", "_"),
+",
+            description.replace(' ', "_"),
             pattern
         );
         let result = pipeline.transpile(&python_code);
@@ -425,12 +425,11 @@ fn test_property_no_reassignment_implies_immutable() {
 
     for (pattern, description) in test_cases {
         let python_code = format!(
-            r#"
-def test_{}():
-    {}
+            r"
+def test_{description}():
+    {pattern}
     return y
-"#,
-            description, pattern
+"
         );
         let result = pipeline.transpile(&python_code);
 
@@ -446,34 +445,34 @@ fn test_mutation_mutability_edge_cases() {
     let pipeline = DepylerPipeline::new();
 
     // Case 1: Parameter with same name as local
-    let case1 = r#"
+    let case1 = r"
 def test1(x: int) -> int:
     x = x + 1
     return x
-"#;
+";
     let rust1 = pipeline.transpile(case1).unwrap();
     assert!(rust1.contains("fn test1"));
 
     // Case 2: Multiple variables, only some mutable
-    let case2 = r#"
+    let case2 = r"
 def test2():
     a = 1
     b = 2
     a = 3
     return a + b
-"#;
+";
     let rust2 = pipeline.transpile(case2).unwrap();
     assert!(rust2.contains("fn test2"));
 
     // Case 3: Nested scopes
-    let case3 = r#"
+    let case3 = r"
 def test3():
     x = 1
     if True:
         y = 2
         y = 3
     return x
-"#;
+";
     let rust3 = pipeline.transpile(case3).unwrap();
     assert!(rust3.contains("fn test3"));
 }
@@ -482,13 +481,13 @@ def test3():
 // DEPYLER-1088: Regression test for inline attribute handling
 // ============================================================================
 
-/// Regression Test: DEPYLER-1088 - Inline #[command()] attributes must not remove enum variants
+/// Regression Test: DEPYLER-1088 - Inline #[`command()`] attributes must not remove enum variants
 ///
 /// Bug: The NASA mode line filter was removing entire lines that started with #[command(],
 /// which caused enum variants like `#[command(about = "...")] Resource { name: String }`
 /// to be completely removed, leaving orphaned commas like `, Resource {` outside the enum.
 ///
-/// Fix: Remove inline #[command()] and #[arg()] attributes BEFORE the line filter runs,
+/// Fix: Remove inline #[`command()`] and #[`arg()`] attributes BEFORE the line filter runs,
 /// so that variant definitions are preserved.
 #[test]
 fn test_depyler_1088_inline_command_attrs_preserve_variants() {
@@ -500,33 +499,33 @@ fn test_depyler_1088_inline_command_attrs_preserve_variants() {
     let pipeline = DepylerPipeline::new();
 
     // Simple argparse-like pattern that triggers Commands enum generation
-    let python_code = r#"
+    let python_code = r"
 def main():
     x = 1
     return x
-"#;
+";
     let result = pipeline.transpile(python_code);
     assert!(result.is_ok(), "Basic transpilation should succeed after DEPYLER-1088 fix");
 }
 
-/// Regression Test: DEPYLER-1088 - Inline #[arg()] attributes preserved
+/// Regression Test: DEPYLER-1088 - Inline #[`arg()`] attributes preserved
 ///
-/// Verifies that inline #[arg()] attributes are removed without affecting surrounding code
+/// Verifies that inline #[`arg()`] attributes are removed without affecting surrounding code
 #[test]
 fn test_depyler_1088_inline_arg_attrs_preserved() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def process(name: str) -> str:
     return name.upper()
-"#;
+";
     let result = pipeline.transpile(python_code);
     assert!(result.is_ok(), "Code with string params should compile after DEPYLER-1088 fix");
     let rust_code = result.unwrap();
     assert!(rust_code.contains("fn process"), "Function should be generated");
 }
 
-/// Regression Test: DEPYLER-1090 - Strip clap::CommandFactory imports in NASA mode
+/// Regression Test: DEPYLER-1090 - Strip `clap::CommandFactory` imports in NASA mode
 ///
 /// Bug: Generated code retained `use clap::CommandFactory;` imports even in NASA mode,
 /// causing E0432 (unresolved import) errors since clap is not a dependency.
@@ -548,8 +547,7 @@ def main():
     // Verify no clap imports remain in NASA mode output
     assert!(
         !rust_code.contains("use clap::CommandFactory"),
-        "NASA mode should strip clap::CommandFactory import, got:\n{}",
-        rust_code
+        "NASA mode should strip clap::CommandFactory import, got:\n{rust_code}"
     );
     assert!(
         !rust_code.contains("use clap :: CommandFactory"),
@@ -590,8 +588,7 @@ def main():
     // Wrong: parse_list(&value, ",".to_string())
     assert!(
         !rust_code.contains(r#"parse_list(&value, ",".to_string())"#),
-        "Default &str arg should NOT have .to_string(), got:\n{}",
-        rust_code
+        "Default &str arg should NOT have .to_string(), got:\n{rust_code}"
     );
 
     // The call should have the string literal directly (may or may not have &)
@@ -607,14 +604,14 @@ def main():
 /// Regression Test: DEPYLER-1093 - Option<T> assignment double-wrapping
 ///
 /// Bug: When assigning to Option<T> variable from an expression that already returns Option<T>,
-/// the code incorrectly wrapped in Some() creating Option<Option<T>>.
+/// the code incorrectly wrapped in `Some()` creating Option<Option<T>>.
 /// Examples:
 /// - `value = os.environ.get(name)` → `value = Some(std::env::var(name).ok())` [WRONG]
 /// - `value = default` where default: Option<T> → `value = Some(default)` [WRONG]
 ///
-/// Fix: Check if RHS expression already returns Option<T> before wrapping in Some().
-/// Patterns detected: .ok(), .get(), .cloned(), .as_ref() without .unwrap()
-/// Also detect when source variable has Optional type and use .clone() instead.
+/// Fix: Check if RHS expression already returns Option<T> before wrapping in `Some()`.
+/// Patterns detected: .`ok()`, .`get()`, .`cloned()`, .`as_ref()` without .`unwrap()`
+/// Also detect when source variable has Optional type and use .`clone()` instead.
 #[test]
 fn test_depyler_1093_option_assignment_no_double_wrap() {
     let pipeline = DepylerPipeline::new();
@@ -642,8 +639,7 @@ def get_value(name: str, default: str | None = None) -> str | None:
     // Wrong: value = Some(std::env::var(name).ok())
     assert!(
         !rust_code.contains("Some(std::env::var") && !rust_code.contains("Some (std :: env :: var"),
-        "env::var().ok() should NOT be wrapped in Some(), got:\n{}",
-        rust_code
+        "env::var().ok() should NOT be wrapped in Some(), got:\n{rust_code}"
     );
 
     // Verify optional default is cloned, not wrapped in Some()
@@ -655,8 +651,7 @@ def get_value(name: str, default: str | None = None) -> str | None:
         rust_code.contains("Some(default)") || rust_code.contains("Some (default)");
     assert!(
         has_clone_pattern || !has_wrong_pattern,
-        "Optional variable assignment should use .clone() not Some(), got:\n{}",
-        rust_code
+        "Optional variable assignment should use .clone() not Some(), got:\n{rust_code}"
     );
 }
 
@@ -688,8 +683,7 @@ def refill(capacity: int, tokens: float, rate: float) -> float:
     let has_depyler_min = rust_code.contains("depyler_min");
     assert!(
         has_f64_cast || has_depyler_min,
-        "min() with mixed i32/f64 should use type coercion, got:\n{}",
-        rust_code
+        "min() with mixed i32/f64 should use type coercion, got:\n{rust_code}"
     );
 }
 
@@ -744,8 +738,7 @@ def get_last(items: list) -> int:
 
     assert!(
         !has_unsafe_cast || has_len_check,
-        "Negative index should use safe len-based calculation, not direct cast. Got:\n{}",
-        rust_code
+        "Negative index should use safe len-based calculation, not direct cast. Got:\n{rust_code}"
     );
 }
 
@@ -780,8 +773,8 @@ def get_at(items: list, idx: int) -> int:
 ///
 /// Error: E0308 "expected bool, found Vec<T>" or similar type mismatches.
 /// Fix: Apply truthiness coercion based on type:
-///   - Collections: !is_empty()
-///   - Options: is_some()
+///   - Collections: !`is_empty()`
+///   - Options: `is_some()`
 ///   - Numbers: != 0
 #[test]
 fn test_depyler_1096_truthiness_collection() {
@@ -801,8 +794,7 @@ def has_items(queue: list) -> bool:
     // For collection types, should use !is_empty() for truthiness
     assert!(
         rust_code.contains("is_empty"),
-        "Collection truthiness should use is_empty(): {}",
-        rust_code
+        "Collection truthiness should use is_empty(): {rust_code}"
     );
 }
 
@@ -826,7 +818,7 @@ def check_flag(flag: bool) -> str:
     let fn_body = &rust_code[fn_start..];
 
     // For bool types, should generate simple `if flag` without coercion
-    assert!(fn_body.contains("if flag"), "Bool condition should be `if flag`: {}", fn_body);
+    assert!(fn_body.contains("if flag"), "Bool condition should be `if flag`: {fn_body}");
 }
 
 #[test]
@@ -850,10 +842,10 @@ def is_positive(n: int) -> bool:
 
     // The comparison `n > 0` returns bool - should be present without extra coercion
     // CSE may extract to a temp variable like _cse_temp_0 = n > 0
-    assert!(fn_body.contains("n > 0"), "Comparison expression should be present: {}", fn_body);
+    assert!(fn_body.contains("n > 0"), "Comparison expression should be present: {fn_body}");
 }
 
-/// DEPYLER-1097: all() builtin regression test.
+/// DEPYLER-1097: `all()` builtin regression test.
 ///
 /// Python: all(items) → True if all items are truthy
 /// Rust: items.iter().all(|&x| x)
@@ -871,14 +863,10 @@ def check_all_positive(items: list) -> bool:
     let rust_code = result.unwrap();
 
     // Should generate .iter().all() pattern
-    assert!(
-        rust_code.contains(".iter().all("),
-        "all() should generate .iter().all(): {}",
-        rust_code
-    );
+    assert!(rust_code.contains(".iter().all("), "all() should generate .iter().all(): {rust_code}");
 }
 
-/// DEPYLER-1097: any() builtin regression test.
+/// DEPYLER-1097: `any()` builtin regression test.
 ///
 /// Python: any(items) → True if any item is truthy
 /// Rust: items.iter().any(|&x| x)
@@ -896,17 +884,13 @@ def check_any_positive(items: list) -> bool:
     let rust_code = result.unwrap();
 
     // Should generate .iter().any() pattern
-    assert!(
-        rust_code.contains(".iter().any("),
-        "any() should generate .iter().any(): {}",
-        rust_code
-    );
+    assert!(rust_code.contains(".iter().any("), "any() should generate .iter().any(): {rust_code}");
 }
 
-/// DEPYLER-1097: dict() builtin regression test.
+/// DEPYLER-1097: `dict()` builtin regression test.
 ///
-/// Python: dict() → {} (empty dict)
-/// Rust: std::collections::HashMap::new()
+/// Python: `dict()` → {} (empty dict)
+/// Rust: `std::collections::HashMap::new()`
 #[test]
 fn test_depyler_1097_dict_builtin() {
     let pipeline = DepylerPipeline::new();
@@ -923,15 +907,14 @@ def create_empty_dict() -> dict:
     // Should generate HashMap::new()
     assert!(
         rust_code.contains("HashMap::new()") || rust_code.contains("HashMap :: new()"),
-        "dict() should generate HashMap::new(): {}",
-        rust_code
+        "dict() should generate HashMap::new(): {rust_code}"
     );
 }
 
 /// DEPYLER-1097: sys.argv attribute access regression test.
 ///
 /// Python: sys.argv → command line arguments
-/// Rust: std::env::args().collect::<Vec<String>>()
+/// Rust: `std::env::args().collect::`<Vec<String>>()
 #[test]
 fn test_depyler_1097_sys_argv() {
     let pipeline = DepylerPipeline::new();
@@ -948,15 +931,14 @@ def get_args() -> list:
     // Should generate std::env::args().collect()
     assert!(
         rust_code.contains("std::env::args()"),
-        "sys.argv should generate std::env::args(): {}",
-        rust_code
+        "sys.argv should generate std::env::args(): {rust_code}"
     );
 }
 
-/// DEPYLER-1098: Verify NASA mode doesn't generate serde_json.
+/// DEPYLER-1098: Verify NASA mode doesn't generate `serde_json`.
 ///
-/// In NASA mode, we should use std-only types (DepylerValue) instead of
-/// serde_json::Value which requires external crate.
+/// In NASA mode, we should use std-only types (`DepylerValue`) instead of
+/// `serde_json::Value` which requires external crate.
 #[test]
 fn test_depyler_1098_no_serde_json_in_nasa_mode() {
     let pipeline = DepylerPipeline::new();
@@ -975,8 +957,7 @@ def parse_config(data: str) -> dict:
     // In NASA mode (default), should NOT contain serde_json
     assert!(
         !rust_code.contains("serde_json::"),
-        "NASA mode should not use serde_json: {}",
-        rust_code
+        "NASA mode should not use serde_json: {rust_code}"
     );
 }
 
@@ -1003,8 +984,7 @@ def has_negative(data: list[float]) -> bool:
     // Note: If type propagation works, 0 will be coerced to 0f64
     assert!(
         rust_code.contains("0f64") || rust_code.contains("0.0") || rust_code.contains(" < 0"),
-        "Should generate valid numeric comparison: {}",
-        rust_code
+        "Should generate valid numeric comparison: {rust_code}"
     );
 }
 
@@ -1027,7 +1007,6 @@ def filter_positive(values: list[float]) -> list[float]:
     // the comparison x > 0 will have x typed as f64
     assert!(
         rust_code.contains(".filter") || rust_code.contains("into_iter"),
-        "Should generate iterator chain: {}",
-        rust_code
+        "Should generate iterator chain: {rust_code}"
     );
 }

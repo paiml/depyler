@@ -300,7 +300,7 @@ fn test_function_with_float_default() {
     }
 }
 
-/// Test 11: HirParam helper constructor
+/// Test 11: `HirParam` helper constructor
 #[test]
 fn test_hir_param_constructor() {
     let param = HirParam::new("x".to_string(), Type::Int);
@@ -314,7 +314,7 @@ fn test_hir_param_constructor() {
     assert!(param_with_default.default.is_some());
 }
 
-/// Test 12: Serialization/deserialization of HirParam
+/// Test 12: Serialization/deserialization of `HirParam`
 #[test]
 fn test_hir_param_serde() {
     let param = HirParam {

@@ -1,15 +1,15 @@
-//! Extended coverage tests for func_gen.rs helper functions
+//! Extended coverage tests for `func_gen.rs` helper functions
 //!
-//! Target: func_gen.rs gaps (216 uncovered lines at 78.66%)
+//! Target: `func_gen.rs` gaps (216 uncovered lines at 78.66%)
 //! Coverage focus: Helper functions, string method classification, return type analysis
 //!
 //! Test Strategy:
-//! - is_rust_keyword: All keywords and edge cases
-//! - classify_string_method: Owned vs borrowed methods
-//! - contains_owned_string_method: Expression tree traversal
-//! - function_returns_owned_string: Return statement analysis
-//! - contains_string_concatenation: Concatenation detection
-//! - return_type_expects_float: Type expectation analysis
+//! - `is_rust_keyword`: All keywords and edge cases
+//! - `classify_string_method`: Owned vs borrowed methods
+//! - `contains_owned_string_method`: Expression tree traversal
+//! - `function_returns_owned_string`: Return statement analysis
+//! - `contains_string_concatenation`: Concatenation detection
+//! - `return_type_expects_float`: Type expectation analysis
 
 use depyler_core::DepylerPipeline;
 
@@ -23,7 +23,7 @@ fn test_rust_keywords_control_flow() {
     let pipeline = DepylerPipeline::new();
 
     // Test control flow keywords: if, else, for, while, loop, break, continue, return
-    let python_code = r#"
+    let python_code = r"
 def use_if(x: int) -> int:
     if x > 0:
         return x
@@ -41,7 +41,7 @@ def use_while(n: int) -> int:
     while count < n:
         count = count + 1
     return count
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn use_if"));
@@ -97,7 +97,7 @@ fn test_rust_keywords_reserved() {
     let pipeline = DepylerPipeline::new();
 
     // Test code with names matching reserved keywords: abstract, become, box, do, final, etc.
-    let python_code = r#"
+    let python_code = r"
 def use_abstract() -> int:
     return 1
 
@@ -106,7 +106,7 @@ def use_final() -> int:
 
 def use_override() -> int:
     return 3
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn use_abstract"));
@@ -124,13 +124,13 @@ fn test_string_methods_owned_upper_lower() {
     let pipeline = DepylerPipeline::new();
 
     // Methods: upper, lower
-    let python_code = r#"
+    let python_code = r"
 def make_upper(text: str) -> str:
     return text.upper()
 
 def make_lower(text: str) -> str:
     return text.lower()
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn make_upper"));
@@ -143,7 +143,7 @@ fn test_string_methods_owned_strip() {
     let pipeline = DepylerPipeline::new();
 
     // Methods: strip, lstrip, rstrip
-    let python_code = r#"
+    let python_code = r"
 def clean_text(text: str) -> str:
     return text.strip()
 
@@ -152,7 +152,7 @@ def clean_left(text: str) -> str:
 
 def clean_right(text: str) -> str:
     return text.rstrip()
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn clean_text"));
@@ -218,15 +218,15 @@ def is_digit(text: str) -> bool:
 // contains_owned_string_method Coverage Tests
 // ============================================================================
 
-/// Unit Test: Detect owned string method in MethodCall
+/// Unit Test: Detect owned string method in `MethodCall`
 #[test]
 fn test_contains_owned_method_methodcall() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def transform_string(text: str) -> str:
     return text.upper()
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn transform_string"));
@@ -238,26 +238,26 @@ def transform_string(text: str) -> str:
 fn test_contains_owned_method_binary() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def combine_transforms(a: str, b: str) -> str:
     x = a.upper()
     y = b.lower()
     return x + y
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn combine_transforms"));
 }
 
-/// Unit Test: Detect owned string method in IfExpr
+/// Unit Test: Detect owned string method in `IfExpr`
 #[test]
 fn test_contains_owned_method_ifexpr() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def conditional_transform(text: str, upper: bool) -> str:
     return text.upper() if upper else text.lower()
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn conditional_transform"));
@@ -294,10 +294,10 @@ def return_list() -> list[str]:
 fn test_function_returns_owned_string_direct() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def get_upper(text: str) -> str:
     return text.upper()
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn get_upper"));
@@ -308,7 +308,7 @@ def get_upper(text: str) -> str:
 fn test_function_returns_owned_string_multiple() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def transform_conditional(text: str, mode: int) -> str:
     if mode == 1:
         return text.upper()
@@ -316,7 +316,7 @@ def transform_conditional(text: str, mode: int) -> str:
         return text.lower()
     else:
         return text.title()
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn transform_conditional"));
@@ -349,10 +349,10 @@ def return_plain(text: str) -> str:
 fn test_contains_string_concat_add() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def concat_strings(a: str, b: str) -> str:
     return a + b
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn concat_strings"));
@@ -379,16 +379,16 @@ def format_message(name: str, age: int) -> str:
 fn test_contains_string_concat_nested() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def triple_concat(a: str, b: str, c: str) -> str:
     return a + b + c
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn triple_concat"));
 }
 
-/// Unit Test: Detect concat in IfExpr branches
+/// Unit Test: Detect concat in `IfExpr` branches
 #[test]
 fn test_contains_string_concat_ifexpr() {
     let pipeline = DepylerPipeline::new();
@@ -407,13 +407,13 @@ def conditional_concat(a: str, b: str, flag: bool) -> str:
 fn test_no_string_concat_other_ops() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def compare_strings(a: str, b: str) -> bool:
     return a == b
 
 def multiply_number(a: int, b: int) -> int:
     return a * b
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn compare_strings"));
@@ -478,10 +478,10 @@ def format_greeting(name: str, formal: bool) -> str:
 fn test_return_expects_float_direct() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def get_pi() -> float:
     return 3.14159
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn get_pi"));
@@ -493,14 +493,14 @@ def get_pi() -> float:
 fn test_return_expects_float_optional() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 from typing import Optional
 
 def maybe_float(flag: bool) -> Optional[float]:
     if flag:
         return 3.14
     return None
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn maybe_float"));
@@ -512,10 +512,10 @@ def maybe_float(flag: bool) -> Optional[float]:
 fn test_return_expects_float_list() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def get_floats() -> list[float]:
     return [1.0, 2.0, 3.0]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn get_floats"));
@@ -527,10 +527,10 @@ def get_floats() -> list[float]:
 fn test_return_expects_float_tuple() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def get_coordinates() -> tuple[float, float]:
     return (1.5, 2.5)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn get_coordinates"));
@@ -541,10 +541,10 @@ def get_coordinates() -> tuple[float, float]:
 fn test_return_not_expects_float_int() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def get_count() -> int:
     return 42
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn get_count"));
@@ -580,11 +580,10 @@ fn test_property_all_string_transforms() {
 
     for (method, _expected) in methods {
         let python_code = format!(
-            r#"
-def test_{}_method(text: str) -> str:
-    return text.{}()
-"#,
-            method, method
+            r"
+def test_{method}_method(text: str) -> str:
+    return text.{method}()
+"
         );
         let result = pipeline.transpile(&python_code);
 
@@ -603,18 +602,16 @@ fn test_property_all_string_queries() {
         let python_code = if method == "startswith" || method == "endswith" {
             format!(
                 r#"
-def test_{}_method(text: str) -> bool:
-    return text.{}("test")
-"#,
-                method, method
+def test_{method}_method(text: str) -> bool:
+    return text.{method}("test")
+"#
             )
         } else {
             format!(
-                r#"
-def test_{}_method(text: str) -> bool:
-    return text.{}()
-"#,
-                method, method
+                r"
+def test_{method}_method(text: str) -> bool:
+    return text.{method}()
+"
             )
         };
 

@@ -221,10 +221,10 @@ mod tests {
 
     #[test]
     fn test_impact_scorer_empty() {
-        let python = r#"
+        let python = r"
 def foo():
     return 42
-"#;
+";
 
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
@@ -302,7 +302,7 @@ def c():
 
     #[test]
     fn test_pagerank_convergence() {
-        let python = r#"
+        let python = r"
 def a():
     return b()
 
@@ -311,7 +311,7 @@ def b():
 
 def c():
     return 1
-"#;
+";
 
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
@@ -440,7 +440,7 @@ def user():
 
     #[test]
     fn test_patient_zero_top_n_limit() {
-        let python = r#"
+        let python = r"
 def a():
     return 1
 def b():
@@ -449,7 +449,7 @@ def c():
     return 3
 def d():
     return 4
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -556,7 +556,7 @@ def d():
             pagerank_score: 0.5,
             total_impact: 3.0,
         };
-        let debug = format!("{:?}", score);
+        let debug = format!("{score:?}");
         assert!(debug.contains("ImpactScore"));
         let cloned = score.clone();
         assert_eq!(cloned.node_id, "n");
@@ -572,7 +572,7 @@ def d():
             fix_priority: 1,
             estimated_fix_impact: 5,
         };
-        let debug = format!("{:?}", pz);
+        let debug = format!("{pz:?}");
         assert!(debug.contains("PatientZero"));
         let cloned = pz.clone();
         assert_eq!(cloned.fix_priority, 1);
@@ -626,13 +626,13 @@ def d():
 
     #[test]
     fn test_s9b7_downstream_errors_with_caller_errors() {
-        let python = r#"
+        let python = r"
 def callee():
     return 1
 
 def caller():
     return callee()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let overlaid = vec![OverlaidError {
@@ -653,14 +653,14 @@ def caller():
 
     #[test]
     fn test_pagerank_scores_all_nonnegative() {
-        let python = r#"
+        let python = r"
 def a():
     return b()
 def b():
     return c()
 def c():
     return 1
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -685,13 +685,13 @@ def c():
     #[test]
     fn test_s12_pagerank_with_cycle() {
         // a -> b -> a (cyclic dependency)
-        let python = r#"
+        let python = r"
 def a():
     return b()
 
 def b():
     return a()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -709,12 +709,12 @@ def b():
     #[test]
     fn test_s12_pagerank_zero_damping() {
         // With damping=0, all nodes should get equal scores = 1/n
-        let python = r#"
+        let python = r"
 def a():
     return b()
 def b():
     return 1
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -738,12 +738,12 @@ def b():
 
     #[test]
     fn test_s12_pagerank_max_damping() {
-        let python = r#"
+        let python = r"
 def source():
     return sink()
 def sink():
     return 1
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -760,12 +760,12 @@ def sink():
     #[test]
     fn test_s12_sink_node_pagerank() {
         // Sink node has no outgoing edges; should converge correctly
-        let python = r#"
+        let python = r"
 def caller():
     return sink()
 def sink():
     return 42
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -780,10 +780,10 @@ def sink():
     #[test]
     fn test_s12_self_referencing_node() {
         // Recursive function: a calls itself
-        let python = r#"
+        let python = r"
 def recursive():
     return recursive()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -798,7 +798,7 @@ def recursive():
 
     #[test]
     fn test_s12_downstream_errors_multiple_callers() {
-        let python = r#"
+        let python = r"
 def target():
     return 1
 
@@ -807,7 +807,7 @@ def caller_a():
 
 def caller_b():
     return target()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -919,12 +919,12 @@ def caller_b():
 
     #[test]
     fn test_s12_patient_zero_estimated_fix_impact() {
-        let python = r#"
+        let python = r"
 def root():
     return 1
 def user():
     return root()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let overlaid = vec![

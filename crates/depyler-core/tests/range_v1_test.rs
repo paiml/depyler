@@ -1,4 +1,4 @@
-//! Tests for range() within V1 constraints
+//! Tests for `range()` within V1 constraints
 
 use depyler_core::DepylerPipeline;
 
@@ -7,7 +7,7 @@ fn test_range_comprehensive() {
     let pipeline = DepylerPipeline::new();
 
     // Test various range patterns in a single function
-    let python_code = r#"
+    let python_code = r"
 def test_ranges():
     # Single argument
     for i in range(3):
@@ -28,10 +28,10 @@ def test_ranges():
     # Large step
     for i in range(0, 20, 5):
         print(i)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated comprehensive range code:\n{}", rust_code);
+    println!("Generated comprehensive range code:\n{rust_code}");
 
     // Check all patterns are present - transpiler may use step_by for all ranges
     assert!(
@@ -53,7 +53,7 @@ def test_ranges():
 fn test_range_edge_cases() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def edge_cases():
     # Empty range
     for i in range(5, 5):
@@ -66,10 +66,10 @@ def edge_cases():
     # Single item range
     for i in range(5, 6):
         print(i)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated edge case code:\n{}", rust_code);
+    println!("Generated edge case code:\n{rust_code}");
 
     assert!(rust_code.contains("5..5"), "Should handle empty range");
 }
@@ -78,7 +78,7 @@ def edge_cases():
 fn test_range_with_negative_numbers() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def negative_ranges():
     # Negative start
     for i in range(-5, 0):
@@ -91,10 +91,10 @@ def negative_ranges():
     # Both negative
     for i in range(-10, -5):
         print(i)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated negative range code:\n{}", rust_code);
+    println!("Generated negative range code:\n{rust_code}");
 
     assert!(
         rust_code.contains("- 5..0") || rust_code.contains("-5..0"),
@@ -107,15 +107,15 @@ def negative_ranges():
 fn test_range_in_expression() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def range_len():
     # Using range in len() - though this might not work in V1
     count = len(range(10))
     return count
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Range in expression result: {:?}", result);
+    println!("Range in expression result: {result:?}");
 
     // This might fail in V1 due to range not being a simple variable
     // Just check that we handle it somehow
@@ -126,14 +126,14 @@ def range_len():
 fn test_zero_step_panic() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def zero_step():
     for i in range(0, 10, 0):
         print(i)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated zero step code:\n{}", rust_code);
+    println!("Generated zero step code:\n{rust_code}");
 
     assert!(
         rust_code.contains("panic") && rust_code.contains("must not be zero"),

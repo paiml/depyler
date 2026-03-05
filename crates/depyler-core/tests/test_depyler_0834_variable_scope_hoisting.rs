@@ -23,7 +23,7 @@ fn compiles_successfully(rust_code: &str) -> bool {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let rust_file = temp_dir.path().join("test_scope.rs");
     let mut file = std::fs::File::create(&rust_file).expect("Failed to create file");
-    writeln!(file, "{}", rust_code).expect("Failed to write file");
+    writeln!(file, "{rust_code}").expect("Failed to write file");
     drop(file);
 
     let output = Command::new("rustc")
@@ -44,7 +44,7 @@ fn has_e0425_error(rust_code: &str) -> bool {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let rust_file = temp_dir.path().join("test_scope.rs");
     let mut file = std::fs::File::create(&rust_file).expect("Failed to create file");
-    writeln!(file, "{}", rust_code).expect("Failed to write file");
+    writeln!(file, "{rust_code}").expect("Failed to write file");
     drop(file);
 
     let output = Command::new("rustc")
@@ -82,15 +82,13 @@ def process_data(condition: bool) -> str:
     // Generated code should compile without E0425
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error: cannot find value 'result'\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error: cannot find value 'result'\n\nGenerated code:\n{rust_code}"
     );
 
     // Variable should be declared before the if block
     assert!(
         rust_code.contains("let mut result") || rust_code.contains("let result"),
-        "Variable 'result' should be declared before if block\n\nGenerated code:\n{}",
-        rust_code
+        "Variable 'result' should be declared before if block\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -98,13 +96,13 @@ def process_data(condition: bool) -> str:
 #[test]
 fn test_depyler_0834_if_only_multiple_vars_used_after() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def calculate(flag: bool) -> int:
     if flag:
         x = 10
         y = 20
     return x + y
-"#;
+";
 
     let transpiled = pipeline.transpile(python_code);
     assert!(transpiled.is_ok(), "Transpilation should succeed");
@@ -112,8 +110,7 @@ def calculate(flag: bool) -> int:
 
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -136,8 +133,7 @@ def check_section(name: str) -> str:
 
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error for 'current_section'\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error for 'current_section'\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -149,14 +145,14 @@ def check_section(name: str) -> str:
 #[test]
 fn test_depyler_0834_if_else_then_only_var() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def get_value(flag: bool) -> int:
     if flag:
         value = 42
     else:
         pass
     return value
-"#;
+";
 
     let transpiled = pipeline.transpile(python_code);
     assert!(transpiled.is_ok(), "Transpilation should succeed");
@@ -164,8 +160,7 @@ def get_value(flag: bool) -> int:
 
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error for 'value'\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error for 'value'\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -188,8 +183,7 @@ def get_fallback(flag: bool) -> str:
 
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error for 'fallback'\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error for 'fallback'\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -201,12 +195,12 @@ def get_fallback(flag: bool) -> str:
 #[test]
 fn test_depyler_0834_for_loop_var_used_after() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def find_last(items: list) -> int:
     for item in items:
         last = item
     return last
-"#;
+";
 
     let transpiled = pipeline.transpile(python_code);
     assert!(transpiled.is_ok(), "Transpilation should succeed");
@@ -214,8 +208,7 @@ def find_last(items: list) -> int:
 
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error for 'last'\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error for 'last'\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -223,13 +216,13 @@ def find_last(items: list) -> int:
 #[test]
 fn test_depyler_0834_for_loop_conditional_var() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def find_match(items: list, target: str) -> str:
     for item in items:
         if item == target:
             found = item
     return found
-"#;
+";
 
     let transpiled = pipeline.transpile(python_code);
     assert!(transpiled.is_ok(), "Transpilation should succeed");
@@ -237,8 +230,7 @@ def find_match(items: list, target: str) -> str:
 
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error for 'found'\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error for 'found'\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -250,14 +242,14 @@ def find_match(items: list, target: str) -> str:
 #[test]
 fn test_depyler_0834_while_loop_var_used_after() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def process_until(limit: int) -> int:
     i = 0
     while i < limit:
         processed = i * 2
         i = i + 1
     return processed
-"#;
+";
 
     let transpiled = pipeline.transpile(python_code);
     assert!(transpiled.is_ok(), "Transpilation should succeed");
@@ -265,8 +257,7 @@ def process_until(limit: int) -> int:
 
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error for 'processed'\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error for 'processed'\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -278,14 +269,14 @@ def process_until(limit: int) -> int:
 #[test]
 fn test_depyler_0834_nested_if_in_for_var_used_after() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def find_positive(items: list) -> int:
     for item in items:
         if item > 0:
             result = item
             break
     return result
-"#;
+";
 
     let transpiled = pipeline.transpile(python_code);
     assert!(transpiled.is_ok(), "Transpilation should succeed");
@@ -293,8 +284,7 @@ def find_positive(items: list) -> int:
 
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error for 'result'\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error for 'result'\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -302,14 +292,14 @@ def find_positive(items: list) -> int:
 #[test]
 fn test_depyler_0834_deeply_nested_var() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def deep_search(matrix: list, target: int) -> int:
     for row in matrix:
         for item in row:
             if item == target:
                 found_value = item
     return found_value
-"#;
+";
 
     let transpiled = pipeline.transpile(python_code);
     assert!(transpiled.is_ok(), "Transpilation should succeed");
@@ -317,8 +307,7 @@ def deep_search(matrix: list, target: int) -> int:
 
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error for 'found_value'\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error for 'found_value'\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -327,7 +316,7 @@ def deep_search(matrix: list, target: int) -> int:
 // ============================================================================
 
 /// Test: Settings loader pattern - variable assigned in if, used in later if
-/// Based on example_settings_loader E0425 error
+/// Based on `example_settings_loader` E0425 error
 #[test]
 fn test_depyler_0834_settings_loader_pattern() {
     let pipeline = DepylerPipeline::new();
@@ -349,13 +338,12 @@ def parse_ini(lines: list) -> dict:
 
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error (settings loader pattern)\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error (settings loader pattern)\n\nGenerated code:\n{rust_code}"
     );
 }
 
 /// Test: Template engine pattern - variable assigned in if, used after
-/// Based on example_template_engine E0425 error
+/// Based on `example_template_engine` E0425 error
 #[test]
 fn test_depyler_0834_template_engine_pattern() {
     let pipeline = DepylerPipeline::new();
@@ -374,13 +362,12 @@ def parse_block(line: str) -> str:
 
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error (template engine pattern)\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error (template engine pattern)\n\nGenerated code:\n{rust_code}"
     );
 }
 
 /// Test: CSV dialect pattern - variable assigned in for loop if, used after
-/// Based on example_csv_dialect E0425 error
+/// Based on `example_csv_dialect` E0425 error
 #[test]
 fn test_depyler_0834_csv_dialect_pattern() {
     let pipeline = DepylerPipeline::new();
@@ -398,8 +385,7 @@ def detect_dialect(data: str) -> str:
 
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error (csv dialect pattern)\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error (csv dialect pattern)\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -411,14 +397,14 @@ def detect_dialect(data: str) -> str:
 #[test]
 fn test_depyler_0834_variable_reassignment_scopes() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def complex_scope(flag: bool) -> int:
     x = 0
     if flag:
         x = 10
         y = x
     return y
-"#;
+";
 
     let transpiled = pipeline.transpile(python_code);
     assert!(transpiled.is_ok(), "Transpilation should succeed");
@@ -427,8 +413,7 @@ def complex_scope(flag: bool) -> int:
     // x is already declared, but y needs hoisting
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error for 'y'\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error for 'y'\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -436,14 +421,14 @@ def complex_scope(flag: bool) -> int:
 #[test]
 fn test_depyler_0834_optional_variable_access() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def maybe_get(data: list, index: int) -> int:
     if index < len(data):
         result = data[index]
     if result:
         return result
     return 0
-"#;
+";
 
     let transpiled = pipeline.transpile(python_code);
     assert!(transpiled.is_ok(), "Transpilation should succeed");
@@ -451,8 +436,7 @@ def maybe_get(data: list, index: int) -> int:
 
     assert!(
         !has_e0425_error(&rust_code),
-        "Generated code has E0425 error for 'result'\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0425 error for 'result'\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -480,35 +464,35 @@ def f(cond: bool) -> str:
         ),
         (
             "if_else_asymmetric",
-            r#"
+            r"
 def f(cond: bool) -> int:
     if cond:
         x = 1
     else:
         pass
     return x
-"#,
+",
         ),
         (
             "for_loop_escape",
-            r#"
+            r"
 from typing import List
 def f(items: List[int]) -> int:
     for i in items:
         x = i
     return x
-"#,
+",
         ),
         (
             "while_loop_escape",
-            r#"
+            r"
 def f(n: int) -> int:
     i = 0
     while i < n:
         x = i
         i = i + 1
     return x
-"#,
+",
         ),
     ];
 
@@ -530,7 +514,7 @@ def f(n: int) -> int:
         "The following test cases failed to compile:\n{}",
         failures
             .iter()
-            .map(|(name, code)| format!("=== {} ===\n{}", name, code))
+            .map(|(name, code)| format!("=== {name} ===\n{code}"))
             .collect::<Vec<_>>()
             .join("\n\n")
     );

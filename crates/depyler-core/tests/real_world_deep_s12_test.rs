@@ -25,7 +25,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b37_word_frequency() {
-    let code = r##"
+    let code = r#"
 def word_frequency(text: str) -> dict:
     freq = {}
     for word in text.lower().split():
@@ -36,9 +36,9 @@ def word_frequency(text: str) -> dict:
             else:
                 freq[word] = 1
     return freq
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn word_frequency"), "Got: {}", result);
+    assert!(result.contains("fn word_frequency"), "Got: {result}");
 }
 
 #[test]
@@ -52,12 +52,12 @@ def parse_csv(text: str) -> list:
     return rows
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn parse_csv"), "Got: {}", result);
+    assert!(result.contains("fn parse_csv"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b37_moving_average() {
-    let code = r#"
+    let code = r"
 def moving_average(data: list, window: int) -> list:
     result = []
     for i in range(len(data) - window + 1):
@@ -66,14 +66,14 @@ def moving_average(data: list, window: int) -> list:
             total += data[i + j]
         result.append(total / window)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn moving_average"), "Got: {}", result);
+    assert!(result.contains("fn moving_average"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b37_histogram() {
-    let code = r#"
+    let code = r"
 def histogram(data: list, bins: int) -> dict:
     if not data:
         return {}
@@ -89,16 +89,16 @@ def histogram(data: list, bins: int) -> dict:
             idx = bins - 1
         counts[idx] += 1
     return counts
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn histogram"), "Got: {}", result);
+    assert!(result.contains("fn histogram"), "Got: {result}");
 }
 
 // ===== Matrix/vector operations =====
 
 #[test]
 fn test_s12_b37_matrix_multiply() {
-    let code = r#"
+    let code = r"
 def mat_mul(a: list, b: list) -> list:
     rows_a = len(a)
     cols_a = len(a[0])
@@ -113,42 +113,42 @@ def mat_mul(a: list, b: list) -> list:
             row.append(total)
         result.append(row)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn mat_mul"), "Got: {}", result);
+    assert!(result.contains("fn mat_mul"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b37_dot_product() {
-    let code = r#"
+    let code = r"
 def dot(a: list, b: list) -> float:
     total = 0.0
     for i in range(len(a)):
         total += a[i] * b[i]
     return total
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn dot"), "Got: {}", result);
+    assert!(result.contains("fn dot"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b37_vector_magnitude() {
-    let code = r#"
+    let code = r"
 def magnitude(v: list) -> float:
     total = 0.0
     for x in v:
         total += x * x
     return total ** 0.5
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn magnitude"), "Got: {}", result);
+    assert!(result.contains("fn magnitude"), "Got: {result}");
 }
 
 // ===== String processing =====
 
 #[test]
 fn test_s12_b37_tokenizer() {
-    let code = r##"
+    let code = r#"
 def tokenize(text: str) -> list:
     tokens = []
     current = ""
@@ -164,9 +164,9 @@ def tokenize(text: str) -> list:
     if current:
         tokens.append(current)
     return tokens
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn tokenize"), "Got: {}", result);
+    assert!(result.contains("fn tokenize"), "Got: {result}");
 }
 
 #[test]
@@ -191,7 +191,7 @@ def rle_encode(s: str) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn rle_encode"), "Got: {}", result);
+    assert!(result.contains("fn rle_encode"), "Got: {result}");
 }
 
 #[test]
@@ -209,14 +209,14 @@ def lcp(strings: list) -> str:
     return prefix
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn lcp"), "Got: {}", result);
+    assert!(result.contains("fn lcp"), "Got: {result}");
 }
 
 // ===== Complex class patterns =====
 
 #[test]
 fn test_s12_b37_linked_list_class() {
-    let code = r##"
+    let code = r#"
 class Node:
     def __init__(self, val: int):
         self.val = val
@@ -248,14 +248,14 @@ class LinkedList:
 
     def length(self) -> int:
         return self.size
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("LinkedList"), "Got: {}", result);
+    assert!(result.contains("LinkedList"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b37_graph_class() {
-    let code = r##"
+    let code = r"
 class Graph:
     def __init__(self):
         self.adjacency = {}
@@ -277,14 +277,14 @@ class Graph:
 
     def node_count(self) -> int:
         return len(self.adjacency)
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("Graph"), "Got: {}", result);
+    assert!(result.contains("Graph"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b37_priority_queue() {
-    let code = r#"
+    let code = r"
 class MinHeap:
     def __init__(self):
         self.data = []
@@ -305,57 +305,57 @@ class MinHeap:
 
     def size(self) -> int:
         return len(self.data)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("MinHeap"), "Got: {}", result);
+    assert!(result.contains("MinHeap"), "Got: {result}");
 }
 
 // ===== Enumerate and zip patterns =====
 
 #[test]
 fn test_s12_b37_enumerate_dict_build() {
-    let code = r#"
+    let code = r"
 def index_map(items: list) -> dict:
     result = {}
     for i, item in enumerate(items):
         result[item] = i
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn index_map"), "Got: {}", result);
+    assert!(result.contains("fn index_map"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b37_zip_sum() {
-    let code = r#"
+    let code = r"
 def pairwise_sum(a: list, b: list) -> list:
     result = []
     for x, y in zip(a, b):
         result.append(x + y)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn pairwise_sum"), "Got: {}", result);
+    assert!(result.contains("fn pairwise_sum"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b37_zip_dict() {
-    let code = r#"
+    let code = r"
 def make_dict(keys: list, values: list) -> dict:
     result = {}
     for k, v in zip(keys, values):
         result[k] = v
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn make_dict"), "Got: {}", result);
+    assert!(result.contains("fn make_dict"), "Got: {result}");
 }
 
 // ===== Complex algorithm patterns =====
 
 #[test]
 fn test_s12_b37_levenshtein() {
-    let code = r#"
+    let code = r"
 def edit_distance(s1: str, s2: str) -> int:
     m = len(s1)
     n = len(s2)
@@ -377,14 +377,14 @@ def edit_distance(s1: str, s2: str) -> int:
             else:
                 dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
     return dp[m][n]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn edit_distance"), "Got: {}", result);
+    assert!(result.contains("fn edit_distance"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b37_knapsack() {
-    let code = r#"
+    let code = r"
 def knapsack(weights: list, values: list, capacity: int) -> int:
     n = len(weights)
     dp = []
@@ -400,14 +400,14 @@ def knapsack(weights: list, values: list, capacity: int) -> int:
             else:
                 dp[i][w] = dp[i - 1][w]
     return dp[n][capacity]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn knapsack"), "Got: {}", result);
+    assert!(result.contains("fn knapsack"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b37_longest_increasing() {
-    let code = r#"
+    let code = r"
 def lis(arr: list) -> int:
     n = len(arr)
     if n == 0:
@@ -424,16 +424,16 @@ def lis(arr: list) -> int:
         if x > result:
             result = x
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn lis"), "Got: {}", result);
+    assert!(result.contains("fn lis"), "Got: {result}");
 }
 
 // ===== Error handling patterns =====
 
 #[test]
 fn test_s12_b37_retry_pattern() {
-    let code = r#"
+    let code = r"
 def retry_operation(max_attempts: int) -> bool:
     attempts = 0
     while attempts < max_attempts:
@@ -445,14 +445,14 @@ def retry_operation(max_attempts: int) -> bool:
             pass
         attempts += 1
     return False
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn retry_operation"), "Got: {}", result);
+    assert!(result.contains("fn retry_operation"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b37_safe_operations() {
-    let code = r#"
+    let code = r"
 def safe_divide_all(items: list, divisor: int) -> list:
     results = []
     for item in items:
@@ -461,16 +461,16 @@ def safe_divide_all(items: list, divisor: int) -> list:
         except ZeroDivisionError:
             results.append(0)
     return results
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn safe_divide_all"), "Got: {}", result);
+    assert!(result.contains("fn safe_divide_all"), "Got: {result}");
 }
 
 // ===== Decorator patterns =====
 
 #[test]
 fn test_s12_b37_staticmethod() {
-    let code = r#"
+    let code = r"
 class MathUtils:
     @staticmethod
     def add(a: int, b: int) -> int:
@@ -488,31 +488,31 @@ class MathUtils:
         for i in range(2, n + 1):
             result *= i
         return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("MathUtils"), "Got: {}", result);
+    assert!(result.contains("MathUtils"), "Got: {result}");
 }
 
 // ===== Del statement =====
 
 #[test]
 fn test_s12_b37_del_dict_key() {
-    let code = r#"
+    let code = r"
 def remove_entries(d: dict, keys: list) -> dict:
     for key in keys:
         if key in d:
             del d[key]
     return d
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn remove_entries"), "Got: {}", result);
+    assert!(result.contains("fn remove_entries"), "Got: {result}");
 }
 
 // ===== Pass statement =====
 
 #[test]
 fn test_s12_b37_abstract_class() {
-    let code = r#"
+    let code = r"
 class Shape:
     def area(self) -> float:
         pass
@@ -530,8 +530,8 @@ class Rectangle(Shape):
 
     def perimeter(self) -> float:
         return 2.0 * (self.width + self.height)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Shape"), "Got: {}", result);
-    assert!(result.contains("Rectangle"), "Got: {}", result);
+    assert!(result.contains("Shape"), "Got: {result}");
+    assert!(result.contains("Rectangle"), "Got: {result}");
 }

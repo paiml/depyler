@@ -1,13 +1,13 @@
-//! Targeted coverage tests for codegen_raise_stmt function
+//! Targeted coverage tests for `codegen_raise_stmt` function
 //!
-//! Target: codegen_raise_stmt (lines 308-345, complexity 13)
-//! Coverage focus: Exception handling, scope tracking, Box::new() wrapping
+//! Target: `codegen_raise_stmt` (lines 308-345, complexity 13)
+//! Coverage focus: Exception handling, scope tracking, `Box::new()` wrapping
 //!
 //! Test Strategy:
 //! - Raise in can-fail functions (return Err)
 //! - Raise in non-can-fail functions (panic!)
 //! - Raise within try/except blocks (DEPYLER-0333)
-//! - Box::new() wrapping (DEPYLER-0310)
+//! - `Box::new()` wrapping (DEPYLER-0310)
 //! - Bare raise (no exception specified)
 //! - Different exception types
 
@@ -15,7 +15,7 @@ use depyler_core::DepylerPipeline;
 
 /// Unit Test: Simple raise in can-fail function
 ///
-/// Verifies: return Err() generation (lines 324-336)
+/// Verifies: return `Err()` generation (lines 324-336)
 #[test]
 fn test_raise_in_can_fail_function() {
     let pipeline = DepylerPipeline::new();
@@ -278,12 +278,11 @@ fn test_property_raise_patterns() {
 
     for (name, raise_stmt) in test_cases {
         let python_code = format!(
-            r#"
-def test_{}(x: int, items: list[int]) -> int:
-    {}
+            r"
+def test_{name}(x: int, items: list[int]) -> int:
+    {raise_stmt}
     return x
-"#,
-            name, raise_stmt
+"
         );
         let result = pipeline.transpile(&python_code);
 

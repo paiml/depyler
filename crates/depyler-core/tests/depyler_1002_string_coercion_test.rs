@@ -4,17 +4,17 @@
 //! string literals passed to that function should NOT get `.to_string()` added.
 //!
 //! Python:
-//!   def parse_int_safe(s: str) -> int:
+//!   def `parse_int_safe(s`: str) -> int:
 //!       ...
-//!   result = parse_int_safe("42")
+//!   result = `parse_int_safe("42`")
 //!
 //! Correct Rust:
-//!   pub fn parse_int_safe(s: &str) -> i64 { ... }
-//!   let result = parse_int_safe("42");
+//!   pub fn `parse_int_safe(s`: &str) -> i64 { ... }
+//!   let result = `parse_int_safe("42`");
 //!
 //! Wrong Rust:
-//!   pub fn parse_int_safe(s: &str) -> i64 { ... }
-//!   let result = parse_int_safe("42".to_string());  // ERROR: expected &str, found String
+//!   pub fn `parse_int_safe(s`: &str) -> i64 { ... }
+//!   let result = `parse_int_safe("42".to_string())`;  // ERROR: expected &str, found String
 
 use depyler_core::DepylerPipeline;
 
@@ -44,15 +44,13 @@ def main():
     // Wrong: parse_int_safe("42".to_string())
     assert!(
         rust.contains(r#"parse_int_safe("42")"#),
-        "String literal passed to &str param should not have .to_string(): {}",
-        rust
+        "String literal passed to &str param should not have .to_string(): {rust}"
     );
 
     // Make sure the wrong pattern is NOT present
     assert!(
         !rust.contains(r#"parse_int_safe("42".to_string())"#),
-        "Should not add .to_string() to string literal for &str param: {}",
-        rust
+        "Should not add .to_string() to string literal for &str param: {rust}"
     );
 }
 
@@ -72,13 +70,11 @@ def main():
     // Both string literals should not have .to_string()
     assert!(
         rust.contains(r#"concat("hello""#) || rust.contains(r#"concat ( "hello""#),
-        "First string literal should not have .to_string(): {}",
-        rust
+        "First string literal should not have .to_string(): {rust}"
     );
     assert!(
         rust.contains(r#""world")"#) || rust.contains(r#""world" )"#),
-        "Second string literal should not have .to_string(): {}",
-        rust
+        "Second string literal should not have .to_string(): {rust}"
     );
 }
 
@@ -98,7 +94,6 @@ def main():
     // String literal should not have .to_string()
     assert!(
         rust.contains(r#"format_number("count""#) || rust.contains(r#"format_number ( "count""#),
-        "String literal should not have .to_string(): {}",
-        rust
+        "String literal should not have .to_string(): {rust}"
     );
 }

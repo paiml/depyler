@@ -1,5 +1,5 @@
-//! EXTREME TDD: Tests for direct_rules_convert statement functions
-//! Coverage: convert_stmt, convert_stmt_with_mutable_vars, convert_stmt_with_context
+//! EXTREME TDD: Tests for `direct_rules_convert` statement functions
+//! Coverage: `convert_stmt`, `convert_stmt_with_mutable_vars`, `convert_stmt_with_context`
 
 use depyler_core::DepylerPipeline;
 
@@ -50,11 +50,11 @@ fn test_return_expression() {
 
 #[test]
 fn test_return_variable() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     y = x * 2
     return y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -82,24 +82,24 @@ fn test_return_tuple() {
 
 #[test]
 fn test_if_simple() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     if x > 0:
         return x
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_if_else() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     if x > 0:
         return x
     else:
         return -x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -137,7 +137,7 @@ def grade(score: int) -> str:
 
 #[test]
 fn test_if_nested() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: int) -> int:
     if x > 0:
         if y > 0:
@@ -146,40 +146,40 @@ def f(x: int, y: int) -> int:
             return 2
     else:
         return 3
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_if_with_and() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: int) -> bool:
     if x > 0 and y > 0:
         return True
     return False
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_if_with_or() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: int) -> bool:
     if x > 0 or y > 0:
         return True
     return False
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_if_with_not() {
-    let code = r#"
+    let code = r"
 def f(x: bool) -> bool:
     if not x:
         return True
     return False
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -187,17 +187,17 @@ def f(x: bool) -> bool:
 
 #[test]
 fn test_while_simple() {
-    let code = r#"
+    let code = r"
 def countdown(n: int) -> None:
     while n > 0:
         n = n - 1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_while_with_accumulator() {
-    let code = r#"
+    let code = r"
 def sum_to(n: int) -> int:
     total = 0
     i = 1
@@ -205,13 +205,13 @@ def sum_to(n: int) -> int:
         total = total + i
         i = i + 1
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_while_with_break() {
-    let code = r#"
+    let code = r"
 def find_first_negative(items: list) -> int:
     i = 0
     while i < len(items):
@@ -219,13 +219,13 @@ def find_first_negative(items: list) -> int:
             break
         i = i + 1
     return i
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_while_with_continue() {
-    let code = r#"
+    let code = r"
 def sum_positive(items: list) -> int:
     total = 0
     i = 0
@@ -236,20 +236,20 @@ def sum_positive(items: list) -> int:
         total = total + items[i]
         i = i + 1
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_while_true() {
-    let code = r#"
+    let code = r"
 def infinite_until_break(x: int) -> int:
     while True:
         if x > 100:
             break
         x = x + 1
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -257,80 +257,80 @@ def infinite_until_break(x: int) -> int:
 
 #[test]
 fn test_for_over_list() {
-    let code = r#"
+    let code = r"
 def sum_list(items: list) -> int:
     total = 0
     for item in items:
         total = total + item
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_for_over_range() {
-    let code = r#"
+    let code = r"
 def sum_range(n: int) -> int:
     total = 0
     for i in range(n):
         total = total + i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_for_over_string() {
-    let code = r#"
+    let code = r"
 def count_chars(s: str) -> int:
     count = 0
     for c in s:
         count = count + 1
     return count
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_for_with_enumerate() {
-    let code = r#"
+    let code = r"
 def indexed_sum(items: list) -> int:
     total = 0
     for i, item in enumerate(items):
         total = total + i + item
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_for_nested() {
-    let code = r#"
+    let code = r"
 def matrix_sum(matrix: list) -> int:
     total = 0
     for row in matrix:
         for cell in row:
             total = total + cell
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_for_with_break() {
-    let code = r#"
+    let code = r"
 def find_first(items: list, target: int) -> int:
     for i, item in enumerate(items):
         if item == target:
             return i
     return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_for_with_continue() {
-    let code = r#"
+    let code = r"
 def filter_positive(items: list) -> list:
     result = []
     for item in items:
@@ -338,7 +338,7 @@ def filter_positive(items: list) -> list:
             continue
         result.append(item)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -351,25 +351,25 @@ fn test_pass_in_function() {
 
 #[test]
 fn test_pass_in_if() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     if x > 0:
         pass
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_pass_in_else() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     if x > 0:
         return x
     else:
         pass
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -377,19 +377,19 @@ def f(x: int) -> int:
 
 #[test]
 fn test_expr_stmt_call() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> None:
     items.append(1)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_expr_stmt_method_chain() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> None:
     s.upper().strip()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -397,11 +397,11 @@ def f(s: str) -> None:
 
 #[test]
 fn test_assert_simple() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     assert x > 0
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -441,19 +441,19 @@ def f() -> None:
 
 #[test]
 fn test_try_except_simple() {
-    let code = r#"
+    let code = r"
 def safe_div(a: int, b: int) -> int:
     try:
         return a // b
     except:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_try_except_finally() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     x = 0
     try:
@@ -463,7 +463,7 @@ def f() -> int:
     finally:
         pass
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -471,7 +471,7 @@ def f() -> int:
 
 #[test]
 fn test_combined_control_flow() {
-    let code = r#"
+    let code = r"
 def process(items: list, threshold: int) -> int:
     result = 0
     for item in items:
@@ -483,13 +483,13 @@ def process(items: list, threshold: int) -> int:
             result = result + 1
             item = item - 1
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_nested_everything() {
-    let code = r#"
+    let code = r"
 def complex_fn(data: list, limit: int) -> int:
     total = 0
     for row in data:
@@ -501,6 +501,6 @@ def complex_fn(data: list, limit: int) -> int:
                     if total >= limit:
                         break
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }

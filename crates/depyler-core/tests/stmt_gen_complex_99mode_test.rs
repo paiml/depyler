@@ -1,6 +1,6 @@
-//! Coverage tests for stmt_gen_complex.rs
+//! Coverage tests for `stmt_gen_complex.rs`
 //!
-//! DEPYLER-99MODE-001: Targets stmt_gen_complex.rs (44.37% -> 65%+)
+//! DEPYLER-99MODE-001: Targets `stmt_gen_complex.rs` (44.37% -> 65%+)
 //! Covers: try/except variable hoisting, JSON stdin patterns,
 //! nested function closures, capture detection, subcommand fields.
 
@@ -21,14 +21,14 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_try_except_var_hoist_int() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> int:
     try:
         value = int(s)
     except ValueError:
         value = 0
     return value
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -60,32 +60,32 @@ def f(data: str) -> list:
 
 #[test]
 fn test_try_except_simple_return_pattern() {
-    let code = r#"
+    let code = r"
 def safe_int(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_try_except_with_named_exception() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     try:
         x = int(s)
         return str(x)
     except ValueError as e:
         return str(e)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_try_except_multiple_handlers() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> int:
     try:
         return int(s)
@@ -95,7 +95,7 @@ def f(s: str) -> int:
         return -2
     except Exception:
         return -99
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -117,7 +117,7 @@ def f(s: str) -> int:
 
 #[test]
 fn test_try_except_else() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     try:
         result = 100 // x
@@ -126,7 +126,7 @@ def f(x: int) -> int:
     else:
         result = result * 2
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -150,31 +150,31 @@ def f(s: str) -> int:
 
 #[test]
 fn test_try_bare_except() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> int:
     try:
         return int(s)
     except:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_try_floor_div_zero() {
-    let code = r#"
+    let code = r"
 def safe_div(a: int, b: int) -> int:
     try:
         return a // b
     except ZeroDivisionError:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_try_nested() {
-    let code = r#"
+    let code = r"
 def f(a: str, b: str) -> int:
     try:
         x = int(a)
@@ -185,13 +185,13 @@ def f(a: str, b: str) -> int:
         return x + y
     except ValueError:
         return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_try_with_complex_body() {
-    let code = r#"
+    let code = r"
 def process(items: list) -> int:
     total = 0
     for item in items:
@@ -200,7 +200,7 @@ def process(items: list) -> int:
         except ValueError:
             continue
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -210,42 +210,42 @@ def process(items: list) -> int:
 
 #[test]
 fn test_json_load_stdin() {
-    let code = r#"
+    let code = r"
 import json
 import sys
 
 def f() -> dict:
     data = json.load(sys.stdin)
     return data
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_json_loads_input() {
-    let code = r#"
+    let code = r"
 import json
 
 def f(text: str) -> dict:
     return json.loads(text)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_json_dumps() {
-    let code = r#"
+    let code = r"
 import json
 
 def f(data: dict) -> str:
     return json.dumps(data)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_try_json_parse_with_error() {
-    let code = r#"
+    let code = r"
 import json
 
 def f(text: str) -> dict:
@@ -253,7 +253,7 @@ def f(text: str) -> dict:
         return json.loads(text)
     except Exception:
         return {}
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -263,12 +263,12 @@ def f(text: str) -> dict:
 
 #[test]
 fn test_nested_fn_int_param() {
-    let code = r#"
+    let code = r"
 def outer(x: int) -> int:
     def inner(y: int) -> int:
         return x + y
     return inner(10)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -285,7 +285,7 @@ def outer(prefix: str) -> str:
 
 #[test]
 fn test_nested_fn_list_param() {
-    let code = r#"
+    let code = r"
 def outer(items: list) -> int:
     def count_positive(data: list) -> int:
         total = 0
@@ -294,7 +294,7 @@ def outer(items: list) -> int:
                 total += 1
         return total
     return count_positive(items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -311,7 +311,7 @@ def outer(config: dict) -> str:
 
 #[test]
 fn test_nested_fn_multiple_captures() {
-    let code = r#"
+    let code = r"
 def outer(low: int, high: int) -> int:
     def clamp(x: int) -> int:
         if x < low:
@@ -320,66 +320,66 @@ def outer(low: int, high: int) -> int:
             return high
         return x
     return clamp(50)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_nested_fn_no_capture() {
-    let code = r#"
+    let code = r"
 def outer() -> int:
     def add(a: int, b: int) -> int:
         return a + b
     return add(3, 4)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_nested_fn_recursive() {
-    let code = r#"
+    let code = r"
 def outer(n: int) -> int:
     def factorial(x: int) -> int:
         if x <= 1:
             return 1
         return x * factorial(x - 1)
     return factorial(n)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_sibling_nested_fns() {
-    let code = r#"
+    let code = r"
 def outer(x: int) -> int:
     def double(n: int) -> int:
         return n * 2
     def triple(n: int) -> int:
         return n * 3
     return double(x) + triple(x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_nested_fn_returns_closure() {
-    let code = r#"
+    let code = r"
 def make_adder(n: int):
     def add(x: int) -> int:
         return x + n
     return add
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_nested_fn_with_default() {
-    let code = r#"
+    let code = r"
 def outer() -> int:
     def inner(x: int = 10) -> int:
         return x * 2
     return inner()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -389,42 +389,42 @@ def outer() -> int:
 
 #[test]
 fn test_capture_in_binary_expr() {
-    let code = r#"
+    let code = r"
 def outer(multiplier: int) -> int:
     def compute(x: int) -> int:
         return x * multiplier + 1
     return compute(5)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_capture_in_if_condition() {
-    let code = r#"
+    let code = r"
 def outer(threshold: int) -> int:
     def check(x: int) -> bool:
         return x > threshold
     if check(10):
         return 1
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_capture_in_list_comprehension() {
-    let code = r#"
+    let code = r"
 def outer(factor: int) -> list:
     def scale(items: list) -> list:
         return [x * factor for x in items]
     return scale([1, 2, 3])
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_capture_in_for_loop() {
-    let code = r#"
+    let code = r"
 def outer(offset: int) -> int:
     def sum_offset(items: list) -> int:
         total = 0
@@ -432,13 +432,13 @@ def outer(offset: int) -> int:
             total += item + offset
         return total
     return sum_offset([1, 2, 3])
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_capture_in_while_loop() {
-    let code = r#"
+    let code = r"
 def outer(limit: int) -> int:
     def count_to_limit() -> int:
         n = 0
@@ -446,31 +446,31 @@ def outer(limit: int) -> int:
             n += 1
         return n
     return count_to_limit()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_capture_multiple_vars() {
-    let code = r#"
+    let code = r"
 def outer(a: int, b: int, c: int) -> int:
     def compute(x: int) -> int:
         return a * x * x + b * x + c
     return compute(5)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_no_capture_local_only() {
-    let code = r#"
+    let code = r"
 def outer() -> int:
     def inner() -> int:
         x = 10
         y = 20
         return x + y
     return inner()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -480,14 +480,14 @@ def outer() -> int:
 
 #[test]
 fn test_vars_in_for_loop() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     total = 0
     for i in range(10):
         temp = i * 2
         total += temp
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -508,7 +508,7 @@ def f(x: int) -> str:
 
 #[test]
 fn test_vars_in_while() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     count = 0
     n = 100
@@ -516,13 +516,13 @@ def f() -> int:
         n = n // 2
         count += 1
     return count
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_vars_in_try_except() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     result = 0
     for item in items:
@@ -532,24 +532,24 @@ def f(items: list) -> int:
         except ValueError:
             error_count = 1
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_vars_in_with() {
-    let code = r#"
+    let code = r"
 def f(path: str) -> str:
     with open(path) as file:
         content = file.read()
     return content
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_vars_in_nested_loops() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     for i in range(n):
@@ -557,7 +557,7 @@ def f(n: int) -> int:
             product = i * j
             total += product
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -567,13 +567,13 @@ def f(n: int) -> int:
 
 #[test]
 fn test_try_index_error() {
-    let code = r#"
+    let code = r"
 def safe_get(items: list, idx: int) -> int:
     try:
         return items[idx]
     except IndexError:
         return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -603,13 +603,13 @@ def safe_method(obj: str) -> str:
 
 #[test]
 fn test_try_type_error() {
-    let code = r#"
+    let code = r"
 def safe_add(a: int, b: int) -> int:
     try:
         return a + b
     except TypeError:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -645,13 +645,13 @@ def safe_open(path: str) -> str:
 
 #[test]
 fn test_re_raise() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     try:
         return 100 // x
     except ZeroDivisionError:
         raise
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -673,7 +673,7 @@ def f(x: int) -> int:
 
 #[test]
 fn test_try_in_for_loop() {
-    let code = r#"
+    let code = r"
 def parse_numbers(items: list) -> list:
     result = []
     for item in items:
@@ -682,13 +682,13 @@ def parse_numbers(items: list) -> list:
         except ValueError:
             pass
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_nested_try_except() {
-    let code = r#"
+    let code = r"
 def f(a: str, b: str) -> int:
     try:
         x = int(a)
@@ -699,13 +699,13 @@ def f(a: str, b: str) -> int:
     except ValueError:
         y = 0
     return x + y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_try_with_list_operations() {
-    let code = r#"
+    let code = r"
 def safe_process(data: list) -> list:
     results = []
     try:
@@ -714,13 +714,13 @@ def safe_process(data: list) -> list:
     except Exception:
         results = []
     return results
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_try_with_dict_operations() {
-    let code = r#"
+    let code = r"
 def merge_configs(base: dict, override: dict) -> dict:
     result = base.copy()
     try:
@@ -728,7 +728,7 @@ def merge_configs(base: dict, override: dict) -> dict:
     except Exception:
         pass
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -799,11 +799,11 @@ def main():
 
 #[test]
 fn test_with_open_read() {
-    let code = r#"
+    let code = r"
 def read_file(path: str) -> str:
     with open(path) as f:
         return f.read()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -819,12 +819,12 @@ def write_file(path: str, content: str):
 
 #[test]
 fn test_with_open_readlines() {
-    let code = r#"
+    let code = r"
 def count_lines(path: str) -> int:
     with open(path) as f:
         lines = f.readlines()
     return len(lines)
-"#;
+";
     assert!(transpile_ok(code));
 }
 

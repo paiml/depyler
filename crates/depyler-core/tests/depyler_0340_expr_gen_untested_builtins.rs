@@ -1,16 +1,16 @@
-//! DEPYLER-0340: expr_gen.rs Untested Builtin Functions Coverage
+//! DEPYLER-0340: `expr_gen.rs` Untested Builtin Functions Coverage
 //!
 //! **EXTREME TDD Protocol - Coverage Boost**
 //!
-//! Target: expr_gen.rs 38.97% → 85%+ coverage
+//! Target: `expr_gen.rs` 38.97% → 85%+ coverage
 //! TDG Score: 74.7/100 (B-) - High priority for quality improvement
 //!
 //! This test suite adds coverage for untested builtin function conversions:
-//! - divmod(), chr(), ord(), hex(), bin(), oct()
-//! - hash(), repr(), next(), getattr()
-//! - iter(), type(), frozenset()
-//! - reversed(), enumerate() edge cases
-//! - range() with negative/positive steps
+//! - `divmod()`, `chr()`, `ord()`, `hex()`, `bin()`, `oct()`
+//! - `hash()`, `repr()`, `next()`, `getattr()`
+//! - `iter()`, `type()`, `frozenset()`
+//! - `reversed()`, `enumerate()` edge cases
+//! - `range()` with negative/positive steps
 
 #![allow(non_snake_case)]
 
@@ -23,18 +23,18 @@ use depyler_core::DepylerPipeline;
 #[test]
 fn test_divmod_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_divmod(a: int, b: int):
     quotient, remainder = divmod(a, b)
     return quotient
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated divmod code:\n{}", rust_code);
+    println!("Generated divmod code:\n{rust_code}");
 
     // divmod(a, b) should generate tuple (a / b, a % b) or dedicated logic
     assert!(
-        rust_code.contains("divmod") || (rust_code.contains("/") && rust_code.contains("%")),
+        rust_code.contains("divmod") || (rust_code.contains('/') && rust_code.contains('%')),
         "divmod() should generate division and modulo operations"
     );
 }
@@ -42,13 +42,13 @@ def test_divmod(a: int, b: int):
 #[test]
 fn test_pow_builtin_with_modulo() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_pow(base: int, exp: int, modulo: int) -> int:
     return pow(base, exp, modulo)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated pow with modulo code:\n{}", rust_code);
+    println!("Generated pow with modulo code:\n{rust_code}");
 
     // pow(base, exp, mod) should use modular exponentiation
     assert!(
@@ -64,13 +64,13 @@ def test_pow(base: int, exp: int, modulo: int) -> int:
 #[test]
 fn test_hex_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_hex(num: int) -> str:
     return hex(num)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated hex() code:\n{}", rust_code);
+    println!("Generated hex() code:\n{rust_code}");
 
     // hex(n) should generate format!("0x{:x}", n) or similar
     assert!(
@@ -82,13 +82,13 @@ def test_hex(num: int) -> str:
 #[test]
 fn test_bin_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_bin(num: int) -> str:
     return bin(num)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated bin() code:\n{}", rust_code);
+    println!("Generated bin() code:\n{rust_code}");
 
     // bin(n) should generate format!("0b{:b}", n) or similar
     assert!(
@@ -100,13 +100,13 @@ def test_bin(num: int) -> str:
 #[test]
 fn test_oct_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_oct(num: int) -> str:
     return oct(num)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated oct() code:\n{}", rust_code);
+    println!("Generated oct() code:\n{rust_code}");
 
     // oct(n) should generate format!("0o{:o}", n) or similar
     assert!(
@@ -118,13 +118,13 @@ def test_oct(num: int) -> str:
 #[test]
 fn test_chr_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_chr(code: int) -> str:
     return chr(code)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated chr() code:\n{}", rust_code);
+    println!("Generated chr() code:\n{rust_code}");
 
     // chr(n) should generate char::from_u32() or from_u32_unchecked()
     assert!(
@@ -136,13 +136,13 @@ def test_chr(code: int) -> str:
 #[test]
 fn test_ord_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_ord(c: str) -> int:
     return ord(c)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated ord() code:\n{}", rust_code);
+    println!("Generated ord() code:\n{rust_code}");
 
     // ord(c) should generate char as u32 or similar
     assert!(
@@ -158,13 +158,13 @@ def test_ord(c: str) -> int:
 #[test]
 fn test_hash_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_hash(obj: int) -> int:
     return hash(obj)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated hash() code:\n{}", rust_code);
+    println!("Generated hash() code:\n{rust_code}");
 
     // hash(obj) should generate hasher or hash computation
     assert!(
@@ -176,13 +176,13 @@ def test_hash(obj: int) -> int:
 #[test]
 fn test_repr_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_repr(obj: int) -> str:
     return repr(obj)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated repr() code:\n{}", rust_code);
+    println!("Generated repr() code:\n{rust_code}");
 
     // repr(obj) should generate format!("{:?}", obj) or Debug trait
     assert!(
@@ -194,13 +194,13 @@ def test_repr(obj: int) -> str:
 #[test]
 fn test_type_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_type(obj: int) -> str:
     return type(obj).__name__
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated type() code:\n{}", rust_code);
+    println!("Generated type() code:\n{rust_code}");
 
     // type(obj) should generate type_name or similar introspection
     assert!(
@@ -213,17 +213,17 @@ def test_type(obj: int) -> str:
 #[ignore = "getattr() not yet implemented - requires runtime reflection"]
 fn test_getattr_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 class Point:
     x: int
     y: int
 
 def test_getattr(p: Point, attr: str):
     return getattr(p, attr, 0)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated getattr() code:\n{}", rust_code);
+    println!("Generated getattr() code:\n{rust_code}");
 
     // getattr(obj, name, default) should generate field access or match
     assert!(
@@ -239,14 +239,14 @@ def test_getattr(p: Point, attr: str):
 #[test]
 fn test_next_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_next(items: list):
     it = iter(items)
     return next(it)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated next() code:\n{}", rust_code);
+    println!("Generated next() code:\n{rust_code}");
 
     // next(iter) should generate .next() method call
     assert!(rust_code.contains(".next("), "next() should generate iterator .next() call");
@@ -255,14 +255,14 @@ def test_next(items: list):
 #[test]
 fn test_next_builtin_with_default() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_next(items: list):
     it = iter(items)
     return next(it, -1)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated next() with default code:\n{}", rust_code);
+    println!("Generated next() with default code:\n{rust_code}");
 
     // next(iter, default) should generate .next().unwrap_or(default)
     assert!(
@@ -274,13 +274,13 @@ def test_next(items: list):
 #[test]
 fn test_iter_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_iter(items: list):
     return iter(items)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated iter() code:\n{}", rust_code);
+    println!("Generated iter() code:\n{rust_code}");
 
     // iter(obj) should generate .iter() or .into_iter()
     assert!(
@@ -292,13 +292,13 @@ def test_iter(items: list):
 #[test]
 fn test_reversed_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_reversed(items: list):
     return reversed(items)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated reversed() code:\n{}", rust_code);
+    println!("Generated reversed() code:\n{rust_code}");
 
     // reversed(seq) should generate .iter().rev() or .reverse()
     assert!(
@@ -311,14 +311,14 @@ def test_reversed(items: list):
 #[ignore = "enumerate(start=N) not yet implemented"]
 fn test_enumerate_with_start() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_enumerate(items: list):
     for idx, val in enumerate(items, start=10):
         print(idx, val)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated enumerate(start=10) code:\n{}", rust_code);
+    println!("Generated enumerate(start=10) code:\n{rust_code}");
 
     // enumerate(iter, start=10) should generate .enumerate() with offset
     assert!(
@@ -334,13 +334,13 @@ def test_enumerate(items: list):
 #[test]
 fn test_frozenset_builtin() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_frozenset(items: list):
     return frozenset(items)
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated frozenset() code:\n{}", rust_code);
+    println!("Generated frozenset() code:\n{rust_code}");
 
     // frozenset(iter) should generate HashSet (immutable in Rust by default)
     assert!(
@@ -352,13 +352,13 @@ def test_frozenset(items: list):
 #[test]
 fn test_frozenset_literal() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_frozenset():
     return frozenset({1, 2, 3})
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated frozenset literal code:\n{}", rust_code);
+    println!("Generated frozenset literal code:\n{rust_code}");
 
     // frozenset({...}) should generate HashSet
     assert!(rust_code.contains("HashSet"), "frozenset literal should generate HashSet");
@@ -371,13 +371,13 @@ def test_frozenset():
 #[test]
 fn test_range_negative_step() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_range():
     return list(range(10, 0, -1))
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated range(10, 0, -1) code:\n{}", rust_code);
+    println!("Generated range(10, 0, -1) code:\n{rust_code}");
 
     // range(start, stop, -step) should generate reverse iteration
     assert!(
@@ -389,13 +389,13 @@ def test_range():
 #[test]
 fn test_range_positive_step() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_range():
     return list(range(0, 20, 2))
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated range(0, 20, 2) code:\n{}", rust_code);
+    println!("Generated range(0, 20, 2) code:\n{rust_code}");
 
     // range(start, stop, step) should generate .step_by(step)
     assert!(rust_code.contains("step_by("), "range(0, 20, 2) should generate .step_by()");
@@ -404,13 +404,13 @@ def test_range():
 #[test]
 fn test_range_single_arg() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def test_range():
     return list(range(5))
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated range(5) code:\n{}", rust_code);
+    println!("Generated range(5) code:\n{rust_code}");
 
     // range(n) should generate (0..n)
     assert!(
@@ -433,8 +433,7 @@ mod property_tests {
         fn prop_hex_transpiles_without_panic(num in -1000i32..1000i32) {
             let pipeline = DepylerPipeline::new();
             let python_code = format!(
-                "def test_hex() -> str:\n    return hex({})",
-                num
+                "def test_hex() -> str:\n    return hex({num})"
             );
 
             // Should not panic, even if transpilation fails
@@ -445,8 +444,7 @@ mod property_tests {
         fn prop_chr_transpiles_without_panic(code in 0u32..128) {
             let pipeline = DepylerPipeline::new();
             let python_code = format!(
-                "def test_chr() -> str:\n    return chr({})",
-                code
+                "def test_chr() -> str:\n    return chr({code})"
             );
 
             let _result = pipeline.transpile(&python_code);
@@ -459,8 +457,7 @@ mod property_tests {
         ) {
             let pipeline = DepylerPipeline::new();
             let python_code = format!(
-                "def test_range():\n    return list(range({}, {}))",
-                start, stop
+                "def test_range():\n    return list(range({start}, {stop}))"
             );
 
             let _result = pipeline.transpile(&python_code);

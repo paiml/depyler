@@ -19,7 +19,7 @@ use depyler_core::DepylerPipeline;
 
 #[test]
 fn test_simple_property_getter() {
-    let python = r#"
+    let python = r"
 class Person:
     def __init__(self, name: str):
         self.name = name
@@ -27,7 +27,7 @@ class Person:
     @property
     def display_name(self):
         return self.name
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -35,22 +35,21 @@ class Person:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("struct Person"), "Should have Person struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Person"), "Should have Person struct.\nGot:\n{rust_code}");
 
     assert!(
         rust_code.contains("fn display_name"),
-        "Should have display_name function.\nGot:\n{}",
-        rust_code
+        "Should have display_name function.\nGot:\n{rust_code}"
     );
 
     // Should have &self parameter (it's a getter)
     let has_self = rust_code.contains("&self") || rust_code.contains("& self");
-    assert!(has_self, "Property should have &self parameter.\nGot:\n{}", rust_code);
+    assert!(has_self, "Property should have &self parameter.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_property_with_computation() {
-    let python = r#"
+    let python = r"
 class Rectangle:
     def __init__(self, width: int, height: int):
         self.width = width
@@ -59,7 +58,7 @@ class Rectangle:
     @property
     def area(self) -> int:
         return self.width * self.height
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -67,15 +66,15 @@ class Rectangle:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("fn area"), "Should have area function.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("fn area"), "Should have area function.\nGot:\n{rust_code}");
 
     // Should have computation (width * height)
     let has_computation = rust_code.contains("width") && rust_code.contains("height");
-    assert!(has_computation, "Should have computation.\nGot:\n{}", rust_code);
+    assert!(has_computation, "Should have computation.\nGot:\n{rust_code}");
 
     // Should have &self
     let has_self = rust_code.contains("&self") || rust_code.contains("& self");
-    assert!(has_self, "Property should have &self.\nGot:\n{}", rust_code);
+    assert!(has_self, "Property should have &self.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -99,18 +98,17 @@ class Person:
 
     assert!(
         rust_code.contains("fn full_name"),
-        "Should have full_name function.\nGot:\n{}",
-        rust_code
+        "Should have full_name function.\nGot:\n{rust_code}"
     );
 
     // Should access self.first and self.last
     let accesses_fields = rust_code.contains("first") && rust_code.contains("last");
-    assert!(accesses_fields, "Should access instance fields.\nGot:\n{}", rust_code);
+    assert!(accesses_fields, "Should access instance fields.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_property_accessing_class_constants() {
-    let python = r#"
+    let python = r"
 class Circle:
     PI: float = 3.14159
 
@@ -120,7 +118,7 @@ class Circle:
     @property
     def circumference(self) -> float:
         return 2 * Circle.PI * self.radius
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -130,16 +128,15 @@ class Circle:
 
     assert!(
         rust_code.contains("fn circumference"),
-        "Should have circumference function.\nGot:\n{}",
-        rust_code
+        "Should have circumference function.\nGot:\n{rust_code}"
     );
 
     // Should reference PI constant
     let has_pi = rust_code.contains("PI") || rust_code.contains("pi");
-    assert!(has_pi, "Should reference PI constant.\nGot:\n{}", rust_code);
+    assert!(has_pi, "Should reference PI constant.\nGot:\n{rust_code}");
 
     // Should reference radius
-    assert!(rust_code.contains("radius"), "Should reference radius.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("radius"), "Should reference radius.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -173,26 +170,20 @@ class Person:
     // Should have all three properties
     assert!(
         rust_code.contains("fn full_name"),
-        "Should have full_name property.\nGot:\n{}",
-        rust_code
+        "Should have full_name property.\nGot:\n{rust_code}"
     );
 
-    assert!(
-        rust_code.contains("fn is_adult"),
-        "Should have is_adult property.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn is_adult"), "Should have is_adult property.\nGot:\n{rust_code}");
 
     assert!(
         rust_code.contains("fn display_info"),
-        "Should have display_info property.\nGot:\n{}",
-        rust_code
+        "Should have display_info property.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_property_calling_another_method() {
-    let python = r#"
+    let python = r"
 class Calculator:
     def __init__(self, value: int):
         self.value = value
@@ -203,7 +194,7 @@ class Calculator:
     @property
     def doubled_value(self) -> int:
         return self.double()
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -211,22 +202,21 @@ class Calculator:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("fn double"), "Should have double method.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("fn double"), "Should have double method.\nGot:\n{rust_code}");
 
     assert!(
         rust_code.contains("fn doubled_value"),
-        "Should have doubled_value property.\nGot:\n{}",
-        rust_code
+        "Should have doubled_value property.\nGot:\n{rust_code}"
     );
 
     // Should call double method
     let calls_double = rust_code.contains("double");
-    assert!(calls_double, "Should call double method.\nGot:\n{}", rust_code);
+    assert!(calls_double, "Should call double method.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_property_with_type_annotation() {
-    let python = r#"
+    let python = r"
 class Counter:
     def __init__(self, count: int):
         self.count = count
@@ -234,7 +224,7 @@ class Counter:
     @property
     def is_even(self) -> bool:
         return self.count % 2 == 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -242,11 +232,11 @@ class Counter:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("fn is_even"), "Should have is_even property.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("fn is_even"), "Should have is_even property.\nGot:\n{rust_code}");
 
     // Should have bool return type
     let has_bool_return = rust_code.contains("-> bool") || rust_code.contains("bool");
-    assert!(has_bool_return, "Should have bool return type.\nGot:\n{}", rust_code);
+    assert!(has_bool_return, "Should have bool return type.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -280,25 +270,23 @@ class Account:
     // Should have properties
     assert!(
         rust_code.contains("fn formatted_balance"),
-        "Should have formatted_balance property.\nGot:\n{}",
-        rust_code
+        "Should have formatted_balance property.\nGot:\n{rust_code}"
     );
 
     assert!(
         rust_code.contains("fn is_positive"),
-        "Should have is_positive property.\nGot:\n{}",
-        rust_code
+        "Should have is_positive property.\nGot:\n{rust_code}"
     );
 
     // Should have regular methods
-    assert!(rust_code.contains("fn deposit"), "Should have deposit method.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("fn deposit"), "Should have deposit method.\nGot:\n{rust_code}");
 
-    assert!(rust_code.contains("fn withdraw"), "Should have withdraw method.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("fn withdraw"), "Should have withdraw method.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_property_returning_different_types() {
-    let python = r#"
+    let python = r"
 class DataHolder:
     def __init__(self, value: int):
         self.value = value
@@ -314,7 +302,7 @@ class DataHolder:
     @property
     def as_float(self) -> float:
         return float(self.value)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -322,15 +310,11 @@ class DataHolder:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("fn as_int"), "Should have as_int property.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("fn as_int"), "Should have as_int property.\nGot:\n{rust_code}");
 
-    assert!(rust_code.contains("fn as_str"), "Should have as_str property.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("fn as_str"), "Should have as_str property.\nGot:\n{rust_code}");
 
-    assert!(
-        rust_code.contains("fn as_float"),
-        "Should have as_float property.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn as_float"), "Should have as_float property.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -359,15 +343,14 @@ class User:
 
     assert!(
         rust_code.contains("fn access_level"),
-        "Should have access_level property.\nGot:\n{}",
-        rust_code
+        "Should have access_level property.\nGot:\n{rust_code}"
     );
 
     // Should have conditional logic
     let has_conditional = rust_code.contains("if") || rust_code.contains("match");
-    assert!(has_conditional, "Should have conditional logic.\nGot:\n{}", rust_code);
+    assert!(has_conditional, "Should have conditional logic.\nGot:\n{rust_code}");
 
     // Should have &self
     let has_self = rust_code.contains("&self") || rust_code.contains("& self");
-    assert!(has_self, "Property should have &self.\nGot:\n{}", rust_code);
+    assert!(has_self, "Property should have &self.\nGot:\n{rust_code}");
 }

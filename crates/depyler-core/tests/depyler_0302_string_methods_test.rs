@@ -6,10 +6,10 @@ use depyler_core::DepylerPipeline;
 
 #[test]
 fn test_lstrip_basic() {
-    let python_code = r#"
+    let python_code = r"
 def strip_leading(s: str) -> str:
     return s.lstrip()
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -23,20 +23,19 @@ def strip_leading(s: str) -> str:
     // Should use .trim_start() in the function body
     assert!(
         fn_section.contains("trim_start()") || fn_section.contains("lstrip"),
-        "Should use trim_start() or lstrip method\nFunction:\n{}",
-        fn_section
+        "Should use trim_start() or lstrip method\nFunction:\n{fn_section}"
     );
 
     // Should compile
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 }
 
 #[test]
 fn test_rstrip_basic() {
-    let python_code = r#"
+    let python_code = r"
 def strip_trailing(s: str) -> str:
     return s.rstrip()
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -50,19 +49,18 @@ def strip_trailing(s: str) -> str:
     // Should use .trim_end() in the function body
     assert!(
         fn_section.contains("trim_end()") || fn_section.contains("rstrip"),
-        "Should use trim_end() or rstrip method\nFunction:\n{}",
-        fn_section
+        "Should use trim_end() or rstrip method\nFunction:\n{fn_section}"
     );
 
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 }
 
 #[test]
 fn test_isalnum_basic() {
-    let python_code = r#"
+    let python_code = r"
 def is_alphanumeric(s: str) -> bool:
     return s.isalnum()
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -76,25 +74,24 @@ def is_alphanumeric(s: str) -> bool:
     // Should use .chars().all(|c| c.is_alphanumeric()) or isalnum method
     assert!(
         fn_section.contains("chars()") || fn_section.contains("isalnum"),
-        "Should use chars() or isalnum method\nFunction:\n{}",
-        fn_section
+        "Should use chars() or isalnum method\nFunction:\n{fn_section}"
     );
 
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 }
 
 #[test]
 fn test_string_count_already_working() {
     // Verify that count() already works (mentioned in issue as already fixed)
-    let python_code = r#"
+    let python_code = r"
 def count_occurrences(s: str, substring: str) -> int:
     return s.count(substring)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 
     // Should use .matches().count()
     assert!(rust_code.contains("matches"), "Should contain matches");
@@ -122,5 +119,5 @@ def process_string(text: str) -> tuple[str, str, bool, int]:
     assert!(rust_code.contains("is_alphanumeric()"), "Should contain is_alphanumeric()");
     assert!(rust_code.contains("matches"), "Should contain matches");
 
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 }

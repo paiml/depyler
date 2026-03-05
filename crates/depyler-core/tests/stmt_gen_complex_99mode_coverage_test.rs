@@ -1,6 +1,6 @@
-//! Coverage tests for rust_gen/stmt_gen_complex.rs
+//! Coverage tests for `rust_gen/stmt_gen_complex.rs`
 //!
-//! DEPYLER-99MODE-001: Targets stmt_gen_complex.rs (2,290 lines)
+//! DEPYLER-99MODE-001: Targets `stmt_gen_complex.rs` (2,290 lines)
 //! Covers: try/except/finally, nested functions, error handling,
 //! variable hoisting, floor division with error handling.
 
@@ -21,37 +21,37 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_stmt_complex_try_except_basic() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     try:
         return x // 1
     except:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stmt_complex_try_except_specific() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: int) -> int:
     try:
         return x // y
     except ZeroDivisionError:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stmt_complex_try_except_as() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> int:
     try:
         return int(s)
     except ValueError as e:
         return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -61,7 +61,7 @@ def f(s: str) -> int:
 
 #[test]
 fn test_stmt_complex_try_finally() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     x = 0
     try:
@@ -69,13 +69,13 @@ def f() -> int:
     except:
         x = -1
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stmt_complex_try_multiple_except() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> int:
     try:
         return int(s)
@@ -83,7 +83,7 @@ def f(s: str) -> int:
         return -1
     except TypeError:
         return -2
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -93,7 +93,7 @@ def f(s: str) -> int:
 
 #[test]
 fn test_stmt_complex_hoisted_variable() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     result = 0
     try:
@@ -101,13 +101,13 @@ def f(x: int) -> int:
     except:
         result = -1
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stmt_complex_hoisted_with_condition() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     total = 0
     try:
@@ -116,7 +116,7 @@ def f(items: list) -> int:
     except:
         total = -1
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -126,7 +126,7 @@ def f(items: list) -> int:
 
 #[test]
 fn test_stmt_complex_nested_if_in_loop() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     total = 0
     for item in items:
@@ -137,13 +137,13 @@ def f(items: list) -> int:
         else:
             break
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stmt_complex_nested_loops() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> list:
     result = []
     for i in range(n):
@@ -151,13 +151,13 @@ def f(n: int) -> list:
             if i != j:
                 result.append(i * n + j)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stmt_complex_while_with_break() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     i = 0
     while i < len(items):
@@ -165,7 +165,7 @@ def f(items: list) -> int:
             break
         i += 1
     return i
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -194,7 +194,7 @@ def f(x: int) -> str:
 
 #[test]
 fn test_stmt_complex_list_building() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> list:
     result = []
     for i in range(n):
@@ -203,19 +203,19 @@ def f(n: int) -> list:
         else:
             result.append(i)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stmt_complex_dict_building() {
-    let code = r#"
+    let code = r"
 def f(keys: list, values: list) -> dict:
     result = {}
     for i in range(len(keys)):
         result[keys[i]] = values[i]
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -225,20 +225,20 @@ def f(keys: list, values: list) -> dict:
 
 #[test]
 fn test_stmt_complex_guard_clause() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     if x < 0:
         return -1
     if x == 0:
         return 0
     return x * 2
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stmt_complex_exception_flow() {
-    let code = r#"
+    let code = r"
 def f(data: list) -> int:
     try:
         total = 0
@@ -247,7 +247,7 @@ def f(data: list) -> int:
         return total
     except:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -257,7 +257,7 @@ def f(data: list) -> int:
 
 #[test]
 fn test_stmt_complex_algorithm() {
-    let code = r#"
+    let code = r"
 def binary_search(items: list, target: int) -> int:
     low = 0
     high = len(items) - 1
@@ -270,13 +270,13 @@ def binary_search(items: list, target: int) -> int:
         else:
             high = mid - 1
     return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_stmt_complex_class_with_try() {
-    let code = r#"
+    let code = r"
 class SafeCalculator:
     def __init__(self):
         self.result = 0
@@ -287,6 +287,6 @@ class SafeCalculator:
         except:
             self.result = 0
         return self.result
-"#;
+";
     assert!(transpile_ok(code));
 }

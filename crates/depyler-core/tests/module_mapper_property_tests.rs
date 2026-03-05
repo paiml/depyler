@@ -188,7 +188,7 @@ fn test_default_and_new_are_equivalent() {
                 assert_eq!(map1.version, map2.version);
             }
             (None, None) => {}
-            _ => panic!("Inconsistent mapping for module: {}", module),
+            _ => panic!("Inconsistent mapping for module: {module}"),
         }
     }
 }
@@ -220,8 +220,7 @@ fn test_module_mapping_completeness() {
     for module in essential_modules {
         assert!(
             mapper.get_mapping(module).is_some(),
-            "Missing mapping for essential module: {}",
-            module
+            "Missing mapping for essential module: {module}"
         );
     }
 }

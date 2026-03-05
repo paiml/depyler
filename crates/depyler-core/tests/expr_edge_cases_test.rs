@@ -1,5 +1,5 @@
 //! Edge case expression tests for increasing code coverage
-//! Targets less common expression patterns in expr_gen.rs
+//! Targets less common expression patterns in `expr_gen.rs`
 
 use depyler_core::DepylerPipeline;
 

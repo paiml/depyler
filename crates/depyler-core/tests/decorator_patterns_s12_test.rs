@@ -22,7 +22,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b85_property_getter() {
-    let code = r#"
+    let code = r"
 class Rectangle:
     def __init__(self, width: float, height: float):
         self.width = width
@@ -35,16 +35,16 @@ class Rectangle:
     @property
     def perimeter(self) -> float:
         return 2 * (self.width + self.height)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Rectangle"), "Got: {}", result);
+    assert!(result.contains("Rectangle"), "Got: {result}");
 }
 
 // ===== Static method =====
 
 #[test]
 fn test_s12_b85_staticmethod() {
-    let code = r#"
+    let code = r"
 class Converter:
     @staticmethod
     def celsius_to_fahrenheit(c: float) -> float:
@@ -53,9 +53,9 @@ class Converter:
     @staticmethod
     def fahrenheit_to_celsius(f: float) -> float:
         return (f - 32.0) * 5.0 / 9.0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Converter"), "Got: {}", result);
+    assert!(result.contains("Converter"), "Got: {result}");
 }
 
 // ===== Classmethod =====
@@ -74,14 +74,14 @@ class User:
         return User(parts[0], parts[1])
 "#;
     let result = transpile(code);
-    assert!(result.contains("User"), "Got: {}", result);
+    assert!(result.contains("User"), "Got: {result}");
 }
 
 // ===== Special methods =====
 
 #[test]
 fn test_s12_b85_str_method() {
-    let code = r##"
+    let code = r#"
 class Fraction:
     def __init__(self, num: int, den: int):
         self.num = num
@@ -89,14 +89,14 @@ class Fraction:
 
     def __str__(self) -> str:
         return f"{self.num}/{self.den}"
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("Fraction"), "Got: {}", result);
+    assert!(result.contains("Fraction"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b85_eq_method() {
-    let code = r#"
+    let code = r"
 class Pair:
     def __init__(self, x: int, y: int):
         self.x = x
@@ -104,14 +104,14 @@ class Pair:
 
     def __eq__(self, other) -> bool:
         return self.x == other.x and self.y == other.y
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Pair"), "Got: {}", result);
+    assert!(result.contains("Pair"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b85_lt_method() {
-    let code = r#"
+    let code = r"
 class Priority:
     def __init__(self, value: int, priority: int):
         self.value = value
@@ -119,14 +119,14 @@ class Priority:
 
     def __lt__(self, other) -> bool:
         return self.priority < other.priority
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Priority"), "Got: {}", result);
+    assert!(result.contains("Priority"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b85_len_method() {
-    let code = r#"
+    let code = r"
 class Bag:
     def __init__(self):
         self.items = []
@@ -136,14 +136,14 @@ class Bag:
 
     def add(self, item: int):
         self.items.append(item)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Bag"), "Got: {}", result);
+    assert!(result.contains("Bag"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b85_contains_method() {
-    let code = r#"
+    let code = r"
 class SearchableList:
     def __init__(self):
         self.data = []
@@ -154,14 +154,14 @@ class SearchableList:
     def add(self, item: int):
         if item not in self.data:
             self.data.append(item)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("SearchableList"), "Got: {}", result);
+    assert!(result.contains("SearchableList"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b85_add_method() {
-    let code = r#"
+    let code = r"
 class Money:
     def __init__(self, amount: float, currency: str):
         self.amount = amount
@@ -172,14 +172,14 @@ class Money:
 
     def __sub__(self, other):
         return Money(self.amount - other.amount, self.currency)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Money"), "Got: {}", result);
+    assert!(result.contains("Money"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b85_mul_method() {
-    let code = r#"
+    let code = r"
 class Vector:
     def __init__(self, x: float, y: float):
         self.x = x
@@ -190,16 +190,16 @@ class Vector:
 
     def dot(self, other) -> float:
         return self.x * other.x + self.y * other.y
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Vector"), "Got: {}", result);
+    assert!(result.contains("Vector"), "Got: {result}");
 }
 
 // ===== Complex class hierarchies =====
 
 #[test]
 fn test_s12_b85_abstract_like() {
-    let code = r#"
+    let code = r"
 class Shape:
     def __init__(self):
         pass
@@ -219,15 +219,15 @@ class Square(Shape):
 
     def perimeter(self) -> float:
         return 4.0 * self.side
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Shape"), "Got: {}", result);
-    assert!(result.contains("Square"), "Got: {}", result);
+    assert!(result.contains("Shape"), "Got: {result}");
+    assert!(result.contains("Square"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b85_class_with_many_methods() {
-    let code = r##"
+    let code = r#"
 class StringHelper:
     def __init__(self, text: str):
         self.text = text
@@ -253,14 +253,14 @@ class StringHelper:
         if words:
             return words[-1]
         return ""
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("StringHelper"), "Got: {}", result);
+    assert!(result.contains("StringHelper"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b85_class_with_class_vars() {
-    let code = r#"
+    let code = r"
 class Counter:
     total = 0
 
@@ -273,7 +273,7 @@ class Counter:
 
     def get_count(self) -> int:
         return self.count
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Counter"), "Got: {}", result);
+    assert!(result.contains("Counter"), "Got: {result}");
 }

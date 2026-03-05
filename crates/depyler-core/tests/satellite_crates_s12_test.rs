@@ -37,12 +37,12 @@ class Config:
         self.timeout = 30.0
 "#;
     let result = transpile(code);
-    assert!(result.contains("Config"), "Got: {}", result);
+    assert!(result.contains("Config"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_class_with_class_variable() {
-    let code = r#"
+    let code = r"
 class Counter:
     count = 0
 
@@ -51,9 +51,9 @@ class Counter:
 
     def increment(self):
         self.value += 1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Counter"), "Got: {}", result);
+    assert!(result.contains("Counter"), "Got: {result}");
 }
 
 #[test]
@@ -68,12 +68,12 @@ class Point:
         return f"Point({self.x}, {self.y})"
 "#;
     let result = transpile(code);
-    assert!(result.contains("Point"), "Got: {}", result);
+    assert!(result.contains("Point"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_class_eq_method() {
-    let code = r#"
+    let code = r"
 class Color:
     def __init__(self, r: int, g: int, b: int):
         self.r = r
@@ -82,9 +82,9 @@ class Color:
 
     def __eq__(self, other) -> bool:
         return self.r == other.r and self.g == other.g and self.b == other.b
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Color"), "Got: {}", result);
+    assert!(result.contains("Color"), "Got: {result}");
 }
 
 // ===== Multiple return paths =====
@@ -105,12 +105,12 @@ def classify(n: int) -> str:
         return "large"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn classify"), "Got: {}", result);
+    assert!(result.contains("fn classify"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_early_return_guard() {
-    let code = r#"
+    let code = r"
 def process(items: list) -> int:
     if not items:
         return 0
@@ -120,9 +120,9 @@ def process(items: list) -> int:
     for item in items:
         total += item
     return total
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn process"), "Got: {}", result);
+    assert!(result.contains("fn process"), "Got: {result}");
 }
 
 // ===== Nested data structures =====
@@ -137,40 +137,40 @@ def find_by_name(records: list, name: str) -> dict:
     return {}
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn find_by_name"), "Got: {}", result);
+    assert!(result.contains("fn find_by_name"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_dict_of_lists() {
-    let code = r#"
+    let code = r"
 def add_to_group(groups: dict, key: str, value: int):
     if key not in groups:
         groups[key] = []
     groups[key].append(value)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn add_to_group"), "Got: {}", result);
+    assert!(result.contains("fn add_to_group"), "Got: {result}");
 }
 
 // ===== Complex loop patterns =====
 
 #[test]
 fn test_s12_nested_for_loops() {
-    let code = r#"
+    let code = r"
 def flatten(matrix: list) -> list:
     result = []
     for row in matrix:
         for item in row:
             result.append(item)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn flatten"), "Got: {}", result);
+    assert!(result.contains("fn flatten"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_while_with_break() {
-    let code = r#"
+    let code = r"
 def find_first(items: list, target: int) -> int:
     i = 0
     while i < len(items):
@@ -178,14 +178,14 @@ def find_first(items: list, target: int) -> int:
             break
         i += 1
     return i
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn find_first"), "Got: {}", result);
+    assert!(result.contains("fn find_first"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_for_with_continue() {
-    let code = r#"
+    let code = r"
 def sum_positive(items: list) -> int:
     total = 0
     for x in items:
@@ -193,179 +193,179 @@ def sum_positive(items: list) -> int:
             continue
         total += x
     return total
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sum_positive"), "Got: {}", result);
+    assert!(result.contains("fn sum_positive"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_for_else() {
-    let code = r#"
+    let code = r"
 def find_or_default(items: list, target: int) -> int:
     for x in items:
         if x == target:
             return x
     return -1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn find_or_default"), "Got: {}", result);
+    assert!(result.contains("fn find_or_default"), "Got: {result}");
 }
 
 // ===== Multiple assignments =====
 
 #[test]
 fn test_s12_multi_assign_same_value() {
-    let code = r#"
+    let code = r"
 def init_counters() -> tuple:
     a = b = c = 0
     return (a, b, c)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn init_counters"), "Got: {}", result);
+    assert!(result.contains("fn init_counters"), "Got: {result}");
 }
 
 // ===== Math operations =====
 
 #[test]
 fn test_s12_modulo_operator() {
-    let code = r#"
+    let code = r"
 def is_even(n: int) -> bool:
     return n % 2 == 0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn is_even"), "Got: {}", result);
+    assert!(result.contains("fn is_even"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_abs_builtin() {
-    let code = r#"
+    let code = r"
 def distance(a: int, b: int) -> int:
     return abs(a - b)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn distance"), "Got: {}", result);
+    assert!(result.contains("fn distance"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_min_max_builtins() {
-    let code = r#"
+    let code = r"
 def clamp(x: int, lo: int, hi: int) -> int:
     return max(lo, min(x, hi))
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn clamp"), "Got: {}", result);
+    assert!(result.contains("fn clamp"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_divmod_builtin() {
-    let code = r#"
+    let code = r"
 def hours_minutes(total_minutes: int) -> tuple:
     return divmod(total_minutes, 60)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn hours_minutes"), "Got: {}", result);
+    assert!(result.contains("fn hours_minutes"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_round_builtin() {
-    let code = r#"
+    let code = r"
 def round_to_cents(amount: float) -> float:
     return round(amount, 2)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn round_to_cents"), "Got: {}", result);
+    assert!(result.contains("fn round_to_cents"), "Got: {result}");
 }
 
 // ===== Type conversion builtins =====
 
 #[test]
 fn test_s12_int_from_string() {
-    let code = r#"
+    let code = r"
 def parse_int(s: str) -> int:
     return int(s)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn parse_int"), "Got: {}", result);
+    assert!(result.contains("fn parse_int"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_float_from_string() {
-    let code = r#"
+    let code = r"
 def parse_float(s: str) -> float:
     return float(s)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn parse_float"), "Got: {}", result);
+    assert!(result.contains("fn parse_float"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_str_from_int() {
-    let code = r#"
+    let code = r"
 def int_to_str(n: int) -> str:
     return str(n)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn int_to_str"), "Got: {}", result);
+    assert!(result.contains("fn int_to_str"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_bool_builtin() {
-    let code = r#"
+    let code = r"
 def to_bool(x: int) -> bool:
     return bool(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_bool"), "Got: {}", result);
+    assert!(result.contains("fn to_bool"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_chr_builtin() {
-    let code = r#"
+    let code = r"
 def code_to_char(n: int) -> str:
     return chr(n)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn code_to_char"), "Got: {}", result);
+    assert!(result.contains("fn code_to_char"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_ord_builtin() {
-    let code = r#"
+    let code = r"
 def char_to_code(c: str) -> int:
     return ord(c)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn char_to_code"), "Got: {}", result);
+    assert!(result.contains("fn char_to_code"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_hex_builtin() {
-    let code = r#"
+    let code = r"
 def to_hex(n: int) -> str:
     return hex(n)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_hex"), "Got: {}", result);
+    assert!(result.contains("fn to_hex"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_oct_builtin() {
-    let code = r#"
+    let code = r"
 def to_oct(n: int) -> str:
     return oct(n)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_oct"), "Got: {}", result);
+    assert!(result.contains("fn to_oct"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_bin_builtin() {
-    let code = r#"
+    let code = r"
 def to_bin(n: int) -> str:
     return bin(n)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_bin"), "Got: {}", result);
+    assert!(result.contains("fn to_bin"), "Got: {result}");
 }
 
 // ===== Print patterns =====
@@ -377,24 +377,24 @@ def greet(name: str):
     print("Hello, " + name)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn greet"), "Got: {}", result);
+    assert!(result.contains("fn greet"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_print_multiple_args() {
-    let code = r#"
+    let code = r"
 def show_pair(key: str, value: int):
     print(key, value)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn show_pair"), "Got: {}", result);
+    assert!(result.contains("fn show_pair"), "Got: {result}");
 }
 
 // ===== Complex real-world patterns =====
 
 #[test]
 fn test_s12_stack_class() {
-    let code = r##"
+    let code = r#"
 class Stack:
     def __init__(self):
         self.items = []
@@ -417,16 +417,16 @@ class Stack:
 
     def size(self) -> int:
         return len(self.items)
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("Stack"), "Got: {}", result);
-    assert!(result.contains("fn push"), "Got: {}", result);
-    assert!(result.contains("fn pop"), "Got: {}", result);
+    assert!(result.contains("Stack"), "Got: {result}");
+    assert!(result.contains("fn push"), "Got: {result}");
+    assert!(result.contains("fn pop"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_lru_cache_class() {
-    let code = r##"
+    let code = r"
 class LRUCache:
     def __init__(self, capacity: int):
         self.capacity = capacity
@@ -447,14 +447,14 @@ class LRUCache:
                 del self.cache[oldest]
             self.cache[key] = value
             self.order.append(key)
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("LRUCache"), "Got: {}", result);
+    assert!(result.contains("LRUCache"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_event_emitter_class() {
-    let code = r##"
+    let code = r"
 class EventEmitter:
     def __init__(self):
         self.listeners = {}
@@ -468,7 +468,7 @@ class EventEmitter:
         if event in self.listeners:
             for callback in self.listeners[event]:
                 callback()
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("EventEmitter"), "Got: {}", result);
+    assert!(result.contains("EventEmitter"), "Got: {result}");
 }

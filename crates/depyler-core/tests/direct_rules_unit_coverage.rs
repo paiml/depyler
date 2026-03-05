@@ -1,5 +1,5 @@
-//! Unit tests for direct_rules.rs to increase coverage
-//! DEPYLER-COVERAGE-95: Direct tests for functions used by rust_gen
+//! Unit tests for `direct_rules.rs` to increase coverage
+//! DEPYLER-COVERAGE-95: Direct tests for functions used by `rust_gen`
 
 use depyler_core::direct_rules::{
     convert_class_to_struct, is_stdlib_shadowing_name, method_mutates_self, rust_type_to_syn_type,
@@ -428,8 +428,8 @@ fn test_convert_class_to_struct_dataclass() {
 #[test]
 fn test_safe_class_name_all_integer_types() {
     for ty in &["i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128"] {
-        assert!(is_stdlib_shadowing_name(ty), "{} should be shadowing", ty);
-        assert!(safe_class_name(ty).starts_with("Py"), "{} should get Py prefix", ty);
+        assert!(is_stdlib_shadowing_name(ty), "{ty} should be shadowing");
+        assert!(safe_class_name(ty).starts_with("Py"), "{ty} should get Py prefix");
     }
 }
 

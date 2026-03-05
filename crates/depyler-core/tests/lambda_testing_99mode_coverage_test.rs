@@ -1,6 +1,6 @@
-//! Coverage tests for lambda_testing.rs
+//! Coverage tests for `lambda_testing.rs`
 //!
-//! DEPYLER-99MODE-001: Targets lambda_testing.rs (1,504 lines)
+//! DEPYLER-99MODE-001: Targets `lambda_testing.rs` (1,504 lines)
 //! Covers: AWS Lambda test harness generation, event type handling,
 //! API Gateway/S3/SQS event patterns, performance benchmarks.
 

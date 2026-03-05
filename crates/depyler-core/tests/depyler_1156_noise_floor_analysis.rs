@@ -83,11 +83,7 @@ def main():
     // The transpiled code should handle bytes correctly
     let rust = result.unwrap();
     // Should use Vec<u8> or &[u8] consistently
-    assert!(
-        rust.contains("Vec<u8>") || rust.contains("&[u8]"),
-        "Should handle bytes type: {}",
-        rust
-    );
+    assert!(rust.contains("Vec<u8>") || rust.contains("&[u8]"), "Should handle bytes type: {rust}");
 }
 
 #[test]
@@ -108,11 +104,7 @@ def main():
 
     let rust = result.unwrap();
     // String parameters should be handled with appropriate borrowing
-    assert!(
-        rust.contains("String") || rust.contains("&str"),
-        "Should handle string type: {}",
-        rust
-    );
+    assert!(rust.contains("String") || rust.contains("&str"), "Should handle string type: {rust}");
 }
 
 // ========================================================================
@@ -135,8 +127,7 @@ def process_data(d):
     let rust = result.unwrap();
     assert!(
         rust.contains("get") || rust.contains("DepylerValue"),
-        "Should handle dict access: {}",
-        rust
+        "Should handle dict access: {rust}"
     );
 }
 
@@ -144,10 +135,10 @@ def process_data(d):
 fn test_DEPYLER_1156_pattern2_depyler_value_vs_usize() {
     // Pattern: expected `&DepylerValue`, found `usize`
     // Happens in indexing operations
-    let python = r#"
+    let python = r"
 def get_element(lst, idx):
     return lst[idx]
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -161,10 +152,10 @@ def get_element(lst, idx):
 fn test_DEPYLER_1156_pattern4_i32_add_depyler_value() {
     // Pattern: i32: PyAdd<DepylerValue> not satisfied
     // Happens when mixing concrete and dynamic types in arithmetic
-    let python = r#"
+    let python = r"
 def add_values(a: int, b):
     return a + b
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -174,12 +165,12 @@ def add_values(a: int, b):
 fn test_DEPYLER_1156_pattern4_i64_mul_i32() {
     // Pattern: i64: PyMul<i32> not satisfied
     // Happens with mixed integer widths
-    let python = r#"
+    let python = r"
 def multiply(a, b):
     x: int = a
     y = 2
     return x * y
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -210,8 +201,7 @@ def create_config():
     // Should handle heterogeneous dict with DepylerValue or proper typing
     assert!(
         rust.contains("HashMap") || rust.contains("DepylerValue"),
-        "Should handle mixed dict: {}",
-        rust
+        "Should handle mixed dict: {rust}"
     );
 }
 

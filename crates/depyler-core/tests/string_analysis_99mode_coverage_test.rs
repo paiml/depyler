@@ -1,6 +1,6 @@
-//! Coverage tests for rust_gen/string_analysis.rs
+//! Coverage tests for `rust_gen/string_analysis.rs`
 //!
-//! DEPYLER-99MODE-001: Targets string_analysis.rs (761 lines)
+//! DEPYLER-99MODE-001: Targets `string_analysis.rs` (761 lines)
 //! Covers: string type detection, owned string returns,
 //! string method classification, f-string patterns.
 
@@ -84,10 +84,10 @@ def f(s: str) -> int:
 
 #[test]
 fn test_string_isdigit() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> bool:
     return s.isdigit()
-"#;
+";
     assert!(transpile_ok(code));
 }
 

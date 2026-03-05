@@ -57,7 +57,7 @@ fn transpile_to_rust(python_code: &str) -> Result<String, String> {
 #[ignore = "Known failing - GH-70"]
 fn test_GH_70_simple_nested_function_returning_function() {
     // RED: Nested function that returns another function
-    let python = r#"
+    let python = r"
 def outer():
     def inner(x):
         return x * 2
@@ -67,7 +67,7 @@ def main():
     func = outer()
     result = func(5)
     print(result)
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -83,24 +83,21 @@ def main():
     assert!(
         rust_code.contains("fn outer()")
             && (rust_code.contains("-> Box<dyn Fn") || rust_code.contains("-> impl Fn")),
-        "GH-70: outer() should have return type annotation.\nGenerated:\n{}",
-        rust_code
+        "GH-70: outer() should have return type annotation.\nGenerated:\n{rust_code}"
     );
 
     // Nested function should exist (now as closure: `let inner = |...|`)
     // GH-70: Changed from fn inner to let inner = |...|
     assert!(
         rust_code.contains("let inner") || rust_code.contains("fn inner"),
-        "GH-70: Should generate nested function/closure.\nGenerated:\n{}",
-        rust_code
+        "GH-70: Should generate nested function/closure.\nGenerated:\n{rust_code}"
     );
 
     // Should NOT have parameter type () for inner
     // GH-70: Check both fn and closure syntax
     assert!(
         !rust_code.contains("fn inner(x: ())") && !rust_code.contains("|x: ()|"),
-        "GH-70: inner parameter should not be unit type ().\nGenerated:\n{}",
-        rust_code
+        "GH-70: inner parameter should not be unit type ().\nGenerated:\n{rust_code}"
     );
 }
 
@@ -108,13 +105,13 @@ def main():
 #[ignore = "Known failing - GH-70"]
 fn test_GH_70_nested_function_with_tuple_destructuring() {
     // RED: Exact pattern from GH-70 issue
-    let python = r#"
+    let python = r"
 def outer():
     def inner(entry):
         timestamp, level, message = entry
         return timestamp[11:13]
     return inner
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -129,23 +126,20 @@ def outer():
     // GH-70: Changed from fn inner to let inner = |...|
     assert!(
         rust_code.contains("let inner") || rust_code.contains("fn inner"),
-        "GH-70: Should generate nested function.\nGenerated:\n{}",
-        rust_code
+        "GH-70: Should generate nested function.\nGenerated:\n{rust_code}"
     );
 
     // Should NOT have unit type for entry parameter
     // GH-70: Check both fn and closure syntax
     assert!(
         !rust_code.contains("fn inner(entry: ())") && !rust_code.contains("|entry: ()|"),
-        "GH-70: entry parameter should not be unit type.\nGenerated:\n{}",
-        rust_code
+        "GH-70: entry parameter should not be unit type.\nGenerated:\n{rust_code}"
     );
 
     // Outer function should return something (not unit)
     assert!(
         rust_code.contains("pub fn outer() ->"),
-        "GH-70: outer() should have explicit return type.\nGenerated:\n{}",
-        rust_code
+        "GH-70: outer() should have explicit return type.\nGenerated:\n{rust_code}"
     );
 }
 
@@ -155,7 +149,7 @@ fn test_GH_70_itertools_groupby_pattern() {
     // NOTE: This tests a DIFFERENT issue than GH-70 type inference
     // sorted() currently only supports key=lambda, not key=named_function
     // Workaround: Use `sorted(entries, key=lambda x: extract_hour(x))`
-    let python = r#"
+    let python = r"
 from itertools import groupby
 
 def group_by_hour(entries):
@@ -170,7 +164,7 @@ def group_by_hour(entries):
         hour_counts[hour] = sum(1 for _ in group)
 
     return hour_counts
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -184,8 +178,7 @@ def group_by_hour(entries):
     // Should generate extract_hour function
     assert!(
         rust_code.contains("fn extract_hour") || rust_code.contains("extract_hour"),
-        "GH-70: Should generate extract_hour function.\nGenerated:\n{}",
-        rust_code
+        "GH-70: Should generate extract_hour function.\nGenerated:\n{rust_code}"
     );
 }
 
@@ -193,7 +186,7 @@ def group_by_hour(entries):
 #[ignore = "Known failing - GH-70"]
 fn test_GH_70_nested_function_type_inference() {
     // RED: Test that type inference works for nested functions
-    let python = r#"
+    let python = r"
 def outer(x: int) -> callable:
     def inner(y: int) -> int:
         return x + y
@@ -203,7 +196,7 @@ def main():
     add_five = outer(5)
     result = add_five(3)
     print(result)
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -219,15 +212,13 @@ def main():
     assert!(
         (rust_code.contains("let inner") || rust_code.contains("fn inner"))
             && !rust_code.contains("(y: ())"),
-        "GH-70: inner should have i64 parameter, not ().\nGenerated:\n{}",
-        rust_code
+        "GH-70: inner should have i64 parameter, not ().\nGenerated:\n{rust_code}"
     );
 
     // Should have return type
     assert!(
         rust_code.contains("-> ") && rust_code.contains("fn outer"),
-        "GH-70: outer should have return type.\nGenerated:\n{}",
-        rust_code
+        "GH-70: outer should have return type.\nGenerated:\n{rust_code}"
     );
 }
 
@@ -235,7 +226,7 @@ def main():
 #[ignore = "Known failing - GH-70"]
 fn test_GH_70_check_rust_compilation() {
     // RED: Verify generated Rust actually compiles
-    let python = r#"
+    let python = r"
 def make_multiplier(n):
     def multiply(x):
         return x * n
@@ -245,7 +236,7 @@ def main():
     times_two = make_multiplier(2)
     result = times_two(5)
     print(result)
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(result.is_ok(), "Should transpile: {}", result.unwrap_err());
@@ -260,16 +251,14 @@ def main():
     assert!(
         rust_code.contains("fn make_multiplier")
             && (rust_code.contains("let multiply") || rust_code.contains("fn multiply")),
-        "GH-70: Should generate both functions.\nGenerated:\n{}",
-        rust_code
+        "GH-70: Should generate both functions.\nGenerated:\n{rust_code}"
     );
 
     // Key check: outer function should have return type if it returns inner function
     if rust_code.contains("return multiply") || rust_code.ends_with("multiply\n}") {
         assert!(
             rust_code.contains("fn make_multiplier") && rust_code.contains("->"),
-            "GH-70: make_multiplier should have return type since it returns a function.\nGenerated:\n{}",
-            rust_code
+            "GH-70: make_multiplier should have return type since it returns a function.\nGenerated:\n{rust_code}"
         );
     }
 }
@@ -278,12 +267,12 @@ def main():
 #[ignore = "Known failing - GH-70"]
 fn test_GH_70_minimal_reproduction() {
     // RED: Ultra-minimal case from GH-70
-    let python = r#"
+    let python = r"
 def outer():
     def inner(entry):
         return entry[0]
     return inner
-"#;
+";
 
     let result = transpile_to_rust(python);
     assert!(
@@ -301,15 +290,13 @@ def outer():
     // GH-70: Changed from fn inner to let inner = |...|
     assert!(
         rust_code.contains("let inner") || rust_code.contains("fn inner"),
-        "GH-70: Should generate inner function.\nGenerated:\n{}",
-        rust_code
+        "GH-70: Should generate inner function.\nGenerated:\n{rust_code}"
     );
 
     // Should return inner (now wrapped in Box::new)
     assert!(
         rust_code.contains("inner")
             && (rust_code.contains("Box::new(inner)") || rust_code.contains("return inner")),
-        "GH-70: outer should return inner.\nGenerated:\n{}",
-        rust_code
+        "GH-70: outer should return inner.\nGenerated:\n{rust_code}"
     );
 }

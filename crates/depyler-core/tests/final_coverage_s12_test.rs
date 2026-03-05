@@ -21,7 +21,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b100_calculator() {
-    let code = r##"
+    let code = r#"
 def evaluate(expression: str) -> float:
     tokens = expression.split()
     stack = []
@@ -40,14 +40,14 @@ def evaluate(expression: str) -> float:
         else:
             stack.append(float(token))
     return stack[0] if stack else 0.0
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn evaluate"), "Got: {}", result);
+    assert!(result.contains("fn evaluate"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b100_text_processor() {
-    let code = r##"
+    let code = r#"
 class TextProcessor:
     def __init__(self, text: str):
         self.text = text
@@ -81,14 +81,14 @@ class TextProcessor:
             "chars": self.char_count(),
             "unique": self.unique_words()
         }
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("TextProcessor"), "Got: {}", result);
+    assert!(result.contains("TextProcessor"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b100_graph_algorithms() {
-    let code = r#"
+    let code = r"
 def bfs(graph: dict, start: str) -> list:
     visited = set()
     queue = [start]
@@ -135,16 +135,16 @@ def has_path(graph: dict, start: str, end: str) -> bool:
             for neighbor in graph[node]:
                 queue.append(neighbor)
     return False
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn bfs"), "Got: {}", result);
-    assert!(result.contains("fn dfs"), "Got: {}", result);
-    assert!(result.contains("fn has_path"), "Got: {}", result);
+    assert!(result.contains("fn bfs"), "Got: {result}");
+    assert!(result.contains("fn dfs"), "Got: {result}");
+    assert!(result.contains("fn has_path"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b100_sorting_suite() {
-    let code = r#"
+    let code = r"
 def insertion_sort(items: list) -> list:
     result = list(items)
     for i in range(1, len(result)):
@@ -179,16 +179,16 @@ def bubble_sort(items: list) -> list:
         if not swapped:
             break
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn insertion_sort"), "Got: {}", result);
-    assert!(result.contains("fn selection_sort"), "Got: {}", result);
-    assert!(result.contains("fn bubble_sort"), "Got: {}", result);
+    assert!(result.contains("fn insertion_sort"), "Got: {result}");
+    assert!(result.contains("fn selection_sort"), "Got: {result}");
+    assert!(result.contains("fn bubble_sort"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b100_functional_patterns() {
-    let code = r#"
+    let code = r"
 def compose(f, g):
     def composed(x):
         return f(g(x))
@@ -207,15 +207,15 @@ def memoize(func):
             cache[n] = func(n)
         return cache[n]
     return wrapper
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn compose"), "Got: {}", result);
-    assert!(result.contains("fn pipe"), "Got: {}", result);
+    assert!(result.contains("fn compose"), "Got: {result}");
+    assert!(result.contains("fn pipe"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b100_event_system() {
-    let code = r#"
+    let code = r"
 class EventEmitter:
     def __init__(self):
         self.listeners = {}
@@ -236,9 +236,9 @@ class EventEmitter:
 
     def event_names(self) -> list:
         return list(self.listeners.keys())
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("EventEmitter"), "Got: {}", result);
+    assert!(result.contains("EventEmitter"), "Got: {result}");
 }
 
 #[test]
@@ -265,9 +265,9 @@ def average_score(records: list) -> float:
     return sum(r["score"] for r in records) / len(records)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn read_records"), "Got: {}", result);
-    assert!(result.contains("fn filter_records"), "Got: {}", result);
-    assert!(result.contains("fn average_score"), "Got: {}", result);
+    assert!(result.contains("fn read_records"), "Got: {result}");
+    assert!(result.contains("fn filter_records"), "Got: {result}");
+    assert!(result.contains("fn average_score"), "Got: {result}");
 }
 
 #[test]
@@ -302,7 +302,7 @@ def run_length_encode(text: str) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn is_anagram"), "Got: {}", result);
-    assert!(result.contains("fn longest_common_prefix"), "Got: {}", result);
-    assert!(result.contains("fn run_length_encode"), "Got: {}", result);
+    assert!(result.contains("fn is_anagram"), "Got: {result}");
+    assert!(result.contains("fn longest_common_prefix"), "Got: {result}");
+    assert!(result.contains("fn run_length_encode"), "Got: {result}");
 }

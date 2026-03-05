@@ -37,8 +37,8 @@ fn test_lifetime_inference_for_string_parameter() {
     let (rust_code, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // The generated code should use a reference for the string parameter
-    assert!(rust_code.contains("pub fn get_length"), "Function not found in:\n{}", rust_code);
-    assert!(rust_code.contains("&"), "No reference found in:\n{}", rust_code);
+    assert!(rust_code.contains("pub fn get_length"), "Function not found in:\n{rust_code}");
+    assert!(rust_code.contains('&'), "No reference found in:\n{rust_code}");
     assert!(rust_code.contains("Get the length of a string"));
 }
 
@@ -111,7 +111,7 @@ fn test_lifetime_inference_with_multiple_parameters() {
     // Should contain lifetime parameters
     let has_lifetimes =
         rust_code.contains("<'") || rust_code.contains("'a") || rust_code.contains("'b");
-    assert!(has_lifetimes, "No lifetime parameters found in:\n{}", rust_code);
+    assert!(has_lifetimes, "No lifetime parameters found in:\n{rust_code}");
 }
 
 #[test]

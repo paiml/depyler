@@ -1,13 +1,13 @@
-//! Targeted coverage tests for argparse_transform module
+//! Targeted coverage tests for `argparse_transform` module
 //!
-//! Target: argparse_transform.rs (43.62% coverage → 80%+)
+//! Target: `argparse_transform.rs` (43.62% coverage → 80%+)
 //! Focus: Unit tests for type conversion, struct generation, enum generation
 //!
 //! Coverage Strategy:
-//! - Test all type_to_rust_string variants
+//! - Test all `type_to_rust_string` variants
 //! - Test ArgParserInfo/ArgParserArgument construction
-//! - Test generate_args_struct with various configurations
-//! - Test generate_commands_enum for subcommands
+//! - Test `generate_args_struct` with various configurations
+//! - Test `generate_commands_enum` for subcommands
 //! - Test edge cases: dest, metavar, choices, actions
 
 use depyler_core::hir::{HirExpr, Literal, Type};
@@ -390,11 +390,7 @@ fn test_generate_args_struct_empty() {
     let code = tokens.to_string();
 
     // Verify struct generation - check for actual output
-    assert!(
-        code.contains("Args") || code.contains("struct"),
-        "Should contain Args struct: {}",
-        code
-    );
+    assert!(code.contains("Args") || code.contains("struct"), "Should contain Args struct: {code}");
 }
 
 #[test]

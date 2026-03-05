@@ -1,6 +1,6 @@
-//! Coverage tests for lambda_inference/pattern_extraction.rs
+//! Coverage tests for `lambda_inference/pattern_extraction.rs`
 //!
-//! DEPYLER-99MODE-001: Targets pattern_extraction.rs (865 lines)
+//! DEPYLER-99MODE-001: Targets `pattern_extraction.rs` (865 lines)
 //! Covers: Lambda event type inference, access pattern extraction,
 //! subscript chain analysis, attribute chain detection.
 

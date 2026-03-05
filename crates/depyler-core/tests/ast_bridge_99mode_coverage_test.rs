@@ -1,6 +1,6 @@
-//! Coverage tests for ast_bridge.rs
+//! Coverage tests for `ast_bridge.rs`
 //!
-//! DEPYLER-99MODE-001: Targets ast_bridge.rs (4,042 lines)
+//! DEPYLER-99MODE-001: Targets `ast_bridge.rs` (4,042 lines)
 //! Covers: module conversion, class/protocol detection, function conversion,
 //! statement conversion, expression conversion, type extraction,
 //! parameter inference, operator mapping.
@@ -28,13 +28,13 @@ fn test_ast_bridge_single_function() {
 
 #[test]
 fn test_ast_bridge_multiple_functions() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
 
 def multiply(a: int, b: int) -> int:
     return a * b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -54,18 +54,18 @@ def greet(name: str) -> str:
 
 #[test]
 fn test_ast_bridge_simple_class() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
         self.y = y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ast_bridge_class_with_methods() {
-    let code = r#"
+    let code = r"
 class Calculator:
     def __init__(self):
         self.result = 0
@@ -76,20 +76,20 @@ class Calculator:
 
     def reset(self):
         self.result = 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ast_bridge_class_str_method() {
-    let code = r#"
+    let code = r"
 class Dog:
     def __init__(self, name: str):
         self.name = name
 
     def __str__(self) -> str:
         return self.name
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -205,7 +205,7 @@ def f(x: int) -> str:
 
 #[test]
 fn test_ast_bridge_if_elif_else() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     if x > 0:
         return 1
@@ -213,13 +213,13 @@ def f(x: int) -> int:
         return -1
     else:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ast_bridge_while_stmt() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     i = 0
@@ -227,49 +227,49 @@ def f(n: int) -> int:
         total += i
         i += 1
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ast_bridge_for_stmt() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     total = 0
     for i in range(10):
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ast_bridge_for_list() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     total = 0
     for item in items:
         total += item
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ast_bridge_break_stmt() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     for i in range(100):
         if i > 10:
             break
     return i
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ast_bridge_continue_stmt() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     total = 0
     for i in range(10):
@@ -277,7 +277,7 @@ def f() -> int:
             continue
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -316,19 +316,19 @@ fn test_ast_bridge_assert_stmt() {
 
 #[test]
 fn test_ast_bridge_try_except() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     try:
         return 42
     except:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ast_bridge_try_except_finally() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     x = 0
     try:
@@ -338,17 +338,17 @@ def f() -> int:
     finally:
         x += 1
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ast_bridge_with_stmt() {
-    let code = r#"
+    let code = r"
 def f(path: str) -> str:
     with open(path) as file:
         return file.read()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -526,10 +526,10 @@ fn test_ast_bridge_set_comp_expr() {
 
 #[test]
 fn test_ast_bridge_lambda_expr() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     return sorted([3, 1, 2], key=lambda x: -x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -553,14 +553,14 @@ def f(x: int) -> str:
 
 #[test]
 fn test_ast_bridge_attribute_expr() {
-    let code = r#"
+    let code = r"
 class Foo:
     def __init__(self):
         self.val = 0
 
     def get(self) -> int:
         return self.val
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -651,18 +651,18 @@ fn test_ast_bridge_op_rshift() {
 
 #[test]
 fn test_ast_bridge_gcd() {
-    let code = r#"
+    let code = r"
 def gcd(a: int, b: int) -> int:
     while b != 0:
         a, b = b, a % b
     return a
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ast_bridge_is_prime() {
-    let code = r#"
+    let code = r"
 def is_prime(n: int) -> bool:
     if n < 2:
         return False
@@ -670,19 +670,19 @@ def is_prime(n: int) -> bool:
         if n % i == 0:
             return False
     return True
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ast_bridge_flatten_list() {
-    let code = r#"
+    let code = r"
 def flatten(items: list) -> list:
     result = []
     for item in items:
         result.append(item)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -708,7 +708,7 @@ class Dog:
 
 #[test]
 fn test_ast_bridge_mixed_functions_classes() {
-    let code = r#"
+    let code = r"
 def helper(x: int) -> int:
     return x * 2
 
@@ -718,6 +718,6 @@ class Wrapper:
 
     def doubled(self) -> int:
         return helper(self.val)
-"#;
+";
     assert!(transpile_ok(code));
 }

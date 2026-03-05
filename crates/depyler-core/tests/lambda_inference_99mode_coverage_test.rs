@@ -1,6 +1,6 @@
-//! Coverage tests for lambda_inference/mod.rs
+//! Coverage tests for `lambda_inference/mod.rs`
 //!
-//! DEPYLER-99MODE-001: Targets lambda_inference/mod.rs (1,083 lines)
+//! DEPYLER-99MODE-001: Targets `lambda_inference/mod.rs` (1,083 lines)
 //! Covers: AWS Lambda event type inference, pattern matching,
 //! S3/API Gateway/SNS/SQS/DynamoDB/EventBridge event detection.
 
@@ -178,10 +178,10 @@ def handler(event: dict, context: dict) -> dict:
 
 #[test]
 fn test_lambda_non_handler() {
-    let code = r#"
+    let code = r"
 def process(data: list) -> int:
     return sum(data)
-"#;
+";
     assert!(transpile_ok(code));
 }
 

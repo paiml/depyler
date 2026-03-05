@@ -404,14 +404,14 @@ mod tests {
 
     #[test]
     fn test_parse_errors() {
-        let errors = r#"error[E0382]: borrow of moved value: `args.hash`
+        let errors = r"error[E0382]: borrow of moved value: `args.hash`
    --> src/main.rs:10:5
     |
 5   |     let x = foo(args.hash);
     |                 --------- value moved here
 ...
 10  |     args.hash.is_some()
-    |     ^^^^^^^^^ value borrowed here after move"#;
+    |     ^^^^^^^^^ value borrowed here after move";
 
         let parsed = AutoFixer::parse_errors(errors);
         assert_eq!(parsed.len(), 1);
@@ -428,12 +428,12 @@ mod tests {
 
     #[test]
     fn test_fix_pre_compute_is_some() {
-        let source = r#"
+        let source = r"
 fn main() {
     let info = get_file_info(args.file, args.hash, args.time_format)?;
     let output = format_output(&info, args.hash.is_some());
 }
-"#;
+";
         let mut fixed = source.to_string();
         let mut ctx = FixContext {
             source: &mut fixed,
@@ -468,12 +468,12 @@ fn main() {
 
     #[test]
     fn test_fix_command_factory() {
-        let source = r#"use clap::Parser;
+        let source = r"use clap::Parser;
 
 fn main() {
     parser.print_help();
 }
-"#;
+";
         let mut fixed = source.to_string();
         let mut ctx = FixContext {
             source: &mut fixed,
@@ -504,10 +504,10 @@ fn main() {
 
     #[test]
     fn test_parse_errors_multiple() {
-        let errors = r#"error[E0382]: borrow of moved value
+        let errors = r"error[E0382]: borrow of moved value
    --> src/main.rs:10:5
 error[E0308]: mismatched types
-   --> src/main.rs:20:10"#;
+   --> src/main.rs:20:10";
 
         let parsed = AutoFixer::parse_errors(errors);
         assert_eq!(parsed.len(), 2);

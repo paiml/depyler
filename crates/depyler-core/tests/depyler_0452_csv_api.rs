@@ -19,9 +19,7 @@ fn transpile_python(python: &str) -> anyhow::Result<String> {
 fn assert_contains(rust_code: &str, pattern: &str) {
     assert!(
         rust_code.contains(pattern),
-        "Expected pattern not found:\n  Pattern: {}\n  Code:\n{}",
-        pattern,
-        rust_code
+        "Expected pattern not found:\n  Pattern: {pattern}\n  Code:\n{rust_code}"
     );
 }
 
@@ -29,9 +27,7 @@ fn assert_contains(rust_code: &str, pattern: &str) {
 fn assert_not_contains(rust_code: &str, pattern: &str) {
     assert!(
         !rust_code.contains(pattern),
-        "Unexpected pattern found:\n  Pattern: {}\n  Code:\n{}",
-        pattern,
-        rust_code
+        "Unexpected pattern found:\n  Pattern: {pattern}\n  Code:\n{rust_code}"
     );
 }
 
@@ -47,14 +43,14 @@ fn assert_not_contains(rust_code: &str, pattern: &str) {
 
 #[test]
 fn test_DEPYLER_0452_02_csv_fieldnames_access() {
-    let python = r#"
+    let python = r"
 import csv
 
 def get_headers(filepath):
     with open(filepath) as f:
         reader = csv.DictReader(f)
         return reader.fieldnames
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -70,7 +66,7 @@ def get_headers(filepath):
     // Should handle Result from headers()
     let has_result_handling =
         rust_code.contains("headers()?") || rust_code.contains("headers().unwrap()");
-    assert!(has_result_handling, "Expected Result handling for headers(). Got:\n{}", rust_code);
+    assert!(has_result_handling, "Expected Result handling for headers(). Got:\n{rust_code}");
 }
 
 // ====================================================================================
@@ -79,7 +75,7 @@ def get_headers(filepath):
 
 #[test]
 fn test_DEPYLER_0452_03_csv_row_iteration() {
-    let python = r#"
+    let python = r"
 import csv
 
 def print_rows(filepath):
@@ -87,7 +83,7 @@ def print_rows(filepath):
         reader = csv.DictReader(f)
         for row in reader:
             print(row)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -103,7 +99,7 @@ def print_rows(filepath):
     // Should handle Result from deserialize iteration
     let has_result_handling =
         rust_code.contains("result?") || rust_code.contains("result.unwrap()");
-    assert!(has_result_handling, "Expected Result handling in iteration. Got:\n{}", rust_code);
+    assert!(has_result_handling, "Expected Result handling in iteration. Got:\n{rust_code}");
 
     // Should NOT use incorrect .iter() method
     assert_not_contains(&rust_code, "reader.iter()");
@@ -121,7 +117,7 @@ def print_rows(filepath):
 
 #[test]
 fn test_DEPYLER_0452_05_csv_filtering() {
-    let python = r#"
+    let python = r"
 import csv
 
 def filter_csv(filepath, column, value):
@@ -132,7 +128,7 @@ def filter_csv(filepath, column, value):
             if row[column] == value:
                 results.append(row)
         return results
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -150,7 +146,7 @@ def filter_csv(filepath, column, value):
 
     // Should collect results into Vec
     let has_collect = rust_code.contains(".collect()") || rust_code.contains("results.push(");
-    assert!(has_collect, "Expected collect() or push() for results. Got:\n{}", rust_code);
+    assert!(has_collect, "Expected collect() or push() for results. Got:\n{rust_code}");
 }
 
 // ====================================================================================
@@ -167,7 +163,7 @@ def filter_csv(filepath, column, value):
 
 #[test]
 fn test_DEPYLER_0454_csv_reader_generator_expression() {
-    let python = r#"
+    let python = r"
 import csv
 
 def filter_csv_generator(filepath, column, value):
@@ -175,7 +171,7 @@ def filter_csv_generator(filepath, column, value):
         reader = csv.DictReader(f)
         filtered = [row for row in reader if row[column] == value]
         return filtered
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -190,7 +186,7 @@ def filter_csv_generator(filepath, column, value):
 
     // Should use filter pattern for filtering rows
     let has_filter = rust_code.contains(".filter(") || rust_code.contains("if ");
-    assert!(has_filter, "Expected filter pattern for list comprehension. Got:\n{}", rust_code);
+    assert!(has_filter, "Expected filter pattern for list comprehension. Got:\n{rust_code}");
 
     // Should handle HashMap for DictReader rows
     assert_contains(&rust_code, "HashMap");
@@ -205,7 +201,7 @@ def filter_csv_generator(filepath, column, value):
 
 #[test]
 fn test_DEPYLER_0454_csv_reader_method_chain() {
-    let python = r#"
+    let python = r"
 import csv
 
 def filter_and_map_csv(filepath):
@@ -214,7 +210,7 @@ def filter_and_map_csv(filepath):
         # Generator expression that should become iterator chain
         names = [row['name'] for row in reader if row['active'] == 'true']
         return names
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -228,8 +224,8 @@ def filter_and_map_csv(filepath):
     assert_contains(&rust_code, "deserialize");
 
     // Should handle Result type from deserialize iterator
-    let has_result_handling = rust_code.contains("?") || rust_code.contains(".unwrap()");
-    assert!(has_result_handling, "Expected Result handling. Got:\n{}", rust_code);
+    let has_result_handling = rust_code.contains('?') || rust_code.contains(".unwrap()");
+    assert!(has_result_handling, "Expected Result handling. Got:\n{rust_code}");
 }
 
 // ====================================================================================
@@ -238,12 +234,12 @@ def filter_and_map_csv(filepath):
 
 #[test]
 fn test_DEPYLER_0452_06_file_line_iteration() {
-    let python = r#"
+    let python = r"
 def read_lines(filepath):
     with open(filepath) as f:
         for line in f:
             print(line.strip())
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -261,13 +257,12 @@ def read_lines(filepath):
         || rust_code.contains("line?")
         || rust_code.contains(".unwrap()")
         || rust_code.contains(".unwrap_or_default()");
-    assert!(has_result_handling, "Expected Result handling for lines(). Got:\n{}", rust_code);
+    assert!(has_result_handling, "Expected Result handling for lines(). Got:\n{rust_code}");
 
     // Should use proper file iteration pattern (not File.iter())
     let has_proper_iteration = rust_code.contains(".lines()") || rust_code.contains("BufReader");
     assert!(
         has_proper_iteration,
-        "Expected BufReader.lines() pattern for file iteration. Got:\n{}",
-        rust_code
+        "Expected BufReader.lines() pattern for file iteration. Got:\n{rust_code}"
     );
 }

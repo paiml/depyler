@@ -1,4 +1,4 @@
-//! Coverage tests for rust_gen/stdlib_method_gen/datetime.rs
+//! Coverage tests for `rust_gen/stdlib_method_gen/datetime.rs`
 //!
 //! DEPYLER-99MODE-001: Targets datetime.rs (~679 lines)
 //! Covers: datetime.now/utcnow, date.today, timedelta,
@@ -21,23 +21,23 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_datetime_now() {
-    let code = r#"
+    let code = r"
 import datetime
 
 def f() -> str:
     return str(datetime.datetime.now())
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_datetime_utcnow() {
-    let code = r#"
+    let code = r"
 import datetime
 
 def f() -> str:
     return str(datetime.datetime.utcnow())
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -47,12 +47,12 @@ def f() -> str:
 
 #[test]
 fn test_datetime_today() {
-    let code = r#"
+    let code = r"
 import datetime
 
 def f() -> str:
     return str(datetime.date.today())
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -62,13 +62,13 @@ def f() -> str:
 
 #[test]
 fn test_datetime_timedelta() {
-    let code = r#"
+    let code = r"
 import datetime
 
 def f() -> int:
     delta = datetime.timedelta(days=7)
     return delta.days
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -78,24 +78,24 @@ def f() -> int:
 
 #[test]
 fn test_datetime_function_usage() {
-    let code = r#"
+    let code = r"
 import datetime
 
 def get_timestamp() -> str:
     now = datetime.datetime.now()
     return str(now)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_datetime_comparison() {
-    let code = r#"
+    let code = r"
 import datetime
 
 def is_recent(timestamp: str) -> bool:
     return len(timestamp) > 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -105,7 +105,7 @@ def is_recent(timestamp: str) -> bool:
 
 #[test]
 fn test_datetime_in_class() {
-    let code = r#"
+    let code = r"
 import datetime
 
 class Logger:
@@ -114,7 +114,7 @@ class Logger:
 
     def log(self, message: str):
         self.entries.append(message)
-"#;
+";
     assert!(transpile_ok(code));
 }
 

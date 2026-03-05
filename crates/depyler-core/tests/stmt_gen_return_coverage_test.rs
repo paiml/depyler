@@ -1,11 +1,11 @@
-//! Targeted coverage tests for codegen_return_stmt function
+//! Targeted coverage tests for `codegen_return_stmt` function
 //!
-//! Target: codegen_return_stmt (lines 164-280, complexity 50)
+//! Target: `codegen_return_stmt` (lines 164-280, complexity 50)
 //! Coverage focus: Optional wrapping, Result wrapping, type conversion, final vs early returns
 //!
 //! Test Strategy:
-//! - Optional return types with Some() wrapping (DEPYLER-0277)
-//! - Result return types with Ok() wrapping
+//! - Optional return types with `Some()` wrapping (DEPYLER-0277)
+//! - Result return types with `Ok()` wrapping
 //! - None literal handling
 //! - Type conversion (e.g., usize→i32) (DEPYLER-0241/0272)
 //! - Final statement vs early return (DEPYLER-0271)
@@ -19,10 +19,10 @@ use depyler_core::DepylerPipeline;
 #[test]
 fn test_simple_return() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def get_value() -> int:
     return 42
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should generate: 42 (final statement, no 'return' keyword)
@@ -35,31 +35,31 @@ def get_value() -> int:
 #[test]
 fn test_early_return() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def check_value(x: int) -> int:
     if x < 0:
         return 0
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Early return should have 'return' keyword
     assert!(rust_code.contains("fn check_value"));
 }
 
-/// Unit Test: Optional return with Some() wrapping
+/// Unit Test: Optional return with `Some()` wrapping
 ///
 /// Verifies: DEPYLER-0277 Optional wrapping (lines 235-241)
 #[test]
 fn test_optional_return_some() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def find_value(items: list[int], target: int) -> int | None:
     for item in items:
         if item == target:
             return item
     return None
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should wrap in Some() for non-None value
@@ -72,21 +72,21 @@ def find_value(items: list[int], target: int) -> int | None:
 #[test]
 fn test_optional_return_none() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def maybe_value(condition: bool) -> int | None:
     if condition:
         return 42
     return None
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should generate: None (not Some(None))
     assert!(rust_code.contains("fn maybe_value"));
 }
 
-/// Unit Test: Result return with Ok() wrapping (can_fail function)
+/// Unit Test: Result return with `Ok()` wrapping (`can_fail` function)
 ///
-/// Verifies: Ok() wrapping for can-fail functions (lines 230-233)
+/// Verifies: `Ok()` wrapping for can-fail functions (lines 230-233)
 #[test]
 fn test_result_return_ok() {
     let pipeline = DepylerPipeline::new();
@@ -200,10 +200,10 @@ def find_if_valid(items: list[int]) -> int | None:
 #[test]
 fn test_type_conversion_on_return() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def count_items(items: list[int]) -> int:
     return len(items)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // len() returns usize, should convert to i32
@@ -216,31 +216,31 @@ def count_items(items: list[int]) -> int:
 #[test]
 fn test_final_vs_early_return() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def max_value(a: int, b: int) -> int:
     if a > b:
         return a  # Early return
     return b      # Final return
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Final should omit 'return', early should have it
     assert!(rust_code.contains("fn max_value"));
 }
 
-/// Unit Test: Optional return with early Some() wrapping
+/// Unit Test: Optional return with early `Some()` wrapping
 ///
-/// Verifies: Optional + early return = return Some() (lines 237-238)
+/// Verifies: Optional + early return = return `Some()` (lines 237-238)
 #[test]
 fn test_optional_early_return_some() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def first_positive(items: list[int]) -> int | None:
     for item in items:
         if item > 0:
             return item  # Early return
     return None
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Early return should have 'return Some(item)'
@@ -253,21 +253,21 @@ def first_positive(items: list[int]) -> int | None:
 #[test]
 fn test_optional_early_return_none() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def find_or_none(items: list[int], target: int) -> int | None:
     if len(items) == 0:
         return None  # Early None
     return items[0]
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Early None should be 'return None'
     assert!(rust_code.contains("fn find_or_none"));
 }
 
-/// Unit Test: Result with early Ok() return
+/// Unit Test: Result with early `Ok()` return
 ///
-/// Verifies: Can-fail + early return = return Ok() (lines 230)
+/// Verifies: Can-fail + early return = return `Ok()` (lines 230)
 #[test]
 fn test_result_early_return() {
     let pipeline = DepylerPipeline::new();
@@ -385,10 +385,10 @@ fn test_property_return_wrapping_matrix() {
 #[test]
 fn test_empty_optional_function() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def empty_optional() -> int | None:
     return
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should return None for empty Optional
@@ -401,14 +401,14 @@ def empty_optional() -> int | None:
 #[test]
 fn test_nested_optional_returns() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def nested_search(matrix: list[list[int]], target: int) -> int | None:
     for row in matrix:
         for val in row:
             if val == target:
                 return val
     return None
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn nested_search"));
@@ -452,18 +452,18 @@ fn test_mutation_return_wrapping() {
     let pipeline = DepylerPipeline::new();
 
     // Test Case 1: Must wrap in Some
-    let opt_some = r#"
+    let opt_some = r"
 def test1() -> int | None:
     return 42
-"#;
+";
     let rust1 = pipeline.transpile(opt_some).unwrap();
     assert!(rust1.contains("fn test1"));
 
     // Test Case 2: Must NOT wrap None in Some
-    let opt_none = r#"
+    let opt_none = r"
 def test2() -> int | None:
     return None
-"#;
+";
     let rust2 = pipeline.transpile(opt_none).unwrap();
     assert!(rust2.contains("fn test2"));
 

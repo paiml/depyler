@@ -19,8 +19,8 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 fn unique_temp_path() -> (String, String) {
     let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
-    let rs_file = format!("/tmp/depyler_0437_{}_{}.rs", pid, id);
-    let rlib_file = format!("/tmp/depyler_0437_{}_{}.rlib", pid, id);
+    let rs_file = format!("/tmp/depyler_0437_{pid}_{id}.rs");
+    let rlib_file = format!("/tmp/depyler_0437_{pid}_{id}.rlib");
     (rs_file, rlib_file)
 }
 
@@ -33,14 +33,14 @@ fn transpile_python(python: &str) -> anyhow::Result<String> {
 #[test]
 fn test_DEPYLER_0437_try_except_generates_match() {
     // Try/except should generate match expression, not sequential code
-    let python = r#"
+    let python = r"
 def parse_int(value):
     try:
         num = int(value)
         return num
     except ValueError:
         return -1
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
@@ -55,8 +55,7 @@ def parse_int(value):
     // CRITICAL: Should use match expression for error handling
     assert!(
         func_body.contains("match") && func_body.contains(".parse"),
-        "Should generate match expression for int(value). Got: {}",
-        func_body
+        "Should generate match expression for int(value). Got: {func_body}"
     );
 
     // Should NOT use unwrap_or_default in the function body (hides the exception handler)
@@ -65,22 +64,21 @@ def parse_int(value):
     let func_only = &func_body[..func_end];
     assert!(
         !func_only.contains("unwrap_or_default"),
-        "Should not use unwrap_or_default in try/except function - defeats purpose: {}",
-        func_only
+        "Should not use unwrap_or_default in try/except function - defeats purpose: {func_only}"
     );
 }
 
 #[test]
 fn test_DEPYLER_0437_except_handler_in_err_branch() {
     // Except handler code should be in Err(_) branch
-    let python = r#"
+    let python = r"
 def validator(value):
     try:
         num = int(value)
         return num
     except ValueError:
         return -1
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
@@ -90,12 +88,11 @@ def validator(value):
     // Should have Err branch with except handler code
     assert!(
         rust.contains("Err(") && rust.contains("-1"),
-        "Except handler (return -1) should be in Err branch: {}",
-        rust
+        "Except handler (return -1) should be in Err branch: {rust}"
     );
 
     // Should have Ok branch with try body continuation
-    assert!(rust.contains("Ok("), "Should have Ok branch for successful parse: {}", rust);
+    assert!(rust.contains("Ok("), "Should have Ok branch for successful parse: {rust}");
 }
 
 #[test]
@@ -120,15 +117,13 @@ def port_validator(value):
     // Match should wrap the int() call
     assert!(
         rust.contains("match") && rust.contains(".parse"),
-        "Should match on parse result: {}",
-        rust
+        "Should match on parse result: {rust}"
     );
 
     // Validation (if port < 1) should be in Ok branch
     assert!(
         rust.contains("Ok(port)") || rust.contains("Ok("),
-        "Port validation should be in Ok branch: {}",
-        rust
+        "Port validation should be in Ok branch: {rust}"
     );
 
     // Should NOT have unreachable code (current bug)
@@ -138,14 +133,14 @@ def port_validator(value):
 #[test]
 fn test_DEPYLER_0437_compiles_without_warnings() {
     // Generated code should compile without unreachable warnings
-    let python = r#"
+    let python = r"
 def parse_number(text):
     try:
         result = int(text)
         return result
     except ValueError:
         return 0
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
@@ -172,14 +167,12 @@ def parse_number(text):
     // Should NOT have unreachable code warnings
     assert!(
         !stderr.contains("unreachable"),
-        "Should not have unreachable code warnings. Stderr: {}",
-        stderr
+        "Should not have unreachable code warnings. Stderr: {stderr}"
     );
 
     assert!(
         output.status.success(),
-        "Compilation should succeed without warnings. Stderr: {}",
-        stderr
+        "Compilation should succeed without warnings. Stderr: {stderr}"
     );
 }
 
@@ -204,13 +197,12 @@ def validator(value):
     let rust = result.unwrap();
 
     // Should generate match for the parse
-    assert!(rust.contains("match"), "Should use match for exception handling: {}", rust);
+    assert!(rust.contains("match"), "Should use match for exception handling: {rust}");
 
     // Multiple statements (if num < 0, result = num * 2) should be in Ok branch
     // This ensures they don't run if int() fails
     assert!(
         rust.contains("Ok(") || rust.contains("Ok(num)"),
-        "Try block continuations should be in Ok branch: {}",
-        rust
+        "Try block continuations should be in Ok branch: {rust}"
     );
 }

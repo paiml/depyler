@@ -1,7 +1,7 @@
 //! DEPYLER-0968: Sum Function Translation Tests
 //!
-//! This test module validates the correct translation of Python sum() builtin
-//! to Rust iterator .sum() method in class method bodies.
+//! This test module validates the correct translation of Python `sum()` builtin
+//! to Rust iterator .`sum()` method in class method bodies.
 //!
 //! Key mappings:
 //! - `sum(x*x for x in items)` → `.iter().map(|x| x*x).sum::<T>()`
@@ -14,7 +14,7 @@ use depyler_core::DepylerPipeline;
 #[test]
 fn test_sum_generator_expression_in_class_method() {
     // Python class with sum(generator_exp) should generate .sum() method call
-    let python = r#"
+    let python = r"
 from dataclasses import dataclass
 
 @dataclass
@@ -23,7 +23,7 @@ class Vector:
 
     def magnitude(self) -> float:
         return sum(c * c for c in self.components) ** 0.5
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -34,22 +34,20 @@ class Vector:
     // Should generate .sum::<f64>() method call (not sum() free function)
     assert!(
         rust_code.contains(".sum::<"),
-        "Should generate .sum::<T>() method call from sum(generator)\\n\\nGenerated:\\n{}",
-        rust_code
+        "Should generate .sum::<T>() method call from sum(generator)\\n\\nGenerated:\\n{rust_code}"
     );
 
     // Should NOT have sum( as a free function call
     assert!(
         !rust_code.contains("{ sum("),
-        "Should NOT have sum() as free function call\\n\\nGenerated:\\n{}",
-        rust_code
+        "Should NOT have sum() as free function call\\n\\nGenerated:\\n{rust_code}"
     );
 }
 
 #[test]
 fn test_sum_list_in_class_method() {
     // Python class with sum(list) should generate .iter().sum()
-    let python = r#"
+    let python = r"
 from dataclasses import dataclass
 
 @dataclass
@@ -58,7 +56,7 @@ class Stats:
 
     def total(self) -> int:
         return sum(self.values)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -69,8 +67,7 @@ class Stats:
     // Should generate .sum() method call
     assert!(
         rust_code.contains(".sum::<"),
-        "Should generate .sum::<T>() method call\\n\\nGenerated:\\n{}",
-        rust_code
+        "Should generate .sum::<T>() method call\\n\\nGenerated:\\n{rust_code}"
     );
 }
 
@@ -106,25 +103,22 @@ def add_vectors(v1: Vector, v2: Vector) -> Vector:
     // The code should compile - verify key patterns
     assert!(
         rust_code.contains("pub fn magnitude"),
-        "Should have magnitude method\\n\\nGenerated:\\n{}",
-        rust_code
+        "Should have magnitude method\\n\\nGenerated:\\n{rust_code}"
     );
     assert!(
         rust_code.contains("pub fn len"),
-        "Should have len method (from __len__)\\n\\nGenerated:\\n{}",
-        rust_code
+        "Should have len method (from __len__)\\n\\nGenerated:\\n{rust_code}"
     );
     assert!(
         rust_code.contains(".sum::<"),
-        "Should use .sum::<T>() for sum()\\n\\nGenerated:\\n{}",
-        rust_code
+        "Should use .sum::<T>() for sum()\\n\\nGenerated:\\n{rust_code}"
     );
 }
 
 #[test]
 fn test_sum_preserves_type_inference() {
     // sum() on int list should use i32, on float list should use f64
-    let python = r#"
+    let python = r"
 from dataclasses import dataclass
 
 @dataclass
@@ -137,7 +131,7 @@ class Container:
 
     def sum_floats(self) -> float:
         return sum(self.floats)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -148,7 +142,6 @@ class Container:
     // Should have both sum methods
     assert!(
         rust_code.contains("sum_ints") && rust_code.contains("sum_floats"),
-        "Should have both sum methods\\n\\nGenerated:\\n{}",
-        rust_code
+        "Should have both sum methods\\n\\nGenerated:\\n{rust_code}"
     );
 }

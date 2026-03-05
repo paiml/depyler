@@ -1,7 +1,7 @@
-//! Coverage tests for lifetime_analysis.rs and borrowing_context.rs
+//! Coverage tests for `lifetime_analysis.rs` and `borrowing_context.rs`
 //!
-//! DEPYLER-99MODE-001: Targets lifetime_analysis.rs (1,757 lines)
-//! and borrowing_context.rs (1,733 lines)
+//! DEPYLER-99MODE-001: Targets `lifetime_analysis.rs` (1,757 lines)
+//! and `borrowing_context.rs` (1,733 lines)
 //! Covers: parameter borrow strategies, mutation detection, escape analysis,
 //! loop/conditional contexts, lifetime elision, ownership transfer.
 
@@ -22,28 +22,28 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_borrow_read_only_str() {
-    let code = r#"
+    let code = r"
 def get_len(s: str) -> int:
     return len(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_borrow_read_only_list() {
-    let code = r#"
+    let code = r"
 def first(items: list) -> int:
     return items[0]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_borrow_read_only_dict() {
-    let code = r#"
+    let code = r"
 def lookup(d: dict, key: str) -> int:
     return d[key]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -53,28 +53,28 @@ def lookup(d: dict, key: str) -> int:
 
 #[test]
 fn test_borrow_mutable_list_append() {
-    let code = r#"
+    let code = r"
 def add_item(items: list, val: int):
     items.append(val)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_borrow_mutable_dict_assign() {
-    let code = r#"
+    let code = r"
 def set_key(d: dict, key: str, val: int):
     d[key] = val
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_borrow_mutable_list_extend() {
-    let code = r#"
+    let code = r"
 def extend_list(items: list, more: list):
     items.extend(more)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -84,30 +84,30 @@ def extend_list(items: list, more: list):
 
 #[test]
 fn test_ownership_identity() {
-    let code = r#"
+    let code = r"
 def identity(x: str) -> str:
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ownership_conditional_return() {
-    let code = r#"
+    let code = r"
 def longer(a: str, b: str) -> str:
     if len(a) > len(b):
         return a
     return b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ownership_modified_return() {
-    let code = r#"
+    let code = r"
 def upper(s: str) -> str:
     return s.upper()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -117,28 +117,28 @@ def upper(s: str) -> str:
 
 #[test]
 fn test_copy_type_int() {
-    let code = r#"
+    let code = r"
 def double(x: int) -> int:
     return x * 2
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_copy_type_float() {
-    let code = r#"
+    let code = r"
 def halve(x: float) -> float:
     return x / 2.0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_copy_type_bool() {
-    let code = r#"
+    let code = r"
 def negate(flag: bool) -> bool:
     return not flag
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -148,20 +148,20 @@ def negate(flag: bool) -> bool:
 
 #[test]
 fn test_borrow_in_for_loop() {
-    let code = r#"
+    let code = r"
 def count_items(items: list, target: int) -> int:
     count = 0
     for item in items:
         if item == target:
             count += 1
     return count
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_borrow_in_while_loop() {
-    let code = r#"
+    let code = r"
 def find_index(items: list, target: int) -> int:
     i = 0
     while i < len(items):
@@ -169,20 +169,20 @@ def find_index(items: list, target: int) -> int:
             return i
         i += 1
     return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_borrow_nested_loop() {
-    let code = r#"
+    let code = r"
 def has_pair(items: list) -> bool:
     for i in range(len(items)):
         for j in range(i + 1, len(items)):
             if items[i] == items[j]:
                 return True
     return False
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -203,13 +203,13 @@ def check(items: list) -> str:
 
 #[test]
 fn test_borrow_in_if_else() {
-    let code = r#"
+    let code = r"
 def process(text: str, flag: bool) -> str:
     if flag:
         return text.upper()
     else:
         return text.lower()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -219,19 +219,19 @@ def process(text: str, flag: bool) -> str:
 
 #[test]
 fn test_mutation_index_assign() {
-    let code = r#"
+    let code = r"
 def set_first(items: list, val: int):
     items[0] = val
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_mutation_augmented_assign() {
-    let code = r#"
+    let code = r"
 def increment(items: list, idx: int):
     items[idx] += 1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -267,19 +267,19 @@ def build_string(items: list) -> str:
 
 #[test]
 fn test_borrow_in_try() {
-    let code = r#"
+    let code = r"
 def safe_access(items: list, idx: int) -> int:
     try:
         return items[idx]
     except IndexError:
         return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_borrow_try_finally() {
-    let code = r#"
+    let code = r"
 def process(data: list) -> int:
     result = 0
     try:
@@ -287,7 +287,7 @@ def process(data: list) -> int:
     finally:
         pass
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -297,11 +297,11 @@ def process(data: list) -> int:
 
 #[test]
 fn test_borrow_with_statement() {
-    let code = r#"
+    let code = r"
 def read_file(path: str) -> str:
     with open(path) as f:
         return f.read()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -311,12 +311,12 @@ def read_file(path: str) -> str:
 
 #[test]
 fn test_closure_capture_int() {
-    let code = r#"
+    let code = r"
 def make_adder(n: int):
     def add(x: int) -> int:
         return x + n
     return add
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -337,11 +337,11 @@ def make_greeter(greeting: str):
 
 #[test]
 fn test_lambda_capture() {
-    let code = r#"
+    let code = r"
 def f(multiplier: int) -> list:
     items = [1, 2, 3, 4, 5]
     return list(map(lambda x: x * multiplier, items))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -351,19 +351,19 @@ def f(multiplier: int) -> list:
 
 #[test]
 fn test_comprehension_borrow() {
-    let code = r#"
+    let code = r"
 def square_items(items: list) -> list:
     return [x * x for x in items]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_comprehension_filter_borrow() {
-    let code = r#"
+    let code = r"
 def positive_items(items: list) -> list:
     return [x for x in items if x > 0]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -385,20 +385,20 @@ def process(text: str, count: int) -> str:
 
 #[test]
 fn test_multi_param_all_borrowed() {
-    let code = r#"
+    let code = r"
 def compare(a: str, b: str) -> bool:
     return len(a) > len(b)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_multi_param_one_mutated() {
-    let code = r#"
+    let code = r"
 def populate(items: list, source: list):
     for s in source:
         items.append(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -408,7 +408,7 @@ def populate(items: list, source: list):
 
 #[test]
 fn test_complex_binary_search() {
-    let code = r#"
+    let code = r"
 def binary_search(items: list, target: int) -> int:
     low = 0
     high = len(items) - 1
@@ -421,13 +421,13 @@ def binary_search(items: list, target: int) -> int:
         else:
             high = mid - 1
     return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_complex_merge_lists() {
-    let code = r#"
+    let code = r"
 def merge(a: list, b: list) -> list:
     result = []
     i = 0
@@ -446,7 +446,7 @@ def merge(a: list, b: list) -> list:
         result.append(b[j])
         j += 1
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -468,7 +468,7 @@ def transform(text: str) -> str:
 
 #[test]
 fn test_complex_dict_operations() {
-    let code = r#"
+    let code = r"
 def count_words(text: str) -> dict:
     counts = {}
     for word in text.lower().split():
@@ -477,26 +477,26 @@ def count_words(text: str) -> dict:
         else:
             counts[word] = 1
     return counts
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_complex_nested_data() {
-    let code = r#"
+    let code = r"
 def flatten(matrix: list) -> list:
     result = []
     for row in matrix:
         for item in row:
             result.append(item)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_complex_accumulator() {
-    let code = r#"
+    let code = r"
 def running_total(items: list) -> list:
     result = []
     total = 0
@@ -504,6 +504,6 @@ def running_total(items: list) -> list:
         total += item
         result.append(total)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }

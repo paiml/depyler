@@ -17,17 +17,17 @@
 //!         return 0
 //! ```
 //!
-//! Before fix: ValueError::new used but struct ValueError not generated → E0433
-//! After fix: ValueError struct generated because try/except block is analyzed
+//! Before fix: `ValueError::new` used but struct `ValueError` not generated → E0433
+//! After fix: `ValueError` struct generated because try/except block is analyzed
 //!
 //! ## Solution (DEPYLER-0327)
-//! 1. Added Try block case to stmt_can_fail() in properties.rs
-//! 2. Collect exception types from handler signatures (exception_type field)
-//! 3. Always collect error_types even if can_fail=false (caught internally)
-//! 4. Check func.properties.error_types in func_gen.rs to generate types
+//! 1. Added Try block case to `stmt_can_fail()` in properties.rs
+//! 2. Collect exception types from handler signatures (`exception_type` field)
+//! 3. Always collect `error_types` even if `can_fail=false` (caught internally)
+//! 4. Check `func.properties.error_types` in `func_gen.rs` to generate types
 //!
 //! ## Test Coverage
-//! - ValueError in try/except with internal catch
+//! - `ValueError` in try/except with internal catch
 //! - Multiple exception types in handlers
 //! - Nested try/except blocks
 //! - Try/except with finally
@@ -55,8 +55,7 @@ def operation_with_cleanup(value: int) -> int:
     // CRITICAL: ValueError should be generated even though it's caught internally
     assert!(
         rust_code.contains("struct ValueError"),
-        "Should generate ValueError struct for caught exceptions.\nGenerated code:\n{}",
-        rust_code
+        "Should generate ValueError struct for caught exceptions.\nGenerated code:\n{rust_code}"
     );
 
     // Should have Display and Error impls
@@ -143,7 +142,7 @@ def operation_with_finally(value: int) -> int:
 
 #[test]
 fn test_nested_try_except_generates_types() {
-    let python_code = r#"
+    let python_code = r"
 def nested_operations(data: list[str], index: int) -> int:
     try:
         value_str = data[index]
@@ -154,7 +153,7 @@ def nested_operations(data: list[str], index: int) -> int:
             return 0
     except IndexError:
         return -1
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
@@ -239,12 +238,12 @@ def operation_with_cleanup(value: int) -> int:
     let test_code = format!(
         "{}\n{}",
         rust_code,
-        r#"
+        r"
 fn main() {
     assert_eq!(operation_with_cleanup(5), 10);
     assert_eq!(operation_with_cleanup(-1), 0);
 }
-"#
+"
     );
 
     std::fs::write("/tmp/test_depyler_0327_compiles.rs", test_code)
@@ -314,13 +313,13 @@ def operation_with_logging(value: int) -> int:
 
 #[test]
 fn test_try_except_with_indexerror_from_list_access() {
-    let python_code = r#"
+    let python_code = r"
 def get_first_element(data: list[int]) -> int:
     try:
         return data[0]
     except IndexError:
         return -1
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");

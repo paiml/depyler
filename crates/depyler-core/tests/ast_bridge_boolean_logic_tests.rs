@@ -66,13 +66,13 @@ class Config:
 #[test]
 fn test_no_field_inference_when_explicit_fields_exist() {
     // Test: Should NOT infer when fields already exist (even without @dataclass)
-    let python = r#"
+    let python = r"
 class Config:
     name: str
 
     def __init__(self):
         self.value = 42
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -94,11 +94,11 @@ class Config:
 #[test]
 fn test_dataclass_decorator_as_name() {
     // Test: @dataclass should be detected
-    let python = r#"
+    let python = r"
 @dataclass
 class Config:
     name: str
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -112,11 +112,11 @@ class Config:
 #[test]
 fn test_dataclass_decorator_as_attribute() {
     // Test: @dataclasses.dataclass should be detected
-    let python = r#"
+    let python = r"
 @dataclasses.dataclass
 class Config:
     name: str
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -135,7 +135,7 @@ class Config:
 #[test]
 fn test_dunder_methods_are_skipped() {
     // Test: Methods like __str__, __repr__ should be skipped
-    let python = r#"
+    let python = r"
 class Config:
     def __str__(self):
         x = 1
@@ -145,7 +145,7 @@ class Config:
 
     def normal_method(self):
         z = 3
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -163,7 +163,7 @@ class Config:
 #[test]
 fn test_special_dunder_methods_are_kept() {
     // Test: __init__, __iter__, __next__ should NOT be skipped
-    let python = r#"
+    let python = r"
 class Iterator:
     def __init__(self):
         self.i = 0
@@ -174,7 +174,7 @@ class Iterator:
     def __next__(self):
         self.i += 1
         return self.i
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -191,7 +191,7 @@ class Iterator:
 #[test]
 fn test_single_underscore_methods_not_filtered() {
     // Test: Methods like _private or __dunder (one side only) should be kept
-    let python = r#"
+    let python = r"
 class Config:
     def _private(self):
         x = 1
@@ -201,7 +201,7 @@ class Config:
 
     def ends_only__(self):
         z = 3
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -225,7 +225,7 @@ class Config:
 #[test]
 fn test_async_method_detection_requires_both_decorator_and_async() {
     // Test: Method must have BOTH @async_method decorator AND async keyword
-    let python = r#"
+    let python = r"
 class Service:
     @async_method
     async def fetch_data(self):
@@ -237,7 +237,7 @@ class Service:
 
     async def no_decorator(self):
         z = 3
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -253,7 +253,7 @@ class Service:
 #[test]
 fn test_property_decorator_detection() {
     // Test: @property decorator should be detected via Name or Attribute
-    let python = r#"
+    let python = r"
 class Config:
     @property
     def name(self):
@@ -262,7 +262,7 @@ class Config:
     @functools.property
     def value(self):
         return self._value
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -275,12 +275,12 @@ class Config:
 #[test]
 fn test_staticmethod_decorator_detection() {
     // Test: @staticmethod should be detected
-    let python = r#"
+    let python = r"
 class Util:
     @staticmethod
     def helper():
         return 42
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -297,7 +297,7 @@ class Util:
 #[test]
 fn test_complex_class_with_multiple_boolean_conditions() {
     // Integration test: Validates all boolean logic conditions together
-    let python = r#"
+    let python = r"
 @dataclass
 class DataModel:
     id: int
@@ -318,7 +318,7 @@ class DataModel:
 
     async def fetch_details(self):
         w = 4
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");

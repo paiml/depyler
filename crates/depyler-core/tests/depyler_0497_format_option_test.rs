@@ -19,20 +19,20 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 fn unique_temp_path() -> String {
     let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
-    format!("/tmp/depyler_0497_{}_{}.rs", pid, id)
+    format!("/tmp/depyler_0497_{pid}_{id}.rs")
 }
 
 /// Helper function to compile generated Rust code and check for errors
 fn compile_rust_code(rust_code: &str, _test_name: &str) -> Result<(), String> {
     // Write to temporary file with unique name per test
     let temp_file = unique_temp_path();
-    std::fs::write(&temp_file, rust_code).map_err(|e| format!("Write failed: {}", e))?;
+    std::fs::write(&temp_file, rust_code).map_err(|e| format!("Write failed: {e}"))?;
 
     // Try to compile
     let output = Command::new("rustc")
         .args(["--crate-type", "lib", "--deny", "warnings", &temp_file])
         .output()
-        .map_err(|e| format!("Rustc execution failed: {}", e))?;
+        .map_err(|e| format!("Rustc execution failed: {e}"))?;
 
     // Cleanup
     let _ = std::fs::remove_file(&temp_file);
@@ -41,7 +41,7 @@ fn compile_rust_code(rust_code: &str, _test_name: &str) -> Result<(), String> {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(format!("Compilation failed:\n{}", stderr))
+        Err(format!("Compilation failed:\n{stderr}"))
     }
 }
 
@@ -69,11 +69,11 @@ def main():
     let rust_code = result.unwrap();
 
     // Debug: Print generated code
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 
     // The generated code should compile without errors
     match compile_rust_code(&rust_code, "option_variable") {
-        Ok(_) => {
+        Ok(()) => {
             // GREEN: Test passes when format! correctly handles Option types
             println!("✅ DEPYLER-0497: Format! macro correctly handles Option types");
         }
@@ -84,11 +84,10 @@ def main():
                     "❌ RED PHASE: Option<T> Display trait error (DEPYLER-0497)\n\
                      Expected: format! should use {{{{:?}}}} or unwrap Option values\n\
                      Actual: Compilation error\n\n\
-                     Error:\n{}",
-                    e
+                     Error:\n{e}"
                 );
             } else {
-                panic!("Unexpected compilation error:\n{}", e);
+                panic!("Unexpected compilation error:\n{e}");
             }
         }
     }
@@ -111,10 +110,10 @@ def main():
     assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 
     match compile_rust_code(&rust_code, "option_function") {
-        Ok(_) => {
+        Ok(()) => {
             println!("✅ DEPYLER-0497: Format! correctly handles Option-returning functions");
         }
         Err(e) => {
@@ -122,11 +121,10 @@ def main():
                 panic!(
                     "❌ RED PHASE: Option<T> Display trait error (DEPYLER-0497)\n\
                      Function call returns Option, needs {{:?}} or unwrapping\n\n\
-                     Error:\n{}",
-                    e
+                     Error:\n{e}"
                 );
             } else {
-                panic!("Unexpected compilation error:\n{}", e);
+                panic!("Unexpected compilation error:\n{e}");
             }
         }
     }
@@ -151,10 +149,10 @@ def main():
     assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 
     match compile_rust_code(&rust_code, "result") {
-        Ok(_) => {
+        Ok(()) => {
             println!("✅ DEPYLER-0497: Format! correctly handles Result types");
         }
         Err(e) => {
@@ -162,11 +160,10 @@ def main():
                 panic!(
                     "❌ RED PHASE: Result<T, E> Display trait error (DEPYLER-0497)\n\
                      Result types need {{:?}} or unwrapping with ?\n\n\
-                     Error:\n{}",
-                    e
+                     Error:\n{e}"
                 );
             } else {
-                panic!("Unexpected compilation error:\n{}", e);
+                panic!("Unexpected compilation error:\n{e}");
             }
         }
     }
@@ -189,10 +186,10 @@ def main():
     assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
-    println!("Generated Rust code:\n{}", rust_code);
+    println!("Generated Rust code:\n{rust_code}");
 
     match compile_rust_code(&rust_code, "vec") {
-        Ok(_) => {
+        Ok(()) => {
             println!("✅ DEPYLER-0497: Format! correctly handles Vec types");
         }
         Err(e) => {
@@ -200,11 +197,10 @@ def main():
                 panic!(
                     "❌ RED PHASE: Vec<T> Display trait error (DEPYLER-0497)\n\
                      Vec needs {{{{:?}}}} debug formatting\n\n\
-                     Error:\n{}",
-                    e
+                     Error:\n{e}"
                 );
             } else {
-                panic!("Unexpected compilation error:\n{}", e);
+                panic!("Unexpected compilation error:\n{e}");
             }
         }
     }

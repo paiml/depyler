@@ -1,8 +1,8 @@
-//! Coverage tests for direct_rules_convert.rs
+//! Coverage tests for `direct_rules_convert.rs`
 //!
-//! DEPYLER-99MODE-001: Targets direct_rules_convert.rs (8,169 lines)
+//! DEPYLER-99MODE-001: Targets `direct_rules_convert.rs` (8,169 lines)
 //! Covers: body conversion, mutability analysis, assignment conversion,
-//! ExprConverter, builtin converters, method calls, comprehensions,
+//! `ExprConverter`, builtin converters, method calls, comprehensions,
 //! type coercion, statement pipelines.
 
 use depyler_core::DepylerPipeline;
@@ -28,12 +28,12 @@ fn test_drc_body_single_return() {
 
 #[test]
 fn test_drc_body_multiple_stmts() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     y = x + 1
     z = y * 2
     return z
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -49,137 +49,137 @@ fn test_drc_body_pass() {
 
 #[test]
 fn test_drc_mutable_reassignment() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     x = 0
     x = 10
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_mutable_augmented_assign() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     x = 0
     x += 5
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_mutable_list_append() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = []
     items.append(1)
     items.append(2)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_mutable_list_extend() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [1]
     items.extend([2, 3])
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_mutable_list_insert() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [1, 3]
     items.insert(1, 2)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_mutable_list_pop() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     items = [1, 2, 3]
     return items.pop()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_mutable_list_remove() {
-    let code = r#"
+    let code = r"
 def f():
     items = [1, 2, 3]
     items.remove(2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_mutable_list_clear() {
-    let code = r#"
+    let code = r"
 def f():
     items = [1, 2, 3]
     items.clear()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_mutable_list_reverse() {
-    let code = r#"
+    let code = r"
 def f():
     items = [3, 1, 2]
     items.reverse()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_mutable_list_sort() {
-    let code = r#"
+    let code = r"
 def f():
     items = [3, 1, 2]
     items.sort()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_mutable_set_add() {
-    let code = r#"
+    let code = r"
 def f():
     s = {1, 2}
     s.add(3)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_mutable_set_discard() {
-    let code = r#"
+    let code = r"
 def f():
     s = {1, 2, 3}
     s.discard(2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_mutable_set_update() {
-    let code = r#"
+    let code = r"
 def f():
     s = {1, 2}
     s.update({3, 4})
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -210,35 +210,35 @@ fn test_drc_assign_from_expr() {
 
 #[test]
 fn test_drc_assign_index() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [1, 2, 3]
     items[0] = 10
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_assign_attribute() {
-    let code = r#"
+    let code = r"
 class Foo:
     def __init__(self):
         self.x = 0
 
     def set_x(self, val: int):
         self.x = val
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_assign_tuple_unpack() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     a, b = 1, 2
     return a + b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -303,7 +303,7 @@ def f(x: int) -> str:
 
 #[test]
 fn test_drc_while_loop() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     i = 0
@@ -311,49 +311,49 @@ def f(n: int) -> int:
         total += i
         i += 1
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_for_range() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_for_list() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     total = 0
     for item in items:
         total += item
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_break_stmt() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     for item in items:
         if item > 100:
             break
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_continue_stmt() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     total = 0
     for item in items:
@@ -361,7 +361,7 @@ def f(items: list) -> int:
             continue
         total += item
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -371,38 +371,38 @@ def f(items: list) -> int:
 
 #[test]
 fn test_drc_try_except() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     try:
         return 100 // x
     except:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_try_except_typed() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     try:
         return 100 // x
     except ValueError:
         return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_try_finally() {
-    let code = r#"
+    let code = r"
 def f():
     x = 0
     try:
         x = 1
     finally:
         x = 2
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -419,11 +419,11 @@ def f(x: int) -> int:
 
 #[test]
 fn test_drc_assert() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     assert x > 0
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -443,11 +443,11 @@ def f(x: int) -> int:
 
 #[test]
 fn test_drc_with_statement() {
-    let code = r#"
+    let code = r"
 def f(path: str) -> str:
     with open(path) as file:
         return file.read()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -469,10 +469,10 @@ fn test_drc_builtin_abs() {
 
 #[test]
 fn test_drc_builtin_min_max() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     return min(a, max(b, 0))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -490,37 +490,37 @@ fn test_drc_builtin_sorted() {
 
 #[test]
 fn test_drc_builtin_reversed() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     result = []
     for item in reversed(items):
         result.append(item)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_builtin_enumerate() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     total = 0
     for i, val in enumerate(items):
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_builtin_zip() {
-    let code = r#"
+    let code = r"
 def f(a: list, b: list) -> list:
     result = []
     for x, y in zip(a, b):
         result.append(x + y)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -618,37 +618,37 @@ fn test_drc_type_list_from_range() {
 
 #[test]
 fn test_drc_list_comp() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     return [x * 2 for x in range(10)]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_list_comp_filter() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     return [x for x in range(20) if x % 2 == 0]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_set_comp() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> set:
     return {x * 2 for x in items}
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_dict_comp() {
-    let code = r#"
+    let code = r"
 def f() -> dict:
     return {str(i): i * i for i in range(5)}
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -658,28 +658,28 @@ def f() -> dict:
 
 #[test]
 fn test_drc_lambda_in_sorted() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return sorted(items, key=lambda x: -x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_map_lambda() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return list(map(lambda x: x * 2, items))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_filter_lambda() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return list(filter(lambda x: x > 0, items))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -689,7 +689,7 @@ def f(items: list) -> list:
 
 #[test]
 fn test_drc_classmethod_context() {
-    let code = r#"
+    let code = r"
 class Counter:
     def __init__(self):
         self.count = 0
@@ -699,13 +699,13 @@ class Counter:
 
     def get_count(self) -> int:
         return self.count
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_classmethod_multiple() {
-    let code = r#"
+    let code = r"
 class Stack:
     def __init__(self):
         self.items = []
@@ -718,7 +718,7 @@ class Stack:
 
     def is_empty(self) -> bool:
         return len(self.items) == 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -728,12 +728,12 @@ class Stack:
 
 #[test]
 fn test_drc_nested_function() {
-    let code = r#"
+    let code = r"
 def outer(n: int) -> int:
     def inner(x: int) -> int:
         return x * 2
     return inner(n)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -743,7 +743,7 @@ def outer(n: int) -> int:
 
 #[test]
 fn test_drc_multi_function() {
-    let code = r#"
+    let code = r"
 def helper(x: int) -> int:
     return x * 2
 
@@ -752,7 +752,7 @@ def process(items: list) -> int:
     for item in items:
         total += helper(item)
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -762,7 +762,7 @@ def process(items: list) -> int:
 
 #[test]
 fn test_drc_binary_search() {
-    let code = r#"
+    let code = r"
 def binary_search(items: list, target: int) -> int:
     lo = 0
     hi = len(items) - 1
@@ -775,13 +775,13 @@ def binary_search(items: list, target: int) -> int:
         else:
             hi = mid - 1
     return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_bubble_sort() {
-    let code = r#"
+    let code = r"
 def bubble_sort(items: list) -> list:
     n = len(items)
     for i in range(n):
@@ -789,36 +789,36 @@ def bubble_sort(items: list) -> list:
             if items[j] > items[j + 1]:
                 items[j], items[j + 1] = items[j + 1], items[j]
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_recursive_factorial() {
-    let code = r#"
+    let code = r"
 def factorial(n: int) -> int:
     if n <= 1:
         return 1
     return n * factorial(n - 1)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_dict_counter() {
-    let code = r#"
+    let code = r"
 def count_chars(s: str) -> dict:
     counts = {}
     for c in s:
         counts[c] = counts.get(c, 0) + 1
     return counts
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_string_processing() {
-    let code = r#"
+    let code = r"
 def process_text(text: str) -> list:
     words = text.split()
     result = []
@@ -827,13 +827,13 @@ def process_text(text: str) -> list:
         if len(cleaned) > 0:
             result.append(cleaned)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_drc_two_sum() {
-    let code = r#"
+    let code = r"
 def two_sum(nums: list, target: int) -> list:
     seen = {}
     for i in range(len(nums)):
@@ -842,6 +842,6 @@ def two_sum(nums: list, target: int) -> list:
             return [seen[complement], i]
         seen[nums[i]] = i
     return []
-"#;
+";
     assert!(transpile_ok(code));
 }

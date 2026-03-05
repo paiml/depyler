@@ -19,7 +19,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b78_url_parser() {
-    let code = r##"
+    let code = r#"
 def parse_url(url: str) -> dict:
     result = {"scheme": "", "host": "", "port": 80, "path": "/"}
     if "://" in url:
@@ -39,14 +39,14 @@ def parse_url(url: str) -> dict:
     else:
         result["host"] = host_part
     return result
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn parse_url"), "Got: {}", result);
+    assert!(result.contains("fn parse_url"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b78_csv_parser() {
-    let code = r##"
+    let code = r#"
 def parse_csv(text: str) -> list:
     rows = []
     for line in text.strip().split("\n"):
@@ -71,15 +71,15 @@ def csv_to_dicts(text: str) -> list:
                 record[header] = ""
         result.append(record)
     return result
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn parse_csv"), "Got: {}", result);
-    assert!(result.contains("fn csv_to_dicts"), "Got: {}", result);
+    assert!(result.contains("fn parse_csv"), "Got: {result}");
+    assert!(result.contains("fn csv_to_dicts"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b78_statistics() {
-    let code = r#"
+    let code = r"
 import math
 
 def mean(values: list) -> float:
@@ -108,17 +108,17 @@ def median(values: list) -> float:
     if n % 2 == 1:
         return sorted_vals[n // 2]
     return (sorted_vals[n // 2 - 1] + sorted_vals[n // 2]) / 2.0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn mean"), "Got: {}", result);
-    assert!(result.contains("fn variance"), "Got: {}", result);
-    assert!(result.contains("fn std_dev"), "Got: {}", result);
-    assert!(result.contains("fn median"), "Got: {}", result);
+    assert!(result.contains("fn mean"), "Got: {result}");
+    assert!(result.contains("fn variance"), "Got: {result}");
+    assert!(result.contains("fn std_dev"), "Got: {result}");
+    assert!(result.contains("fn median"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b78_json_builder() {
-    let code = r##"
+    let code = r#"
 def to_json(obj) -> str:
     if obj is None:
         return "null"
@@ -139,14 +139,14 @@ def to_json(obj) -> str:
             pairs.append('"' + str(k) + '": ' + to_json(v))
         return "{" + ", ".join(pairs) + "}"
     return str(obj)
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn to_json"), "Got: {}", result);
+    assert!(result.contains("fn to_json"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b78_tokenizer() {
-    let code = r##"
+    let code = r#"
 def tokenize(text: str) -> list:
     tokens = []
     i = 0
@@ -177,14 +177,14 @@ def tokenize(text: str) -> list:
             tokens.append(("PUNCT", text[i]))
             i += 1
     return tokens
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn tokenize"), "Got: {}", result);
+    assert!(result.contains("fn tokenize"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b78_linked_list() {
-    let code = r#"
+    let code = r"
 class Node:
     def __init__(self, value: int):
         self.value = value
@@ -216,14 +216,14 @@ class LinkedList:
             result.append(current.value)
             current = current.next
         return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("LinkedList"), "Got: {}", result);
+    assert!(result.contains("LinkedList"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b78_stack_calculator() {
-    let code = r##"
+    let code = r#"
 def evaluate_rpn(tokens: list) -> float:
     stack = []
     for token in tokens:
@@ -251,14 +251,14 @@ def evaluate_rpn(tokens: list) -> float:
     if stack:
         return stack[-1]
     return 0.0
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn evaluate_rpn"), "Got: {}", result);
+    assert!(result.contains("fn evaluate_rpn"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b78_matrix_ops() {
-    let code = r#"
+    let code = r"
 def zeros(rows: int, cols: int) -> list:
     result = []
     for i in range(rows):
@@ -282,16 +282,16 @@ def dot_product(a: list, b: list) -> float:
     for i in range(len(a)):
         total += a[i] * b[i]
     return total
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn zeros"), "Got: {}", result);
-    assert!(result.contains("fn transpose"), "Got: {}", result);
-    assert!(result.contains("fn dot_product"), "Got: {}", result);
+    assert!(result.contains("fn zeros"), "Got: {result}");
+    assert!(result.contains("fn transpose"), "Got: {result}");
+    assert!(result.contains("fn dot_product"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b78_text_search() {
-    let code = r#"
+    let code = r"
 def kmp_search(text: str, pattern: str) -> list:
     if not pattern:
         return []
@@ -326,14 +326,14 @@ def kmp_search(text: str, pattern: str) -> list:
             else:
                 i += 1
     return matches
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn kmp_search"), "Got: {}", result);
+    assert!(result.contains("fn kmp_search"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b78_state_machine() {
-    let code = r##"
+    let code = r#"
 class StateMachine:
     def __init__(self):
         self.state = "idle"
@@ -352,7 +352,7 @@ class StateMachine:
 
     def is_in(self, state: str) -> bool:
         return self.state == state
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("StateMachine"), "Got: {}", result);
+    assert!(result.contains("StateMachine"), "Got: {result}");
 }

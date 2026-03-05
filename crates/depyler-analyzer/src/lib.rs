@@ -431,7 +431,7 @@ mod tests {
             avg_cognitive_complexity: 2.5,
             max_cognitive_complexity: 6,
         };
-        let debug = format!("{:?}", metrics);
+        let debug = format!("{metrics:?}");
         assert!(debug.contains("ModuleMetrics"));
         let cloned = metrics.clone();
         assert_eq!(cloned.total_functions, 5);
@@ -449,7 +449,7 @@ mod tests {
             has_type_annotations: false,
             return_type_annotated: true,
         };
-        let debug = format!("{:?}", fm);
+        let debug = format!("{fm:?}");
         assert!(debug.contains("my_func"));
         let cloned = fm.clone();
         assert_eq!(cloned.name, "my_func");
@@ -464,7 +464,7 @@ mod tests {
             functions_with_return_type: 3,
             coverage_percentage: 66.67,
         };
-        let debug = format!("{:?}", tc);
+        let debug = format!("{tc:?}");
         assert!(debug.contains("TypeCoverage"));
         let cloned = tc.clone();
         assert_eq!(cloned.total_parameters, 10);
@@ -695,7 +695,7 @@ mod tests {
                 coverage_percentage: 100.0,
             },
         };
-        let debug = format!("{:?}", result);
+        let debug = format!("{result:?}");
         assert!(debug.contains("AnalysisResult"));
         let cloned = result.clone();
         assert_eq!(cloned.module_metrics.total_functions, 2);

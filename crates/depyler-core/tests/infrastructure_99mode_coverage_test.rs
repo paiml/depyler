@@ -1,7 +1,7 @@
 //! Coverage tests for infrastructure modules
 //!
-//! DEPYLER-99MODE-001: Targets infrastructure/ (fault_localizer 606,
-//! pattern_store 559, curriculum 543 = 1,708 lines)
+//! DEPYLER-99MODE-001: Targets infrastructure/ (`fault_localizer` 606,
+//! `pattern_store` 559, curriculum 543 = 1,708 lines)
 //! Covers: Tarantula fault localization, pattern storage,
 //! curriculum learning, suspiciousness scoring.
 
@@ -17,32 +17,32 @@ fn transpile_ok(code: &str) -> bool {
 
 #[test]
 fn test_infra_fault_type_inference() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     y = x + 1
     z = y * 2
     return z
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_infra_fault_type_coercion() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> str:
     return str(x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_infra_fault_ownership() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     total = sum(items)
     count = len(items)
     return total + count
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -58,13 +58,13 @@ fn test_infra_pattern_simple() {
 
 #[test]
 fn test_infra_pattern_list_ops() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [1, 2, 3]
     items.append(4)
     items.reverse()
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -101,16 +101,16 @@ fn test_infra_curriculum_basic() {
 
 #[test]
 fn test_infra_curriculum_intermediate() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return [x * 2 for x in items if x > 0]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_infra_curriculum_advanced() {
-    let code = r#"
+    let code = r"
 class Stack:
     def __init__(self):
         self.items = []
@@ -126,7 +126,7 @@ class Stack:
 
     def is_empty(self) -> bool:
         return len(self.items) == 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -136,23 +136,23 @@ class Stack:
 
 #[test]
 fn test_infra_library_json() {
-    let code = r#"
+    let code = r"
 import json
 
 def f(data: dict) -> str:
     return json.dumps(data)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_infra_library_hashlib() {
-    let code = r#"
+    let code = r"
 import hashlib
 
 def f(data: str) -> str:
     return hashlib.sha256(data.encode()).hexdigest()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -162,7 +162,7 @@ def f(data: str) -> str:
 
 #[test]
 fn test_infra_complex_algorithm() {
-    let code = r#"
+    let code = r"
 def bubble_sort(items: list) -> list:
     n = len(items)
     for i in range(n):
@@ -170,13 +170,13 @@ def bubble_sort(items: list) -> list:
             if items[j] > items[j + 1]:
                 items[j], items[j + 1] = items[j + 1], items[j]
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_infra_complex_class() {
-    let code = r#"
+    let code = r"
 class LinkedNode:
     def __init__(self, value: int):
         self.value = value
@@ -184,13 +184,13 @@ class LinkedNode:
 
     def get_value(self) -> int:
         return self.value
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_infra_complex_multi_function() {
-    let code = r#"
+    let code = r"
 def is_prime(n: int) -> bool:
     if n < 2:
         return False
@@ -205,6 +205,6 @@ def count_primes(limit: int) -> int:
         if is_prime(n):
             count += 1
     return count
-"#;
+";
     assert!(transpile_ok(code));
 }

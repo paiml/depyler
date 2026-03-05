@@ -1,10 +1,10 @@
 //! TDD Tests for Issue #200: os module routing errors
 //!
 //! These tests verify that Python's os module is correctly transpiled to Rust std/crate equivalents:
-//! - os.walk() → walkdir crate
-//! - os.urandom() → rand crate
-//! - os.environ → std::env::vars()
-//! - os.path.exists() → std::path::Path::new().exists()
+//! - `os.walk()` → walkdir crate
+//! - `os.urandom()` → rand crate
+//! - os.environ → `std::env::vars()`
+//! - `os.path.exists()` → `std::path::Path::new().exists()`
 
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::hir::HirModule;
@@ -88,136 +88,128 @@ rand = "0.8"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
 
-/// Test: os.path.exists() should NOT generate raw "os.path.exists"
+/// Test: `os.path.exists()` should NOT generate raw "os.path.exists"
 #[test]
 fn test_os_path_exists_not_raw() {
-    let python = r#"
+    let python = r"
 def check_file(path: str) -> bool:
     return os.path.exists(path)
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Should NOT contain raw os.path.exists
     assert!(
         !rust.contains("os.path.exists"),
-        "Should not have raw os.path.exists. Generated:\n{}",
-        rust
+        "Should not have raw os.path.exists. Generated:\n{rust}"
     );
 
     // Should contain std::path::Path::new
     assert!(
         rust.contains("Path::new") || rust.contains("std::path"),
-        "Should use std::path. Generated:\n{}",
-        rust
+        "Should use std::path. Generated:\n{rust}"
     );
 }
 
-/// Test: os.walk() should be translated to walkdir
+/// Test: `os.walk()` should be translated to walkdir
 #[test]
 fn test_os_walk_translation() {
-    let python = r#"
+    let python = r"
 def list_files(directory: str) -> list:
     files = []
     for root, dirs, filenames in os.walk(directory):
         for f in filenames:
             files.append(f)
     return files
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Should NOT contain raw os.walk
-    assert!(!rust.contains("os.walk"), "Should not have raw os.walk. Generated:\n{}", rust);
+    assert!(!rust.contains("os.walk"), "Should not have raw os.walk. Generated:\n{rust}");
 
     // Should use walkdir or std::fs
     assert!(
         rust.contains("walkdir") || rust.contains("WalkDir") || rust.contains("read_dir"),
-        "Should use walkdir or std::fs. Generated:\n{}",
-        rust
+        "Should use walkdir or std::fs. Generated:\n{rust}"
     );
 }
 
-/// Test: os.environ should be translated to std::env
+/// Test: os.environ should be translated to `std::env`
 #[test]
 fn test_os_environ_translation() {
-    let python = r#"
+    let python = r"
 def get_all_env() -> dict:
     return dict(os.environ)
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Should NOT contain raw os.environ
-    assert!(!rust.contains("os.environ"), "Should not have raw os.environ. Generated:\n{}", rust);
+    assert!(!rust.contains("os.environ"), "Should not have raw os.environ. Generated:\n{rust}");
 
     // Should use std::env::vars()
     assert!(
         rust.contains("std::env") || rust.contains("env::vars"),
-        "Should use std::env. Generated:\n{}",
-        rust
+        "Should use std::env. Generated:\n{rust}"
     );
 }
 
-/// Test: os.environ.insert() should be translated to std::env::set_var()
+/// Test: `os.environ.insert()` should be translated to `std::env::set_var()`
 #[test]
 fn test_os_environ_insert_translation() {
-    let python = r#"
+    let python = r"
 def set_env(key: str, value: str):
     os.environ[key] = value
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Should NOT contain raw os.environ.insert
     assert!(
         !rust.contains("os.environ.insert") && !rust.contains("os.environ["),
-        "Should not have raw os.environ. Generated:\n{}",
-        rust
+        "Should not have raw os.environ. Generated:\n{rust}"
     );
 
     // Should use std::env::set_var
     assert!(
         rust.contains("set_var") || rust.contains("std::env"),
-        "Should use std::env::set_var. Generated:\n{}",
-        rust
+        "Should use std::env::set_var. Generated:\n{rust}"
     );
 }
 
-/// Test: os.urandom() should be translated to rand
+/// Test: `os.urandom()` should be translated to rand
 #[test]
 fn test_os_urandom_translation() {
-    let python = r#"
+    let python = r"
 def generate_random_bytes(n: int) -> bytes:
     return os.urandom(n)
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Should NOT contain raw os.urandom
-    assert!(!rust.contains("os.urandom"), "Should not have raw os.urandom. Generated:\n{}", rust);
+    assert!(!rust.contains("os.urandom"), "Should not have raw os.urandom. Generated:\n{rust}");
 
     // Should use rand crate
     assert!(
         rust.contains("rand") || rust.contains("Rng") || rust.contains("thread_rng"),
-        "Should use rand crate. Generated:\n{}",
-        rust
+        "Should use rand crate. Generated:\n{rust}"
     );
 }
 
 /// Integration test: Combined os module usage should compile
 #[test]
 fn test_combined_os_module_compiles() {
-    let python = r#"
+    let python = r"
 def check_path(path: str) -> bool:
     return os.path.exists(path)
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
     assert_compiles(&rust, "combined_os_module");

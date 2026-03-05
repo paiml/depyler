@@ -64,8 +64,7 @@ path = "src/lib.rs"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
@@ -74,14 +73,14 @@ path = "src/lib.rs"
 /// The return type should be inferred from the return statement
 #[test]
 fn test_infer_return_type_from_literal() {
-    let python = r#"
+    let python = r"
 def get_value():
     return 42
 
 def use_value() -> int:
     x = get_value()
     return x
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
@@ -109,7 +108,7 @@ def greet() -> str:
 /// DEPYLER-1220: Function returning list without annotation
 #[test]
 fn test_infer_return_type_list() {
-    let python = r#"
+    let python = r"
 from typing import List
 
 def get_numbers():
@@ -121,7 +120,7 @@ def sum_numbers() -> int:
     for n in nums:
         total = total + n
     return total
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
@@ -132,14 +131,14 @@ def sum_numbers() -> int:
 /// DEPYLER-1220: Function returning bool from comparison without annotation
 #[test]
 fn test_infer_return_type_bool() {
-    let python = r#"
+    let python = r"
 def is_positive(x: int):
     return x > 0
 
 def check_value(val: int) -> bool:
     result = is_positive(val)
     return result
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
     assert_compiles(&rust, "infer_return_type_bool");
@@ -149,7 +148,7 @@ def check_value(val: int) -> bool:
 /// Each function's return type must propagate to the next
 #[test]
 fn test_chained_unannotated_functions() {
-    let python = r#"
+    let python = r"
 def step1():
     return 10
 
@@ -160,7 +159,7 @@ def step2():
 def step3() -> int:
     y = step2()
     return y * 2
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
     assert_compiles(&rust, "chained_unannotated_functions");
@@ -169,7 +168,7 @@ def step3() -> int:
 /// DEPYLER-1220: Function with multiple return statements (same type)
 #[test]
 fn test_multiple_returns_same_type() {
-    let python = r#"
+    let python = r"
 def get_sign(x: int):
     if x > 0:
         return 1
@@ -181,7 +180,7 @@ def get_sign(x: int):
 def compute(val: int) -> int:
     sign = get_sign(val)
     return sign * val
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
     assert_compiles(&rust, "multiple_returns_same_type");
@@ -208,8 +207,7 @@ def get_key() -> str:
     // The value is already a String, not serde_json::Value
     assert!(
         !rust.contains(r#".as_str().unwrap_or("")"#),
-        "Should not have .as_str().unwrap_or(\"\") conversion for Dict[str, str]. Generated:\n{}",
-        rust
+        "Should not have .as_str().unwrap_or(\"\") conversion for Dict[str, str]. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "infer_return_type_dict");
@@ -218,13 +216,13 @@ def get_key() -> str:
 /// DEPYLER-1220: Function returning None (no return statement)
 #[test]
 fn test_infer_return_type_none() {
-    let python = r#"
+    let python = r"
 def do_nothing():
     x = 1
 
 def caller():
     do_nothing()
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
     assert_compiles(&rust, "infer_return_type_none");
@@ -233,7 +231,7 @@ def caller():
 /// DEPYLER-1220: Recursive function without annotation
 #[test]
 fn test_recursive_function_inference() {
-    let python = r#"
+    let python = r"
 def factorial(n: int):
     if n <= 1:
         return 1
@@ -242,7 +240,7 @@ def factorial(n: int):
 def compute_factorial(x: int) -> int:
     result = factorial(x)
     return result
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
     assert_compiles(&rust, "recursive_function_inference");
@@ -251,7 +249,7 @@ def compute_factorial(x: int) -> int:
 /// DEPYLER-1220: Function returning tuple without annotation
 #[test]
 fn test_infer_return_type_tuple() {
-    let python = r#"
+    let python = r"
 from typing import Tuple
 
 def get_coords():
@@ -260,7 +258,7 @@ def get_coords():
 def use_coords() -> int:
     x, y = get_coords()
     return x + y
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
     assert_compiles(&rust, "infer_return_type_tuple");

@@ -1,5 +1,5 @@
 //! Session 8 batch 3: Coverage tests for codegen pipeline
-//! Targets: codegen.rs (hir_to_rust), scope tracker, union types,
+//! Targets: codegen.rs (`hir_to_rust`), scope tracker, union types,
 //! cargo toml generation, and alternative codegen paths
 
 use depyler_core::ast_bridge::AstBridge;
@@ -41,14 +41,14 @@ def f(x: int) -> str:
 #[test]
 fn test_nested_for_loops() {
     let code = transpile(
-        r#"
+        r"
 def matrix_sum(matrix: list) -> int:
     total = 0
     for row in matrix:
         for cell in row:
             total += cell
     return total
-"#,
+",
     );
     assert!(
         code.contains("for") && code.contains("total"),
@@ -59,7 +59,7 @@ def matrix_sum(matrix: list) -> int:
 #[test]
 fn test_mixed_nesting() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> int:
     result = 0
     for item in items:
@@ -68,7 +68,7 @@ def f(items: list) -> int:
                 item = item - 1
             result += item
     return result
-"#,
+",
     );
     assert!(code.contains("for") && code.contains("while"), "Should handle mixed nesting: {code}");
 }
@@ -78,21 +78,21 @@ def f(items: list) -> int:
 #[test]
 fn test_variable_shadowing() {
     let code = transpile(
-        r#"
+        r"
 def f() -> int:
     x = 10
     for x in range(5):
         pass
     return x
-"#,
+",
     );
-    assert!(code.contains("let") && code.contains("x"), "Should handle variable shadowing: {code}");
+    assert!(code.contains("let") && code.contains('x'), "Should handle variable shadowing: {code}");
 }
 
 #[test]
 fn test_function_scope_isolation() {
     let code = transpile(
-        r#"
+        r"
 def a() -> int:
     x = 1
     return x
@@ -100,7 +100,7 @@ def a() -> int:
 def b() -> int:
     x = 2
     return x
-"#,
+",
     );
     assert!(
         code.contains("fn a") && code.contains("fn b"),
@@ -113,13 +113,13 @@ def b() -> int:
 #[test]
 fn test_optional_parameter() {
     let code = transpile(
-        r#"
+        r"
 from typing import Optional
 def f(x: Optional[int]) -> int:
     if x is None:
         return 0
     return x
-"#,
+",
     );
     assert!(
         code.contains("Option") || code.contains("None") || code.contains("Some"),
@@ -130,14 +130,14 @@ def f(x: Optional[int]) -> int:
 #[test]
 fn test_none_return() {
     let code = transpile(
-        r#"
+        r"
 from typing import Optional
 def find(items: list, target: int) -> Optional[int]:
     for item in items:
         if item == target:
             return item
     return None
-"#,
+",
     );
     assert!(code.contains("Option") || code.contains("None"), "Should return None/Option: {code}");
 }
@@ -147,11 +147,11 @@ def find(items: list, target: int) -> Optional[int]:
 #[test]
 fn test_imports_trigger_cargo_deps() {
     let code = transpile(
-        r#"
+        r"
 import json
 def serialize(data: dict) -> str:
     return json.dumps(data)
-"#,
+",
     );
     assert!(
         code.contains("serde_json") || code.contains("json") || code.contains("to_string"),
@@ -162,11 +162,11 @@ def serialize(data: dict) -> str:
 #[test]
 fn test_import_math() {
     let code = transpile(
-        r#"
+        r"
 import math
 def circle_area(r: float) -> float:
     return math.pi * r * r
-"#,
+",
     );
     assert!(
         code.contains("PI")
@@ -180,11 +180,11 @@ def circle_area(r: float) -> float:
 #[test]
 fn test_import_os_path() {
     let code = transpile(
-        r#"
+        r"
 import os
 def exists(path: str) -> bool:
     return os.path.exists(path)
-"#,
+",
     );
     assert!(
         code.contains("Path") || code.contains("exists") || code.contains("std::path"),
@@ -195,12 +195,12 @@ def exists(path: str) -> bool:
 #[test]
 fn test_import_sys() {
     let code = transpile(
-        r#"
+        r"
 import sys
 def main() -> int:
     args = sys.argv
     return len(args)
-"#,
+",
     );
     assert!(
         code.contains("args") || code.contains("env") || code.contains("std::env"),
@@ -213,14 +213,14 @@ def main() -> int:
 #[test]
 fn test_nested_list_type() {
     let code = transpile(
-        r#"
+        r"
 def flatten(matrix: list) -> list:
     result = []
     for row in matrix:
         for item in row:
             result.append(item)
     return result
-"#,
+",
     );
     assert!(code.contains("Vec") || code.contains("push"), "Should handle nested list: {code}");
 }
@@ -228,7 +228,7 @@ def flatten(matrix: list) -> list:
 #[test]
 fn test_dict_of_lists() {
     let code = transpile(
-        r#"
+        r"
 def group_by_first_char(words: list) -> dict:
     groups = {}
     for word in words:
@@ -237,7 +237,7 @@ def group_by_first_char(words: list) -> dict:
             groups[key] = []
         groups[key].append(word)
     return groups
-"#,
+",
     );
     assert!(
         code.contains("HashMap") || code.contains("entry") || code.contains("insert"),
@@ -248,13 +248,13 @@ def group_by_first_char(words: list) -> dict:
 #[test]
 fn test_list_of_tuples() {
     let code = transpile(
-        r#"
+        r"
 def pairs(items: list) -> list:
     result = []
     for i in range(0, len(items), 2):
         result.append((items[i], items[i + 1]))
     return result
-"#,
+",
     );
     assert!(
         code.contains("push") || code.contains("Vec") || code.contains("tuple"),
@@ -267,12 +267,12 @@ def pairs(items: list) -> list:
 #[test]
 fn test_list_sort_reverse() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     items.sort()
     items.reverse()
     return items
-"#,
+",
     );
     assert!(
         code.contains("sort") && code.contains("reverse"),
@@ -297,11 +297,11 @@ def process(s: str) -> bool:
 #[test]
 fn test_list_count_and_index() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list, target: int) -> int:
     count = items.count(target)
     return count
-"#,
+",
     );
     assert!(
         code.contains("count") || code.contains("filter") || code.contains("iter"),
@@ -314,7 +314,7 @@ def f(items: list, target: int) -> int:
 #[test]
 fn test_walrus_in_while() {
     let code = transpile(
-        r#"
+        r"
 def read_lines(items: list) -> list:
     result = []
     i = 0
@@ -322,7 +322,7 @@ def read_lines(items: list) -> list:
         result.append(items[i])
         i += 1
     return result
-"#,
+",
     );
     assert!(
         code.contains("while") || code.contains("loop"),
@@ -335,7 +335,7 @@ def read_lines(items: list) -> list:
 #[test]
 fn test_class_with_multiple_methods() {
     let code = transpile(
-        r#"
+        r"
 class LinkedList:
     def __init__(self) -> None:
         self.data: list = []
@@ -354,7 +354,7 @@ class LinkedList:
 
     def remove_first(self) -> int:
         return self.data.pop(0)
-"#,
+",
     );
     assert!(
         code.contains("LinkedList") || code.contains("Linked"),
@@ -383,7 +383,7 @@ class Config:
 #[test]
 fn test_two_classes_same_module() {
     let code = transpile(
-        r#"
+        r"
 class Point:
     def __init__(self, x: int, y: int) -> None:
         self.x = x
@@ -398,7 +398,7 @@ class Line:
         dx = self.end.x - self.start.x
         dy = self.end.y - self.start.y
         return (dx * dx + dy * dy) ** 0.5
-"#,
+",
     );
     assert!(
         code.contains("struct Point") && code.contains("struct Line"),
@@ -411,10 +411,10 @@ class Line:
 #[test]
 fn test_empty_list_creation() {
     let code = transpile(
-        r#"
+        r"
 def f() -> list:
     return []
-"#,
+",
     );
     assert!(
         code.contains("vec![]") || code.contains("Vec::new()") || code.contains("Vec"),
@@ -425,10 +425,10 @@ def f() -> list:
 #[test]
 fn test_empty_dict_creation() {
     let code = transpile(
-        r#"
+        r"
 def f() -> dict:
     return {}
-"#,
+",
     );
     assert!(
         code.contains("HashMap::new()") || code.contains("HashMap"),
@@ -439,12 +439,12 @@ def f() -> dict:
 #[test]
 fn test_boolean_literals() {
     let code = transpile(
-        r#"
+        r"
 def f() -> bool:
     a = True
     b = False
     return a and not b
-"#,
+",
     );
     assert!(code.contains("true") && code.contains("false"), "Should handle bool literals: {code}");
 }
@@ -452,11 +452,11 @@ def f() -> bool:
 #[test]
 fn test_none_literal() {
     let code = transpile(
-        r#"
+        r"
 def f() -> None:
     x = None
     return None
-"#,
+",
     );
     assert!(code.contains("None") || code.contains("()"), "Should handle None: {code}");
 }
@@ -464,12 +464,12 @@ def f() -> None:
 #[test]
 fn test_negative_numbers() {
     let code = transpile(
-        r#"
+        r"
 def f() -> int:
     x = -42
     y = -100
     return x + y
-"#,
+",
     );
     assert!(code.contains("-42") || code.contains("42"), "Should handle negative numbers: {code}");
 }
@@ -477,10 +477,10 @@ def f() -> int:
 #[test]
 fn test_large_integer() {
     let code = transpile(
-        r#"
+        r"
 def f() -> int:
     return 1000000000
-"#,
+",
     );
     assert!(code.contains("1000000000"), "Should handle large integer: {code}");
 }
@@ -488,10 +488,10 @@ def f() -> int:
 #[test]
 fn test_float_literals() {
     let code = transpile(
-        r#"
+        r"
 def f() -> float:
     return 3.14159
-"#,
+",
     );
     assert!(code.contains("3.14159"), "Should handle float literal: {code}");
 }
@@ -527,11 +527,11 @@ def f(items: List[int]) -> Dict[str, int]:
 #[test]
 fn test_import_as_alias() {
     let code = transpile(
-        r#"
+        r"
 import json as j
 def f(data: dict) -> str:
     return j.dumps(data)
-"#,
+",
     );
     assert!(code.contains("fn f"), "Should handle import alias: {code}");
 }
@@ -564,10 +564,10 @@ def http_status(status: int) -> str:
 #[test]
 fn test_lambda_in_sort() {
     let code = transpile(
-        r#"
+        r"
 def sort_by_abs(items: list) -> list:
     return sorted(items, key=lambda x: abs(x))
-"#,
+",
     );
     assert!(code.contains("sort") || code.contains("abs"), "Should handle lambda in sort: {code}");
 }
@@ -575,10 +575,10 @@ def sort_by_abs(items: list) -> list:
 #[test]
 fn test_lambda_in_filter() {
     let code = transpile(
-        r#"
+        r"
 def positive_only(items: list) -> list:
     return list(filter(lambda x: x > 0, items))
-"#,
+",
     );
     assert!(
         code.contains("filter") || code.contains("iter") || code.contains("> 0"),
@@ -589,10 +589,10 @@ def positive_only(items: list) -> list:
 #[test]
 fn test_lambda_in_map() {
     let code = transpile(
-        r#"
+        r"
 def double_all(items: list) -> list:
     return list(map(lambda x: x * 2, items))
-"#,
+",
     );
     assert!(
         code.contains("map") || code.contains("iter") || code.contains("* 2"),

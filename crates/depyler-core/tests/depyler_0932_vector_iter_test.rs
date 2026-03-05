@@ -7,16 +7,16 @@
 
 use depyler_core::DepylerPipeline;
 
-/// Test that iterating over numpy array uses as_slice().iter()
+/// Test that iterating over numpy array uses `as_slice().iter()`
 #[test]
 fn test_depyler_0932_vector_iter_basic() {
-    let python = r#"
+    let python = r"
 import numpy as np
 
 def iterate_array(a: float, b: float, c: float) -> list[str]:
     arr = np.array([a, b, c])
     return [str(x) for x in arr]
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python).expect("transpilation should succeed");
@@ -24,8 +24,7 @@ def iterate_array(a: float, b: float, c: float) -> list[str]:
     // Should use as_slice().iter() for Vector iteration
     assert!(
         result.contains(".as_slice()") || result.contains(".iter()"),
-        "Expected Vector iteration pattern. Generated:\n{}",
-        result
+        "Expected Vector iteration pattern. Generated:\n{result}"
     );
 
     // Should NOT have bare .iter() on Vector without as_slice()
@@ -33,8 +32,7 @@ def iterate_array(a: float, b: float, c: float) -> list[str]:
     if result.contains("Vector") {
         assert!(
             result.contains("as_slice"),
-            "Vector iteration should use .as_slice().iter(). Generated:\n{}",
-            result
+            "Vector iteration should use .as_slice().iter(). Generated:\n{result}"
         );
     }
 }
@@ -58,11 +56,11 @@ def minmax_print(a: float, b: float, c: float):
     let rust_code = pipeline.transpile(python).expect("transpilation should succeed");
 
     // Debug output
-    eprintln!("Generated code:\n{}", rust_code);
+    eprintln!("Generated code:\n{rust_code}");
 
     // The result variable iteration MUST use as_slice().iter()
     // Code may be formatted across multiple lines, so join lines for checking
-    let normalized = rust_code.replace("\n", " ").replace("  ", " ");
+    let normalized = rust_code.replace('\n', " ").replace("  ", " ");
 
     // Check for the correct pattern: result .as_slice() .iter()
     let has_correct_pattern =
@@ -74,15 +72,14 @@ def minmax_print(a: float, b: float, c: float):
 
     assert!(
         has_correct_pattern || !has_wrong_pattern,
-        "Vector iteration must use .as_slice().iter(), not bare .iter(). Generated:\n{}",
-        rust_code
+        "Vector iteration must use .as_slice().iter(), not bare .iter(). Generated:\n{rust_code}"
     );
 }
 
 /// Test direct for loop over numpy array
 #[test]
 fn test_depyler_0932_for_loop_over_array() {
-    let python = r#"
+    let python = r"
 import numpy as np
 
 def sum_elements(a: float, b: float, c: float) -> float:
@@ -91,7 +88,7 @@ def sum_elements(a: float, b: float, c: float) -> float:
     for x in arr:
         total += x
     return total
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python).expect("transpilation should succeed");
@@ -100,8 +97,7 @@ def sum_elements(a: float, b: float, c: float) -> float:
     // Either inline iteration or using as_slice
     assert!(
         result.contains("for") || result.contains("iter"),
-        "Should have iteration pattern. Generated:\n{}",
-        result
+        "Should have iteration pattern. Generated:\n{result}"
     );
 }
 
@@ -129,7 +125,7 @@ def stringify_array(a: float, b: float) -> str:
 }
 
 /// Test CLI-style code with if/elif branches containing numpy
-/// This mirrors the structure of example_numpy_minmax
+/// This mirrors the structure of `example_numpy_minmax`
 #[test]
 fn test_depyler_0932_cli_with_branches() {
     let python = r#"
@@ -153,7 +149,7 @@ def main():
     let rust_code = pipeline.transpile(python).expect("transpilation should succeed");
 
     // Debug: print the generated code
-    eprintln!("Generated Rust code:\n{}", rust_code);
+    eprintln!("Generated Rust code:\n{rust_code}");
 
     // The iteration over result MUST use as_slice().iter()
     // Normalize code: join lines and look for pattern
@@ -178,14 +174,13 @@ def main():
             if after_trimmed.starts_with(".iter()") {
                 // Direct .iter() without .as_slice() - this is WRONG
                 eprintln!(
-                    "Found wrong pattern at index {}: result directly followed by .iter()",
-                    abs_idx
+                    "Found wrong pattern at index {abs_idx}: result directly followed by .iter()"
                 );
                 wrong = true;
                 break;
             } else if after_trimmed.starts_with(".as_slice()") {
                 // Correct pattern: result.as_slice().iter()
-                eprintln!("Found correct pattern at index {}: result.as_slice()", abs_idx);
+                eprintln!("Found correct pattern at index {abs_idx}: result.as_slice()");
             }
 
             search_start = abs_idx + 1;
@@ -197,7 +192,6 @@ def main():
     // This is the definitive check - we should never have bare result.iter()
     assert!(
         !has_wrong_pattern,
-        "Vector 'result' iteration must use .as_slice().iter(), not bare .iter(). Generated:\n{}",
-        rust_code
+        "Vector 'result' iteration must use .as_slice().iter(), not bare .iter(). Generated:\n{rust_code}"
     );
 }

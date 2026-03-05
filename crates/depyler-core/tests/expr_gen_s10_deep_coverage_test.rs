@@ -58,7 +58,7 @@ fn test_s10_boolean_mixed() {
 fn test_s10_string_multiply() {
     let code = transpile("def repeat(s: str, n: int) -> str:\n    return s * n\n");
     assert!(code.contains("fn repeat"), "Should handle str * n: {code}");
-    assert!(code.contains("repeat(") || code.contains("*"), "Should have repeat: {code}");
+    assert!(code.contains("repeat(") || code.contains('*'), "Should have repeat: {code}");
 }
 
 // ============ List operations ============

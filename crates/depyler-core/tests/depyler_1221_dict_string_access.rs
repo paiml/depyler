@@ -14,10 +14,10 @@
 //! ```
 //!
 //! Root cause: `is_dict_index_access()` returns true for any dict access without checking
-//! if the VALUE type is serde_json::Value (where the conversion is needed) or already String.
+//! if the VALUE type is `serde_json::Value` (where the conversion is needed) or already String.
 //!
-//! Fix: Check the dict's value type in ctx.var_types before applying the conversion.
-//! Only add `.as_str().unwrap_or("")` when value type is serde_json::Value or Unknown.
+//! Fix: Check the dict's value type in `ctx.var_types` before applying the conversion.
+//! Only add `.as_str().unwrap_or("")` when value type is `serde_json::Value` or Unknown.
 
 use depyler_core::DepylerPipeline;
 
@@ -67,13 +67,12 @@ path = "src/lib.rs"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
 
-/// DEPYLER-1221: Dict[str, str] access should NOT have .as_str().unwrap_or("")
+/// DEPYLER-1221: Dict[str, str] access should NOT have .`as_str().unwrap_or`("")
 /// The value type is already String, no conversion needed
 #[test]
 fn test_dict_string_string_access() {
@@ -93,14 +92,13 @@ def get_key() -> str:
     // Should NOT have .as_str().unwrap_or("") because value type is String
     assert!(
         !rust.contains(r#".as_str().unwrap_or("")"#),
-        "Should not have .as_str().unwrap_or(\"\") for Dict[str, str]. Generated:\n{}",
-        rust
+        "Should not have .as_str().unwrap_or(\"\") for Dict[str, str]. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "dict_string_string_access");
 }
 
-/// DEPYLER-1221: Dict[str, int] access should NOT have .as_str().unwrap_or("")
+/// DEPYLER-1221: Dict[str, int] access should NOT have .`as_str().unwrap_or`("")
 #[test]
 fn test_dict_string_int_access() {
     let python = r#"
@@ -120,8 +118,7 @@ def get_count() -> int:
     // Note: .as_str() may appear elsewhere (e.g., in regex helpers)
     assert!(
         !rust.contains(r#".as_str().unwrap_or("")"#),
-        "Should not have .as_str().unwrap_or(\"\") for Dict[str, int]. Generated:\n{}",
-        rust
+        "Should not have .as_str().unwrap_or(\"\") for Dict[str, int]. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "dict_string_int_access");
@@ -142,8 +139,7 @@ def get_name() -> str:
     // So no .as_str().unwrap_or("") should be generated
     assert!(
         !rust.contains(r#".as_str().unwrap_or("")"#),
-        "Literal dict should infer string value type. Generated:\n{}",
-        rust
+        "Literal dict should infer string value type. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "dict_literal_inferred_type");
@@ -185,7 +181,7 @@ def check_config() -> str:
     assert_compiles(&rust, "dict_access_in_conditional");
 }
 
-/// DEPYLER-1221: Dict with Any value type uses DepylerValue
+/// DEPYLER-1221: Dict with Any value type uses `DepylerValue`
 /// This test verifies the code compiles correctly
 #[test]
 fn test_dict_any_value_compiles() {
@@ -207,12 +203,12 @@ def process_data(data: Dict[str, Any]) -> str:
 /// DEPYLER-1221: Dict access with variable key
 #[test]
 fn test_dict_access_variable_key() {
-    let python = r#"
+    let python = r"
 from typing import Dict
 
 def get_value(config: Dict[str, str], key: str) -> str:
     return config[key]
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
     assert_compiles(&rust, "dict_access_variable_key");
@@ -236,8 +232,7 @@ def get_setting() -> str:
     // So settings["verbose"] should NOT have .as_str().unwrap_or("")
     assert!(
         !rust.contains(r#".as_str().unwrap_or("")"#),
-        "Inferred Dict[str, str] should not have .as_str().unwrap_or(\"\"). Generated:\n{}",
-        rust
+        "Inferred Dict[str, str] should not have .as_str().unwrap_or(\"\"). Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "dict_inferred_return_type");

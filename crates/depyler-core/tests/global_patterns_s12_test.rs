@@ -1,6 +1,6 @@
 //! Session 12 Batch 98: Global patterns, module structure, and edge cases
 //!
-//! Targets remaining cold paths in rust_gen and stmt_gen for
+//! Targets remaining cold paths in `rust_gen` and `stmt_gen` for
 //! module-level patterns, import handling, and edge cases.
 
 use depyler_core::ast_bridge::AstBridge;
@@ -19,28 +19,28 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b98_module_docstring() {
-    let code = r##"
+    let code = r#"
 """This is a module docstring."""
 
 def hello() -> str:
     return "world"
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn hello"), "Got: {}", result);
+    assert!(result.contains("fn hello"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b98_multiple_imports() {
-    let code = r#"
+    let code = r"
 import math
 import os
 import sys
 
 def get_info() -> str:
     return str(math.pi)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn get_info"), "Got: {}", result);
+    assert!(result.contains("fn get_info"), "Got: {result}");
 }
 
 #[test]
@@ -52,12 +52,12 @@ def process(items: List[int]) -> Dict[str, int]:
     return {"count": len(items)}
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn process"), "Got: {}", result);
+    assert!(result.contains("fn process"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b98_class_then_function() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
@@ -65,15 +65,15 @@ class Point:
 
 def add_points(a: Point, b: Point) -> Point:
     return Point(a.x + b.x, a.y + b.y)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Point"), "Got: {}", result);
-    assert!(result.contains("fn add_points"), "Got: {}", result);
+    assert!(result.contains("Point"), "Got: {result}");
+    assert!(result.contains("fn add_points"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b98_constants_and_classes() {
-    let code = r##"
+    let code = r"
 MAX_RETRIES = 3
 DEFAULT_TIMEOUT = 30
 
@@ -85,35 +85,35 @@ class Client:
 
     def connect(self) -> bool:
         return True
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("MAX_RETRIES"), "Got: {}", result);
-    assert!(result.contains("Client"), "Got: {}", result);
+    assert!(result.contains("MAX_RETRIES"), "Got: {result}");
+    assert!(result.contains("Client"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b98_pass_function() {
-    let code = r#"
+    let code = r"
 def noop():
     pass
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn noop"), "Got: {}", result);
+    assert!(result.contains("fn noop"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b98_ellipsis_function() {
-    let code = r#"
+    let code = r"
 def abstract_method():
     ...
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("abstract_method"), "Got: {}", result);
+    assert!(result.contains("abstract_method"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b98_bare_expressions() {
-    let code = r##"
+    let code = r#"
 """Module with bare expressions."""
 
 def main():
@@ -121,14 +121,14 @@ def main():
     y = "hello"
     z = True
     return x
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn main"), "Got: {}", result);
+    assert!(result.contains("fn main"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b98_multiple_classes() {
-    let code = r#"
+    let code = r"
 class Node:
     def __init__(self, value: int):
         self.value = value
@@ -143,22 +143,22 @@ class Tree:
 
     def set_root(self, value: int):
         self.root = Node(value)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Node"), "Got: {}", result);
-    assert!(result.contains("Tree"), "Got: {}", result);
+    assert!(result.contains("Node"), "Got: {result}");
+    assert!(result.contains("Tree"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b98_typing_union() {
-    let code = r#"
+    let code = r"
 from typing import Union
 
 def to_string(value: Union[int, float, str]) -> str:
     return str(value)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_string"), "Got: {}", result);
+    assert!(result.contains("fn to_string"), "Got: {result}");
 }
 
 #[test]
@@ -188,12 +188,12 @@ def process_data(data: list) -> dict:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn process_data"), "Got: {}", result);
+    assert!(result.contains("fn process_data"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b98_deeply_nested() {
-    let code = r#"
+    let code = r"
 def process(items: list) -> list:
     result = []
     for item in items:
@@ -203,7 +203,7 @@ def process(items: list) -> list:
                     if sub > 0:
                         result.append(sub)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn process"), "Got: {}", result);
+    assert!(result.contains("fn process"), "Got: {result}");
 }

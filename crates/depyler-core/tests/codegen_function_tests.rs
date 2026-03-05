@@ -1,5 +1,5 @@
 //! EXTREME TDD: Tests for codegen.rs function generation
-//! Coverage: generate_rust, hir_to_rust, convert_function_to_rust
+//! Coverage: `generate_rust`, `hir_to_rust`, `convert_function_to_rust`
 
 use depyler_core::DepylerPipeline;
 
@@ -160,70 +160,70 @@ fn test_gen_fn_dict_str_int() {
 
 #[test]
 fn test_gen_fn_with_local_var() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     y = x + 1
     return y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_gen_fn_with_multiple_locals() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     a = x + 1
     b = a * 2
     c = b - 3
     return c
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_gen_fn_with_if() {
-    let code = r#"
+    let code = r"
 def abs_val(x: int) -> int:
     if x < 0:
         return -x
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_gen_fn_with_while() {
-    let code = r#"
+    let code = r"
 def factorial(n: int) -> int:
     result = 1
     while n > 1:
         result = result * n
         n = n - 1
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_gen_fn_with_for() {
-    let code = r#"
+    let code = r"
 def sum_list(items: list) -> int:
     total = 0
     for item in items:
         total = total + item
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_gen_fn_recursive() {
-    let code = r#"
+    let code = r"
 def fib(n: int) -> int:
     if n <= 1:
         return n
     return fib(n - 1) + fib(n - 2)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -231,7 +231,7 @@ def fib(n: int) -> int:
 
 #[test]
 fn test_gen_multiple_functions() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
 
@@ -240,19 +240,19 @@ def sub(a: int, b: int) -> int:
 
 def mul(a: int, b: int) -> int:
     return a * b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_gen_fn_calling_fn() {
-    let code = r#"
+    let code = r"
 def square(x: int) -> int:
     return x * x
 
 def sum_of_squares(a: int, b: int) -> int:
     return square(a) + square(b)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -260,57 +260,57 @@ def sum_of_squares(a: int, b: int) -> int:
 
 #[test]
 fn test_gen_method_simple() {
-    let code = r#"
+    let code = r"
 class Calculator:
     def add(self, a: int, b: int) -> int:
         return a + b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_gen_method_with_self_field() {
-    let code = r#"
+    let code = r"
 class Counter:
     count: int
 
     def get_count(self) -> int:
         return self.count
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_gen_method_mutating_self() {
-    let code = r#"
+    let code = r"
 class Counter:
     count: int
 
     def increment(self) -> None:
         self.count = self.count + 1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_gen_static_method() {
-    let code = r#"
+    let code = r"
 class Utils:
     @staticmethod
     def double(x: int) -> int:
         return x * 2
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_gen_classmethod() {
-    let code = r#"
+    let code = r"
 class Factory:
     @classmethod
     def create(cls) -> int:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -355,30 +355,30 @@ fn test_gen_fn_keyword_name() {
 
 #[test]
 fn test_gen_fn_many_params() {
-    let code = r#"
+    let code = r"
 def many_params(a: int, b: int, c: int, d: int, e: int) -> int:
     return a + b + c + d + e
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_gen_fn_nested_types() {
-    let code = r#"
+    let code = r"
 def f(data: dict[str, list[int]]) -> int:
     total = 0
     for key in data:
         total = total + sum(data[key])
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_gen_fn_varargs() {
-    let code = r#"
+    let code = r"
 def sum_all(*args: int) -> int:
     return sum(args)
-"#;
+";
     assert!(transpile_ok(code));
 }

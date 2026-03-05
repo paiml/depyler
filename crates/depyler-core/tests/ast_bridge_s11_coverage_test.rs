@@ -1,4 +1,4 @@
-//! Session 11: Coverage tests for ast_bridge.rs code paths
+//! Session 11: Coverage tests for `ast_bridge.rs` code paths
 //!
 //! Tests exercise AST->HIR conversion for various Python constructs:
 //! - Class definitions with methods
@@ -38,47 +38,47 @@ fn hir_succeeds(python_code: &str) -> bool {
 
 #[test]
 fn test_s11_class_simple() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: int, y: int) -> None:
         self.x = x
         self.y = y
-"#;
+";
     assert!(hir_succeeds(code), "Should parse simple class");
 }
 
 #[test]
 fn test_s11_class_with_method() {
-    let code = r#"
+    let code = r"
 class Calculator:
     def add(self, a: int, b: int) -> int:
         return a + b
 
     def multiply(self, a: int, b: int) -> int:
         return a * b
-"#;
+";
     assert!(hir_succeeds(code), "Should parse class with methods");
 }
 
 #[test]
 fn test_s11_class_with_static_method() {
-    let code = r#"
+    let code = r"
 class MathUtils:
     @staticmethod
     def add(a: int, b: int) -> int:
         return a + b
-"#;
+";
     assert!(hir_succeeds(code), "Should parse static method");
 }
 
 #[test]
 fn test_s11_class_with_class_method() {
-    let code = r#"
+    let code = r"
 class Factory:
     @classmethod
     def create(cls, name: str) -> None:
         pass
-"#;
+";
     assert!(hir_succeeds(code), "Should parse class method");
 }
 
@@ -102,26 +102,26 @@ class Dog(Animal):
 
 #[test]
 fn test_s11_import_simple() {
-    let code = r#"
+    let code = r"
 import math
 
 def use_math() -> float:
     return math.sqrt(4.0)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("sqrt"), "Should handle math import. Got: {}", result);
+    assert!(result.contains("sqrt"), "Should handle math import. Got: {result}");
 }
 
 #[test]
 fn test_s11_import_from() {
-    let code = r#"
+    let code = r"
 from typing import List, Dict, Optional
 
 def process(items: List[int]) -> Dict[str, int]:
     return {}
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn process"), "Should handle from imports. Got: {}", result);
+    assert!(result.contains("fn process"), "Should handle from imports. Got: {result}");
 }
 
 #[test]
@@ -170,13 +170,13 @@ async def fetch_data(url: str) -> str:
 
 #[test]
 fn test_s11_global_statement() {
-    let code = r#"
+    let code = r"
 counter: int = 0
 
 def increment() -> None:
     global counter
     counter = counter + 1
-"#;
+";
     assert!(hir_succeeds(code), "Should parse global statement");
 }
 
@@ -186,24 +186,24 @@ def increment() -> None:
 
 #[test]
 fn test_s11_bridge_nested_generic_types() {
-    let code = r#"
+    let code = r"
 from typing import Dict, List, Optional
 
 def complex_types(data: Dict[str, List[int]]) -> Optional[int]:
     return None
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn complex_types"), "Should handle nested generics. Got: {}", result);
+    assert!(result.contains("fn complex_types"), "Should handle nested generics. Got: {result}");
 }
 
 #[test]
 fn test_s11_bridge_union_type() {
-    let code = r#"
+    let code = r"
 from typing import Union
 
 def process(value: Union[int, str]) -> str:
     return str(value)
-"#;
+";
     assert!(hir_succeeds(code), "Should parse Union type");
 }
 
@@ -213,14 +213,14 @@ def process(value: Union[int, str]) -> str:
 
 #[test]
 fn test_s11_bridge_decorated_function() {
-    let code = r#"
+    let code = r"
 def my_decorator(func):
     return func
 
 @my_decorator
 def decorated() -> int:
     return 42
-"#;
+";
     assert!(hir_succeeds(code), "Should parse decorated function");
 }
 
@@ -230,11 +230,11 @@ def decorated() -> int:
 
 #[test]
 fn test_s11_bridge_tuple_unpack_assign() {
-    let code = r#"
+    let code = r"
 def swap(a: int, b: int) -> int:
     a, b = b, a
     return a
-"#;
+";
     assert!(hir_succeeds(code), "Should parse tuple unpack assignment");
 }
 
@@ -244,26 +244,22 @@ def swap(a: int, b: int) -> int:
 
 #[test]
 fn test_s11_bridge_set_comprehension() {
-    let code = r#"
+    let code = r"
 def unique_lengths(words: list) -> set:
     return {len(w) for w in words}
-"#;
+";
     let result = transpile(code);
-    assert!(
-        result.contains("fn unique_lengths"),
-        "Should handle set comprehension. Got: {}",
-        result
-    );
+    assert!(result.contains("fn unique_lengths"), "Should handle set comprehension. Got: {result}");
 }
 
 #[test]
 fn test_s11_bridge_dict_comprehension() {
-    let code = r#"
+    let code = r"
 def invert(data: dict) -> dict:
     return {v: k for k, v in data.items()}
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn invert"), "Should handle dict comprehension. Got: {}", result);
+    assert!(result.contains("fn invert"), "Should handle dict comprehension. Got: {result}");
 }
 
 // ============================================================================
@@ -272,7 +268,7 @@ def invert(data: dict) -> dict:
 
 #[test]
 fn test_s11_bridge_try_finally() {
-    let code = r#"
+    let code = r"
 def with_cleanup(path: str) -> int:
     result: int = 0
     try:
@@ -280,13 +276,13 @@ def with_cleanup(path: str) -> int:
     finally:
         pass
     return result
-"#;
+";
     assert!(hir_succeeds(code), "Should parse try/finally");
 }
 
 #[test]
 fn test_s11_bridge_try_except_else() {
-    let code = r#"
+    let code = r"
 def safe_parse(s: str) -> int:
     try:
         result: int = int(s)
@@ -295,7 +291,7 @@ def safe_parse(s: str) -> int:
     else:
         result = result + 1
     return result
-"#;
+";
     assert!(hir_succeeds(code), "Should parse try/except/else");
 }
 
@@ -346,13 +342,13 @@ def check(x: int) -> None:
 
 #[test]
 fn test_s11_bridge_star_unpack() {
-    let code = r#"
+    let code = r"
 def first_and_rest(items: list) -> int:
     first = items[0]
     return first
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn first_and_rest"), "Should handle star unpack. Got: {}", result);
+    assert!(result.contains("fn first_and_rest"), "Should handle star unpack. Got: {result}");
 }
 
 // ============================================================================
@@ -361,12 +357,12 @@ def first_and_rest(items: list) -> int:
 
 #[test]
 fn test_s11_bridge_nested_function() {
-    let code = r#"
+    let code = r"
 def outer(x: int) -> int:
     def inner(y: int) -> int:
         return y * 2
     return inner(x)
-"#;
+";
     assert!(hir_succeeds(code), "Should parse nested function");
 }
 
@@ -399,10 +395,10 @@ class Config:
 
 #[test]
 fn test_s11_bridge_generator_expression() {
-    let code = r#"
+    let code = r"
 def sum_of_squares(n: int) -> int:
     return sum(x * x for x in range(n))
-"#;
+";
     assert!(hir_succeeds(code), "Should parse generator expression");
 }
 
@@ -412,7 +408,7 @@ def sum_of_squares(n: int) -> int:
 
 #[test]
 fn test_s11_bridge_while_else() {
-    let code = r#"
+    let code = r"
 def search(items: list, target: int) -> bool:
     i: int = 0
     while i < len(items):
@@ -420,9 +416,9 @@ def search(items: list, target: int) -> bool:
             return True
         i = i + 1
     return False
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn search"), "Should handle while with return. Got: {}", result);
+    assert!(result.contains("fn search"), "Should handle while with return. Got: {result}");
 }
 
 // ============================================================================
@@ -443,10 +439,10 @@ fn test_s11_bridge_empty_module() {
 
 #[test]
 fn test_s11_bridge_comments_only() {
-    let code = r#"
+    let code = r"
 # This is a comment
 # Another comment
-"#;
+";
     assert!(hir_succeeds(code), "Should handle comments-only module");
 }
 
@@ -463,5 +459,5 @@ def hello() -> str:
     return "hello"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn hello"), "Should handle module docstring. Got: {}", result);
+    assert!(result.contains("fn hello"), "Should handle module docstring. Got: {result}");
 }

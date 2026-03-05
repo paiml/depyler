@@ -597,9 +597,7 @@ mod tests {
         // Errors should not increase (monotonic improvement or same)
         assert!(
             final_errors <= initial_errors || result.success,
-            "Errors increased: {} -> {}",
-            initial_errors,
-            final_errors
+            "Errors increased: {initial_errors} -> {final_errors}"
         );
     }
 

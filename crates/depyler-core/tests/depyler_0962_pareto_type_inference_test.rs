@@ -42,8 +42,7 @@ def process(data):
     // Should NOT contain serde_json::Value for simple dict access
     assert!(
         !rust.contains("serde_json::Value"),
-        "Unknown types should not default to serde_json::Value.\nGenerated:\n{}",
-        rust
+        "Unknown types should not default to serde_json::Value.\nGenerated:\n{rust}"
     );
 }
 
@@ -60,8 +59,7 @@ def get_value(d):
     // Should infer HashMap<String, String> from usage
     assert!(
         rust.contains("HashMap") || rust.contains("std::collections::HashMap"),
-        "Dict access should infer HashMap type.\nGenerated:\n{}",
-        rust
+        "Dict access should infer HashMap type.\nGenerated:\n{rust}"
     );
 }
 
@@ -81,8 +79,7 @@ def collect(items):
     // Should infer Vec<T> from append usage
     assert!(
         rust.contains("Vec<") || rust.contains("vec!"),
-        "List operations should infer Vec type.\nGenerated:\n{}",
-        rust
+        "List operations should infer Vec type.\nGenerated:\n{rust}"
     );
 }
 
@@ -104,8 +101,7 @@ def check_buffer(buffer: list) -> bool:
         rust.contains("is_empty()")
             || rust.contains(".len()")
             || rust.contains("!buffer.is_empty()"),
-        "Boolean context should use proper emptiness check.\nGenerated:\n{}",
-        rust
+        "Boolean context should use proper emptiness check.\nGenerated:\n{rust}"
     );
 }
 
@@ -129,7 +125,7 @@ def get_count() -> int:
     let rust = transpile(python).unwrap();
 
     // x should be typed, code should compile
-    assert!(compiles(python), "Return type should propagate backward.\nGenerated:\n{}", rust);
+    assert!(compiles(python), "Return type should propagate backward.\nGenerated:\n{rust}");
 }
 
 #[test]
@@ -144,7 +140,7 @@ def double(x: int) -> int:
     let rust = transpile(python).unwrap();
 
     // result should be typed as i32/i64
-    assert!(compiles(python), "Parameter types should propagate to body.\nGenerated:\n{}", rust);
+    assert!(compiles(python), "Parameter types should propagate to body.\nGenerated:\n{rust}");
 }
 
 #[test]
@@ -159,7 +155,7 @@ def process(text: str) -> str:
     let rust = transpile(python).unwrap();
 
     // Each method in chain should preserve String type
-    assert!(compiles(python), "Method chain should preserve types.\nGenerated:\n{}", rust);
+    assert!(compiles(python), "Method chain should preserve types.\nGenerated:\n{rust}");
 }
 
 // ============================================================================
@@ -184,8 +180,7 @@ def find(items: list, key: str) -> Optional[str]:
     // Should generate Option<String> return type
     assert!(
         rust.contains("Option<String>") || rust.contains("Option<&str>"),
-        "Optional should unify to Option<T>.\nGenerated:\n{}",
-        rust
+        "Optional should unify to Option<T>.\nGenerated:\n{rust}"
     );
 }
 
@@ -200,11 +195,7 @@ def invert(d: dict) -> dict:
     let rust = transpile(python).unwrap();
 
     // Should infer HashMap with swapped types
-    assert!(
-        rust.contains("HashMap"),
-        "Dict comprehension should infer types.\nGenerated:\n{}",
-        rust
-    );
+    assert!(rust.contains("HashMap"), "Dict comprehension should infer types.\nGenerated:\n{rust}");
 }
 
 // ============================================================================

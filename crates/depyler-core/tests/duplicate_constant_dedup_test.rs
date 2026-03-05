@@ -90,8 +90,7 @@ serde_json = "1"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
@@ -109,16 +108,16 @@ SCRIPT = "second.py"
     // Should NOT contain TWO SCRIPT definitions
     let script_count =
         rust.matches("pub const SCRIPT").count() + rust.matches("pub static SCRIPT").count();
-    assert_eq!(script_count, 1, "Should have exactly one SCRIPT definition. Generated:\n{}", rust);
+    assert_eq!(script_count, 1, "Should have exactly one SCRIPT definition. Generated:\n{rust}");
 
     // Should contain the LAST value "second.py"
-    assert!(rust.contains("second.py"), "Should use the last assigned value. Generated:\n{}", rust);
+    assert!(rust.contains("second.py"), "Should use the last assigned value. Generated:\n{rust}");
 
     // Should NOT contain the first value
-    assert!(!rust.contains("first.py"), "Should not contain the first value. Generated:\n{}", rust);
+    assert!(!rust.contains("first.py"), "Should not contain the first value. Generated:\n{rust}");
 }
 
-/// Test: PathBuf then string reassignment (common test file pattern)
+/// Test: `PathBuf` then string reassignment (common test file pattern)
 #[test]
 fn test_path_to_string_reassignment_deduplicates() {
     let python = r#"
@@ -134,9 +133,7 @@ SCRIPT = "tool.py"
     // Allow SCRIPT to appear in the value and once in the definition
     assert!(
         script_count <= 2,
-        "Should not have duplicate SCRIPT definitions. Count: {}. Generated:\n{}",
-        script_count,
-        rust
+        "Should not have duplicate SCRIPT definitions. Count: {script_count}. Generated:\n{rust}"
     );
 }
 
@@ -173,8 +170,8 @@ VERSION = "2.0"
     let version_defs =
         rust.matches("pub const VERSION").count() + rust.matches("pub static VERSION").count();
 
-    assert_eq!(name_defs, 1, "NAME should be defined once. Generated:\n{}", rust);
-    assert_eq!(version_defs, 1, "VERSION should be defined once. Generated:\n{}", rust);
+    assert_eq!(name_defs, 1, "NAME should be defined once. Generated:\n{rust}");
+    assert_eq!(version_defs, 1, "VERSION should be defined once. Generated:\n{rust}");
 
     // Should use the last values
     assert!(rust.contains("new_name"), "Should use last NAME value");

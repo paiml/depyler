@@ -1,6 +1,6 @@
-//! Coverage tests for doctest_extractor.rs
+//! Coverage tests for `doctest_extractor.rs`
 //!
-//! DEPYLER-99MODE-001: Targets doctest_extractor.rs (1,101 lines)
+//! DEPYLER-99MODE-001: Targets `doctest_extractor.rs` (1,101 lines)
 //! Covers: doctest extraction from docstrings, multi-line continuation,
 //! multiple examples, structured output generation.
 

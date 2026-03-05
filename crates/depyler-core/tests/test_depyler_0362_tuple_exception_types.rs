@@ -17,7 +17,7 @@ def multi_except(s: str) -> int:
     assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // DEPYLER-0362: Currently, tuple exception handlers with multiple statements
     // (like print + return) are not fully implemented. The code compiles but
@@ -41,8 +41,7 @@ def multi_except(s: str) -> int:
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "❌ DEPYLER-0362: Generated code should compile!\n\nGenerated code:\n{}\n\nCompilation errors:\n{}",
-            rust_code, stderr
+            "❌ DEPYLER-0362: Generated code should compile!\n\nGenerated code:\n{rust_code}\n\nCompilation errors:\n{stderr}"
         );
     }
 

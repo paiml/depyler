@@ -6,8 +6,8 @@
 //! 1. Why? Compilation error: "cannot find value 'parts' in this scope"
 //! 2. Why? Function signature has zero parameters
 //! 3. Why? Variadic parameter not added to params vector
-//! 4. Why? convert_nested_function_params() never checks args.vararg field
-//! 5. ROOT: Missing code to handle ast::Arguments::vararg
+//! 4. Why? `convert_nested_function_params()` never checks args.vararg field
+//! 5. ROOT: Missing code to handle `ast::Arguments::vararg`
 
 #![allow(non_snake_case)]
 
@@ -97,12 +97,12 @@ path = join_paths("home", "user", "docs")
 #[test]
 fn test_nested_variadic_function() {
     // Test 4: Nested function with variadic params
-    let python = r#"
+    let python = r"
 def outer():
     def inner(*args):
         return len(args)
     return inner(1, 2, 3)
-"#;
+";
     let hir = parse_and_generate(python);
 
     let outer_func = hir.functions.iter().find(|f| f.name == "outer");
@@ -135,10 +135,10 @@ def outer():
 #[test]
 fn test_variadic_with_no_usage() {
     // Test 5: Variadic parameter that's never used (edge case)
-    let python = r#"
+    let python = r"
 def noop(*args):
     pass
-"#;
+";
     let hir = parse_and_generate(python);
 
     let noop_func = hir.functions.iter().find(|f| f.name == "noop");
@@ -152,10 +152,10 @@ def noop(*args):
 #[test]
 fn test_variadic_with_defaults() {
     // Test 6: Mix of regular params with defaults and variadic
-    let python = r#"
+    let python = r"
 def complex_func(a, b=10, *args):
     return a + b + sum(args)
-"#;
+";
     let hir = parse_and_generate(python);
 
     let complex_func = hir.functions.iter().find(|f| f.name == "complex_func");

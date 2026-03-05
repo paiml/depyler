@@ -22,13 +22,13 @@ use depyler_core::DepylerPipeline;
 #[ignore = "DEPYLER-0333: Exception scope tracking not implemented yet - RED phase"]
 fn test_0333_01_simple_try_except_caught_exception() {
     // Pattern: Exception is caught internally - should NOT propagate Result
-    let python = r#"
+    let python = r"
 def safe_divide(a: int, b: int) -> int:
     try:
         return a // b
     except ZeroDivisionError:
         return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -39,22 +39,19 @@ def safe_divide(a: int, b: int) -> int:
     // Should return i32, NOT Result<i32, ZeroDivisionError>
     assert!(
         rust_code.contains("fn safe_divide") && rust_code.contains("-> i32"),
-        "Should return i32, not Result.\nGot:\n{}",
-        rust_code
+        "Should return i32, not Result.\nGot:\n{rust_code}"
     );
 
     // Should NOT have return Err() in exception handler
     assert!(
         !rust_code.contains("return Err(ZeroDivisionError"),
-        "Should not return Err in caught exception.\nGot:\n{}",
-        rust_code
+        "Should not return Err in caught exception.\nGot:\n{rust_code}"
     );
 
     // Should return fallback value (0) in exception handler
     assert!(
         rust_code.contains("return 0"),
-        "Should return fallback value in exception handler.\nGot:\n{}",
-        rust_code
+        "Should return fallback value in exception handler.\nGot:\n{rust_code}"
     );
 }
 
@@ -62,7 +59,7 @@ def safe_divide(a: int, b: int) -> int:
 #[ignore = "DEPYLER-0333: Not implemented yet - RED phase"]
 fn test_0333_02_nested_try_except_blocks() {
     // Pattern: Nested try blocks with different exception types
-    let python = r#"
+    let python = r"
 def nested_operations(data: list[int]) -> int:
     try:
         # Outer try - handles IndexError
@@ -74,7 +71,7 @@ def nested_operations(data: list[int]) -> int:
             return -1
     except IndexError:
         return -2
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -85,15 +82,13 @@ def nested_operations(data: list[int]) -> int:
     // Should return i32 (all exceptions caught)
     assert!(
         rust_code.contains("-> i32"),
-        "Should return i32 with all exceptions caught.\nGot:\n{}",
-        rust_code
+        "Should return i32 with all exceptions caught.\nGot:\n{rust_code}"
     );
 
     // Should have proper exception handling for both levels
     assert!(
         rust_code.contains("-1") && rust_code.contains("-2"),
-        "Should have both exception handlers.\nGot:\n{}",
-        rust_code
+        "Should have both exception handlers.\nGot:\n{rust_code}"
     );
 }
 
@@ -101,7 +96,7 @@ def nested_operations(data: list[int]) -> int:
 #[ignore = "DEPYLER-0333: Not implemented yet - RED phase"]
 fn test_0333_03_try_except_finally() {
     // Pattern: Try/except/finally block
-    let python = r#"
+    let python = r"
 def with_finally(x: int) -> int:
     result = 0
     try:
@@ -111,7 +106,7 @@ def with_finally(x: int) -> int:
     finally:
         result = result + 1
     return result
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -122,8 +117,7 @@ def with_finally(x: int) -> int:
     // Should have finally block logic
     assert!(
         rust_code.contains("result + 1"),
-        "Should have finally block logic.\nGot:\n{}",
-        rust_code
+        "Should have finally block logic.\nGot:\n{rust_code}"
     );
 }
 
@@ -150,16 +144,14 @@ def validate_positive(n: int) -> int:
     // Should return i32 (exception is caught)
     assert!(
         rust_code.contains("-> i32"),
-        "Should return i32 with exception caught.\nGot:\n{}",
-        rust_code
+        "Should return i32 with exception caught.\nGot:\n{rust_code}"
     );
 
     // Should NOT use return Err() for raise inside caught try block
     // Instead should use control flow to jump to handler
     assert!(
         !rust_code.contains("return Err(ValueError"),
-        "Should not return Err for caught exception.\nGot:\n{}",
-        rust_code
+        "Should not return Err for caught exception.\nGot:\n{rust_code}"
     );
 }
 
@@ -188,16 +180,14 @@ def validate_positive(n: int) -> int:
 
     assert!(
         uses_panic || uses_result,
-        "Should use panic!() or Result for uncaught exception.\nGot:\n{}",
-        rust_code
+        "Should use panic!() or Result for uncaught exception.\nGot:\n{rust_code}"
     );
 
     // If using Result, should have return Err()
     if uses_result {
         assert!(
             rust_code.contains("Err(ValueError"),
-            "Result function should use Err for raise.\nGot:\n{}",
-            rust_code
+            "Result function should use Err for raise.\nGot:\n{rust_code}"
         );
     }
 }
@@ -206,7 +196,7 @@ def validate_positive(n: int) -> int:
 #[ignore = "DEPYLER-0333: Not implemented yet - RED phase"]
 fn test_0333_06_multiple_exception_types_in_handlers() {
     // Pattern: Multiple exception types handled separately
-    let python = r#"
+    let python = r"
 def process(data: list[int], divisor: int) -> int:
     try:
         value = data[0]
@@ -215,7 +205,7 @@ def process(data: list[int], divisor: int) -> int:
         return -1
     except ZeroDivisionError:
         return -2
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -226,15 +216,13 @@ def process(data: list[int], divisor: int) -> int:
     // Should return i32 (all exceptions caught)
     assert!(
         rust_code.contains("-> i32"),
-        "Should return i32 with all exceptions caught.\nGot:\n{}",
-        rust_code
+        "Should return i32 with all exceptions caught.\nGot:\n{rust_code}"
     );
 
     // Should have both exception handlers
     assert!(
         rust_code.contains("-1") && rust_code.contains("-2"),
-        "Should have handlers for both exception types.\nGot:\n{}",
-        rust_code
+        "Should have handlers for both exception types.\nGot:\n{rust_code}"
     );
 }
 
@@ -242,13 +230,13 @@ def process(data: list[int], divisor: int) -> int:
 #[ignore = "DEPYLER-0333: Not implemented yet - RED phase"]
 fn test_0333_07_bare_except_clause() {
     // Pattern: Bare except (catches all exceptions)
-    let python = r#"
+    let python = r"
 def safe_operation(x: int, y: int) -> int:
     try:
         return x // y
     except:
         return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -257,11 +245,7 @@ def safe_operation(x: int, y: int) -> int:
     let rust_code = result.unwrap();
 
     // Should return i32 (all exceptions caught by bare except)
-    assert!(
-        rust_code.contains("-> i32"),
-        "Should return i32 with bare except.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("-> i32"), "Should return i32 with bare except.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -286,8 +270,7 @@ def logged_divide(a: int, b: int) -> int:
     // Should return Result (exception is re-raised)
     assert!(
         rust_code.contains("Result<i32, ZeroDivisionError>"),
-        "Should return Result when exception is re-raised.\nGot:\n{}",
-        rust_code
+        "Should return Result when exception is re-raised.\nGot:\n{rust_code}"
     );
 }
 
@@ -295,13 +278,13 @@ def logged_divide(a: int, b: int) -> int:
 #[ignore = "DEPYLER-0333: Not implemented yet - RED phase"]
 fn test_0333_09_function_call_can_raise_in_try() {
     // Pattern: Function call that can raise, inside try block
-    let python = r#"
+    let python = r"
 def parse_int(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -312,16 +295,14 @@ def parse_int(s: str) -> int:
     // Should return i32 (ValueError is caught)
     assert!(
         rust_code.contains("-> i32"),
-        "Should return i32 with exception caught.\nGot:\n{}",
-        rust_code
+        "Should return i32 with exception caught.\nGot:\n{rust_code}"
     );
 
     // Should use .unwrap_or() or similar for caught exception
     // NOT the ? operator
     assert!(
         !rust_code.contains("parse::<i32>()?"),
-        "Should not use ? operator for caught exception.\nGot:\n{}",
-        rust_code
+        "Should not use ? operator for caught exception.\nGot:\n{rust_code}"
     );
 }
 
@@ -358,8 +339,7 @@ def complex_operation(x: int, y: int) -> int:
 
     assert!(
         uses_result || uses_panic,
-        "Should handle uncaught exception appropriately.\nGot:\n{}",
-        rust_code
+        "Should handle uncaught exception appropriately.\nGot:\n{rust_code}"
     );
 }
 
@@ -371,13 +351,13 @@ def complex_operation(x: int, y: int) -> int:
 #[ignore = "DEPYLER-0333: Not implemented yet - RED phase"]
 fn test_0333_compilation_safe_divide() {
     // Integration test: Verify generated code compiles without errors
-    let python = r#"
+    let python = r"
 def safe_divide(a: int, b: int) -> int:
     try:
         return a // b
     except ZeroDivisionError:
         return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -430,11 +410,11 @@ mod property_tests {
 def test_function(x: int) -> int:
     try:
         if x < 0:
-            raise {}("error")
+            raise {exception_type}("error")
         return x
-    except {}:
+    except {exception_type}:
         return 0
-"#, exception_type, exception_type);
+"#);
 
             let pipeline = DepylerPipeline::new();
             let result = pipeline.transpile(&python);
@@ -475,28 +455,28 @@ def test_function(x: int) -> int:
 
     // Property 3: Caught exceptions never generate ? operator
     proptest! {
-        #[test]
-        #[ignore = "DEPYLER-0333: Not implemented yet - RED phase"]
-        fn prop_caught_exceptions_no_question_mark(operation in "[+\\-*/]") {
-            let python = format!(r#"
+            #[test]
+            #[ignore = "DEPYLER-0333: Not implemented yet - RED phase"]
+            fn prop_caught_exceptions_no_question_mark(operation in "[+\\-*/]") {
+                let python = format!(r"
 def test_function(a: int, b: int) -> int:
     try:
-        return a {} b
+        return a {operation} b
     except:
         return 0
-"#, operation);
+");
 
-            let pipeline = DepylerPipeline::new();
-            let result = pipeline.transpile(&python);
+                let pipeline = DepylerPipeline::new();
+                let result = pipeline.transpile(&python);
 
-            if let Ok(rust_code) = result {
-                // Should NOT contain ? operator in caught try block
-                prop_assert!(
-                    !rust_code.contains("?"),
-                    "Caught exception should not use ? operator:\n{}",
-                    rust_code
-                );
+                if let Ok(rust_code) = result {
+                    // Should NOT contain ? operator in caught try block
+                    prop_assert!(
+                        !rust_code.contains('?'),
+                        "Caught exception should not use ? operator:\n{}",
+                        rust_code
+                    );
+                }
             }
         }
-    }
 }

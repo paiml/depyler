@@ -25,41 +25,41 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b62_default_none() {
-    let code = r#"
+    let code = r"
 def find(items: list, target: int, default=None):
     for item in items:
         if item == target:
             return item
     return default
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn find"), "Got: {}", result);
+    assert!(result.contains("fn find"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b62_default_empty_list() {
-    let code = r#"
+    let code = r"
 def merge(a: list, b: list = []) -> list:
     result = []
     result.extend(a)
     result.extend(b)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn merge"), "Got: {}", result);
+    assert!(result.contains("fn merge"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b62_default_empty_dict() {
-    let code = r#"
+    let code = r"
 def update_config(base: dict, overrides: dict = {}) -> dict:
     result = {}
     result.update(base)
     result.update(overrides)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn update_config"), "Got: {}", result);
+    assert!(result.contains("fn update_config"), "Got: {result}");
 }
 
 #[test]
@@ -75,27 +75,27 @@ def format_list(items: list, numbered: bool = False) -> str:
     return "\n".join(result)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn format_list"), "Got: {}", result);
+    assert!(result.contains("fn format_list"), "Got: {result}");
 }
 
 // ===== Complex return types =====
 
 #[test]
 fn test_s12_b62_return_optional_int() {
-    let code = r#"
+    let code = r"
 def parse_number(s: str):
     try:
         return int(s)
     except ValueError:
         return None
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn parse_number"), "Got: {}", result);
+    assert!(result.contains("fn parse_number"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b62_return_tuple_triple() {
-    let code = r#"
+    let code = r"
 def stats(items: list) -> tuple:
     if not items:
         return (0, 0, 0.0)
@@ -103,16 +103,16 @@ def stats(items: list) -> tuple:
     count = len(items)
     avg = total / count
     return (total, count, avg)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn stats"), "Got: {}", result);
+    assert!(result.contains("fn stats"), "Got: {result}");
 }
 
 // ===== Mixed type patterns =====
 
 #[test]
 fn test_s12_b62_mixed_collection_ops() {
-    let code = r##"
+    let code = r#"
 def analyze(data: list) -> dict:
     result = {
         "count": len(data),
@@ -121,14 +121,14 @@ def analyze(data: list) -> dict:
         "max": max(data) if data else 0
     }
     return result
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn analyze"), "Got: {}", result);
+    assert!(result.contains("fn analyze"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b62_multi_type_processing() {
-    let code = r##"
+    let code = r#"
 def process_mixed(items: list) -> dict:
     strings = []
     numbers = []
@@ -138,9 +138,9 @@ def process_mixed(items: list) -> dict:
         elif isinstance(item, int):
             numbers.append(item)
     return {"strings": len(strings), "numbers": len(numbers)}
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn process_mixed"), "Got: {}", result);
+    assert!(result.contains("fn process_mixed"), "Got: {result}");
 }
 
 // ===== Deep nested patterns =====
@@ -172,12 +172,12 @@ def classify(x: int, y: int) -> str:
             return "origin"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn classify"), "Got: {}", result);
+    assert!(result.contains("fn classify"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b62_loop_with_complex_break() {
-    let code = r#"
+    let code = r"
 def find_peak(items: list) -> int:
     if len(items) < 2:
         return 0
@@ -185,16 +185,16 @@ def find_peak(items: list) -> int:
         if items[i] > items[i - 1] and items[i] > items[i + 1]:
             return i
     return -1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn find_peak"), "Got: {}", result);
+    assert!(result.contains("fn find_peak"), "Got: {result}");
 }
 
 // ===== Builder pattern classes =====
 
 #[test]
 fn test_s12_b62_builder_class() {
-    let code = r##"
+    let code = r#"
 class QueryBuilder:
     def __init__(self, table: str):
         self.table = table
@@ -222,57 +222,57 @@ class QueryBuilder:
         if self.limit_val > 0:
             sql += f" LIMIT {self.limit_val}"
         return sql
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("QueryBuilder"), "Got: {}", result);
+    assert!(result.contains("QueryBuilder"), "Got: {result}");
 }
 
 // ===== Iterator patterns =====
 
 #[test]
 fn test_s12_b62_sliding_pairs() {
-    let code = r#"
+    let code = r"
 def pairs(items: list) -> list:
     result = []
     for i in range(len(items) - 1):
         result.append((items[i], items[i + 1]))
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn pairs"), "Got: {}", result);
+    assert!(result.contains("fn pairs"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b62_windows() {
-    let code = r#"
+    let code = r"
 def windows(items: list, size: int) -> list:
     result = []
     for i in range(len(items) - size + 1):
         result.append(items[i:i + size])
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn windows"), "Got: {}", result);
+    assert!(result.contains("fn windows"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b62_batches() {
-    let code = r#"
+    let code = r"
 def batch(items: list, size: int) -> list:
     result = []
     for i in range(0, len(items), size):
         result.append(items[i:i + size])
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn batch"), "Got: {}", result);
+    assert!(result.contains("fn batch"), "Got: {result}");
 }
 
 // ===== Complex data processing =====
 
 #[test]
 fn test_s12_b62_pivot_data() {
-    let code = r#"
+    let code = r"
 def pivot(records: list, key_col: str, val_col: str) -> dict:
     result = {}
     for record in records:
@@ -282,14 +282,14 @@ def pivot(records: list, key_col: str, val_col: str) -> dict:
             result[key] = []
         result[key].append(value)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn pivot"), "Got: {}", result);
+    assert!(result.contains("fn pivot"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b62_running_median() {
-    let code = r#"
+    let code = r"
 def running_avg(items: list) -> list:
     result = []
     total = 0.0
@@ -297,14 +297,14 @@ def running_avg(items: list) -> list:
         total += item
         result.append(total / (i + 1))
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn running_avg"), "Got: {}", result);
+    assert!(result.contains("fn running_avg"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b62_histogram() {
-    let code = r#"
+    let code = r"
 def histogram(items: list, bins: int) -> list:
     if not items:
         return []
@@ -320,7 +320,7 @@ def histogram(items: list, bins: int) -> list:
             idx = bins - 1
         counts[idx] += 1
     return counts
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn histogram"), "Got: {}", result);
+    assert!(result.contains("fn histogram"), "Got: {result}");
 }

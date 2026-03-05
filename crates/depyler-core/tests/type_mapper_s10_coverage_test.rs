@@ -1,4 +1,4 @@
-//! DEPYLER-99MODE-S10: Integration tests targeting type_mapper.rs coverage gaps
+//! DEPYLER-99MODE-S10: Integration tests targeting `type_mapper.rs` coverage gaps
 //!
 //! Tests for: bare list/dict/set types, generic type annotations,
 //! custom type names, nested types, unknown type fallbacks, and
@@ -22,10 +22,10 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s10_bare_list_type() {
-    let code = r#"
+    let code = r"
 def get_items() -> list:
     return [1, 2, 3]
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn get_items"));
     assert!(result.contains("Vec") || result.contains("vec!"));
@@ -44,10 +44,10 @@ def get_data() -> dict:
 
 #[test]
 fn test_s10_bare_set_type() {
-    let code = r#"
+    let code = r"
 def get_unique() -> set:
     return {1, 2, 3}
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn get_unique"));
     assert!(result.contains("HashSet"));
@@ -55,10 +55,10 @@ def get_unique() -> set:
 
 #[test]
 fn test_s10_bare_tuple_type() {
-    let code = r#"
+    let code = r"
 def get_pair() -> tuple:
     return (1, 2)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn get_pair"));
 }
@@ -67,12 +67,12 @@ def get_pair() -> tuple:
 
 #[test]
 fn test_s10_list_int_type() {
-    let code = r#"
+    let code = r"
 from typing import List
 
 def sum_nums(nums: List[int]) -> int:
     return sum(nums)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn sum_nums"));
     assert!(result.contains("Vec") || result.contains("i32") || result.contains("i64"));
@@ -92,12 +92,12 @@ def join_all(items: List[str]) -> str:
 
 #[test]
 fn test_s10_dict_str_int_type() {
-    let code = r#"
+    let code = r"
 from typing import Dict
 
 def lookup(data: Dict[str, int], key: str) -> int:
     return data.get(key, 0)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn lookup"));
     assert!(result.contains("HashMap"));
@@ -118,12 +118,12 @@ def index_to_name(mapping: Dict[int, str], idx: int) -> str:
 
 #[test]
 fn test_s10_set_int_type() {
-    let code = r#"
+    let code = r"
 from typing import Set
 
 def unique_nums(items: list) -> Set[int]:
     return set(items)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn unique_nums"));
     assert!(result.contains("HashSet"));
@@ -131,19 +131,19 @@ def unique_nums(items: list) -> Set[int]:
 
 #[test]
 fn test_s10_tuple_int_str_type() {
-    let code = r#"
+    let code = r"
 from typing import Tuple
 
 def make_pair(x: int, s: str) -> Tuple[int, str]:
     return (x, s)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn make_pair"));
 }
 
 #[test]
 fn test_s10_optional_int_type() {
-    let code = r#"
+    let code = r"
 from typing import Optional
 
 def find_index(items: list, target: int) -> Optional[int]:
@@ -151,7 +151,7 @@ def find_index(items: list, target: int) -> Optional[int]:
         if item == target:
             return i
     return None
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn find_index"));
     assert!(result.contains("Option"));
@@ -174,7 +174,7 @@ def get_name(data: dict) -> Optional[str]:
 
 #[test]
 fn test_s10_list_of_list() {
-    let code = r#"
+    let code = r"
 from typing import List
 
 def flatten(matrix: List[List[int]]) -> List[int]:
@@ -183,7 +183,7 @@ def flatten(matrix: List[List[int]]) -> List[int]:
         for item in row:
             result.append(item)
     return result
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn flatten"));
     assert!(result.contains("Vec"));
@@ -191,13 +191,13 @@ def flatten(matrix: List[List[int]]) -> List[int]:
 
 #[test]
 fn test_s10_dict_of_list() {
-    let code = r#"
+    let code = r"
 from typing import Dict, List
 
 def group_by_key(items: list) -> Dict[str, List[int]]:
     result = {}
     return result
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn group_by_key"));
     assert!(result.contains("HashMap"));
@@ -205,14 +205,14 @@ def group_by_key(items: list) -> Dict[str, List[int]]:
 
 #[test]
 fn test_s10_optional_list() {
-    let code = r#"
+    let code = r"
 from typing import Optional, List
 
 def safe_first(items: Optional[List[int]]) -> int:
     if items is None:
         return 0
     return items[0]
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn safe_first"));
     assert!(result.contains("Option"));
@@ -222,7 +222,7 @@ def safe_first(items: Optional[List[int]]) -> int:
 
 #[test]
 fn test_s10_class_type() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
@@ -230,7 +230,7 @@ class Point:
 
 def distance(p1: Point, p2: Point) -> float:
     return ((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2) ** 0.5
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("Point"));
     assert!(result.contains("distance"));
@@ -240,10 +240,10 @@ def distance(p1: Point, p2: Point) -> float:
 
 #[test]
 fn test_s10_int_type() {
-    let code = r#"
+    let code = r"
 def identity_int(x: int) -> int:
     return x
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn identity_int"));
     assert!(result.contains("i32") || result.contains("i64"));
@@ -251,10 +251,10 @@ def identity_int(x: int) -> int:
 
 #[test]
 fn test_s10_float_type() {
-    let code = r#"
+    let code = r"
 def identity_float(x: float) -> float:
     return x
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn identity_float"));
     assert!(result.contains("f64"));
@@ -262,10 +262,10 @@ def identity_float(x: float) -> float:
 
 #[test]
 fn test_s10_bool_type() {
-    let code = r#"
+    let code = r"
 def identity_bool(x: bool) -> bool:
     return x
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn identity_bool"));
     assert!(result.contains("bool"));
@@ -273,10 +273,10 @@ def identity_bool(x: bool) -> bool:
 
 #[test]
 fn test_s10_str_type() {
-    let code = r#"
+    let code = r"
 def identity_str(x: str) -> str:
     return x
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn identity_str"));
     assert!(result.contains("str") || result.contains("String"));
@@ -286,10 +286,10 @@ def identity_str(x: str) -> str:
 
 #[test]
 fn test_s10_infer_return_int() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn add"));
     assert!(result.contains("i32") || result.contains("i64"));
@@ -297,10 +297,10 @@ def add(a: int, b: int) -> int:
 
 #[test]
 fn test_s10_infer_return_float() {
-    let code = r#"
+    let code = r"
 def divide(a: float, b: float) -> float:
     return a / b
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn divide"));
     assert!(result.contains("f64"));
@@ -308,10 +308,10 @@ def divide(a: float, b: float) -> float:
 
 #[test]
 fn test_s10_infer_return_bool() {
-    let code = r#"
+    let code = r"
 def is_even(n: int) -> bool:
     return n % 2 == 0
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn is_even"));
     assert!(result.contains("bool"));
@@ -338,24 +338,24 @@ def process(items: List[int], config: Dict[str, bool]) -> str:
 
 #[test]
 fn test_s10_list_comprehension_typed() {
-    let code = r#"
+    let code = r"
 from typing import List
 
 def squares(n: int) -> List[int]:
     return [x * x for x in range(n)]
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn squares"));
 }
 
 #[test]
 fn test_s10_dict_comprehension_typed() {
-    let code = r#"
+    let code = r"
 from typing import Dict
 
 def enumerate_dict(items: list) -> Dict[int, str]:
     return {i: str(v) for i, v in enumerate(items)}
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn enumerate_dict"));
     assert!(result.contains("HashMap"));
@@ -365,10 +365,10 @@ def enumerate_dict(items: list) -> Dict[int, str]:
 
 #[test]
 fn test_s10_bytes_type() {
-    let code = r#"
+    let code = r"
 def encode(s: str) -> bytes:
     return s.encode()
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn encode"));
     assert!(result.contains("Vec") || result.contains("u8") || result.contains("bytes"));
@@ -378,11 +378,11 @@ def encode(s: str) -> bytes:
 
 #[test]
 fn test_s10_none_return() {
-    let code = r#"
+    let code = r"
 def print_items(items: list):
     for item in items:
         print(item)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn print_items"));
     // Should have no explicit return type or return ()
@@ -392,13 +392,13 @@ def print_items(items: list):
 
 #[test]
 fn test_s10_constant_type_inference() {
-    let code = r#"
+    let code = r"
 THRESHOLD = 42
 RATE = 3.14
 
 def check(x: int) -> bool:
     return x > THRESHOLD
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("THRESHOLD"));
     assert!(result.contains("RATE") || result.contains("3.14"));

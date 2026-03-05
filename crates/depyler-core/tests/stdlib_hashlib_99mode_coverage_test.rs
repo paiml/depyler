@@ -1,4 +1,4 @@
-//! Coverage tests for rust_gen/stdlib_method_gen/hashlib.rs
+//! Coverage tests for `rust_gen/stdlib_method_gen/hashlib.rs`
 //!
 //! DEPYLER-99MODE-001: Targets hashlib.rs (~697 lines)
 //! Covers: hash algorithm mapping, update/hexdigest/digest,
@@ -21,45 +21,45 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_hashlib_sha256() {
-    let code = r#"
+    let code = r"
 import hashlib
 
 def f(data: str) -> str:
     return hashlib.sha256(data.encode()).hexdigest()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hashlib_md5() {
-    let code = r#"
+    let code = r"
 import hashlib
 
 def f(data: str) -> str:
     return hashlib.md5(data.encode()).hexdigest()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hashlib_sha1() {
-    let code = r#"
+    let code = r"
 import hashlib
 
 def f(data: str) -> str:
     return hashlib.sha1(data.encode()).hexdigest()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hashlib_sha512() {
-    let code = r#"
+    let code = r"
 import hashlib
 
 def f(data: str) -> str:
     return hashlib.sha512(data.encode()).hexdigest()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -69,14 +69,14 @@ def f(data: str) -> str:
 
 #[test]
 fn test_hashlib_update() {
-    let code = r#"
+    let code = r"
 import hashlib
 
 def f(data: str) -> str:
     h = hashlib.sha256()
     h.update(data.encode())
     return h.hexdigest()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -86,12 +86,12 @@ def f(data: str) -> str:
 
 #[test]
 fn test_hashlib_chain() {
-    let code = r#"
+    let code = r"
 import hashlib
 
 def f(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -118,7 +118,7 @@ def f(data: str) -> dict:
 
 #[test]
 fn test_hashlib_helper_function() {
-    let code = r#"
+    let code = r"
 import hashlib
 
 def compute_hash(text: str) -> str:
@@ -126,7 +126,7 @@ def compute_hash(text: str) -> str:
 
 def verify_hash(text: str, expected: str) -> bool:
     return compute_hash(text) == expected
-"#;
+";
     assert!(transpile_ok(code));
 }
 

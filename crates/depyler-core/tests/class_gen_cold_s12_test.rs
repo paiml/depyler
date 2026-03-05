@@ -1,6 +1,6 @@
 //! Session 12 Batch 50: Class generation and ADT cold paths
 //!
-//! Targets cold paths in rust_gen/mod.rs and class codegen:
+//! Targets cold paths in `rust_gen/mod.rs` and class codegen:
 //! - ADT pattern detection (base class filtering)
 //! - Complex class hierarchies
 //! - Class with many field types
@@ -27,19 +27,19 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b50_simple_class() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
         self.y = y
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Point"), "Got: {}", result);
+    assert!(result.contains("Point"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b50_class_with_methods() {
-    let code = r#"
+    let code = r"
 class Vector:
     def __init__(self, x: float, y: float):
         self.x = x
@@ -54,10 +54,10 @@ class Vector:
 
     def dot(self, other) -> float:
         return self.x * other.x + self.y * other.y
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Vector"), "Got: {}", result);
-    assert!(result.contains("magnitude"), "Got: {}", result);
+    assert!(result.contains("Vector"), "Got: {result}");
+    assert!(result.contains("magnitude"), "Got: {result}");
 }
 
 #[test]
@@ -76,7 +76,7 @@ class Color:
         return f"#{self.r:02x}{self.g:02x}{self.b:02x}"
 "##;
     let result = transpile(code);
-    assert!(result.contains("Color"), "Got: {}", result);
+    assert!(result.contains("Color"), "Got: {result}");
 }
 
 #[test]
@@ -99,12 +99,12 @@ class Rectangle(Shape):
         return self.width * self.height
 "#;
     let result = transpile(code);
-    assert!(result.contains("Rectangle"), "Got: {}", result);
+    assert!(result.contains("Rectangle"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b50_class_with_list_field() {
-    let code = r#"
+    let code = r"
 class Stack:
     def __init__(self):
         self.items = []
@@ -123,14 +123,14 @@ class Stack:
 
     def size(self) -> int:
         return len(self.items)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Stack"), "Got: {}", result);
+    assert!(result.contains("Stack"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b50_class_with_dict_field() {
-    let code = r##"
+    let code = r"
 class Registry:
     def __init__(self):
         self.entries = {}
@@ -152,14 +152,14 @@ class Registry:
 
     def all_names(self) -> list:
         return list(self.entries.keys())
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("Registry"), "Got: {}", result);
+    assert!(result.contains("Registry"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b50_class_with_bool_fields() {
-    let code = r#"
+    let code = r"
 class Toggle:
     def __init__(self):
         self.active = False
@@ -177,14 +177,14 @@ class Toggle:
 
     def is_active(self) -> bool:
         return self.active
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Toggle"), "Got: {}", result);
+    assert!(result.contains("Toggle"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b50_class_with_class_method() {
-    let code = r#"
+    let code = r"
 class Temperature:
     def __init__(self, celsius: float):
         self.celsius = celsius
@@ -195,9 +195,9 @@ class Temperature:
 
     def to_fahrenheit(self) -> float:
         return self.celsius * 9.0 / 5.0 + 32.0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Temperature"), "Got: {}", result);
+    assert!(result.contains("Temperature"), "Got: {result}");
 }
 
 #[test]
@@ -217,14 +217,14 @@ class Validator:
         return len(s) > 0
 "#;
     let result = transpile(code);
-    assert!(result.contains("Validator"), "Got: {}", result);
+    assert!(result.contains("Validator"), "Got: {result}");
 }
 
 // ===== Enum-like patterns =====
 
 #[test]
 fn test_s12_b50_enum_like_class() {
-    let code = r##"
+    let code = r#"
 class Direction:
     NORTH = "N"
     SOUTH = "S"
@@ -241,16 +241,16 @@ class Direction:
             return "W"
         else:
             return "E"
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("Direction"), "Got: {}", result);
+    assert!(result.contains("Direction"), "Got: {result}");
 }
 
 // ===== Multiple classes in one module =====
 
 #[test]
 fn test_s12_b50_two_classes() {
-    let code = r#"
+    let code = r"
 class Node:
     def __init__(self, value: int):
         self.value = value
@@ -269,17 +269,17 @@ class LinkedList:
 
     def length(self) -> int:
         return self.size
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Node"), "Got: {}", result);
-    assert!(result.contains("LinkedList"), "Got: {}", result);
+    assert!(result.contains("Node"), "Got: {result}");
+    assert!(result.contains("LinkedList"), "Got: {result}");
 }
 
 // ===== Class with comparison methods =====
 
 #[test]
 fn test_s12_b50_class_with_eq() {
-    let code = r#"
+    let code = r"
 class Pair:
     def __init__(self, first: int, second: int):
         self.first = first
@@ -290,16 +290,16 @@ class Pair:
 
     def sum(self) -> int:
         return self.first + self.second
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Pair"), "Got: {}", result);
+    assert!(result.contains("Pair"), "Got: {result}");
 }
 
 // ===== Dataclass-like pattern =====
 
 #[test]
 fn test_s12_b50_data_class() {
-    let code = r##"
+    let code = r#"
 class Employee:
     def __init__(self, name: str, department: str, salary: float, active: bool):
         self.name = name
@@ -315,16 +315,16 @@ class Employee:
 
     def to_string(self) -> str:
         return f"{self.name} ({self.department}): ${self.salary}"
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("Employee"), "Got: {}", result);
+    assert!(result.contains("Employee"), "Got: {result}");
 }
 
 // ===== Class with complex method interactions =====
 
 #[test]
 fn test_s12_b50_matrix_class() {
-    let code = r#"
+    let code = r"
 class Matrix:
     def __init__(self, rows: int, cols: int):
         self.rows = rows
@@ -354,7 +354,7 @@ class Matrix:
         for i in range(min(self.rows, self.cols)):
             total += self.data[i][i]
         return total
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Matrix"), "Got: {}", result);
+    assert!(result.contains("Matrix"), "Got: {result}");
 }

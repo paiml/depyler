@@ -1,7 +1,7 @@
-//! Coverage tests for rust_gen/type_tokens.rs
+//! Coverage tests for `rust_gen/type_tokens.rs`
 //!
-//! DEPYLER-99MODE-001: Targets type_tokens.rs (711 lines)
-//! Covers: HIR Type to Rust TokenStream conversion, primitive types,
+//! DEPYLER-99MODE-001: Targets `type_tokens.rs` (711 lines)
+//! Covers: HIR Type to Rust `TokenStream` conversion, primitive types,
 //! collection types, generic types, nested types.
 
 use depyler_core::DepylerPipeline;
@@ -60,36 +60,36 @@ fn test_token_set() {
 
 #[test]
 fn test_token_optional() {
-    let code = r#"
+    let code = r"
 from typing import Optional
 
 def f(x: Optional[int]) -> int:
     if x is not None:
         return x
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_token_list_generic() {
-    let code = r#"
+    let code = r"
 from typing import List
 
 def f(items: List[int]) -> int:
     return sum(items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_token_dict_generic() {
-    let code = r#"
+    let code = r"
 from typing import Dict
 
 def f(d: Dict[str, int]) -> int:
     return len(d)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -101,9 +101,9 @@ fn test_token_none_return() {
 
 #[test]
 fn test_token_mixed_params() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: float, s: str, flag: bool) -> str:
     return s
-"#;
+";
     assert!(transpile_ok(code));
 }

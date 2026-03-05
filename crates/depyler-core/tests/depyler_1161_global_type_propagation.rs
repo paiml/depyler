@@ -58,8 +58,7 @@ def greet():
     // Document current behavior - may have type mismatch
     assert!(
         rust.contains("fn get_name") && rust.contains("fn greet"),
-        "Should generate both functions: {}",
-        rust
+        "Should generate both functions: {rust}"
     );
 }
 
@@ -67,7 +66,7 @@ def greet():
 fn test_DEPYLER_1161_local_inference_limitation_chained_calls() {
     // Scenario: A calls B, B calls C, A uses result
     // Problem: Type propagation chain breaks at each boundary
-    let python = r#"
+    let python = r"
 def get_items():
     return [1, 2, 3]
 
@@ -78,7 +77,7 @@ def process_items():
 def main():
     count = process_items()
     return count + 1
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -135,7 +134,7 @@ fn test_DEPYLER_1161_global_synapse_hypothesis() {
 #[test]
 fn test_DEPYLER_1161_call_graph_analysis_basic() {
     // Basic call graph: A calls B, B calls C
-    let python = r#"
+    let python = r"
 def c():
     return 42
 
@@ -144,7 +143,7 @@ def b():
 
 def a():
     return b()
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
@@ -157,22 +156,21 @@ def a():
     // Check if types are consistent
     assert!(
         rust.contains("i64") || rust.contains("i32") || rust.contains("DepylerValue"),
-        "Should have typed returns: {}",
-        rust
+        "Should have typed returns: {rust}"
     );
 }
 
 #[test]
 fn test_DEPYLER_1161_type_constraint_from_usage() {
     // Type can be inferred from how return value is used
-    let python = r#"
+    let python = r"
 def get_value():
     return some_external_call()
 
 def use_value():
     x = get_value()
     return x + 1  # x must be numeric
-"#;
+";
 
     // Note: This currently fails because some_external_call is unknown
     // But it documents the constraint propagation scenario
@@ -183,14 +181,14 @@ def use_value():
 #[test]
 fn test_DEPYLER_1161_bidirectional_constraint_flow() {
     // Constraints flow both ways: signature → body and body → signature
-    let python = r#"
+    let python = r"
 def typed_func(x: int) -> str:
     return str(x)
 
 def caller():
     result = typed_func(42)
     return len(result)  # result must be string-like
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());

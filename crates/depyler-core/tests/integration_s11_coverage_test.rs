@@ -36,46 +36,44 @@ def word_count(text: str) -> dict:
     return counts
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn word_count"), "Should generate function. Got: {}", result);
+    assert!(result.contains("fn word_count"), "Should generate function. Got: {result}");
     assert!(
         result.contains("HashMap") || result.contains("counts"),
-        "Should use HashMap. Got: {}",
-        result
+        "Should use HashMap. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_integration_list_filter_map() {
-    let code = r#"
+    let code = r"
 def positive_doubles(items: list) -> list:
     result: list = []
     for item in items:
         if item > 0:
             result.append(item * 2)
     return result
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn positive_doubles"), "Should generate function");
     assert!(
         result.contains("push") || result.contains("collect"),
-        "Should use push/collect. Got: {}",
-        result
+        "Should use push/collect. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_integration_nested_loops() {
-    let code = r#"
+    let code = r"
 def matrix_sum(matrix: list) -> int:
     total: int = 0
     for row in matrix:
         for val in row:
             total = total + val
     return total
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn matrix_sum"), "Should generate function");
-    assert!(result.contains("for"), "Should have nested loops. Got: {}", result);
+    assert!(result.contains("for"), "Should have nested loops. Got: {result}");
 }
 
 #[test]
@@ -93,8 +91,7 @@ def clean_and_split(text: str) -> list:
     let result = transpile(code);
     assert!(
         result.contains("trim") || result.contains("to_lowercase"),
-        "Should have string methods. Got: {}",
-        result
+        "Should have string methods. Got: {result}"
     );
 }
 
@@ -104,7 +101,7 @@ def clean_and_split(text: str) -> list:
 
 #[test]
 fn test_s11_integration_multiple_functions() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
 
@@ -115,7 +112,7 @@ def compute(x: int, y: int) -> int:
     s: int = add(x, y)
     p: int = multiply(x, y)
     return s + p
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn add"), "Should have add function");
     assert!(result.contains("fn multiply"), "Should have multiply function");
@@ -128,7 +125,7 @@ def compute(x: int, y: int) -> int:
 
 #[test]
 fn test_s11_integration_typed_dict_operations() {
-    let code = r#"
+    let code = r"
 from typing import Dict, List
 
 def group_by_length(words: List[str]) -> Dict[int, List[str]]:
@@ -139,7 +136,7 @@ def group_by_length(words: List[str]) -> Dict[int, List[str]]:
             groups[key] = []
         groups[key].append(word)
     return groups
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn group_by_length"), "Should generate function");
     assert!(result.contains("HashMap") || result.contains("groups"), "Should use HashMap");
@@ -147,7 +144,7 @@ def group_by_length(words: List[str]) -> Dict[int, List[str]]:
 
 #[test]
 fn test_s11_integration_optional_chaining() {
-    let code = r#"
+    let code = r"
 from typing import Optional
 
 def find_first(items: list, target: int) -> Optional[int]:
@@ -155,12 +152,11 @@ def find_first(items: list, target: int) -> Optional[int]:
         if items[i] == target:
             return i
     return None
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("Option") || result.contains("None") || result.contains("Some"),
-        "Should use Option type. Got: {}",
-        result
+        "Should use Option type. Got: {result}"
     );
 }
 
@@ -170,7 +166,7 @@ def find_first(items: list, target: int) -> Optional[int]:
 
 #[test]
 fn test_s11_integration_while_with_break() {
-    let code = r#"
+    let code = r"
 def find_first_negative(items: list) -> int:
     i: int = 0
     while i < len(items):
@@ -178,9 +174,9 @@ def find_first_negative(items: list) -> int:
             return items[i]
         i = i + 1
     return 0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("while"), "Should have while loop. Got: {}", result);
+    assert!(result.contains("while"), "Should have while loop. Got: {result}");
 }
 
 #[test]
@@ -199,7 +195,7 @@ def categorize(x: int, y: int) -> str:
             return "third_quadrant"
 "#;
     let result = transpile(code);
-    assert!(result.contains("first_quadrant"), "Should have all quadrants. Got: {}", result);
+    assert!(result.contains("first_quadrant"), "Should have all quadrants. Got: {result}");
 }
 
 // ============================================================================
@@ -208,7 +204,7 @@ def categorize(x: int, y: int) -> str:
 
 #[test]
 fn test_s11_integration_bubble_sort() {
-    let code = r#"
+    let code = r"
 def bubble_sort(arr: list) -> list:
     n: int = len(arr)
     for i in range(n):
@@ -218,19 +214,15 @@ def bubble_sort(arr: list) -> list:
                 arr[j] = arr[j + 1]
                 arr[j + 1] = temp
     return arr
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn bubble_sort"), "Should generate bubble sort");
-    assert!(
-        result.contains("for") || result.contains("range"),
-        "Should have loops. Got: {}",
-        result
-    );
+    assert!(result.contains("for") || result.contains("range"), "Should have loops. Got: {result}");
 }
 
 #[test]
 fn test_s11_integration_binary_search() {
-    let code = r#"
+    let code = r"
 def binary_search(arr: list, target: int) -> int:
     low: int = 0
     high: int = len(arr) - 1
@@ -243,26 +235,26 @@ def binary_search(arr: list, target: int) -> int:
         else:
             high = mid - 1
     return -1
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn binary_search"), "Should generate binary search");
-    assert!(result.contains("while"), "Should have while loop. Got: {}", result);
+    assert!(result.contains("while"), "Should have while loop. Got: {result}");
 }
 
 #[test]
 fn test_s11_integration_gcd() {
-    let code = r#"
+    let code = r"
 def gcd(a: int, b: int) -> int:
     while b != 0:
         temp: int = b
         b = a % b
         a = temp
     return a
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn gcd"), "Should generate gcd");
     assert!(result.contains("while"), "Should have while loop");
-    assert!(result.contains("%"), "Should have modulo. Got: {}", result);
+    assert!(result.contains('%'), "Should have modulo. Got: {result}");
 }
 
 // ============================================================================
@@ -271,12 +263,12 @@ def gcd(a: int, b: int) -> int:
 
 #[test]
 fn test_s11_integration_palindrome() {
-    let code = r#"
+    let code = r"
 def is_palindrome(s: str) -> bool:
     cleaned: str = s.lower().strip()
     reversed_s: str = cleaned[::-1]
     return cleaned == reversed_s
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn is_palindrome"), "Should generate palindrome check");
 }
@@ -311,8 +303,7 @@ def reverse_words(sentence: str) -> str:
     assert!(result.contains("fn reverse_words"), "Should generate reverse_words");
     assert!(
         result.contains("split") || result.contains("join"),
-        "Should use string methods. Got: {}",
-        result
+        "Should use string methods. Got: {result}"
     );
 }
 
@@ -322,7 +313,7 @@ def reverse_words(sentence: str) -> str:
 
 #[test]
 fn test_s11_integration_fibonacci_iterative() {
-    let code = r#"
+    let code = r"
 def fibonacci(n: int) -> int:
     if n <= 1:
         return n
@@ -333,14 +324,14 @@ def fibonacci(n: int) -> int:
         a = b
         b = temp
     return b
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn fibonacci"), "Should generate fibonacci");
 }
 
 #[test]
 fn test_s11_integration_prime_check() {
-    let code = r#"
+    let code = r"
 def is_prime(n: int) -> bool:
     if n < 2:
         return False
@@ -350,13 +341,12 @@ def is_prime(n: int) -> bool:
             return False
         i = i + 1
     return True
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn is_prime"), "Should generate prime check");
     assert!(
         result.contains("false") || result.contains("true"),
-        "Should have boolean returns. Got: {}",
-        result
+        "Should have boolean returns. Got: {result}"
     );
 }
 
@@ -366,7 +356,7 @@ def is_prime(n: int) -> bool:
 
 #[test]
 fn test_s11_integration_try_multiple_except() {
-    let code = r#"
+    let code = r"
 def safe_divide(a: int, b: int) -> float:
     try:
         return a / b
@@ -374,9 +364,9 @@ def safe_divide(a: int, b: int) -> float:
         return 0.0
     except ValueError:
         return -1.0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn safe_divide"), "Should generate function. Got: {}", result);
+    assert!(result.contains("fn safe_divide"), "Should generate function. Got: {result}");
 }
 
 // ============================================================================
@@ -385,17 +375,17 @@ def safe_divide(a: int, b: int) -> float:
 
 #[test]
 fn test_s11_integration_point_distance() {
-    let code = r#"
+    let code = r"
 import math
 
 def distance(x1: float, y1: float, x2: float, y2: float) -> float:
     dx: float = x2 - x1
     dy: float = y2 - y1
     return math.sqrt(dx * dx + dy * dy)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn distance"), "Should generate distance function");
-    assert!(result.contains("sqrt"), "Should use sqrt. Got: {}", result);
+    assert!(result.contains("sqrt"), "Should use sqrt. Got: {result}");
 }
 
 // ============================================================================
@@ -404,20 +394,20 @@ def distance(x1: float, y1: float, x2: float, y2: float) -> float:
 
 #[test]
 fn test_s11_integration_list_comp_with_condition() {
-    let code = r#"
+    let code = r"
 def even_squares(n: int) -> list:
     return [x * x for x in range(n) if x % 2 == 0]
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn even_squares"), "Should generate function");
 }
 
 #[test]
 fn test_s11_integration_nested_list_comp() {
-    let code = r#"
+    let code = r"
 def flatten(matrix: list) -> list:
     return [x for row in matrix for x in row]
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn flatten"), "Should generate flatten function");
 }
@@ -438,7 +428,7 @@ def build_csv(headers: list, rows: list) -> str:
 "#;
     let result = transpile(code);
     assert!(result.contains("fn build_csv"), "Should generate build_csv");
-    assert!(result.contains("join"), "Should use join. Got: {}", result);
+    assert!(result.contains("join"), "Should use join. Got: {result}");
 }
 
 // ============================================================================
@@ -471,20 +461,19 @@ def summarize(items: list) -> dict:
 
 #[test]
 fn test_s11_integration_validate_input() {
-    let code = r#"
+    let code = r"
 def validate(name: str, age: int) -> bool:
     if len(name) == 0:
         return False
     if age < 0 or age > 150:
         return False
     return True
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn validate"), "Should generate validate");
     assert!(
         result.contains("false") && result.contains("true"),
-        "Should have boolean returns. Got: {}",
-        result
+        "Should have boolean returns. Got: {result}"
     );
 }
 
@@ -494,7 +483,7 @@ def validate(name: str, age: int) -> bool:
 
 #[test]
 fn test_s11_integration_running_average() {
-    let code = r#"
+    let code = r"
 def running_average(values: list) -> list:
     result: list = []
     total: float = 0.0
@@ -502,7 +491,7 @@ def running_average(values: list) -> list:
         total = total + values[i]
         result.append(total / (i + 1))
     return result
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn running_average"), "Should generate running_average");
 }
@@ -513,7 +502,7 @@ def running_average(values: list) -> list:
 
 #[test]
 fn test_s11_integration_multiple_functions_with_types() {
-    let code = r#"
+    let code = r"
 from typing import List, Tuple
 
 def split_even_odd(items: List[int]) -> Tuple[List[int], List[int]]:
@@ -525,7 +514,7 @@ def split_even_odd(items: List[int]) -> Tuple[List[int], List[int]]:
         else:
             odds.append(item)
     return (evens, odds)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn split_even_odd"), "Should generate function");
 }
@@ -536,7 +525,7 @@ def split_even_odd(items: List[int]) -> Tuple[List[int], List[int]]:
 
 #[test]
 fn test_s11_integration_early_return_with_loop() {
-    let code = r#"
+    let code = r"
 def find_duplicate(items: list) -> int:
     seen: set = set()
     for item in items:
@@ -544,19 +533,18 @@ def find_duplicate(items: list) -> int:
             return item
         seen.add(item)
     return -1
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn find_duplicate"), "Should generate find_duplicate");
     assert!(
         result.contains("HashSet") || result.contains("set") || result.contains("insert"),
-        "Should use set. Got: {}",
-        result
+        "Should use set. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_integration_conditional_list_build() {
-    let code = r#"
+    let code = r"
 def filter_and_transform(items: list, threshold: int) -> list:
     result: list = []
     for item in items:
@@ -565,12 +553,11 @@ def filter_and_transform(items: list, threshold: int) -> list:
         elif item >= 0:
             result.append(item)
     return result
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn filter_and_transform"), "Should generate function");
     assert!(
         result.contains("if") || result.contains("else"),
-        "Should have conditionals. Got: {}",
-        result
+        "Should have conditionals. Got: {result}"
     );
 }

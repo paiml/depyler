@@ -22,21 +22,21 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_optimizer_const_prop_int() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     x = 42
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_const_prop_float() {
-    let code = r#"
+    let code = r"
 def f() -> float:
     pi = 3.14
     return pi
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -52,44 +52,44 @@ def f() -> str:
 
 #[test]
 fn test_optimizer_const_prop_bool() {
-    let code = r#"
+    let code = r"
 def f() -> bool:
     flag = True
     return flag
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_const_prop_arithmetic() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     a = 10
     b = 20
     return a + b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_const_prop_no_propagate_mutable() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     x = 0
     x = 10
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_const_prop_no_propagate_augmented() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     x = 0
     x += 5
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -99,12 +99,12 @@ def f() -> int:
 
 #[test]
 fn test_optimizer_dce_unused_var() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     unused = 42
     used = 10
     return used
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -120,47 +120,47 @@ def f() -> int:
 
 #[test]
 fn test_optimizer_dce_in_loop() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     total = 0
     for i in range(10):
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_dce_in_conditional() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     if x > 0:
         result = x * 2
     else:
         result = 0
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_dce_after_return() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     return 42
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_dce_transitive() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     a = 1
     b = a + 1
     c = b + 1
     return 42
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -170,23 +170,23 @@ def f() -> int:
 
 #[test]
 fn test_optimizer_cse_repeated_expr() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     a = x * x
     b = x * x
     return a + b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_cse_function_call() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     a = len(items)
     b = len(items)
     return a + b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -203,12 +203,12 @@ def f() -> int:
 
 #[test]
 fn test_optimizer_cse_complex_expr() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     x = a * b + a
     y = a * b + a
     return x + y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -218,24 +218,24 @@ def f(a: int, b: int) -> int:
 
 #[test]
 fn test_optimizer_walrus_in_if() {
-    let code = r#"
+    let code = r"
 def f(text: str) -> int:
     if len(text) > 5:
         return len(text)
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_walrus_in_while() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     i = 0
     while i < 10:
         i += 1
     return i
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -245,23 +245,23 @@ def f() -> int:
 
 #[test]
 fn test_optimizer_side_effect_print() {
-    let code = r#"
+    let code = r"
 def f():
     x = 10
     print(x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_side_effect_list_append() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = []
     items.append(1)
     items.append(2)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -282,32 +282,32 @@ def f() -> dict:
 
 #[test]
 fn test_optimizer_pure_abs() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     a = abs(x)
     b = abs(x)
     return a + b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_pure_len() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> bool:
     return len(items) > 0 and len(items) < 100
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_pure_min_max() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     lo = min(a, b)
     hi = max(a, b)
     return hi - lo
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -317,29 +317,29 @@ def f(a: int, b: int) -> int:
 
 #[test]
 fn test_optimizer_full_pipeline_simple() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     temp = x + 1
     return temp
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_full_pipeline_loop() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     for i in range(n):
         total += i * i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_full_pipeline_nested_if() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: int) -> int:
     if x > 0:
         if y > 0:
@@ -347,7 +347,7 @@ def f(x: int, y: int) -> int:
         else:
             return x - y
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -368,12 +368,12 @@ def f(x: int) -> str:
 
 #[test]
 fn test_optimizer_full_pipeline_string_ops() {
-    let code = r#"
+    let code = r"
 def f(text: str) -> str:
     result = text.strip()
     result = result.lower()
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -392,10 +392,10 @@ def f() -> dict:
 
 #[test]
 fn test_optimizer_full_pipeline_comprehension() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     return [x * x for x in range(10) if x % 2 == 0]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -405,7 +405,7 @@ def f() -> list:
 
 #[test]
 fn test_optimizer_fibonacci_opt() {
-    let code = r#"
+    let code = r"
 def fib(n: int) -> int:
     if n <= 1:
         return n
@@ -414,25 +414,25 @@ def fib(n: int) -> int:
     for i in range(2, n + 1):
         a, b = b, a + b
     return b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_accumulation_opt() {
-    let code = r#"
+    let code = r"
 def sum_squares(items: list) -> int:
     total = 0
     for item in items:
         total += item * item
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_multi_function_opt() {
-    let code = r#"
+    let code = r"
 def double(x: int) -> int:
     return x * 2
 
@@ -441,32 +441,32 @@ def process(items: list) -> list:
     for item in items:
         result.append(double(item))
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_exception_handling_opt() {
-    let code = r#"
+    let code = r"
 def safe_div(a: int, b: int) -> int:
     try:
         return a // b
     except:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_nested_loops_opt() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     for i in range(n):
         for j in range(n):
             total += i * j
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -484,19 +484,19 @@ def f(items: list) -> str:
 
 #[test]
 fn test_optimizer_early_return_opt() {
-    let code = r#"
+    let code = r"
 def find_first(items: list, target: int) -> int:
     for i in range(len(items)):
         if items[i] == target:
             return i
     return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_optimizer_class_method_opt() {
-    let code = r#"
+    let code = r"
 class Counter:
     def __init__(self):
         self.count = 0
@@ -507,7 +507,7 @@ class Counter:
 
     def reset(self):
         self.count = 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -530,7 +530,7 @@ def classify(x: int, y: int) -> str:
 
 #[test]
 fn test_optimizer_while_with_break() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     i = 0
     while i < len(items):
@@ -538,6 +538,6 @@ def f(items: list) -> int:
             break
         i += 1
     return i
-"#;
+";
     assert!(transpile_ok(code));
 }

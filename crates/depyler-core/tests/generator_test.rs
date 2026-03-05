@@ -17,17 +17,17 @@
 //! 11. Generator in for loop
 //! 12. Generator converting to list
 //! 13. Generator yielding strings
-//! 14. Generator with return (StopIteration)
+//! 14. Generator with return (`StopIteration`)
 //! 15. Generator with complex logic
 
 use depyler_core::DepylerPipeline;
 
 #[test]
 fn test_simple_yield_single_value() {
-    let python = r#"
+    let python = r"
 def simple_generator():
     yield 1
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -37,23 +37,22 @@ def simple_generator():
 
     assert!(
         rust_code.contains("fn simple_generator") || rust_code.contains("struct SimpleGenerator"),
-        "Should have generator function or struct.\nGot:\n{}",
-        rust_code
+        "Should have generator function or struct.\nGot:\n{rust_code}"
     );
 
     // Should have Iterator implementation
     let has_iterator = rust_code.contains("Iterator") || rust_code.contains("iter");
-    assert!(has_iterator, "Should have Iterator trait.\nGot:\n{}", rust_code);
+    assert!(has_iterator, "Should have Iterator trait.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_yield_multiple_values() {
-    let python = r#"
+    let python = r"
 def count_to_three():
     yield 1
     yield 2
     yield 3
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -63,20 +62,19 @@ def count_to_three():
 
     assert!(
         rust_code.contains("count_to_three") || rust_code.contains("CountToThree"),
-        "Should have generator.\nGot:\n{}",
-        rust_code
+        "Should have generator.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_generator_with_loop() {
-    let python = r#"
+    let python = r"
 def count_up(n: int):
     i = 0
     while i < n:
         yield i
         i = i + 1
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -86,18 +84,17 @@ def count_up(n: int):
 
     assert!(
         rust_code.contains("count_up") || rust_code.contains("CountUp"),
-        "Should have generator.\nGot:\n{}",
-        rust_code
+        "Should have generator.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_generator_with_range() {
-    let python = r#"
+    let python = r"
 def range_generator(n: int):
     for i in range(n):
         yield i
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -107,19 +104,18 @@ def range_generator(n: int):
 
     assert!(
         rust_code.contains("range_generator") || rust_code.contains("RangeGenerator"),
-        "Should have generator.\nGot:\n{}",
-        rust_code
+        "Should have generator.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_generator_with_conditional() {
-    let python = r#"
+    let python = r"
 def even_numbers(n: int):
     for i in range(n):
         if i % 2 == 0:
             yield i
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -129,18 +125,17 @@ def even_numbers(n: int):
 
     assert!(
         rust_code.contains("even_numbers") || rust_code.contains("EvenNumbers"),
-        "Should have generator.\nGot:\n{}",
-        rust_code
+        "Should have generator.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_generator_with_parameter() {
-    let python = r#"
+    let python = r"
 def repeat_value(value: int, times: int):
     for i in range(times):
         yield value
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -150,20 +145,19 @@ def repeat_value(value: int, times: int):
 
     assert!(
         rust_code.contains("repeat_value") || rust_code.contains("RepeatValue"),
-        "Should have generator.\nGot:\n{}",
-        rust_code
+        "Should have generator.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_generator_with_multiple_parameters() {
-    let python = r#"
+    let python = r"
 def add_sequence(start: int, end: int, step: int):
     current = start
     while current < end:
         yield current
         current = current + step
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -173,18 +167,17 @@ def add_sequence(start: int, end: int, step: int):
 
     assert!(
         rust_code.contains("add_sequence") || rust_code.contains("AddSequence"),
-        "Should have generator.\nGot:\n{}",
-        rust_code
+        "Should have generator.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_generator_yielding_expressions() {
-    let python = r#"
+    let python = r"
 def squares(n: int):
     for i in range(n):
         yield i * i
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -194,14 +187,13 @@ def squares(n: int):
 
     assert!(
         rust_code.contains("squares") || rust_code.contains("Squares"),
-        "Should have generator.\nGot:\n{}",
-        rust_code
+        "Should have generator.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_generator_with_local_variables() {
-    let python = r#"
+    let python = r"
 def fibonacci(n: int):
     a = 0
     b = 1
@@ -210,7 +202,7 @@ def fibonacci(n: int):
         temp = a
         a = b
         b = temp + b
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -220,20 +212,19 @@ def fibonacci(n: int):
 
     assert!(
         rust_code.contains("fibonacci") || rust_code.contains("Fibonacci"),
-        "Should have generator.\nGot:\n{}",
-        rust_code
+        "Should have generator.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_generator_with_computations() {
-    let python = r#"
+    let python = r"
 def powers_of_two(n: int):
     power = 1
     for i in range(n):
         yield power
         power = power * 2
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -243,14 +234,13 @@ def powers_of_two(n: int):
 
     assert!(
         rust_code.contains("powers_of_two") || rust_code.contains("PowersOfTwo"),
-        "Should have generator.\nGot:\n{}",
-        rust_code
+        "Should have generator.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_generator_in_for_loop() {
-    let python = r#"
+    let python = r"
 def simple_range(n: int):
     for i in range(n):
         yield i
@@ -260,7 +250,7 @@ def use_generator():
     for value in simple_range(5):
         total = total + value
     return total
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -270,21 +260,20 @@ def use_generator():
 
     assert!(
         rust_code.contains("use_generator"),
-        "Should have use_generator function.\nGot:\n{}",
-        rust_code
+        "Should have use_generator function.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_generator_to_list() {
-    let python = r#"
+    let python = r"
 def numbers(n: int):
     for i in range(n):
         yield i
 
 def get_list():
     return list(numbers(5))
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -292,7 +281,7 @@ def get_list():
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("get_list"), "Should have get_list function.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("get_list"), "Should have get_list function.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -312,20 +301,19 @@ def string_generator():
 
     assert!(
         rust_code.contains("string_generator") || rust_code.contains("StringGenerator"),
-        "Should have generator.\nGot:\n{}",
-        rust_code
+        "Should have generator.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_generator_with_return() {
-    let python = r#"
+    let python = r"
 def limited_generator(n: int):
     for i in range(n):
         if i >= 3:
             return
         yield i
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -335,14 +323,13 @@ def limited_generator(n: int):
 
     assert!(
         rust_code.contains("limited_generator") || rust_code.contains("LimitedGenerator"),
-        "Should have generator.\nGot:\n{}",
-        rust_code
+        "Should have generator.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_generator_with_complex_logic() {
-    let python = r#"
+    let python = r"
 def complex_generator(start: int, end: int):
     current = start
     while current < end:
@@ -351,7 +338,7 @@ def complex_generator(start: int, end: int):
         else:
             yield current
         current = current + 1
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -361,7 +348,6 @@ def complex_generator(start: int, end: int):
 
     assert!(
         rust_code.contains("complex_generator") || rust_code.contains("ComplexGenerator"),
-        "Should have generator.\nGot:\n{}",
-        rust_code
+        "Should have generator.\nGot:\n{rust_code}"
     );
 }

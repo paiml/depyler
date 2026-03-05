@@ -28,31 +28,29 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s11_type_annotated_int_var() {
-    let code = r#"
+    let code = r"
 def typed_int() -> int:
     x: int = 42
     return x
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("i64") || result.contains("i32") || result.contains("fn typed_int"),
-        "Should use int type annotation. Got: {}",
-        result
+        "Should use int type annotation. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_type_annotated_float_var() {
-    let code = r#"
+    let code = r"
 def typed_float() -> float:
     x: float = 1.5
     return x
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("f64") || result.contains("fn typed_float"),
-        "Should use float type annotation. Got: {}",
-        result
+        "Should use float type annotation. Got: {result}"
     );
 }
 
@@ -66,38 +64,35 @@ def typed_str() -> str:
     let result = transpile(code);
     assert!(
         result.contains("String") || result.contains("fn typed_str"),
-        "Should use str type annotation. Got: {}",
-        result
+        "Should use str type annotation. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_type_annotated_bool_var() {
-    let code = r#"
+    let code = r"
 def typed_bool() -> bool:
     x: bool = True
     return x
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("bool") || result.contains("fn typed_bool"),
-        "Should use bool type annotation. Got: {}",
-        result
+        "Should use bool type annotation. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_type_annotated_list_var() {
-    let code = r#"
+    let code = r"
 def typed_list() -> list:
     x: list = [1, 2, 3]
     return x
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("Vec") || result.contains("fn typed_list"),
-        "Should use list type annotation. Got: {}",
-        result
+        "Should use list type annotation. Got: {result}"
     );
 }
 
@@ -111,8 +106,7 @@ def typed_dict() -> dict:
     let result = transpile(code);
     assert!(
         result.contains("HashMap") || result.contains("fn typed_dict"),
-        "Should use dict type annotation. Got: {}",
-        result
+        "Should use dict type annotation. Got: {result}"
     );
 }
 
@@ -122,17 +116,16 @@ def typed_dict() -> dict:
 
 #[test]
 fn test_s11_type_list_of_int() {
-    let code = r#"
+    let code = r"
 from typing import List
 
 def int_list() -> List[int]:
     return [1, 2, 3]
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("Vec") || result.contains("fn int_list"),
-        "Should transpile List[int]. Got: {}",
-        result
+        "Should transpile List[int]. Got: {result}"
     );
 }
 
@@ -147,8 +140,7 @@ def str_list() -> List[str]:
     let result = transpile(code);
     assert!(
         result.contains("Vec") || result.contains("fn str_list"),
-        "Should transpile List[str]. Got: {}",
-        result
+        "Should transpile List[str]. Got: {result}"
     );
 }
 
@@ -163,8 +155,7 @@ def str_int_map() -> Dict[str, int]:
     let result = transpile(code);
     assert!(
         result.contains("HashMap") || result.contains("fn str_int_map"),
-        "Should transpile Dict[str, int]. Got: {}",
-        result
+        "Should transpile Dict[str, int]. Got: {result}"
     );
 }
 
@@ -177,22 +168,21 @@ def pair() -> Tuple[int, str]:
     return (1, "hello")
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn pair"), "Should transpile Tuple[int, str]. Got: {}", result);
+    assert!(result.contains("fn pair"), "Should transpile Tuple[int, str]. Got: {result}");
 }
 
 #[test]
 fn test_s11_type_set_of_int() {
-    let code = r#"
+    let code = r"
 from typing import Set
 
 def unique() -> Set[int]:
     return {1, 2, 3}
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("HashSet") || result.contains("fn unique"),
-        "Should transpile Set[int]. Got: {}",
-        result
+        "Should transpile Set[int]. Got: {result}"
     );
 }
 
@@ -202,41 +192,39 @@ def unique() -> Set[int]:
 
 #[test]
 fn test_s11_type_infer_return_none() {
-    let code = r#"
+    let code = r"
 def nothing():
     pass
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn nothing"), "Should infer None return. Got: {}", result);
+    assert!(result.contains("fn nothing"), "Should infer None return. Got: {result}");
 }
 
 #[test]
 fn test_s11_type_infer_return_float_expr() {
-    let code = r#"
+    let code = r"
 def compute(x: int) -> float:
     return x / 2.0
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("f64") || result.contains("fn compute"),
-        "Should infer float from division. Got: {}",
-        result
+        "Should infer float from division. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_type_infer_return_from_conditional() {
-    let code = r#"
+    let code = r"
 def maybe_int(x: int):
     if x > 0:
         return x
     return 0
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn maybe_int"),
-        "Should infer int return from conditional. Got: {}",
-        result
+        "Should infer int return from conditional. Got: {result}"
     );
 }
 
@@ -246,22 +234,22 @@ def maybe_int(x: int):
 
 #[test]
 fn test_s11_type_list_param() {
-    let code = r#"
+    let code = r"
 def process(items: list) -> int:
     return len(items)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn process"), "Should handle list param. Got: {}", result);
+    assert!(result.contains("fn process"), "Should handle list param. Got: {result}");
 }
 
 #[test]
 fn test_s11_type_dict_param() {
-    let code = r#"
+    let code = r"
 def count_keys(d: dict) -> int:
     return len(d)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn count_keys"), "Should handle dict param. Got: {}", result);
+    assert!(result.contains("fn count_keys"), "Should handle dict param. Got: {result}");
 }
 
 #[test]
@@ -271,7 +259,7 @@ def combine(name: str, age: int, score: float) -> str:
     return f"{name}: {age}, {score}"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn combine"), "Should handle multiple typed params. Got: {}", result);
+    assert!(result.contains("fn combine"), "Should handle multiple typed params. Got: {result}");
 }
 
 // ============================================================================
@@ -280,54 +268,51 @@ def combine(name: str, age: int, score: float) -> str:
 
 #[test]
 fn test_s11_type_int_constructor() {
-    let code = r#"
+    let code = r"
 def to_int(x: float) -> int:
     return int(x)
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("as i64") || result.contains("as i32") || result.contains("fn to_int"),
-        "Should transpile int() constructor. Got: {}",
-        result
+        "Should transpile int() constructor. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_type_float_constructor() {
-    let code = r#"
+    let code = r"
 def to_float(x: int) -> float:
     return float(x)
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("as f64") || result.contains("fn to_float"),
-        "Should transpile float() constructor. Got: {}",
-        result
+        "Should transpile float() constructor. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_type_str_constructor() {
-    let code = r#"
+    let code = r"
 def to_str(x: int) -> str:
     return str(x)
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("to_string") || result.contains("fn to_str"),
-        "Should transpile str() constructor. Got: {}",
-        result
+        "Should transpile str() constructor. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_type_bool_constructor() {
-    let code = r#"
+    let code = r"
 def to_bool(x: int) -> bool:
     return bool(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_bool"), "Should transpile bool() constructor. Got: {}", result);
+    assert!(result.contains("fn to_bool"), "Should transpile bool() constructor. Got: {result}");
 }
 
 // ============================================================================
@@ -336,12 +321,12 @@ def to_bool(x: int) -> bool:
 
 #[test]
 fn test_s11_type_isinstance_check() {
-    let code = r#"
+    let code = r"
 def check_int(x) -> bool:
     return isinstance(x, int)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn check_int"), "Should transpile isinstance. Got: {}", result);
+    assert!(result.contains("fn check_int"), "Should transpile isinstance. Got: {result}");
 }
 
 // ============================================================================
@@ -350,14 +335,14 @@ def check_int(x) -> bool:
 
 #[test]
 fn test_s11_type_nested_list() {
-    let code = r#"
+    let code = r"
 from typing import List
 
 def matrix() -> List[List[int]]:
     return [[1, 2], [3, 4]]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn matrix"), "Should transpile nested List. Got: {}", result);
+    assert!(result.contains("fn matrix"), "Should transpile nested List. Got: {result}");
 }
 
 #[test]
@@ -369,7 +354,7 @@ def group() -> Dict[str, List[int]]:
     return {"evens": [2, 4], "odds": [1, 3]}
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn group"), "Should transpile Dict with List values. Got: {}", result);
+    assert!(result.contains("fn group"), "Should transpile Dict with List values. Got: {result}");
 }
 
 // ============================================================================
@@ -378,16 +363,12 @@ def group() -> Dict[str, List[int]]:
 
 #[test]
 fn test_s11_type_int_float_arithmetic() {
-    let code = r#"
+    let code = r"
 def mixed(a: int, b: float) -> float:
     return a + b
-"#;
+";
     let result = transpile(code);
-    assert!(
-        result.contains("fn mixed"),
-        "Should handle int/float mixed arithmetic. Got: {}",
-        result
-    );
+    assert!(result.contains("fn mixed"), "Should handle int/float mixed arithmetic. Got: {result}");
 }
 
 #[test]
@@ -397,21 +378,21 @@ def format_num(n: int) -> str:
     return "Number: " + str(n)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn format_num"), "Should handle str+int formatting. Got: {}", result);
+    assert!(result.contains("fn format_num"), "Should handle str+int formatting. Got: {result}");
 }
 
 #[test]
 fn test_s11_type_list_append_typed() {
-    let code = r#"
+    let code = r"
 def build_list() -> list:
     items: list = []
     items.append(1)
     items.append(2)
     items.append(3)
     return items
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn build_list"), "Should handle typed list append. Got: {}", result);
+    assert!(result.contains("fn build_list"), "Should handle typed list append. Got: {result}");
 }
 
 // ============================================================================
@@ -420,7 +401,7 @@ def build_list() -> list:
 
 #[test]
 fn test_s11_type_optional_return_some() {
-    let code = r#"
+    let code = r"
 from typing import Optional
 
 def maybe_find(items: list, target: int) -> Optional[int]:
@@ -428,11 +409,10 @@ def maybe_find(items: list, target: int) -> Optional[int]:
         if item == target:
             return item
     return None
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("Option") || result.contains("fn maybe_find"),
-        "Should transpile Optional return. Got: {}",
-        result
+        "Should transpile Optional return. Got: {result}"
     );
 }

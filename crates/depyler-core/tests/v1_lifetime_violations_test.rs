@@ -13,7 +13,7 @@ def get_temp_string() -> str:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Should return String, not &str since it's a temporary
     assert!(
@@ -27,16 +27,16 @@ fn test_parameter_lifetime_propagation() {
     let pipeline = DepylerPipeline::new();
 
     // Function that returns one of its parameters
-    let python_code = r#"
+    let python_code = r"
 def select_longer(s1: str, s2: str) -> str:
     if len(s1) > len(s2):
         return s1
     else:
         return s2
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code for select_longer:\n{}", rust_code);
+    println!("Generated code for select_longer:\n{rust_code}");
 
     // Should handle lifetime relationships correctly
     assert!(
@@ -59,7 +59,7 @@ def get_string(use_default: bool, custom: str) -> str:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code for get_string:\n{}", rust_code);
+    println!("Generated code for get_string:\n{rust_code}");
 
     // Should use Cow or String to handle mixed lifetimes
     assert!(
@@ -82,7 +82,7 @@ def process_in_scope(data: str) -> str:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code for process_in_scope:\n{}", rust_code);
+    println!("Generated code for process_in_scope:\n{rust_code}");
 
     // Should handle temporary in nested scope
     assert!(rust_code.contains("String") || rust_code.contains("Cow"), "Should return owned type");
@@ -101,7 +101,7 @@ def get_first_char(s: str) -> str:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code for get_first_char:\n{}", rust_code);
+    println!("Generated code for get_first_char:\n{rust_code}");
 
     // Should properly handle substring lifetime
     // Note: Python s[0] returns a character, not a substring
@@ -116,16 +116,16 @@ fn test_function_composition_lifetimes() {
     let pipeline = DepylerPipeline::new();
 
     // Functions that call each other
-    let python_code = r#"
+    let python_code = r"
 def outer(s: str) -> str:
     return inner(s)
     
 def inner(s: str) -> str:
     return s
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code for function composition:\n{}", rust_code);
+    println!("Generated code for function composition:\n{rust_code}");
 
     // Should propagate lifetimes through function calls
     assert!(rust_code.contains("inner"), "Should call inner function");

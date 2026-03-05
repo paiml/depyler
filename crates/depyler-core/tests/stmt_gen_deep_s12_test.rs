@@ -1,7 +1,7 @@
-//! Session 12 Batch 13: Deep coverage tests for stmt_gen.rs cold paths
+//! Session 12 Batch 13: Deep coverage tests for `stmt_gen.rs` cold paths
 //!
 //! Targets:
-//! - Assert with message and NotEqual patterns
+//! - Assert with message and `NotEqual` patterns
 //! - Complex nested dict indices
 //! - Try/except/finally with variable hoisting
 //! - With statement patterns (sync/async, with/without target)
@@ -38,80 +38,80 @@ def check_different(a: int, b: int) -> bool:
     return True
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn check_different"), "Got: {}", result);
+    assert!(result.contains("fn check_different"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_assert_isinstance_pattern() {
-    let code = r#"
+    let code = r"
 def process(x: int) -> int:
     assert x >= 0
     return x * 2
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn process"), "Got: {}", result);
+    assert!(result.contains("fn process"), "Got: {result}");
 }
 
 // ===== Delete statement =====
 
 #[test]
 fn test_s12_del_dict_key() {
-    let code = r#"
+    let code = r"
 def remove_entry(d: dict, key: str) -> dict:
     del d[key]
     return d
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn remove_entry"), "Got: {}", result);
+    assert!(result.contains("fn remove_entry"), "Got: {result}");
 }
 
 // ===== Global declaration =====
 
 #[test]
 fn test_s12_global_variable_use() {
-    let code = r#"
+    let code = r"
 counter = 0
 
 def increment() -> int:
     global counter
     counter += 1
     return counter
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("increment"), "Got: {}", result);
+    assert!(result.contains("increment"), "Got: {result}");
 }
 
 // ===== Pass statement =====
 
 #[test]
 fn test_s12_pass_in_function() {
-    let code = r#"
+    let code = r"
 def placeholder():
     pass
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn placeholder"), "Got: {}", result);
+    assert!(result.contains("fn placeholder"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_pass_in_except() {
-    let code = r#"
+    let code = r"
 def ignore_error(x: int) -> int:
     try:
         return 100 / x
     except ZeroDivisionError:
         pass
     return 0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn ignore_error"), "Got: {}", result);
+    assert!(result.contains("fn ignore_error"), "Got: {result}");
 }
 
 // ===== Complex try/except/finally =====
 
 #[test]
 fn test_s12_try_except_else() {
-    let code = r#"
+    let code = r"
 def try_else(s: str) -> int:
     try:
         val = int(s)
@@ -119,14 +119,14 @@ def try_else(s: str) -> int:
         return -1
     else:
         return val
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn try_else"), "Got: {}", result);
+    assert!(result.contains("fn try_else"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_try_finally_no_except() {
-    let code = r#"
+    let code = r"
 def with_cleanup(x: int) -> int:
     result = 0
     try:
@@ -134,14 +134,14 @@ def with_cleanup(x: int) -> int:
     finally:
         pass
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn with_cleanup"), "Got: {}", result);
+    assert!(result.contains("fn with_cleanup"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_nested_try_except() {
-    let code = r#"
+    let code = r"
 def nested_error_handling(a: int, b: int) -> int:
     try:
         try:
@@ -150,9 +150,9 @@ def nested_error_handling(a: int, b: int) -> int:
             return -1
     except Exception:
         return -2
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn nested_error_handling"), "Got: {}", result);
+    assert!(result.contains("fn nested_error_handling"), "Got: {result}");
 }
 
 // ===== With statement patterns =====
@@ -166,7 +166,7 @@ def critical_section() -> int:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn critical_section"), "Got: {}", result);
+    assert!(result.contains("fn critical_section"), "Got: {result}");
 }
 
 // ===== Raise patterns =====
@@ -180,7 +180,7 @@ def validate_type(x: int) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn validate_type"), "Got: {}", result);
+    assert!(result.contains("fn validate_type"), "Got: {result}");
 }
 
 #[test]
@@ -192,53 +192,53 @@ def safe_access(items: list, idx: int) -> int:
     return items[idx]
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn safe_access"), "Got: {}", result);
+    assert!(result.contains("fn safe_access"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_raise_key_error() {
-    let code = r#"
+    let code = r"
 def require_key(d: dict, key: str) -> int:
     if key not in d:
         raise KeyError(key)
     return d[key]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn require_key"), "Got: {}", result);
+    assert!(result.contains("fn require_key"), "Got: {result}");
 }
 
 // ===== Tuple unpacking =====
 
 #[test]
 fn test_s12_tuple_unpack_from_function() {
-    let code = r#"
+    let code = r"
 def get_pair() -> tuple:
     return (1, 2)
 
 def use_pair() -> int:
     a, b = get_pair()
     return a + b
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn use_pair"), "Got: {}", result);
+    assert!(result.contains("fn use_pair"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_triple_unpack() {
-    let code = r#"
+    let code = r"
 def unpack_triple(items: list) -> int:
     a, b, c = items[0], items[1], items[2]
     return a + b + c
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn unpack_triple"), "Got: {}", result);
+    assert!(result.contains("fn unpack_triple"), "Got: {result}");
 }
 
 // ===== String iteration with dict =====
 
 #[test]
 fn test_s12_char_count_dict() {
-    let code = r#"
+    let code = r"
 def char_frequency(s: str) -> dict:
     freq = {}
     for c in s:
@@ -247,24 +247,24 @@ def char_frequency(s: str) -> dict:
         else:
             freq[c] = 1
     return freq
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn char_frequency"), "Got: {}", result);
+    assert!(result.contains("fn char_frequency"), "Got: {result}");
 }
 
 // ===== Enumerate with unpacking =====
 
 #[test]
 fn test_s12_enumerate_with_index() {
-    let code = r#"
+    let code = r"
 def indexed_items(items: list) -> list:
     result = []
     for i, item in enumerate(items):
         result.append((i, item))
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn indexed_items"), "Got: {}", result);
+    assert!(result.contains("fn indexed_items"), "Got: {result}");
 }
 
 #[test]
@@ -277,7 +277,7 @@ def numbered_lines(lines: list) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn numbered_lines"), "Got: {}", result);
+    assert!(result.contains("fn numbered_lines"), "Got: {result}");
 }
 
 // ===== Complex return patterns =====
@@ -289,30 +289,30 @@ def make_config() -> dict:
     return {"key": "value", "count": 42}
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn make_config"), "Got: {}", result);
+    assert!(result.contains("fn make_config"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_return_list_comprehension() {
-    let code = r#"
+    let code = r"
 def squares(n: int) -> list:
     return [i * i for i in range(n)]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn squares"), "Got: {}", result);
+    assert!(result.contains("fn squares"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_early_return_in_loop() {
-    let code = r#"
+    let code = r"
 def find_first(items: list, target: int) -> int:
     for i in range(len(items)):
         if items[i] == target:
             return i
     return -1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn find_first"), "Got: {}", result);
+    assert!(result.contains("fn find_first"), "Got: {result}");
 }
 
 // ===== Nested dict operations =====
@@ -324,7 +324,7 @@ def get_nested(config: dict) -> str:
     return config["database"]["host"]
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn get_nested"), "Got: {}", result);
+    assert!(result.contains("fn get_nested"), "Got: {result}");
 }
 
 #[test]
@@ -335,14 +335,14 @@ def set_nested(config: dict, value: str) -> dict:
     return config
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn set_nested"), "Got: {}", result);
+    assert!(result.contains("fn set_nested"), "Got: {result}");
 }
 
 // ===== Complex class patterns =====
 
 #[test]
 fn test_s12_class_with_multiple_methods() {
-    let code = r#"
+    let code = r"
 class Counter:
     def __init__(self):
         self.count = 0
@@ -358,16 +358,16 @@ class Counter:
 
     def reset(self):
         self.count = 0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Counter"), "Got: {}", result);
-    assert!(result.contains("increment"), "Got: {}", result);
-    assert!(result.contains("get_count"), "Got: {}", result);
+    assert!(result.contains("Counter"), "Got: {result}");
+    assert!(result.contains("increment"), "Got: {result}");
+    assert!(result.contains("get_count"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_class_with_comparison() {
-    let code = r#"
+    let code = r"
 class Temperature:
     def __init__(self, value: float):
         self.value = value
@@ -377,16 +377,16 @@ class Temperature:
 
     def __gt__(self, other) -> bool:
         return self.value > other.value
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Temperature"), "Got: {}", result);
+    assert!(result.contains("Temperature"), "Got: {result}");
 }
 
 // ===== While loop patterns =====
 
 #[test]
 fn test_s12_while_with_break() {
-    let code = r#"
+    let code = r"
 def find_in_sorted(items: list, target: int) -> int:
     lo = 0
     hi = len(items) - 1
@@ -399,14 +399,14 @@ def find_in_sorted(items: list, target: int) -> int:
         else:
             hi = mid - 1
     return -1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn find_in_sorted"), "Got: {}", result);
+    assert!(result.contains("fn find_in_sorted"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_while_with_continue() {
-    let code = r#"
+    let code = r"
 def sum_positive(items: list) -> int:
     total = 0
     i = 0
@@ -416,22 +416,22 @@ def sum_positive(items: list) -> int:
             continue
         total += items[i - 1]
     return total
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sum_positive"), "Got: {}", result);
+    assert!(result.contains("fn sum_positive"), "Got: {result}");
 }
 
 // ===== Multiple assignment =====
 
 #[test]
 fn test_s12_chained_assignment() {
-    let code = r#"
+    let code = r"
 def init_counters() -> int:
     a = b = c = d = 0
     return a + b + c + d
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn init_counters"), "Got: {}", result);
+    assert!(result.contains("fn init_counters"), "Got: {result}");
 }
 
 // ===== String split unpacking =====
@@ -444,7 +444,7 @@ def parse_pair(s: str) -> tuple:
     return (key, value)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn parse_pair"), "Got: {}", result);
+    assert!(result.contains("fn parse_pair"), "Got: {result}");
 }
 
 // ===== Complex if/elif/else =====
@@ -465,57 +465,57 @@ def classify(x: int) -> str:
         return "large"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn classify"), "Got: {}", result);
+    assert!(result.contains("fn classify"), "Got: {result}");
 }
 
 // ===== OS and sys module patterns =====
 
 #[test]
 fn test_s12_os_path_join() {
-    let code = r#"
+    let code = r"
 import os
 
 def build_path(directory: str, filename: str) -> str:
     return os.path.join(directory, filename)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn build_path"), "Got: {}", result);
+    assert!(result.contains("fn build_path"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_os_path_exists() {
-    let code = r#"
+    let code = r"
 import os
 
 def file_exists(path: str) -> bool:
     return os.path.exists(path)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn file_exists"), "Got: {}", result);
+    assert!(result.contains("fn file_exists"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_os_path_basename() {
-    let code = r#"
+    let code = r"
 import os
 
 def get_filename(path: str) -> str:
     return os.path.basename(path)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn get_filename"), "Got: {}", result);
+    assert!(result.contains("fn get_filename"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_os_path_dirname() {
-    let code = r#"
+    let code = r"
 import os
 
 def get_directory(path: str) -> str:
     return os.path.dirname(path)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn get_directory"), "Got: {}", result);
+    assert!(result.contains("fn get_directory"), "Got: {result}");
 }
 
 #[test]
@@ -527,68 +527,68 @@ def get_home() -> str:
     return os.getenv("HOME", "/tmp")
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn get_home"), "Got: {}", result);
+    assert!(result.contains("fn get_home"), "Got: {result}");
 }
 
 // ===== JSON module =====
 
 #[test]
 fn test_s12_json_dumps() {
-    let code = r#"
+    let code = r"
 import json
 
 def to_json(data: dict) -> str:
     return json.dumps(data)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_json"), "Got: {}", result);
+    assert!(result.contains("fn to_json"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_json_loads() {
-    let code = r#"
+    let code = r"
 import json
 
 def from_json(s: str) -> dict:
     return json.loads(s)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn from_json"), "Got: {}", result);
+    assert!(result.contains("fn from_json"), "Got: {result}");
 }
 
 // ===== Itertools-like patterns =====
 
 #[test]
 fn test_s12_zip_two_lists() {
-    let code = r#"
+    let code = r"
 def pair_up(keys: list, values: list) -> list:
     result = []
     for k, v in zip(keys, values):
         result.append((k, v))
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn pair_up"), "Got: {}", result);
+    assert!(result.contains("fn pair_up"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_enumerate_dict_build() {
-    let code = r#"
+    let code = r"
 def make_index(items: list) -> dict:
     index = {}
     for i, item in enumerate(items):
         index[item] = i
     return index
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn make_index"), "Got: {}", result);
+    assert!(result.contains("fn make_index"), "Got: {result}");
 }
 
 // ===== Collections module =====
 
 #[test]
 fn test_s12_collections_defaultdict() {
-    let code = r#"
+    let code = r"
 from collections import defaultdict
 
 def group_words(words: list) -> dict:
@@ -596,19 +596,19 @@ def group_words(words: list) -> dict:
     for word in words:
         groups[len(word)].append(word)
     return groups
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn group_words"), "Got: {}", result);
+    assert!(result.contains("fn group_words"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_collections_counter() {
-    let code = r#"
+    let code = r"
 from collections import Counter
 
 def count_elements(items: list) -> dict:
     return Counter(items)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn count_elements"), "Got: {}", result);
+    assert!(result.contains("fn count_elements"), "Got: {result}");
 }

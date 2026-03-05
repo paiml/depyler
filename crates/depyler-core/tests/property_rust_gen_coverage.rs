@@ -1,4 +1,4 @@
-//! Property-based tests for rust_gen modules to achieve solidified 95% coverage
+//! Property-based tests for `rust_gen` modules to achieve solidified 95% coverage
 //!
 //! DEPYLER-COVERAGE-95: These tests verify code generation invariants:
 //! - Determinism: same input always produces same output
@@ -24,9 +24,9 @@ fn simple_python_expr() -> impl Strategy<Value = String> {
         // Integer literals
         any::<i32>().prop_map(|n| n.to_string()),
         // Float literals
-        any::<f64>().prop_filter("finite", |f| f.is_finite()).prop_map(|n| format!("{:.2}", n)),
+        any::<f64>().prop_filter("finite", |f| f.is_finite()).prop_map(|n| format!("{n:.2}")),
         // String literals
-        "[a-zA-Z_][a-zA-Z0-9_]{0,10}".prop_map(|s| format!("\"{}\"", s)),
+        "[a-zA-Z_][a-zA-Z0-9_]{0,10}".prop_map(|s| format!("\"{s}\"")),
         // Boolean literals
         any::<bool>().prop_map(|b| if b { "True" } else { "False" }.to_string()),
         // None
@@ -39,11 +39,11 @@ fn simple_python_stmt() -> impl Strategy<Value = String> {
     prop_oneof![
         // Assignment
         ("[a-z][a-z0-9]{0,5}", simple_python_expr())
-            .prop_map(|(name, expr)| format!("{} = {}", name, expr)),
+            .prop_map(|(name, expr)| format!("{name} = {expr}")),
         // Pass
         Just("pass".to_string()),
         // Return with value
-        simple_python_expr().prop_map(|e| format!("return {}", e)),
+        simple_python_expr().prop_map(|e| format!("return {e}")),
     ]
 }
 
@@ -63,8 +63,8 @@ fn annotated_python_function() -> impl Strategy<Value = String> {
     )
         .prop_filter("not rust keyword", |(name, _)| !RUST_KEYWORDS.contains(&name.as_str()))
         .prop_map(|(name, body)| {
-            let body_str = body.iter().map(|s| format!("    {}", s)).collect::<Vec<_>>().join("\n");
-            format!("def {}() -> None:\n{}", name, body_str)
+            let body_str = body.iter().map(|s| format!("    {s}")).collect::<Vec<_>>().join("\n");
+            format!("def {name}() -> None:\n{body_str}")
         })
 }
 
@@ -80,9 +80,7 @@ fn typed_python_function() -> impl Strategy<Value = String> {
         ],
     )
         .prop_filter("not rust keyword", |(name, _)| !RUST_KEYWORDS.contains(&name.as_str()))
-        .prop_map(|(name, (params, ret))| {
-            format!("def {}({}) -> {}:\n    return a", name, params, ret)
-        })
+        .prop_map(|(name, (params, ret))| format!("def {name}({params}) -> {ret}:\n    return a"))
 }
 
 // =============================================================================
@@ -146,8 +144,7 @@ proptest! {
         ]
     ) {
         let code = format!(
-            "def compute(x: int, y: int) -> int:\n    return x {} y",
-            op
+            "def compute(x: int, y: int) -> int:\n    return x {op} y"
         );
         let result = transpile(&code);
         prop_assert!(result.is_ok(), "Binary op {} should transpile", op);
@@ -171,8 +168,7 @@ proptest! {
         ]
     ) {
         let code = format!(
-            "def compare(x: int, y: int) -> bool:\n    return x {} y",
-            op
+            "def compare(x: int, y: int) -> bool:\n    return x {op} y"
         );
         let result = transpile(&code);
         prop_assert!(result.is_ok(), "Comparison op {} should transpile", op);
@@ -187,8 +183,7 @@ proptest! {
         ]
     ) {
         let code = format!(
-            "def logic(x: bool, y: bool) -> bool:\n    return x {} y",
-            op
+            "def logic(x: bool, y: bool) -> bool:\n    return x {op} y"
         );
         let result = transpile(&code);
         prop_assert!(result.is_ok(), "Boolean op {} should transpile", op);
@@ -199,8 +194,7 @@ proptest! {
     fn prop_if_statements_handled(condition in any::<bool>()) {
         let cond_str = if condition { "True" } else { "False" };
         let code = format!(
-            "def check() -> int:\n    if {}:\n        return 1\n    return 0",
-            cond_str
+            "def check() -> int:\n    if {cond_str}:\n        return 1\n    return 0"
         );
         let result = transpile(&code);
         prop_assert!(result.is_ok(), "If statement should transpile");
@@ -210,8 +204,7 @@ proptest! {
     #[test]
     fn prop_for_loops_handled(n in 1usize..10) {
         let code = format!(
-            "def loop_test() -> int:\n    total: int = 0\n    for i in range({}):\n        total = total + i\n    return total",
-            n
+            "def loop_test() -> int:\n    total: int = 0\n    for i in range({n}):\n        total = total + i\n    return total"
         );
         let result = transpile(&code);
         prop_assert!(result.is_ok(), "For loop should transpile");
@@ -298,8 +291,7 @@ proptest! {
     #[test]
     fn prop_unary_ops_handled(val in any::<i32>()) {
         let code = format!(
-            "def negate() -> int:\n    x: int = {}\n    return -x",
-            val
+            "def negate() -> int:\n    x: int = {val}\n    return -x"
         );
         let result = transpile(&code);
         prop_assert!(result.is_ok(), "Unary negation should transpile");
@@ -309,8 +301,7 @@ proptest! {
     #[test]
     fn prop_fstring_handled(n in 0i32..100) {
         let code = format!(
-            "def fmt() -> str:\n    x: int = {}\n    return f\"value: {{x}}\"",
-            n
+            "def fmt() -> str:\n    x: int = {n}\n    return f\"value: {{x}}\""
         );
         let result = transpile(&code);
         // f-strings may not be fully supported, just verify no panic
@@ -321,7 +312,7 @@ proptest! {
     #[test]
     fn prop_multiple_functions(count in 1usize..5) {
         let funcs: Vec<String> = (0..count)
-            .map(|i| format!("def func{}() -> int:\n    return {}", i, i))
+            .map(|i| format!("def func{i}() -> int:\n    return {i}"))
             .collect();
         let code = funcs.join("\n\n");
         let result = transpile(&code);
@@ -354,8 +345,7 @@ proptest! {
     #[test]
     fn prop_list_comprehension_handled(n in 1usize..10) {
         let code = format!(
-            "def listcomp() -> list[int]:\n    return [i * 2 for i in range({})]",
-            n
+            "def listcomp() -> list[int]:\n    return [i * 2 for i in range({n})]"
         );
         let result = transpile(&code);
         // List comprehensions may not be fully supported
@@ -366,8 +356,7 @@ proptest! {
     #[test]
     fn prop_tuple_handled(a in any::<i32>(), b in any::<i32>()) {
         let code = format!(
-            "def tuple_test() -> tuple[int, int]:\n    return ({}, {})",
-            a, b
+            "def tuple_test() -> tuple[int, int]:\n    return ({a}, {b})"
         );
         let result = transpile(&code);
         // Tuples may not be fully supported
@@ -378,8 +367,7 @@ proptest! {
     #[test]
     fn prop_index_expr_handled(idx in 0usize..5) {
         let code = format!(
-            "def index_test(arr: list[int]) -> int:\n    return arr[{}]",
-            idx
+            "def index_test(arr: list[int]) -> int:\n    return arr[{idx}]"
         );
         let result = transpile(&code);
         prop_assert!(result.is_ok(), "Index expression should transpile");
@@ -393,8 +381,7 @@ proptest! {
         Just("strip"),
     ]) {
         let code = format!(
-            "def attr_test(s: str) -> str:\n    return s.{}()",
-            method
+            "def attr_test(s: str) -> str:\n    return s.{method}()"
         );
         let result = transpile(&code);
         // Attribute methods may vary in support
@@ -405,8 +392,7 @@ proptest! {
     #[test]
     fn prop_lambda_handled(n in any::<i32>()) {
         let code = format!(
-            "def with_lambda() -> int:\n    f = lambda x: x + {}\n    return f(1)",
-            n
+            "def with_lambda() -> int:\n    f = lambda x: x + {n}\n    return f(1)"
         );
         let result = transpile(&code);
         // Lambdas may not be fully supported
@@ -417,7 +403,7 @@ proptest! {
     #[test]
     fn prop_call_args_handled(arg_count in 0usize..4) {
         let args: Vec<String> = (0..arg_count).map(|i| i.to_string()).collect();
-        let params: Vec<String> = (0..arg_count).map(|i| format!("x{}: int", i)).collect();
+        let params: Vec<String> = (0..arg_count).map(|i| format!("x{i}: int")).collect();
         let code = format!(
             "def callee({}) -> int:\n    return 0\n\ndef caller() -> int:\n    return callee({})",
             params.join(", "),
@@ -446,8 +432,7 @@ proptest! {
     #[test]
     fn prop_break_handled(limit in 1i32..10) {
         let code = format!(
-            "def with_break() -> int:\n    i: int = 0\n    while True:\n        if i >= {}:\n            break\n        i = i + 1\n    return i",
-            limit
+            "def with_break() -> int:\n    i: int = 0\n    while True:\n        if i >= {limit}:\n            break\n        i = i + 1\n    return i"
         );
         let result = transpile(&code);
         prop_assert!(result.is_ok(), "Break statement should transpile");
@@ -457,8 +442,7 @@ proptest! {
     #[test]
     fn prop_continue_handled(limit in 1i32..10) {
         let code = format!(
-            "def with_continue() -> int:\n    total: int = 0\n    for i in range({}):\n        if i % 2 == 0:\n            continue\n        total = total + i\n    return total",
-            limit
+            "def with_continue() -> int:\n    total: int = 0\n    for i in range({limit}):\n        if i % 2 == 0:\n            continue\n        total = total + i\n    return total"
         );
         let result = transpile(&code);
         prop_assert!(result.is_ok(), "Continue statement should transpile");
@@ -469,8 +453,7 @@ proptest! {
     fn prop_assert_handled(val in any::<bool>()) {
         let val_str = if val { "True" } else { "False" };
         let code = format!(
-            "def with_assert() -> None:\n    assert {}",
-            val_str
+            "def with_assert() -> None:\n    assert {val_str}"
         );
         // Assert may or may not be supported
         let _ = transpile(&code);
@@ -480,8 +463,7 @@ proptest! {
     #[test]
     fn prop_global_handled(name in "[a-z][a-z0-9]{0,5}") {
         let code = format!(
-            "{}: int = 42\n\ndef use_global() -> int:\n    return {}",
-            name, name
+            "{name}: int = 42\n\ndef use_global() -> int:\n    return {name}"
         );
         // Global handling varies
         let _ = transpile(&code);
@@ -513,8 +495,7 @@ proptest! {
     #[test]
     fn prop_default_params_handled(default in 0i32..100) {
         let code = format!(
-            "def with_default(x: int = {}) -> int:\n    return x",
-            default
+            "def with_default(x: int = {default}) -> int:\n    return x"
         );
         let result = transpile(&code);
         prop_assert!(result.is_ok(), "Default params should transpile");
@@ -524,8 +505,7 @@ proptest! {
     #[test]
     fn prop_docstring_handled(word in "[a-z]{3,10}") {
         let code = format!(
-            "def documented() -> None:\n    \"\"\"This function does {}\"\"\"\n    pass",
-            word
+            "def documented() -> None:\n    \"\"\"This function does {word}\"\"\"\n    pass"
         );
         let result = transpile(&code);
         prop_assert!(result.is_ok(), "Docstring should transpile");
@@ -537,7 +517,7 @@ proptest! {
         let mut code = String::new();
         for i in 0..depth {
             if i == depth - 1 {
-                code.push_str(&format!("def func{}() -> int:\n    return {}\n\n", i, i));
+                code.push_str(&format!("def func{i}() -> int:\n    return {i}\n\n"));
             } else {
                 code.push_str(&format!("def func{}() -> int:\n    return func{}()\n\n", i, i + 1));
             }

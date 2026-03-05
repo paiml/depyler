@@ -1,10 +1,10 @@
-//! EXTREME TDD Coverage Tests for TypeExtractor::parse_forward_reference
+//! EXTREME TDD Coverage Tests for `TypeExtractor::parse_forward_reference`
 //!
-//! These tests target the uncovered lines 118-181 in type_extraction.rs:
-//! - parse_forward_reference: Forward reference string parsing ("Container[T]")
-//! - parse_forward_ref_type_param: PEP 604 union syntax in forward refs ("T | None")
+//! These tests target the uncovered lines 118-181 in `type_extraction.rs`:
+//! - `parse_forward_reference`: Forward reference string parsing ("Container[T]")
+//! - `parse_forward_ref_type_param`: PEP 604 union syntax in forward refs ("T | None")
 //!
-//! Coverage Strategy: Use extract_type with ast::Constant::Str expressions
+//! Coverage Strategy: Use `extract_type` with `ast::Constant::Str` expressions
 //! to exercise the forward reference parsing path.
 
 use depyler_core::ast_bridge::TypeExtractor;
@@ -35,7 +35,7 @@ fn test_forward_ref_simple_generic_one_param() {
             assert_eq!(params.len(), 1);
             assert!(matches!(params[0], Type::TypeVar(_)));
         }
-        other => panic!("Expected Generic, got {:?}", other),
+        other => panic!("Expected Generic, got {other:?}"),
     }
 }
 
@@ -51,7 +51,7 @@ fn test_forward_ref_simple_generic_two_params() {
             assert!(matches!(params[0], Type::String));
             assert!(matches!(params[1], Type::Int));
         }
-        other => panic!("Expected Generic, got {:?}", other),
+        other => panic!("Expected Generic, got {other:?}"),
     }
 }
 
@@ -65,7 +65,7 @@ fn test_forward_ref_list_with_param() {
             assert_eq!(params.len(), 1);
             assert!(matches!(params[0], Type::Int));
         }
-        other => panic!("Expected Generic, got {:?}", other),
+        other => panic!("Expected Generic, got {other:?}"),
     }
 }
 
@@ -79,7 +79,7 @@ fn test_forward_ref_set_with_param() {
             assert_eq!(params.len(), 1);
             assert!(matches!(params[0], Type::String));
         }
-        other => panic!("Expected Generic, got {:?}", other),
+        other => panic!("Expected Generic, got {other:?}"),
     }
 }
 
@@ -95,7 +95,7 @@ fn test_forward_ref_tuple_with_params() {
             assert!(matches!(params[1], Type::String));
             assert!(matches!(params[2], Type::Bool));
         }
-        other => panic!("Expected Generic, got {:?}", other),
+        other => panic!("Expected Generic, got {other:?}"),
     }
 }
 
@@ -108,7 +108,7 @@ fn test_forward_ref_custom_generic() {
             assert_eq!(base, "MyClass");
             assert_eq!(params.len(), 2);
         }
-        other => panic!("Expected Generic, got {:?}", other),
+        other => panic!("Expected Generic, got {other:?}"),
     }
 }
 
@@ -122,7 +122,7 @@ fn test_forward_ref_generic_with_whitespace() {
             assert_eq!(base, "Dict");
             assert_eq!(params.len(), 2);
         }
-        other => panic!("Expected Generic, got {:?}", other),
+        other => panic!("Expected Generic, got {other:?}"),
     }
 }
 
@@ -135,7 +135,7 @@ fn test_forward_ref_generic_with_leading_whitespace() {
             assert_eq!(base.trim(), "Container");
             assert_eq!(params.len(), 1);
         }
-        other => panic!("Expected Generic, got {:?}", other),
+        other => panic!("Expected Generic, got {other:?}"),
     }
 }
 
@@ -166,7 +166,7 @@ fn test_forward_ref_top_level_union_t_or_none() {
         Type::Optional(inner) => {
             assert!(matches!(*inner, Type::Int));
         }
-        other => panic!("Expected Optional, got {:?}", other),
+        other => panic!("Expected Optional, got {other:?}"),
     }
 }
 
@@ -179,7 +179,7 @@ fn test_forward_ref_top_level_union_none_or_t() {
         Type::Optional(inner) => {
             assert!(matches!(*inner, Type::String));
         }
-        other => panic!("Expected Optional, got {:?}", other),
+        other => panic!("Expected Optional, got {other:?}"),
     }
 }
 
@@ -205,7 +205,7 @@ fn test_forward_ref_param_union_t_or_none() {
             assert_eq!(params.len(), 1);
             assert!(matches!(&params[0], Type::Optional(_)));
         }
-        other => panic!("Expected Generic with Optional param, got {:?}", other),
+        other => panic!("Expected Generic with Optional param, got {other:?}"),
     }
 }
 
@@ -220,7 +220,7 @@ fn test_forward_ref_param_union_none_or_t() {
             assert_eq!(params.len(), 1);
             assert!(matches!(&params[0], Type::Optional(_)));
         }
-        other => panic!("Expected Generic with Optional param, got {:?}", other),
+        other => panic!("Expected Generic with Optional param, got {other:?}"),
     }
 }
 
@@ -235,7 +235,7 @@ fn test_forward_ref_param_general_union() {
             assert!(matches!(types[0], Type::Int));
             assert!(matches!(types[1], Type::String));
         }
-        other => panic!("Expected Union, got {:?}", other),
+        other => panic!("Expected Union, got {other:?}"),
     }
 }
 
@@ -247,7 +247,7 @@ fn test_forward_ref_param_general_union_three_types() {
         Type::Union(types) => {
             assert_eq!(types.len(), 3);
         }
-        other => panic!("Expected Union with 3 types, got {:?}", other),
+        other => panic!("Expected Union with 3 types, got {other:?}"),
     }
 }
 
@@ -262,7 +262,7 @@ fn test_forward_ref_generic_with_union_param() {
             assert_eq!(params.len(), 1);
             assert!(matches!(&params[0], Type::Union(_)));
         }
-        other => panic!("Expected Generic with Union param, got {:?}", other),
+        other => panic!("Expected Generic with Union param, got {other:?}"),
     }
 }
 
@@ -312,7 +312,7 @@ fn test_forward_ref_simple_type_var() {
     let result = TypeExtractor::extract_type(&expr).unwrap();
     match result {
         Type::TypeVar(name) => assert_eq!(name, "T"),
-        other => panic!("Expected TypeVar, got {:?}", other),
+        other => panic!("Expected TypeVar, got {other:?}"),
     }
 }
 
@@ -322,7 +322,7 @@ fn test_forward_ref_simple_custom() {
     let result = TypeExtractor::extract_type(&expr).unwrap();
     match result {
         Type::Custom(name) => assert_eq!(name, "MyClass"),
-        other => panic!("Expected Custom, got {:?}", other),
+        other => panic!("Expected Custom, got {other:?}"),
     }
 }
 
@@ -349,7 +349,7 @@ fn test_forward_ref_callable_like() {
             assert_eq!(base, "Callable");
             assert_eq!(params.len(), 2);
         }
-        other => panic!("Expected Generic Callable, got {:?}", other),
+        other => panic!("Expected Generic Callable, got {other:?}"),
     }
 }
 
@@ -364,7 +364,7 @@ fn test_forward_ref_optional_explicit() {
             assert_eq!(params.len(), 1);
             assert!(matches!(params[0], Type::Int));
         }
-        other => panic!("Expected Generic Optional, got {:?}", other),
+        other => panic!("Expected Generic Optional, got {other:?}"),
     }
 }
 
@@ -380,7 +380,7 @@ fn test_forward_ref_multiple_params_with_union() {
             assert!(matches!(params[0], Type::String));
             assert!(matches!(&params[1], Type::Optional(_)));
         }
-        other => panic!("Expected Generic Dict, got {:?}", other),
+        other => panic!("Expected Generic Dict, got {other:?}"),
     }
 }
 
@@ -394,7 +394,7 @@ fn test_forward_ref_whitespace_only_param() {
             assert_eq!(base, "Tuple");
             assert_eq!(params.len(), 2);
         }
-        other => panic!("Expected Tuple, got {:?}", other),
+        other => panic!("Expected Tuple, got {other:?}"),
     }
 }
 
@@ -453,7 +453,7 @@ fn test_forward_ref_multiple_pipes() {
         Type::Union(types) => {
             assert_eq!(types.len(), 4);
         }
-        other => panic!("Expected Union, got {:?}", other),
+        other => panic!("Expected Union, got {other:?}"),
     }
 }
 
@@ -474,7 +474,7 @@ fn test_forward_ref_type_var_u() {
     let result = TypeExtractor::extract_type(&expr).unwrap();
     match result {
         Type::TypeVar(name) => assert_eq!(name, "U"),
-        other => panic!("Expected TypeVar, got {:?}", other),
+        other => panic!("Expected TypeVar, got {other:?}"),
     }
 }
 
@@ -488,7 +488,7 @@ fn test_forward_ref_generic_with_type_var() {
             assert_eq!(params.len(), 1);
             assert!(matches!(&params[0], Type::TypeVar(_)));
         }
-        other => panic!("Expected Generic with TypeVar, got {:?}", other),
+        other => panic!("Expected Generic with TypeVar, got {other:?}"),
     }
 }
 
@@ -504,7 +504,7 @@ fn test_forward_ref_generic_with_multiple_type_vars() {
                 assert!(matches!(p, Type::TypeVar(_)));
             }
         }
-        other => panic!("Expected Generic with TypeVars, got {:?}", other),
+        other => panic!("Expected Generic with TypeVars, got {other:?}"),
     }
 }
 
@@ -521,7 +521,7 @@ fn test_forward_ref_iterator_type() {
             assert_eq!(base, "Iterator");
             assert_eq!(params.len(), 1);
         }
-        other => panic!("Expected Generic Iterator, got {:?}", other),
+        other => panic!("Expected Generic Iterator, got {other:?}"),
     }
 }
 
@@ -534,7 +534,7 @@ fn test_forward_ref_generator_type() {
             assert_eq!(base, "Generator");
             assert_eq!(params.len(), 3);
         }
-        other => panic!("Expected Generic Generator, got {:?}", other),
+        other => panic!("Expected Generic Generator, got {other:?}"),
     }
 }
 
@@ -547,7 +547,7 @@ fn test_forward_ref_sequence_type() {
             assert_eq!(base, "Sequence");
             assert_eq!(params.len(), 1);
         }
-        other => panic!("Expected Generic Sequence, got {:?}", other),
+        other => panic!("Expected Generic Sequence, got {other:?}"),
     }
 }
 
@@ -560,7 +560,7 @@ fn test_forward_ref_mapping_type() {
             assert_eq!(base, "Mapping");
             assert_eq!(params.len(), 2);
         }
-        other => panic!("Expected Generic Mapping, got {:?}", other),
+        other => panic!("Expected Generic Mapping, got {other:?}"),
     }
 }
 
@@ -595,7 +595,7 @@ fn test_forward_ref_self_type() {
     match result {
         Type::Custom(name) => assert_eq!(name, "Self"),
         Type::TypeVar(name) => assert_eq!(name, "Self"),
-        other => panic!("Expected Custom or TypeVar, got {:?}", other),
+        other => panic!("Expected Custom or TypeVar, got {other:?}"),
     }
 }
 
@@ -617,7 +617,7 @@ fn test_forward_ref_with_underscores() {
     let result = TypeExtractor::extract_type(&expr).unwrap();
     match result {
         Type::Custom(name) => assert_eq!(name, "My_Custom_Type"),
-        other => panic!("Expected Custom, got {:?}", other),
+        other => panic!("Expected Custom, got {other:?}"),
     }
 }
 
@@ -627,7 +627,7 @@ fn test_forward_ref_numbers_in_name() {
     let result = TypeExtractor::extract_type(&expr).unwrap();
     match result {
         Type::Custom(name) => assert_eq!(name, "Type2D"),
-        other => panic!("Expected Custom, got {:?}", other),
+        other => panic!("Expected Custom, got {other:?}"),
     }
 }
 
@@ -645,7 +645,7 @@ fn test_depyler_0740_parse_forward_reference_generic() {
             assert_eq!(base, "Container");
             assert!(matches!(&params[0], Type::TypeVar(_)));
         }
-        other => panic!("DEPYLER-0740 regression: Expected Generic, got {:?}", other),
+        other => panic!("DEPYLER-0740 regression: Expected Generic, got {other:?}"),
     }
 }
 
@@ -659,7 +659,7 @@ fn test_depyler_0836_pep604_union_in_forward_ref() {
             assert_eq!(base, "Container");
             assert!(matches!(&params[0], Type::Optional(_)));
         }
-        other => panic!("DEPYLER-0836 regression: Expected Generic with Optional, got {:?}", other),
+        other => panic!("DEPYLER-0836 regression: Expected Generic with Optional, got {other:?}"),
     }
 }
 
@@ -672,6 +672,6 @@ fn test_depyler_0836_pep604_union_toplevel() {
         Type::Optional(inner) => {
             assert!(matches!(*inner, Type::String));
         }
-        other => panic!("DEPYLER-0836 regression: Expected Optional, got {:?}", other),
+        other => panic!("DEPYLER-0836 regression: Expected Optional, got {other:?}"),
     }
 }

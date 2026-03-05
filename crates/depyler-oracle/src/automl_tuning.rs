@@ -240,7 +240,7 @@ mod tests {
     #[test]
     fn test_oracle_param_debug() {
         let param = OracleParam::MinSimilarity;
-        let debug = format!("{:?}", param);
+        let debug = format!("{param:?}");
         assert!(debug.contains("MinSimilarity"));
     }
 
@@ -315,7 +315,7 @@ mod tests {
     fn test_automl_config_debug() {
         let config =
             AutoMLConfig { min_similarity: 0.1, ngram_range: (1, 3), error_code_weight: 2.0 };
-        let debug = format!("{:?}", config);
+        let debug = format!("{config:?}");
         assert!(debug.contains("AutoMLConfig"));
     }
 
@@ -355,7 +355,7 @@ mod tests {
             trials: 10,
             history: vec![],
         };
-        let debug = format!("{:?}", result);
+        let debug = format!("{result:?}");
         assert!(debug.contains("AutoMLResult"));
     }
 

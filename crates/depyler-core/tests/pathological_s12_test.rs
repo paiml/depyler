@@ -19,12 +19,12 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b99_many_params() {
-    let code = r#"
+    let code = r"
 def many(a: int, b: int, c: int, d: int, e: int, f: int) -> int:
     return a + b + c + d + e + f
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn many"), "Got: {}", result);
+    assert!(result.contains("fn many"), "Got: {result}");
 }
 
 #[test]
@@ -46,7 +46,7 @@ def classify(x: int) -> str:
     return "very positive"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn classify"), "Got: {}", result);
+    assert!(result.contains("fn classify"), "Got: {result}");
 }
 
 #[test]
@@ -68,7 +68,7 @@ def deep_check(a: int, b: int, c: int) -> str:
         return "a not positive"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn deep_check"), "Got: {}", result);
+    assert!(result.contains("fn deep_check"), "Got: {result}");
 }
 
 #[test]
@@ -83,12 +83,12 @@ def transform(text: str) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn transform"), "Got: {}", result);
+    assert!(result.contains("fn transform"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b99_many_list_ops() {
-    let code = r#"
+    let code = r"
 def build_list() -> list:
     items = []
     items.append(1)
@@ -101,14 +101,14 @@ def build_list() -> list:
     items.reverse()
     items.sort()
     return items
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn build_list"), "Got: {}", result);
+    assert!(result.contains("fn build_list"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b99_many_dict_ops() {
-    let code = r##"
+    let code = r#"
 def build_dict() -> dict:
     d = {}
     d["a"] = 1
@@ -120,14 +120,14 @@ def build_dict() -> dict:
     keys = list(d.keys())
     values = list(d.values())
     return d
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn build_dict"), "Got: {}", result);
+    assert!(result.contains("fn build_dict"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b99_many_set_ops() {
-    let code = r#"
+    let code = r"
 def build_set() -> set:
     s = set()
     s.add(1)
@@ -140,28 +140,28 @@ def build_set() -> set:
     common = s.intersection(other)
     diff = s.difference(other)
     return combined
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn build_set"), "Got: {}", result);
+    assert!(result.contains("fn build_set"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b99_complex_comprehension() {
-    let code = r#"
+    let code = r"
 def matrix_ops(n: int) -> list:
     identity = [[1 if i == j else 0 for j in range(n)] for i in range(n)]
     doubled = [[cell * 2 for cell in row] for row in identity]
     flat = [cell for row in doubled for cell in row]
     nonzero = [x for x in flat if x != 0]
     return nonzero
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn matrix_ops"), "Got: {}", result);
+    assert!(result.contains("fn matrix_ops"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b99_exception_types() {
-    let code = r##"
+    let code = r#"
 def safe_convert(value: str) -> str:
     try:
         return str(int(value))
@@ -177,14 +177,14 @@ def safe_convert(value: str) -> str:
     except AttributeError:
         pass
     return value
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn safe_convert"), "Got: {}", result);
+    assert!(result.contains("fn safe_convert"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b99_multiple_loops() {
-    let code = r#"
+    let code = r"
 def find_common(a: list, b: list, c: list) -> list:
     result = []
     for x in a:
@@ -200,14 +200,14 @@ def find_common(a: list, b: list, c: list) -> list:
                 result.append(x)
                 break
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn find_common"), "Got: {}", result);
+    assert!(result.contains("fn find_common"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b99_fibonacci_iterative() {
-    let code = r#"
+    let code = r"
 def fibonacci(n: int) -> list:
     if n <= 0:
         return []
@@ -217,14 +217,14 @@ def fibonacci(n: int) -> list:
     for i in range(2, n):
         result.append(result[i - 1] + result[i - 2])
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn fibonacci"), "Got: {}", result);
+    assert!(result.contains("fn fibonacci"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b99_prime_sieve() {
-    let code = r#"
+    let code = r"
 def sieve(limit: int) -> list:
     if limit < 2:
         return []
@@ -240,7 +240,7 @@ def sieve(limit: int) -> list:
                 j += i
         i += 1
     return [i for i in range(limit + 1) if is_prime[i]]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sieve"), "Got: {}", result);
+    assert!(result.contains("fn sieve"), "Got: {result}");
 }

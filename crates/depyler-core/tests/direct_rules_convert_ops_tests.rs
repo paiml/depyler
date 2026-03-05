@@ -1,5 +1,5 @@
-//! EXTREME TDD: Tests for direct_rules_convert operator functions
-//! Coverage: convert_binop, convert_arithmetic_op, convert_comparison_op, convert_logical_op
+//! EXTREME TDD: Tests for `direct_rules_convert` operator functions
+//! Coverage: `convert_binop`, `convert_arithmetic_op`, `convert_comparison_op`, `convert_logical_op`
 
 use depyler_core::DepylerPipeline;
 
@@ -171,37 +171,37 @@ fn test_op_not_bool() {
 
 #[test]
 fn test_op_and_short_circuit() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> bool:
     return x > 0 and x < 10
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_or_short_circuit() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> bool:
     return x < 0 or x > 10
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_complex_logical() {
-    let code = r#"
+    let code = r"
 def f(a: bool, b: bool, c: bool) -> bool:
     return (a and b) or (not c)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_nested_logical() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: int) -> bool:
     return (x > 0 and y > 0) or (x < 0 and y < 0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -239,10 +239,10 @@ fn test_op_rshift() {
 
 #[test]
 fn test_op_bitwise_complex() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int, c: int) -> int:
     return (a & b) | (b ^ c)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -306,121 +306,121 @@ fn test_op_unary_pos() {
 
 #[test]
 fn test_op_aug_add() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     x += 1
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_aug_sub() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     x -= 1
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_aug_mul() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     x *= 2
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_aug_div() {
-    let code = r#"
+    let code = r"
 def f(x: float) -> float:
     x /= 2.0
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_aug_floordiv() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     x //= 2
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_aug_mod() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     x %= 10
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_aug_pow() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     x **= 2
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_aug_bitand() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     x &= 0xFF
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_aug_bitor() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     x |= 0x01
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_aug_bitxor() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     x ^= 0xFF
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_aug_lshift() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     x <<= 1
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_aug_rshift() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     x >>= 1
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -438,19 +438,19 @@ fn test_op_precedence_parens() {
 
 #[test]
 fn test_op_precedence_mixed() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int, c: int) -> bool:
     return a + b > c and b - a < c
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_op_precedence_complex() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int, c: int, d: int) -> int:
     return a + b * c - d // 2 + a % b
-"#;
+";
     assert!(transpile_ok(code));
 }
 

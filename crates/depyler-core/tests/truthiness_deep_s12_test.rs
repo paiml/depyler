@@ -1,6 +1,6 @@
 //! Session 12 Batch 25: Truthiness coercion and conditional conversion cold paths
 //!
-//! Targets direct_rules_convert.rs cold paths:
+//! Targets `direct_rules_convert.rs` cold paths:
 //! - Truthiness coercion: collection truthiness, numeric truthiness, option truthiness
 //! - Not operator on collections: `not self.items` → `self.items.is_empty()`
 //! - Comparison operators with type coercion: int/float comparisons
@@ -27,7 +27,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_truthiness_list_if() {
-    let code = r#"
+    let code = r"
 class Container:
     def __init__(self, items: list):
         self.items = items
@@ -36,14 +36,14 @@ class Container:
         if self.items:
             return True
         return False
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("has_items"), "Got: {}", result);
+    assert!(result.contains("has_items"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_truthiness_not_list() {
-    let code = r#"
+    let code = r"
 class Container:
     def __init__(self, items: list):
         self.items = items
@@ -52,14 +52,14 @@ class Container:
         if not self.items:
             return True
         return False
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("is_empty"), "Got: {}", result);
+    assert!(result.contains("is_empty"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_truthiness_dict_if() {
-    let code = r#"
+    let code = r"
 class Cache:
     def __init__(self):
         self.data = {}
@@ -68,14 +68,14 @@ class Cache:
         if self.data:
             return True
         return False
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("has_data"), "Got: {}", result);
+    assert!(result.contains("has_data"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_truthiness_string_if() {
-    let code = r#"
+    let code = r"
 class TextBox:
     def __init__(self, text: str):
         self.text = text
@@ -84,16 +84,16 @@ class TextBox:
         if self.text:
             return True
         return False
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("has_text"), "Got: {}", result);
+    assert!(result.contains("has_text"), "Got: {result}");
 }
 
 // ===== Truthiness: numeric zero check =====
 
 #[test]
 fn test_s12_truthiness_numeric_while() {
-    let code = r#"
+    let code = r"
 class Counter:
     def __init__(self, n: int):
         self.n = n
@@ -104,93 +104,93 @@ class Counter:
             total += self.n
             self.n -= 1
         return total
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("count_down"), "Got: {}", result);
+    assert!(result.contains("count_down"), "Got: {result}");
 }
 
 // ===== Power operator edge cases =====
 
 #[test]
 fn test_s12_power_float_base() {
-    let code = r#"
+    let code = r"
 def sqrt_approx(x: float) -> float:
     return x ** 0.5
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sqrt_approx"), "Got: {}", result);
+    assert!(result.contains("fn sqrt_approx"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_power_negative_exponent() {
-    let code = r#"
+    let code = r"
 def inverse(x: int) -> float:
     return x ** -1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn inverse"), "Got: {}", result);
+    assert!(result.contains("fn inverse"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_power_variable_exponent() {
-    let code = r#"
+    let code = r"
 def power(base: int, exp: int) -> int:
     return base ** exp
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn power"), "Got: {}", result);
+    assert!(result.contains("fn power"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_power_int_literal() {
-    let code = r#"
+    let code = r"
 def cube(x: int) -> int:
     return x ** 3
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn cube"), "Got: {}", result);
+    assert!(result.contains("fn cube"), "Got: {result}");
 }
 
 // ===== Comparison operators with type coercion =====
 
 #[test]
 fn test_s12_float_int_comparison() {
-    let code = r#"
+    let code = r"
 def is_above_threshold(value: float, threshold: int) -> bool:
     return value > threshold
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn is_above_threshold"), "Got: {}", result);
+    assert!(result.contains("fn is_above_threshold"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_int_float_comparison() {
-    let code = r#"
+    let code = r"
 def check_bounds(count: int, limit: float) -> bool:
     return count < limit
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn check_bounds"), "Got: {}", result);
+    assert!(result.contains("fn check_bounds"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_float_literal_comparison() {
-    let code = r#"
+    let code = r"
 def is_positive(x: float) -> bool:
     return x > 0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn is_positive"), "Got: {}", result);
+    assert!(result.contains("fn is_positive"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_negative_int_float_comparison() {
-    let code = r#"
+    let code = r"
 def is_below_zero(x: float) -> bool:
     return x < -1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn is_below_zero"), "Got: {}", result);
+    assert!(result.contains("fn is_below_zero"), "Got: {result}");
 }
 
 // ===== String concatenation =====
@@ -202,7 +202,7 @@ def full_name(first: str, last: str) -> str:
     return first + " " + last
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn full_name"), "Got: {}", result);
+    assert!(result.contains("fn full_name"), "Got: {result}");
 }
 
 #[test]
@@ -219,61 +219,61 @@ class Builder:
         return self.parts
 "#;
     let result = transpile(code);
-    assert!(result.contains("Builder"), "Got: {}", result);
+    assert!(result.contains("Builder"), "Got: {result}");
 }
 
 // ===== Date/datetime constructors =====
 
 #[test]
 fn test_s12_date_constructor() {
-    let code = r#"
+    let code = r"
 class DateHelper:
     def create(self, year: int, month: int, day: int):
         return date(year, month, day)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("DateHelper"), "Got: {}", result);
+    assert!(result.contains("DateHelper"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_datetime_constructor() {
-    let code = r#"
+    let code = r"
 class TimestampHelper:
     def create(self, year: int, month: int, day: int, hour: int, minute: int):
         return datetime(year, month, day, hour, minute)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("TimestampHelper"), "Got: {}", result);
+    assert!(result.contains("TimestampHelper"), "Got: {result}");
 }
 
 // ===== Hasher methods =====
 
 #[test]
 fn test_s12_hasher_hexdigest() {
-    let code = r#"
+    let code = r"
 class Hasher:
     def __init__(self, data: str):
         self.h = hashlib.sha256(data)
 
     def get_hash(self) -> str:
         return self.h.hexdigest()
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Hasher"), "Got: {}", result);
+    assert!(result.contains("Hasher"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_hasher_update() {
-    let code = r#"
+    let code = r"
 class IncrementalHasher:
     def __init__(self):
         self.h = hashlib.sha256()
 
     def feed(self, data: str):
         self.h.update(data)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("IncrementalHasher"), "Got: {}", result);
+    assert!(result.contains("IncrementalHasher"), "Got: {result}");
 }
 
 // ===== Complex patterns combining truthiness and operators =====
@@ -303,14 +303,14 @@ class MinHeap:
         return len(self.heap)
 "#;
     let result = transpile(code);
-    assert!(result.contains("MinHeap"), "Got: {}", result);
-    assert!(result.contains("fn push"), "Got: {}", result);
-    assert!(result.contains("fn pop"), "Got: {}", result);
+    assert!(result.contains("MinHeap"), "Got: {result}");
+    assert!(result.contains("fn push"), "Got: {result}");
+    assert!(result.contains("fn pop"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_linked_list_like() {
-    let code = r#"
+    let code = r"
 class Node:
     def __init__(self, value: int):
         self.value = value
@@ -321,14 +321,14 @@ class Node:
 
     def set_next(self, node):
         self.next = node
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Node"), "Got: {}", result);
+    assert!(result.contains("Node"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_optional_field_truthiness() {
-    let code = r#"
+    let code = r"
 class Optional:
     def __init__(self):
         self.value = None
@@ -340,28 +340,28 @@ class Optional:
         if self.value:
             return self.value
         return 0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Optional"), "Got: {}", result);
+    assert!(result.contains("Optional"), "Got: {result}");
 }
 
 // ===== Cast expression safety =====
 
 #[test]
 fn test_s12_cast_in_comparison() {
-    let code = r#"
+    let code = r"
 def fits_in_byte(n: int) -> bool:
     return n >= 0 and n <= 255
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn fits_in_byte"), "Got: {}", result);
+    assert!(result.contains("fn fits_in_byte"), "Got: {result}");
 }
 
 // ===== Complex method with multiple operator types =====
 
 #[test]
 fn test_s12_statistical_class() {
-    let code = r#"
+    let code = r"
 class Stats:
     def __init__(self, data: list):
         self.data = data
@@ -379,9 +379,9 @@ class Stats:
         for x in self.data:
             total += (x - avg) ** 2
         return total / (len(self.data) - 1)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Stats"), "Got: {}", result);
-    assert!(result.contains("mean"), "Got: {}", result);
-    assert!(result.contains("variance"), "Got: {}", result);
+    assert!(result.contains("Stats"), "Got: {result}");
+    assert!(result.contains("mean"), "Got: {result}");
+    assert!(result.contains("variance"), "Got: {result}");
 }

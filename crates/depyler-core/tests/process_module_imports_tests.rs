@@ -1,17 +1,17 @@
-//! Comprehensive tests for process_module_imports function
+//! Comprehensive tests for `process_module_imports` function
 //! Following EXTREME TDD: Tests written BEFORE refactoring
 
 use depyler_core::hir::{Import, ImportItem};
 use depyler_core::module_mapper::{ModuleMapper, ModuleMapping};
 use std::collections::HashMap;
 
-/// Helper to create a test ModuleMapper with default mappings
+/// Helper to create a test `ModuleMapper` with default mappings
 fn create_test_module_mapper() -> ModuleMapper {
     // Use default ModuleMapper which includes typing, math, collections, etc.
     ModuleMapper::new()
 }
 
-/// Helper to call process_module_imports (would be exposed for testing)
+/// Helper to call `process_module_imports` (would be exposed for testing)
 /// For now, this is a placeholder showing the expected function signature
 fn process_module_imports_wrapper(
     imports: &[Import],

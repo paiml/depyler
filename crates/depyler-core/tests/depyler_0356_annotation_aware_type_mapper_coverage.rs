@@ -1,20 +1,20 @@
-//! DEPYLER-0356: annotation_aware_type_mapper.rs Coverage Tests
+//! DEPYLER-0356: `annotation_aware_type_mapper.rs` Coverage Tests
 //!
 //! **EXTREME TDD Protocol - Coverage Boost**
 //!
-//! Target: annotation_aware_type_mapper.rs ~50% → 85%+ coverage
+//! Target: `annotation_aware_type_mapper.rs` ~50% → 85%+ coverage
 //! TDG Score: Excellent (A+) - Clean annotation-aware type mapping infrastructure
 //!
 //! This test suite complements the existing 6 module tests with additional coverage for:
-//! - Constructor methods (new, with_base_mapper, Default)
-//! - needs_reference_with_annotations() for all ownership models
+//! - Constructor methods (new, `with_base_mapper`, Default)
+//! - `needs_reference_with_annotations()` for all ownership models
 
 #![allow(non_snake_case)]
 #![allow(clippy::field_reassign_with_default)]
 //! - Conservative string strategy
 //! - Borrowed/Shared ownership variants for collections
 //! - Nested type mapping
-//! - Fallback to base_mapper for non-annotated types
+//! - Fallback to `base_mapper` for non-annotated types
 //! - Property-based tests for annotation combinations
 //! - Edge cases and complex scenarios
 
@@ -151,7 +151,7 @@ fn test_depyler_0356_dict_borrowed() {
             // Annotations apply recursively to nested types - String keys become &'a str
             assert_eq!(*inner, RustType::Custom("HashMap<&'a str, i32>".to_string()));
         }
-        _ => panic!("Expected reference type, got {:?}", rust_type),
+        _ => panic!("Expected reference type, got {rust_type:?}"),
     }
 }
 
@@ -568,7 +568,7 @@ mod property_tests {
             // Should always produce a valid RustType
             match rust_type {
                 RustType::String | RustType::Str { .. } => {},
-                _ => panic!("String type should map to String or Str, got {:?}", rust_type),
+                _ => panic!("String type should map to String or Str, got {rust_type:?}"),
             }
         }
 
@@ -588,7 +588,7 @@ mod property_tests {
             // Should always produce a valid collection type
             match rust_type {
                 RustType::Vec(_) | RustType::Reference { .. } | RustType::Custom(_) => {},
-                _ => panic!("List type should produce valid collection type, got {:?}", rust_type),
+                _ => panic!("List type should produce valid collection type, got {rust_type:?}"),
             }
         }
 

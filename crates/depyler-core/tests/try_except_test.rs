@@ -24,13 +24,13 @@ use depyler_core::DepylerPipeline;
 
 #[test]
 fn test_simple_try_except() {
-    let python = r#"
+    let python = r"
 def safe_divide(a: int, b: int) -> int:
     try:
         return a // b
     except:
         return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -40,25 +40,24 @@ def safe_divide(a: int, b: int) -> int:
 
     assert!(
         rust_code.contains("fn safe_divide"),
-        "Should have safe_divide function.\nGot:\n{}",
-        rust_code
+        "Should have safe_divide function.\nGot:\n{rust_code}"
     );
 
     // Should have error handling pattern (Result, match, or if let)
     let has_error_handling =
         rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("if let");
-    assert!(has_error_handling, "Should have error handling pattern.\nGot:\n{}", rust_code);
+    assert!(has_error_handling, "Should have error handling pattern.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_try_except_with_binding() {
-    let python = r#"
+    let python = r"
 def parse_number(s: str) -> int:
     try:
         return int(s)
     except ValueError as e:
         return -1
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -68,14 +67,13 @@ def parse_number(s: str) -> int:
 
     assert!(
         rust_code.contains("fn parse_number"),
-        "Should have parse_number function.\nGot:\n{}",
-        rust_code
+        "Should have parse_number function.\nGot:\n{rust_code}"
     );
 
     // Should have error handling with binding
     let has_error_handling =
         rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("Err");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    assert!(has_error_handling, "Should have error handling.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -96,25 +94,24 @@ def get_value(data: dict, key: str) -> str:
 
     assert!(
         rust_code.contains("fn get_value"),
-        "Should have get_value function.\nGot:\n{}",
-        rust_code
+        "Should have get_value function.\nGot:\n{rust_code}"
     );
 
     // Should handle return in try block
     let has_return = rust_code.contains("return") || rust_code.contains("->");
-    assert!(has_return, "Should have return handling.\nGot:\n{}", rust_code);
+    assert!(has_return, "Should have return handling.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_try_except_return_in_except() {
-    let python = r#"
+    let python = r"
 def safe_operation(x: int) -> int:
     try:
         result = x * 2
         return result
     except:
         return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -124,19 +121,18 @@ def safe_operation(x: int) -> int:
 
     assert!(
         rust_code.contains("fn safe_operation"),
-        "Should have safe_operation function.\nGot:\n{}",
-        rust_code
+        "Should have safe_operation function.\nGot:\n{rust_code}"
     );
 
     // Should have error handling
     let has_error_handling =
         rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("if let");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    assert!(has_error_handling, "Should have error handling.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_nested_try_except() {
-    let python = r#"
+    let python = r"
 def nested_operation(x: int, y: int) -> int:
     try:
         try:
@@ -145,7 +141,7 @@ def nested_operation(x: int, y: int) -> int:
             return x
     except:
         return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -155,18 +151,17 @@ def nested_operation(x: int, y: int) -> int:
 
     assert!(
         rust_code.contains("fn nested_operation"),
-        "Should have nested_operation function.\nGot:\n{}",
-        rust_code
+        "Should have nested_operation function.\nGot:\n{rust_code}"
     );
 
     // Should have nested error handling
     let has_error_handling = rust_code.contains("Result") || rust_code.contains("match");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    assert!(has_error_handling, "Should have error handling.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_try_except_in_function() {
-    let python = r#"
+    let python = r"
 def process_data(data: list) -> int:
     count = 0
     try:
@@ -174,7 +169,7 @@ def process_data(data: list) -> int:
     except:
         count = 0
     return count
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -184,23 +179,22 @@ def process_data(data: list) -> int:
 
     assert!(
         rust_code.contains("fn process_data"),
-        "Should have process_data function.\nGot:\n{}",
-        rust_code
+        "Should have process_data function.\nGot:\n{rust_code}"
     );
 
     // Should have variable assignment
-    assert!(rust_code.contains("count"), "Should have count variable.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("count"), "Should have count variable.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_try_except_specific_exception() {
-    let python = r#"
+    let python = r"
 def convert_to_int(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -210,19 +204,18 @@ def convert_to_int(s: str) -> int:
 
     assert!(
         rust_code.contains("fn convert_to_int"),
-        "Should have convert_to_int function.\nGot:\n{}",
-        rust_code
+        "Should have convert_to_int function.\nGot:\n{rust_code}"
     );
 
     // Should have error handling
     let has_error_handling =
         rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("Err");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    assert!(has_error_handling, "Should have error handling.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_try_except_with_pass() {
-    let python = r#"
+    let python = r"
 def ignore_errors(x: int) -> int:
     try:
         result = x * 2
@@ -230,7 +223,7 @@ def ignore_errors(x: int) -> int:
     except:
         pass
     return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -240,19 +233,18 @@ def ignore_errors(x: int) -> int:
 
     assert!(
         rust_code.contains("fn ignore_errors"),
-        "Should have ignore_errors function.\nGot:\n{}",
-        rust_code
+        "Should have ignore_errors function.\nGot:\n{rust_code}"
     );
 
     // Should have error handling
     let has_error_handling =
         rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("if let");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    assert!(has_error_handling, "Should have error handling.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_try_except_multiple_statements_in_try() {
-    let python = r#"
+    let python = r"
 def calculate(x: int, y: int) -> int:
     try:
         a = x * 2
@@ -260,7 +252,7 @@ def calculate(x: int, y: int) -> int:
         return a + b
     except:
         return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -270,25 +262,24 @@ def calculate(x: int, y: int) -> int:
 
     assert!(
         rust_code.contains("fn calculate"),
-        "Should have calculate function.\nGot:\n{}",
-        rust_code
+        "Should have calculate function.\nGot:\n{rust_code}"
     );
 
     // Should have multiple variables
-    let has_vars = rust_code.contains("a") && rust_code.contains("b");
-    assert!(has_vars, "Should have multiple variables.\nGot:\n{}", rust_code);
+    let has_vars = rust_code.contains('a') && rust_code.contains('b');
+    assert!(has_vars, "Should have multiple variables.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_try_except_multiple_statements_in_except() {
-    let python = r#"
+    let python = r"
 def safe_process(x: int) -> int:
     try:
         return x // 2
     except:
         default = 0
         return default
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -298,25 +289,24 @@ def safe_process(x: int) -> int:
 
     assert!(
         rust_code.contains("fn safe_process"),
-        "Should have safe_process function.\nGot:\n{}",
-        rust_code
+        "Should have safe_process function.\nGot:\n{rust_code}"
     );
 
     // Should have error handling
     let has_error_handling =
         rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("if let");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    assert!(has_error_handling, "Should have error handling.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_try_except_accessing_exception_message() {
-    let python = r#"
+    let python = r"
 def get_error_message(s: str) -> str:
     try:
         return int(s)
     except Exception as e:
         return str(e)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -326,24 +316,23 @@ def get_error_message(s: str) -> str:
 
     assert!(
         rust_code.contains("fn get_error_message"),
-        "Should have get_error_message function.\nGot:\n{}",
-        rust_code
+        "Should have get_error_message function.\nGot:\n{rust_code}"
     );
 
     // Should have error variable binding
     let has_error_binding = rust_code.contains("Err") || rust_code.contains("match");
-    assert!(has_error_binding, "Should have error binding.\nGot:\n{}", rust_code);
+    assert!(has_error_binding, "Should have error binding.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_try_except_bare_except() {
-    let python = r#"
+    let python = r"
 def catch_all(x: int) -> int:
     try:
         return x * 2
     except:
         return 0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -353,26 +342,25 @@ def catch_all(x: int) -> int:
 
     assert!(
         rust_code.contains("fn catch_all"),
-        "Should have catch_all function.\nGot:\n{}",
-        rust_code
+        "Should have catch_all function.\nGot:\n{rust_code}"
     );
 
     // Should have error handling
     let has_error_handling =
         rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("if let");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    assert!(has_error_handling, "Should have error handling.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_try_except_with_computation() {
-    let python = r#"
+    let python = r"
 def compute_ratio(a: int, b: int) -> float:
     try:
         ratio = a / b
         return ratio
     except ZeroDivisionError:
         return 0.0
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -382,12 +370,11 @@ def compute_ratio(a: int, b: int) -> float:
 
     assert!(
         rust_code.contains("fn compute_ratio"),
-        "Should have compute_ratio function.\nGot:\n{}",
-        rust_code
+        "Should have compute_ratio function.\nGot:\n{rust_code}"
     );
 
     // Should have computation
-    assert!(rust_code.contains("ratio"), "Should have ratio variable.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("ratio"), "Should have ratio variable.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -411,18 +398,17 @@ def log_operation(x: int) -> int:
 
     assert!(
         rust_code.contains("fn log_operation"),
-        "Should have log_operation function.\nGot:\n{}",
-        rust_code
+        "Should have log_operation function.\nGot:\n{rust_code}"
     );
 
     // Should have print statements
     let has_print = rust_code.contains("print") || rust_code.contains("println");
-    assert!(has_print, "Should have print statements.\nGot:\n{}", rust_code);
+    assert!(has_print, "Should have print statements.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_try_except_with_variable_assignment() {
-    let python = r#"
+    let python = r"
 def assign_safely(x: int) -> int:
     result = 0
     try:
@@ -430,7 +416,7 @@ def assign_safely(x: int) -> int:
     except:
         result = -1
     return result
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -440,10 +426,9 @@ def assign_safely(x: int) -> int:
 
     assert!(
         rust_code.contains("fn assign_safely"),
-        "Should have assign_safely function.\nGot:\n{}",
-        rust_code
+        "Should have assign_safely function.\nGot:\n{rust_code}"
     );
 
     // Should have result variable
-    assert!(rust_code.contains("result"), "Should have result variable.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("result"), "Should have result variable.\nGot:\n{rust_code}");
 }

@@ -1,6 +1,6 @@
-//! Coverage tests for lambda_types.rs
+//! Coverage tests for `lambda_types.rs`
 //!
-//! DEPYLER-99MODE-001: Targets lambda_types.rs (1,167 lines)
+//! DEPYLER-99MODE-001: Targets `lambda_types.rs` (1,167 lines)
 //! Covers: AWS Lambda type mapping, event type routing,
 //! response type mapping, type conversion rules.
 

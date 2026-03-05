@@ -477,10 +477,10 @@ mod tests {
 
     #[test]
     fn test_build_simple_function() {
-        let python = r#"
+        let python = r"
 def foo():
     return 42
-"#;
+";
 
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
@@ -491,13 +491,13 @@ def foo():
 
     #[test]
     fn test_build_function_call() {
-        let python = r#"
+        let python = r"
 def foo():
     return 42
 
 def bar():
     return foo()
-"#;
+";
 
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
@@ -513,7 +513,7 @@ def bar():
 
     #[test]
     fn test_build_class_inheritance() {
-        let python = r#"
+        let python = r"
 class Base:
     def method(self):
         pass
@@ -521,7 +521,7 @@ class Base:
 class Derived(Base):
     def method(self):
         pass
-"#;
+";
 
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
@@ -538,14 +538,14 @@ class Derived(Base):
 
     #[test]
     fn test_node_kind() {
-        let python = r#"
+        let python = r"
 def func():
     pass
 
 class MyClass:
     def method(self):
         pass
-"#;
+";
 
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
@@ -562,7 +562,7 @@ class MyClass:
 
     #[test]
     fn test_incoming_outgoing_edges() {
-        let python = r#"
+        let python = r"
 def a():
     return 1
 
@@ -571,7 +571,7 @@ def b():
 
 def c():
     return a()
-"#;
+";
 
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
@@ -587,12 +587,12 @@ def c():
 
     #[test]
     fn test_line_numbers() {
-        let python = r#"def foo():
+        let python = r"def foo():
     return 42
 
 def bar():
     return 100
-"#;
+";
 
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
@@ -762,7 +762,7 @@ def bar():
 
     #[test]
     fn test_multiple_classes_with_methods() {
-        let python = r#"
+        let python = r"
 class Dog:
     def bark(self):
         pass
@@ -770,7 +770,7 @@ class Dog:
 class Cat:
     def meow(self):
         pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -783,7 +783,7 @@ class Cat:
 
     #[test]
     fn test_chained_calls_edges() {
-        let python = r#"
+        let python = r"
 def a():
     return 1
 
@@ -792,7 +792,7 @@ def b():
 
 def c():
     return b()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -813,7 +813,7 @@ def c():
 
     #[test]
     fn test_function_calling_multiple_functions() {
-        let python = r#"
+        let python = r"
 def x():
     return 1
 
@@ -822,7 +822,7 @@ def y():
 
 def z():
     return x() + y()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -835,7 +835,7 @@ def z():
 
     #[test]
     fn test_class_with_multiple_methods() {
-        let python = r#"
+        let python = r"
 class Calc:
     def add(self):
         pass
@@ -843,7 +843,7 @@ class Calc:
         pass
     def mul(self):
         pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -925,14 +925,14 @@ class Calc:
 
     #[test]
     fn test_calls_in_if_body() {
-        let python = r#"
+        let python = r"
 def helper():
     return 1
 
 def main():
     if True:
         helper()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -943,14 +943,14 @@ def main():
 
     #[test]
     fn test_calls_in_for_loop() {
-        let python = r#"
+        let python = r"
 def process():
     return 1
 
 def main():
     for i in range(10):
         process()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -961,14 +961,14 @@ def main():
 
     #[test]
     fn test_calls_in_while_loop() {
-        let python = r#"
+        let python = r"
 def check():
     return True
 
 def main():
     while check():
         pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -978,13 +978,13 @@ def main():
 
     #[test]
     fn test_calls_in_assignment() {
-        let python = r#"
+        let python = r"
 def compute():
     return 42
 
 def main():
     x = compute()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -1014,7 +1014,7 @@ def main():
 
     #[test]
     fn test_s9b7_calls_in_if_else() {
-        let python = r#"
+        let python = r"
 def branch_a():
     return 1
 
@@ -1026,7 +1026,7 @@ def main():
         branch_a()
     else:
         branch_b()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1038,13 +1038,13 @@ def main():
 
     #[test]
     fn test_s9b7_calls_in_return_stmt() {
-        let python = r#"
+        let python = r"
 def helper():
     return 42
 
 def main():
     return helper()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1054,7 +1054,7 @@ def main():
 
     #[test]
     fn test_s9b7_calls_via_binop() {
-        let python = r#"
+        let python = r"
 def left():
     return 1
 
@@ -1063,7 +1063,7 @@ def right():
 
 def main():
     return left() + right()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1072,14 +1072,14 @@ def main():
 
     #[test]
     fn test_s9b7_method_calls_method() {
-        let python = r#"
+        let python = r"
 class Foo:
     def helper(self):
         return 1
 
     def caller(self):
         return self.helper()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         // class + 2 methods
@@ -1111,7 +1111,7 @@ class Foo:
 
     #[test]
     fn test_s9b7_calls_nested_in_args() {
-        let python = r#"
+        let python = r"
 def inner():
     return 1
 
@@ -1120,7 +1120,7 @@ def outer(x):
 
 def main():
     return outer(inner())
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1129,14 +1129,14 @@ def main():
 
     #[test]
     fn test_s9b7_class_calling_function() {
-        let python = r#"
+        let python = r"
 def utility():
     return 42
 
 class MyClass:
     def method(self):
         utility()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("MyClass.method");
@@ -1145,7 +1145,7 @@ class MyClass:
 
     #[test]
     fn test_multiple_inheritance_edges() {
-        let python = r#"
+        let python = r"
 class A:
     pass
 
@@ -1154,7 +1154,7 @@ class B:
 
 class C(A, B):
     pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
 
@@ -1176,13 +1176,13 @@ class C(A, B):
 
     #[test]
     fn test_s11_calls_in_dict_values() {
-        let python = r#"
+        let python = r"
 def val_func():
     return 42
 
 def main():
     d = {1: val_func()}
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1191,13 +1191,13 @@ def main():
 
     #[test]
     fn test_s11_calls_in_list_elements() {
-        let python = r#"
+        let python = r"
 def elem_func():
     return 1
 
 def main():
     items = [elem_func(), 2, 3]
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1206,14 +1206,14 @@ def main():
 
     #[test]
     fn test_s11_calls_in_compare_expr() {
-        let python = r#"
+        let python = r"
 def check():
     return 5
 
 def main():
     if check() > 3:
         pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1222,14 +1222,14 @@ def main():
 
     #[test]
     fn test_s11_calls_in_compare_comparators() {
-        let python = r#"
+        let python = r"
 def threshold():
     return 10
 
 def main():
     if 5 > threshold():
         pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1239,13 +1239,13 @@ def main():
     #[test]
     fn test_s11_calls_via_expr_stmt() {
         // Covers extract_calls_from_stmt for Stmt::Expr
-        let python = r#"
+        let python = r"
 def side_effect():
     pass
 
 def main():
     side_effect()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1255,14 +1255,14 @@ def main():
 
     #[test]
     fn test_s11_calls_in_for_body() {
-        let python = r#"
+        let python = r"
 def process(x):
     return x
 
 def main():
     for i in [1, 2]:
         process(i)
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1271,14 +1271,14 @@ def main():
 
     #[test]
     fn test_s11_calls_in_while_body() {
-        let python = r#"
+        let python = r"
 def tick():
     pass
 
 def main():
     while True:
         tick()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1288,14 +1288,14 @@ def main():
     #[test]
     fn test_s11_calls_with_class_constructor() {
         // Calling a class is like calling its __init__
-        let python = r#"
+        let python = r"
 class Widget:
     def render(self):
         pass
 
 def main():
     w = Widget()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1318,14 +1318,14 @@ def main():
 
     #[test]
     fn test_s11_calls_in_for_iter_expr() {
-        let python = r#"
+        let python = r"
 def get_items():
     return [1, 2, 3]
 
 def main():
     for x in get_items():
         pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1368,14 +1368,14 @@ def main():
 
     #[test]
     fn test_s12_calls_in_list_multiple() {
-        let python = r#"
+        let python = r"
 def a():
     return 1
 def b():
     return 2
 def main():
     items = [a(), b(), 3]
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1386,7 +1386,7 @@ def main():
     #[test]
     fn test_s12_calls_in_compare_multiple_comparators() {
         // a < b() < c() -- multiple comparators
-        let python = r#"
+        let python = r"
 def lower():
     return 1
 def upper():
@@ -1394,7 +1394,7 @@ def upper():
 def main():
     if lower() < 5 < upper():
         pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         let out = graph.outgoing_edges("main");
@@ -1406,14 +1406,14 @@ def main():
     #[test]
     fn test_s12_attribute_call_detection() {
         // self.method() style calls
-        let python = r#"
+        let python = r"
 class Foo:
     def helper(self):
         return 1
 
     def caller(self):
         x = self.helper()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         // Verify class and methods are parsed
@@ -1424,10 +1424,10 @@ class Foo:
 
     #[test]
     fn test_s12_empty_class_body() {
-        let python = r#"
+        let python = r"
 class Empty:
     pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         assert!(graph.get_node("Empty").is_some());
@@ -1436,11 +1436,11 @@ class Empty:
 
     #[test]
     fn test_s12_class_no_bases() {
-        let python = r#"
+        let python = r"
 class Standalone:
     def method(self):
         pass
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         // No inheritance edges
@@ -1511,7 +1511,7 @@ class Standalone:
 
     #[test]
     fn test_s12_deeply_nested_call_chain() {
-        let python = r#"
+        let python = r"
 def d():
     return 1
 def c():
@@ -1520,7 +1520,7 @@ def b():
     return c()
 def a():
     return b()
-"#;
+";
         let mut builder = GraphBuilder::new();
         let graph = builder.build_from_source(python).unwrap();
         assert_eq!(graph.edge_count(), 3); // a->b, b->c, c->d

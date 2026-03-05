@@ -70,10 +70,7 @@ def check_bounds(items: list, i: int):
         raise IndexError("out of bounds")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn check_bounds"),
-        "Should transpile raise IndexError. Got: {result}"
-    );
+    assert!(result.contains("fn check_bounds"), "Should transpile raise IndexError. Got: {result}");
 }
 
 #[test]
@@ -118,10 +115,7 @@ def no_attr(name: str):
     raise AttributeError(f"no attribute: {name}")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn no_attr"),
-        "Should transpile raise AttributeError. Got: {result}"
-    );
+    assert!(result.contains("fn no_attr"), "Should transpile raise AttributeError. Got: {result}");
 }
 
 // ============================================================================
@@ -169,10 +163,7 @@ def append_line(path: str, line: str):
         f.write(line + "\n")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn append_line"),
-        "Should transpile with open append. Got: {result}"
-    );
+    assert!(result.contains("fn append_line"), "Should transpile with open append. Got: {result}");
 }
 
 // ============================================================================
@@ -219,10 +210,7 @@ def try_with_else(s: str) -> int:
         return val * 2
 ";
     let result = transpile(code);
-    assert!(
-        result.contains("fn try_with_else"),
-        "Should transpile try/except/else. Got: {result}"
-    );
+    assert!(result.contains("fn try_with_else"), "Should transpile try/except/else. Got: {result}");
 }
 
 #[test]
@@ -281,10 +269,7 @@ def range_sum(start: int, stop: int) -> int:
     return total
 ";
     let result = transpile(code);
-    assert!(
-        result.contains("fn range_sum"),
-        "Should transpile range(start, stop). Got: {result}"
-    );
+    assert!(result.contains("fn range_sum"), "Should transpile range(start, stop). Got: {result}");
 }
 
 #[test]
@@ -310,10 +295,7 @@ def char_count(s: str) -> int:
     return count
 ";
     let result = transpile(code);
-    assert!(
-        result.contains("fn char_count"),
-        "Should transpile for char in string. Got: {result}"
-    );
+    assert!(result.contains("fn char_count"), "Should transpile for char in string. Got: {result}");
 }
 
 #[test]
@@ -475,10 +457,7 @@ def maybe_double(x: int) -> int:
     return x
 ";
     let result = transpile(code);
-    assert!(
-        result.contains("fn maybe_double"),
-        "Should transpile if without else. Got: {result}"
-    );
+    assert!(result.contains("fn maybe_double"), "Should transpile if without else. Got: {result}");
 }
 
 #[test]
@@ -521,10 +500,7 @@ def check_msg(x: int):
     assert x > 0, "must be positive"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn check_msg"),
-        "Should transpile assert with message. Got: {result}"
-    );
+    assert!(result.contains("fn check_msg"), "Should transpile assert with message. Got: {result}");
 }
 
 #[test]
@@ -571,10 +547,7 @@ def set_val(d: dict, key: str, val: int) -> dict:
     return d
 ";
     let result = transpile(code);
-    assert!(
-        result.contains("fn set_val"),
-        "Should transpile dict index assignment. Got: {result}"
-    );
+    assert!(result.contains("fn set_val"), "Should transpile dict index assignment. Got: {result}");
 }
 
 #[test]
@@ -674,10 +647,7 @@ def modify(items: list):
     items.reverse()
 ";
     let result = transpile(code);
-    assert!(
-        result.contains("fn modify"),
-        "Should transpile method calls as stmts. Got: {result}"
-    );
+    assert!(result.contains("fn modify"), "Should transpile method calls as stmts. Got: {result}");
 }
 
 #[test]

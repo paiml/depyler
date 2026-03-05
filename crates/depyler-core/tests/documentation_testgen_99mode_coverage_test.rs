@@ -1,6 +1,6 @@
-//! Coverage tests for documentation.rs and test_generation.rs
+//! Coverage tests for documentation.rs and `test_generation.rs`
 //!
-//! DEPYLER-99MODE-001: Targets documentation.rs (1,392 lines) + test_generation.rs (1,290 lines)
+//! DEPYLER-99MODE-001: Targets documentation.rs (1,392 lines) + `test_generation.rs` (1,290 lines)
 //! Covers: docstring extraction, documentation generation,
 //! test case generation, property test generation.
 
@@ -135,40 +135,40 @@ def greet(name: str) -> str:
 
 #[test]
 fn test_testgen_list_function() {
-    let code = r#"
+    let code = r"
 def double_list(items: list) -> list:
     return [x * 2 for x in items]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_testgen_recursive_function() {
-    let code = r#"
+    let code = r"
 def factorial(n: int) -> int:
     if n <= 1:
         return 1
     return n * factorial(n - 1)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_testgen_multiple_params() {
-    let code = r#"
+    let code = r"
 def clamp(x: int, lo: int, hi: int) -> int:
     if x < lo:
         return lo
     if x > hi:
         return hi
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_testgen_class_method() {
-    let code = r#"
+    let code = r"
 class Counter:
     def __init__(self, start: int):
         self.value = start
@@ -176,7 +176,7 @@ class Counter:
     def increment(self) -> int:
         self.value += 1
         return self.value
-"#;
+";
     assert!(transpile_ok(code));
 }
 

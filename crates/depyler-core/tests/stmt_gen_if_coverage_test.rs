@@ -1,6 +1,6 @@
-//! Targeted coverage tests for codegen_if_stmt function
+//! Targeted coverage tests for `codegen_if_stmt` function
 //!
-//! Target: codegen_if_stmt (lines 405-453, complexity 15)
+//! Target: `codegen_if_stmt` (lines 405-453, complexity 15)
 //! Coverage focus: If/else statements, Result<bool> auto-unwrapping
 //!
 //! Test Strategy:
@@ -119,14 +119,14 @@ def check_range(x: int) -> str:
 #[test]
 fn test_multiple_statements_then() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def process_positive(x: int) -> int:
     if x > 0:
         y = x * 2
         z = y + 1
         return z
     return 0
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn process_positive"));
@@ -138,7 +138,7 @@ def process_positive(x: int) -> int:
 #[test]
 fn test_multiple_statements_else() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def process_with_else(x: int) -> int:
     if x > 0:
         return x
@@ -146,7 +146,7 @@ def process_with_else(x: int) -> int:
         a = -x
         b = a * 2
         return b
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn process_with_else"));
@@ -158,12 +158,12 @@ def process_with_else(x: int) -> int:
 #[test]
 fn test_complex_condition() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def check_bounds(x: int, y: int) -> bool:
     if x > 0 and y > 0:
         return True
     return False
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn check_bounds"));
@@ -175,14 +175,14 @@ def check_bounds(x: int, y: int) -> bool:
 #[test]
 fn test_comparison_conditions() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def check_equal(x: int, target: int) -> bool:
     if x == target:
         return True
     if x != target:
         return False
     return False
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn check_equal"));
@@ -212,12 +212,12 @@ def check_flag(flag: bool) -> str:
 #[test]
 fn test_negation_condition() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def check_not_empty(items: list[int]) -> bool:
     if not len(items) == 0:
         return True
     return False
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn check_not_empty"));
@@ -229,14 +229,14 @@ def check_not_empty(items: list[int]) -> bool:
 #[test]
 fn test_variable_in_then_block() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def compute_if_positive(x: int) -> int:
     result = 0
     if x > 0:
         doubled = x * 2
         result = doubled
     return result
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn compute_if_positive"));
@@ -269,12 +269,12 @@ def check_even(x: int) -> str:
 #[test]
 fn test_empty_then_block() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def noop_if(x: int) -> int:
     if x > 0:
         pass
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn noop_if"));
@@ -286,7 +286,7 @@ def noop_if(x: int) -> int:
 #[test]
 fn test_empty_else_block() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def noop_else(x: int) -> int:
     result = x
     if x > 0:
@@ -294,7 +294,7 @@ def noop_else(x: int) -> int:
     else:
         pass
     return result
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn noop_else"));
@@ -349,11 +349,10 @@ fn test_property_if_patterns() {
 
     for (name, if_stmt) in test_cases {
         let python_code = format!(
-            r#"
-def test_{}(x: int) -> str:
-    {}
-"#,
-            name, if_stmt
+            r"
+def test_{name}(x: int) -> str:
+    {if_stmt}
+"
         );
         let result = pipeline.transpile(&python_code);
 
@@ -393,14 +392,14 @@ def test2(flag: bool) -> str:
     assert!(rust2.contains("fn test2"));
 
     // Test Case 3: Multiple statements must all execute
-    let multi_test = r#"
+    let multi_test = r"
 def test3(x: int) -> int:
     if x > 0:
         a = x * 2
         b = a + 1
         return b
     return 0
-"#;
+";
     let rust3 = pipeline.transpile(multi_test).unwrap();
     assert!(rust3.contains("fn test3"));
 }

@@ -1,5 +1,5 @@
 //! EXTREME TDD: Tests for codegen.rs expression generation
-//! Coverage: expr_to_rust_tokens, binary_expr_to_rust_tokens, call_expr_to_rust_tokens
+//! Coverage: `expr_to_rust_tokens`, `binary_expr_to_rust_tokens`, `call_expr_to_rust_tokens`
 
 use depyler_core::DepylerPipeline;
 
@@ -246,37 +246,37 @@ fn test_expr_call_reversed() {
 
 #[test]
 fn test_expr_call_range() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> list:
     return list(range(n))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_expr_call_range_start_end() {
-    let code = r#"
+    let code = r"
 def f(start: int, end: int) -> list:
     return list(range(start, end))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_expr_call_enumerate() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     return list(enumerate(items))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_expr_call_zip() {
-    let code = r#"
+    let code = r"
 def f(a: list, b: list) -> list:
     return list(zip(a, b))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -329,11 +329,11 @@ fn test_expr_method_str_find() {
 
 #[test]
 fn test_expr_method_list_append() {
-    let code = r#"
+    let code = r"
 def f(items: list, x: int) -> list:
     items.append(x)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -344,31 +344,31 @@ fn test_expr_method_list_pop() {
 
 #[test]
 fn test_expr_method_list_extend() {
-    let code = r#"
+    let code = r"
 def f(a: list, b: list) -> list:
     a.extend(b)
     return a
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_expr_method_list_sort() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     items.sort()
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_expr_method_list_reverse() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     items.reverse()
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 

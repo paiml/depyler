@@ -1,10 +1,10 @@
-//! EXTREME TDD tests for stmt_gen helper functions
+//! EXTREME TDD tests for `stmt_gen` helper functions
 //!
 //! This file contains integration tests that exercise the helper functions
-//! in stmt_gen.rs through transpilation. These tests target code paths that
+//! in `stmt_gen.rs` through transpilation. These tests target code paths that
 //! are not hit by the main test suite.
 //!
-//! DEPYLER-COVERAGE: Target coverage improvement for stmt_gen.rs
+//! DEPYLER-COVERAGE: Target coverage improvement for `stmt_gen.rs`
 
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::codegen::hir_to_rust;
@@ -40,10 +40,10 @@ fn transpile_succeeds(code: &str) -> bool {
 
 #[test]
 fn test_assert_simple() {
-    let code = r#"
+    let code = r"
 def check(x: int) -> None:
     assert x > 0
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -71,19 +71,19 @@ def check(x: int, y: int) -> None:
 
 #[test]
 fn test_expr_stmt_method_call() {
-    let code = r#"
+    let code = r"
 def process(items: list[int]) -> None:
     items.append(5)
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_expr_stmt_function_call() {
-    let code = r#"
+    let code = r"
 def process(x: int) -> None:
     print(x)
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -93,46 +93,46 @@ def process(x: int) -> None:
 
 #[test]
 fn test_return_none() {
-    let code = r#"
+    let code = r"
 def process() -> None:
     return
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_return_literal() {
-    let code = r#"
+    let code = r"
 def process() -> int:
     return 42
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_return_variable() {
-    let code = r#"
+    let code = r"
 def process(x: int) -> int:
     return x
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_return_expression() {
-    let code = r#"
+    let code = r"
 def process(x: int, y: int) -> int:
     return x + y
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_return_list() {
-    let code = r#"
+    let code = r"
 def process() -> list[int]:
     return [1, 2, 3]
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -160,20 +160,20 @@ def process() -> tuple[int, str]:
 
 #[test]
 fn test_while_simple() {
-    let code = r#"
+    let code = r"
 def count_down(n: int) -> int:
     total = 0
     while n > 0:
         total = total + n
         n = n - 1
     return total
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_while_with_break() {
-    let code = r#"
+    let code = r"
 def find_first_even(nums: list[int]) -> int:
     i = 0
     while i < len(nums):
@@ -181,13 +181,13 @@ def find_first_even(nums: list[int]) -> int:
             break
         i = i + 1
     return i
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_while_with_continue() {
-    let code = r#"
+    let code = r"
 def sum_odd(nums: list[int]) -> int:
     total = 0
     i = 0
@@ -197,13 +197,13 @@ def sum_odd(nums: list[int]) -> int:
             continue
         total = total + nums[i - 1]
     return total
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_while_with_else() {
-    let code = r#"
+    let code = r"
 def search(items: list[int], target: int) -> bool:
     i = 0
     while i < len(items):
@@ -211,7 +211,7 @@ def search(items: list[int], target: int) -> bool:
             return True
         i = i + 1
     return False
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -253,12 +253,12 @@ def read_file(path: str) -> str:
 
 #[test]
 fn test_with_as() {
-    let code = r#"
+    let code = r"
 def process(path: str) -> str:
     with open(path) as f:
         content = f.read()
     return content
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -341,34 +341,34 @@ def classify(x: int, y: int) -> str:
 
 #[test]
 fn test_if_and_condition() {
-    let code = r#"
+    let code = r"
 def check(x: int, y: int) -> bool:
     if x > 0 and y > 0:
         return True
     return False
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_if_or_condition() {
-    let code = r#"
+    let code = r"
 def check(x: int, y: int) -> bool:
     if x > 0 or y > 0:
         return True
     return False
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_if_not_condition() {
-    let code = r#"
+    let code = r"
 def check(x: int) -> bool:
     if not x > 0:
         return True
     return False
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -378,113 +378,113 @@ def check(x: int) -> bool:
 
 #[test]
 fn test_for_range() {
-    let code = r#"
+    let code = r"
 def sum_range(n: int) -> int:
     total = 0
     for i in range(n):
         total = total + i
     return total
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_for_list() {
-    let code = r#"
+    let code = r"
 def sum_list(nums: list[int]) -> int:
     total = 0
     for n in nums:
         total = total + n
     return total
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_for_enumerate() {
-    let code = r#"
+    let code = r"
 def find_index(items: list[str], target: str) -> int:
     for i, item in enumerate(items):
         if item == target:
             return i
     return -1
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_for_zip() {
-    let code = r#"
+    let code = r"
 def add_pairs(a: list[int], b: list[int]) -> list[int]:
     result: list[int] = []
     for x, y in zip(a, b):
         result.append(x + y)
     return result
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_for_dict_items() {
-    let code = r#"
+    let code = r"
 def print_dict(d: dict[str, int]) -> None:
     for k, v in d.items():
         print(k, v)
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_for_dict_keys() {
-    let code = r#"
+    let code = r"
 def get_keys(d: dict[str, int]) -> list[str]:
     result: list[str] = []
     for k in d.keys():
         result.append(k)
     return result
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_for_dict_values() {
-    let code = r#"
+    let code = r"
 def sum_values(d: dict[str, int]) -> int:
     total = 0
     for v in d.values():
         total = total + v
     return total
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_for_string() {
-    let code = r#"
+    let code = r"
 def count_chars(s: str) -> int:
     count = 0
     for c in s:
         count = count + 1
     return count
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_for_with_break() {
-    let code = r#"
+    let code = r"
 def find_first(nums: list[int], target: int) -> bool:
     for n in nums:
         if n == target:
             return True
     return False
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_for_with_continue() {
-    let code = r#"
+    let code = r"
 def sum_positive(nums: list[int]) -> int:
     total = 0
     for n in nums:
@@ -492,20 +492,20 @@ def sum_positive(nums: list[int]) -> int:
             continue
         total = total + n
     return total
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_for_nested() {
-    let code = r#"
+    let code = r"
 def matrix_sum(matrix: list[list[int]]) -> int:
     total = 0
     for row in matrix:
         for val in row:
             total = total + val
     return total
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -515,31 +515,31 @@ def matrix_sum(matrix: list[list[int]]) -> int:
 
 #[test]
 fn test_assign_simple() {
-    let code = r#"
+    let code = r"
 def process() -> int:
     x = 5
     return x
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_assign_with_type() {
-    let code = r#"
+    let code = r"
 def process() -> int:
     x: int = 5
     return x
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_assign_list() {
-    let code = r#"
+    let code = r"
 def process() -> list[int]:
     x: list[int] = [1, 2, 3]
     return x
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -555,64 +555,64 @@ def process() -> dict[str, int]:
 
 #[test]
 fn test_assign_tuple_unpack() {
-    let code = r#"
+    let code = r"
 def process() -> int:
     a, b = 1, 2
     return a + b
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_assign_from_function() {
-    let code = r#"
+    let code = r"
 def get_value() -> int:
     return 42
 
 def process() -> int:
     x = get_value()
     return x
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_assign_augmented_add() {
-    let code = r#"
+    let code = r"
 def process(x: int) -> int:
     x += 1
     return x
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_assign_augmented_sub() {
-    let code = r#"
+    let code = r"
 def process(x: int) -> int:
     x -= 1
     return x
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_assign_augmented_mul() {
-    let code = r#"
+    let code = r"
 def process(x: int) -> int:
     x *= 2
     return x
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_assign_augmented_div() {
-    let code = r#"
+    let code = r"
 def process(x: float) -> float:
     x /= 2.0
     return x
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -622,11 +622,11 @@ def process(x: float) -> float:
 
 #[test]
 fn test_assign_index_list() {
-    let code = r#"
+    let code = r"
 def process(nums: list[int]) -> list[int]:
     nums[0] = 100
     return nums
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -642,11 +642,11 @@ def process(d: dict[str, int]) -> dict[str, int]:
 
 #[test]
 fn test_assign_index_nested() {
-    let code = r#"
+    let code = r"
 def process(matrix: list[list[int]]) -> list[list[int]]:
     matrix[0][0] = 100
     return matrix
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -656,7 +656,7 @@ def process(matrix: list[list[int]]) -> list[list[int]]:
 
 #[test]
 fn test_assign_attribute() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self) -> None:
         self.x: int = 0
@@ -664,7 +664,7 @@ class Point:
 
     def set_x(self, val: int) -> None:
         self.x = val
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -674,19 +674,19 @@ class Point:
 
 #[test]
 fn test_try_except_simple() {
-    let code = r#"
+    let code = r"
 def safe_divide(a: int, b: int) -> int:
     try:
         return a // b
     except ZeroDivisionError:
         return 0
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_try_except_multiple() {
-    let code = r#"
+    let code = r"
 def safe_process(x: int) -> int:
     try:
         return x
@@ -694,7 +694,7 @@ def safe_process(x: int) -> int:
         return 0
     except TypeError:
         return -1
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -714,13 +714,13 @@ def process_with_cleanup(x: int) -> int:
 
 #[test]
 fn test_try_except_as() {
-    let code = r#"
+    let code = r"
 def safe_process(x: int) -> str:
     try:
         return str(x)
     except Exception as e:
         return str(e)
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -730,67 +730,67 @@ def safe_process(x: int) -> str:
 
 #[test]
 fn test_truthiness_list() {
-    let code = r#"
+    let code = r"
 def is_empty(items: list[int]) -> bool:
     if items:
         return False
     return True
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_truthiness_dict() {
-    let code = r#"
+    let code = r"
 def is_empty(d: dict[str, int]) -> bool:
     if d:
         return False
     return True
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_truthiness_string() {
-    let code = r#"
+    let code = r"
 def is_empty(s: str) -> bool:
     if s:
         return False
     return True
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_truthiness_int() {
-    let code = r#"
+    let code = r"
 def is_zero(x: int) -> bool:
     if x:
         return False
     return True
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_truthiness_negated_list() {
-    let code = r#"
+    let code = r"
 def is_empty(items: list[int]) -> bool:
     if not items:
         return True
     return False
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_truthiness_negated_string() {
-    let code = r#"
+    let code = r"
 def is_empty(s: str) -> bool:
     if not s:
         return True
     return False
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -824,34 +824,34 @@ def write_file(path: str, content: str) -> None:
 
 #[test]
 fn test_stdin() {
-    let code = r#"
+    let code = r"
 import sys
 
 def read_input() -> str:
     return sys.stdin.read()
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_stdout() {
-    let code = r#"
+    let code = r"
 import sys
 
 def write_output(s: str) -> None:
     sys.stdout.write(s)
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_stderr() {
-    let code = r#"
+    let code = r"
 import sys
 
 def write_error(s: str) -> None:
     sys.stderr.write(s)
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -861,19 +861,19 @@ def write_error(s: str) -> None:
 
 #[test]
 fn test_dict_get() {
-    let code = r#"
+    let code = r"
 def get_value(d: dict[str, int], key: str) -> int:
     return d[key]
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_dict_get_default() {
-    let code = r#"
+    let code = r"
 def get_value(d: dict[str, int], key: str) -> int:
     return d.get(key, 0)
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -894,11 +894,11 @@ def process() -> int:
 
 #[test]
 fn test_var_type_inferred() {
-    let code = r#"
+    let code = r"
 def process() -> int:
     x = 5
     return x
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -908,19 +908,19 @@ def process() -> int:
 
 #[test]
 fn test_nested_index_2d() {
-    let code = r#"
+    let code = r"
 def get_element(matrix: list[list[int]], i: int, j: int) -> int:
     return matrix[i][j]
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_nested_index_3d() {
-    let code = r#"
+    let code = r"
 def get_element(cube: list[list[list[int]]], i: int, j: int, k: int) -> int:
     return cube[i][j][k]
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -930,23 +930,23 @@ def get_element(cube: list[list[list[int]]], i: int, j: int, k: int) -> int:
 
 #[test]
 fn test_nested_function() {
-    let code = r#"
+    let code = r"
 def outer(x: int) -> int:
     def inner(y: int) -> int:
         return y + 1
     return inner(x)
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_closure() {
-    let code = r#"
+    let code = r"
 def make_adder(n: int) -> int:
     def add(x: int) -> int:
         return x + n
     return add(5)
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -956,13 +956,13 @@ def make_adder(n: int) -> int:
 
 #[test]
 fn test_optional_return() {
-    let code = r#"
+    let code = r"
 def find_value(items: list[int], target: int) -> int:
     for i, item in enumerate(items):
         if item == target:
             return i
     return -1
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1021,10 +1021,10 @@ def split_string(s: str) -> list[str]:
 
 #[test]
 fn test_string_strip() {
-    let code = r#"
+    let code = r"
 def clean_string(s: str) -> str:
     return s.strip()
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1034,57 +1034,57 @@ def clean_string(s: str) -> str:
 
 #[test]
 fn test_list_append() {
-    let code = r#"
+    let code = r"
 def add_item(items: list[int], x: int) -> list[int]:
     items.append(x)
     return items
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_list_extend() {
-    let code = r#"
+    let code = r"
 def add_items(items: list[int], more: list[int]) -> list[int]:
     items.extend(more)
     return items
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_list_pop() {
-    let code = r#"
+    let code = r"
 def remove_last(items: list[int]) -> int:
     return items.pop()
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_list_len() {
-    let code = r#"
+    let code = r"
 def count_items(items: list[int]) -> int:
     return len(items)
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_list_comprehension() {
-    let code = r#"
+    let code = r"
 def double_items(items: list[int]) -> list[int]:
     return [x * 2 for x in items]
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_list_comprehension_with_filter() {
-    let code = r#"
+    let code = r"
 def filter_positive(items: list[int]) -> list[int]:
     return [x for x in items if x > 0]
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1094,38 +1094,38 @@ def filter_positive(items: list[int]) -> list[int]:
 
 #[test]
 fn test_dict_update() {
-    let code = r#"
+    let code = r"
 def update_dict(d: dict[str, int], key: str, val: int) -> dict[str, int]:
     d[key] = val
     return d
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_dict_contains() {
-    let code = r#"
+    let code = r"
 def has_key(d: dict[str, int], key: str) -> bool:
     return key in d
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_dict_pop() {
-    let code = r#"
+    let code = r"
 def remove_key(d: dict[str, int], key: str) -> int:
     return d.pop(key)
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_dict_comprehension() {
-    let code = r#"
+    let code = r"
 def square_dict(items: list[int]) -> dict[int, int]:
     return {x: x * x for x in items}
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1135,20 +1135,20 @@ def square_dict(items: list[int]) -> dict[int, int]:
 
 #[test]
 fn test_floor_div() {
-    let code = r#"
+    let code = r"
 def divide(a: int, b: int) -> int:
     return a // b
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_floor_div_assign() {
-    let code = r#"
+    let code = r"
 def divide(a: int, b: int) -> int:
     a //= b
     return a
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1158,14 +1158,14 @@ def divide(a: int, b: int) -> int:
 
 #[test]
 fn test_early_return() {
-    let code = r#"
+    let code = r"
 def validate(x: int) -> bool:
     if x < 0:
         return False
     if x > 100:
         return False
     return True
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -1184,13 +1184,13 @@ def classify(x: int) -> str:
 
 #[test]
 fn test_loop_with_return() {
-    let code = r#"
+    let code = r"
 def find_even(nums: list[int]) -> int:
     for n in nums:
         if n % 2 == 0:
             return n
     return -1
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -1200,30 +1200,30 @@ def find_even(nums: list[int]) -> int:
 
 #[test]
 fn test_walrus_operator() {
-    let code = r#"
+    let code = r"
 def process(items: list[int]) -> int:
     if (n := len(items)) > 0:
         return n
     return 0
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_ternary_expression() {
-    let code = r#"
+    let code = r"
 def max_val(a: int, b: int) -> int:
     return a if a > b else b
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_chained_comparison() {
-    let code = r#"
+    let code = r"
 def in_range(x: int, low: int, high: int) -> bool:
     return low <= x <= high
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1233,10 +1233,10 @@ def in_range(x: int, low: int, high: int) -> bool:
 
 #[test]
 fn test_empty_function() {
-    let code = r#"
+    let code = r"
 def empty() -> None:
     pass
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -1252,23 +1252,23 @@ def documented() -> None:
 
 #[test]
 fn test_multiple_statements() {
-    let code = r#"
+    let code = r"
 def multi(x: int) -> int:
     a = x + 1
     b = a + 1
     c = b + 1
     return c
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_assignment_chain() {
-    let code = r#"
+    let code = r"
 def chain() -> int:
     a = b = c = 0
     return a + b + c
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1278,50 +1278,50 @@ def chain() -> int:
 
 #[test]
 fn test_nested_recursive_function() {
-    let code = r#"
+    let code = r"
 def outer(n: int) -> int:
     def factorial(x: int) -> int:
         if x <= 1:
             return 1
         return x * factorial(x - 1)
     return factorial(n)
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_nested_function_with_closure() {
-    let code = r#"
+    let code = r"
 def make_multiplier(factor: int) -> int:
     def multiply(x: int) -> int:
         return x * factor
     return multiply(10)
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_nested_function_captures_outer() {
-    let code = r#"
+    let code = r"
 def outer() -> int:
     count = 0
     def increment() -> int:
         return count + 1
     return increment()
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_deeply_nested_functions() {
-    let code = r#"
+    let code = r"
 def level1(a: int) -> int:
     def level2(b: int) -> int:
         def level3(c: int) -> int:
             return c + 1
         return level3(b)
     return level2(a)
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1331,38 +1331,38 @@ def level1(a: int) -> int:
 
 #[test]
 fn test_lambda_simple() {
-    let code = r#"
+    let code = r"
 def apply(x: int) -> int:
     f = lambda y: y + 1
     return f(x)
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_lambda_in_map() {
-    let code = r#"
+    let code = r"
 def double_all(items: list[int]) -> list[int]:
     return list(map(lambda x: x * 2, items))
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_lambda_in_filter() {
-    let code = r#"
+    let code = r"
 def get_positives(items: list[int]) -> list[int]:
     return list(filter(lambda x: x > 0, items))
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_lambda_in_sorted() {
-    let code = r#"
+    let code = r"
 def sort_by_abs(items: list[int]) -> list[int]:
     return sorted(items, key=lambda x: abs(x))
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1372,37 +1372,37 @@ def sort_by_abs(items: list[int]) -> list[int]:
 
 #[test]
 fn test_set_comprehension() {
-    let code = r#"
+    let code = r"
 def unique_squares(items: list[int]) -> set[int]:
     return {x * x for x in items}
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_nested_list_comprehension() {
-    let code = r#"
+    let code = r"
 def flatten(matrix: list[list[int]]) -> list[int]:
     return [x for row in matrix for x in row]
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_comprehension_with_condition() {
-    let code = r#"
+    let code = r"
 def even_squares(items: list[int]) -> list[int]:
     return [x * x for x in items if x % 2 == 0]
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_generator_expression() {
-    let code = r#"
+    let code = r"
 def sum_squares(items: list[int]) -> int:
     return sum(x * x for x in items)
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1412,46 +1412,46 @@ def sum_squares(items: list[int]) -> int:
 
 #[test]
 fn test_slice_start() {
-    let code = r#"
+    let code = r"
 def tail(items: list[int]) -> list[int]:
     return items[1:]
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_slice_stop() {
-    let code = r#"
+    let code = r"
 def head(items: list[int]) -> list[int]:
     return items[:3]
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_slice_step() {
-    let code = r#"
+    let code = r"
 def every_other(items: list[int]) -> list[int]:
     return items[::2]
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_slice_negative() {
-    let code = r#"
+    let code = r"
 def last_three(items: list[int]) -> list[int]:
     return items[-3:]
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_slice_reverse() {
-    let code = r#"
+    let code = r"
 def reverse(items: list[int]) -> list[int]:
     return items[::-1]
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1492,21 +1492,21 @@ def format_items(items: list[int]) -> str:
 
 #[test]
 fn test_yield_simple() {
-    let code = r#"
+    let code = r"
 def count_up(n: int) -> int:
     for i in range(n):
         yield i
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_yield_expression() {
-    let code = r#"
+    let code = r"
 def squares(n: int) -> int:
     for i in range(n):
         yield i * i
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1516,10 +1516,10 @@ def squares(n: int) -> int:
 
 #[test]
 fn test_async_function() {
-    let code = r#"
+    let code = r"
 async def fetch(url: str) -> str:
     return url
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1539,18 +1539,18 @@ async def process() -> str:
 
 #[test]
 fn test_walrus_in_if() {
-    let code = r#"
+    let code = r"
 def process(items: list[int]) -> int:
     if (n := len(items)) > 0:
         return n
     return 0
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_walrus_in_while() {
-    let code = r#"
+    let code = r"
 def read_chunks(data: list[int]) -> int:
     total = 0
     i = 0
@@ -1558,16 +1558,16 @@ def read_chunks(data: list[int]) -> int:
         total = total + chunk
         i = i + 1
     return total
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_walrus_in_list_comp() {
-    let code = r#"
+    let code = r"
 def process(items: list[int]) -> list[int]:
     return [y for x in items if (y := x * 2) > 0]
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1577,10 +1577,10 @@ def process(items: list[int]) -> list[int]:
 
 #[test]
 fn test_borrow_variable() {
-    let code = r#"
+    let code = r"
 def process(items: list[int]) -> int:
     return len(items)
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
@@ -1613,19 +1613,19 @@ def classify(x: int) -> str:
 
 #[test]
 fn test_dict_comprehension_simple() {
-    let code = r#"
+    let code = r"
 def square_dict(items: list[int]) -> dict[int, int]:
     return {x: x * x for x in items}
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_dict_comprehension_with_filter() {
-    let code = r#"
+    let code = r"
 def positive_squares(items: list[int]) -> dict[int, int]:
     return {x: x * x for x in items if x > 0}
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1635,7 +1635,7 @@ def positive_squares(items: list[int]) -> dict[int, int]:
 
 #[test]
 fn test_try_with_orelse() {
-    let code = r#"
+    let code = r"
 def safe_process(x: int) -> int:
     try:
         result = x * 2
@@ -1644,13 +1644,13 @@ def safe_process(x: int) -> int:
     else:
         result = result + 1
     return result
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_try_nested() {
-    let code = r#"
+    let code = r"
 def complex_process(x: int) -> int:
     try:
         try:
@@ -1659,7 +1659,7 @@ def complex_process(x: int) -> int:
             return 0
     except TypeError:
         return -1
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1695,38 +1695,38 @@ def copy_file(src: str, dst: str) -> None:
 
 #[test]
 fn test_for_with_else() {
-    let code = r#"
+    let code = r"
 def find_target(items: list[int], target: int) -> int:
     for i, item in enumerate(items):
         if item == target:
             return i
     else:
         return -1
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_for_range_step() {
-    let code = r#"
+    let code = r"
 def sum_even_indices(items: list[int]) -> int:
     total = 0
     for i in range(0, len(items), 2):
         total = total + items[i]
     return total
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_for_range_negative_step() {
-    let code = r#"
+    let code = r"
 def reverse_sum(n: int) -> int:
     total = 0
     for i in range(n, 0, -1):
         total = total + i
     return total
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1736,81 +1736,81 @@ def reverse_sum(n: int) -> int:
 
 #[test]
 fn test_augassign_floordiv() {
-    let code = r#"
+    let code = r"
 def halve(x: int) -> int:
     x //= 2
     return x
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_augassign_mod() {
-    let code = r#"
+    let code = r"
 def mod_ten(x: int) -> int:
     x %= 10
     return x
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_augassign_pow() {
-    let code = r#"
+    let code = r"
 def square(x: int) -> int:
     x **= 2
     return x
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_augassign_bitand() {
-    let code = r#"
+    let code = r"
 def mask(x: int) -> int:
     x &= 0xFF
     return x
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_augassign_bitor() {
-    let code = r#"
+    let code = r"
 def set_bits(x: int) -> int:
     x |= 0x01
     return x
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_augassign_bitxor() {
-    let code = r#"
+    let code = r"
 def toggle_bit(x: int) -> int:
     x ^= 0x01
     return x
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_augassign_lshift() {
-    let code = r#"
+    let code = r"
 def double(x: int) -> int:
     x <<= 1
     return x
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_augassign_rshift() {
-    let code = r#"
+    let code = r"
 def halve_bits(x: int) -> int:
     x >>= 1
     return x
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1820,20 +1820,20 @@ def halve_bits(x: int) -> int:
 
 #[test]
 fn test_index_augassign() {
-    let code = r#"
+    let code = r"
 def increment_first(items: list[int]) -> list[int]:
     items[0] += 1
     return items
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_dict_nested_assign() {
-    let code = r#"
+    let code = r"
 def set_nested(d: dict[str, dict[str, int]], outer: str, inner: str, val: int) -> None:
     d[outer][inner] = val
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1843,28 +1843,28 @@ def set_nested(d: dict[str, dict[str, int]], outer: str, inner: str, val: int) -
 
 #[test]
 fn test_sorted_with_key() {
-    let code = r#"
+    let code = r"
 def sort_by_length(items: list[str]) -> list[str]:
     return sorted(items, key=len)
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_sorted_with_reverse() {
-    let code = r#"
+    let code = r"
 def sort_descending(items: list[int]) -> list[int]:
     return sorted(items, reverse=True)
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_sorted_with_key_and_reverse() {
-    let code = r#"
+    let code = r"
 def sort_by_length_desc(items: list[str]) -> list[str]:
     return sorted(items, key=len, reverse=True)
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1874,37 +1874,37 @@ def sort_by_length_desc(items: list[str]) -> list[str]:
 
 #[test]
 fn test_binary_is() {
-    let code = r#"
+    let code = r"
 def check_none(x: int) -> bool:
     return x is None
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_binary_is_not() {
-    let code = r#"
+    let code = r"
 def check_not_none(x: int) -> bool:
     return x is not None
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_binary_in() {
-    let code = r#"
+    let code = r"
 def contains(items: list[int], x: int) -> bool:
     return x in items
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_binary_not_in() {
-    let code = r#"
+    let code = r"
 def not_contains(items: list[int], x: int) -> bool:
     return x not in items
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1914,10 +1914,10 @@ def not_contains(items: list[int], x: int) -> bool:
 
 #[test]
 fn test_method_chain() {
-    let code = r#"
+    let code = r"
 def process(s: str) -> str:
     return s.strip().lower()
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1936,18 +1936,18 @@ def get_words() -> list[str]:
 
 #[test]
 fn test_class_classmethod() {
-    let code = r#"
+    let code = r"
 class Factory:
     @classmethod
     def create(cls) -> int:
         return 0
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_class_property() {
-    let code = r#"
+    let code = r"
 class Rectangle:
     def __init__(self, w: int, h: int) -> None:
         self.width = w
@@ -1956,7 +1956,7 @@ class Rectangle:
     @property
     def area(self) -> int:
         return self.width * self.height
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -1966,25 +1966,25 @@ class Rectangle:
 
 #[test]
 fn test_except_index_error() {
-    let code = r#"
+    let code = r"
 def safe_get(items: list[int], i: int) -> int:
     try:
         return items[i]
     except IndexError:
         return -1
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_except_key_error() {
-    let code = r#"
+    let code = r"
 def safe_get(d: dict[str, int], key: str) -> int:
     try:
         return d[key]
     except KeyError:
         return 0
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -2006,19 +2006,19 @@ def safe_attr(obj: object) -> str:
 
 #[test]
 fn test_chained_less_than() {
-    let code = r#"
+    let code = r"
 def in_range(x: int, low: int, high: int) -> bool:
     return low < x < high
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_chained_less_equal() {
-    let code = r#"
+    let code = r"
 def in_range_inclusive(x: int, low: int, high: int) -> bool:
     return low <= x <= high
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -2028,10 +2028,10 @@ def in_range_inclusive(x: int, low: int, high: int) -> bool:
 
 #[test]
 fn test_frozenset_literal() {
-    let code = r#"
+    let code = r"
 def get_constants() -> frozenset[int]:
     return frozenset({1, 2, 3})
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -2041,31 +2041,31 @@ def get_constants() -> frozenset[int]:
 
 #[test]
 fn test_tuple_unpack_three() {
-    let code = r#"
+    let code = r"
 def process() -> int:
     a, b, c = 1, 2, 3
     return a + b + c
-"#;
+";
     assert!(transpile_succeeds(code));
 }
 
 #[test]
 fn test_tuple_unpack_nested() {
-    let code = r#"
+    let code = r"
 def process() -> int:
     (a, b), c = (1, 2), 3
     return a + b + c
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_star_unpack() {
-    let code = r#"
+    let code = r"
 def process(items: list[int]) -> int:
     first, *rest = items
     return first + len(rest)
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -2075,20 +2075,20 @@ def process(items: list[int]) -> int:
 
 #[test]
 fn test_global_var() {
-    let code = r#"
+    let code = r"
 counter = 0
 
 def increment() -> int:
     global counter
     counter = counter + 1
     return counter
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_nonlocal_var() {
-    let code = r#"
+    let code = r"
 def outer() -> int:
     count = 0
     def inner() -> int:
@@ -2096,7 +2096,7 @@ def outer() -> int:
         count = count + 1
         return count
     return inner()
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -2359,14 +2359,14 @@ def main() -> None:
 
 #[test]
 fn test_argparse_set_defaults() {
-    let code = r#"
+    let code = r"
 import argparse
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.set_defaults(verbose=False)
     args = parser.parse_args()
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -2437,23 +2437,23 @@ def main() -> None:
 
 #[test]
 fn test_json_loads() {
-    let code = r#"
+    let code = r"
 import json
 
 def parse(s: str) -> dict[str, int]:
     return json.loads(s)
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_json_dumps() {
-    let code = r#"
+    let code = r"
 import json
 
 def serialize(d: dict[str, int]) -> str:
     return json.dumps(d)
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -2499,19 +2499,19 @@ def get_count(s: str) -> int:
 
 #[test]
 fn test_except_bare_raise() {
-    let code = r#"
+    let code = r"
 def process(x: int) -> int:
     try:
         return x
     except ValueError:
         raise
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_except_exit_in_handler() {
-    let code = r#"
+    let code = r"
 import sys
 
 def process(x: int) -> int:
@@ -2519,13 +2519,13 @@ def process(x: int) -> int:
         return x
     except ValueError:
         sys.exit(1)
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_except_with_continue() {
-    let code = r#"
+    let code = r"
 def process(items: list[int]) -> int:
     total = 0
     for item in items:
@@ -2534,13 +2534,13 @@ def process(items: list[int]) -> int:
         except ValueError:
             continue
     return total
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_except_with_break() {
-    let code = r#"
+    let code = r"
 def process(items: list[int]) -> int:
     for item in items:
         try:
@@ -2548,7 +2548,7 @@ def process(items: list[int]) -> int:
         except ValueError:
             break
     return 0
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -2631,21 +2631,21 @@ def classify(point: tuple[int, int]) -> str:
 
 #[test]
 fn test_assign_to_slice() {
-    let code = r#"
+    let code = r"
 def replace_slice(items: list[int]) -> list[int]:
     items[1:3] = [10, 20]
     return items
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_assign_delete() {
-    let code = r#"
+    let code = r"
 def remove_key(d: dict[str, int], key: str) -> dict[str, int]:
     del d[key]
     return d
-"#;
+";
     let _ = transpile(code);
 }
 
@@ -2655,28 +2655,28 @@ def remove_key(d: dict[str, int], key: str) -> dict[str, int]:
 
 #[test]
 fn test_iter_take() {
-    let code = r#"
+    let code = r"
 def first_three(items: list[int]) -> list[int]:
     return list(iter(items).take(3))
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_iter_skip() {
-    let code = r#"
+    let code = r"
 def skip_three(items: list[int]) -> list[int]:
     return list(iter(items).skip(3))
-"#;
+";
     let _ = transpile(code);
 }
 
 #[test]
 fn test_iter_chain() {
-    let code = r#"
+    let code = r"
 def combine(a: list[int], b: list[int]) -> list[int]:
     return list(iter(a).chain(b))
-"#;
+";
     let _ = transpile(code);
 }
 

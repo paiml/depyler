@@ -26,24 +26,24 @@ def valid_emails(emails: list) -> list:
     return [e.strip().lower() for e in emails if "@" in e and "." in e]
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn valid_emails"), "Got: {}", result);
+    assert!(result.contains("fn valid_emails"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b65_dictcomp_method() {
-    let code = r#"
+    let code = r"
 def word_lengths(text: str) -> dict:
     return {word: len(word) for word in text.split() if len(word) > 0}
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn word_lengths"), "Got: {}", result);
+    assert!(result.contains("fn word_lengths"), "Got: {result}");
 }
 
 // ===== Loop + accumulator + condition =====
 
 #[test]
 fn test_s12_b65_loop_acc_cond() {
-    let code = r##"
+    let code = r#"
 def summarize(items: list) -> dict:
     pos = 0
     neg = 0
@@ -56,16 +56,16 @@ def summarize(items: list) -> dict:
         else:
             zeros += 1
     return {"positive": pos, "negative": neg, "zero": zeros}
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn summarize"), "Got: {}", result);
+    assert!(result.contains("fn summarize"), "Got: {result}");
 }
 
 // ===== Class + method + comprehension =====
 
 #[test]
 fn test_s12_b65_class_method_comp() {
-    let code = r#"
+    let code = r"
 class WordCounter:
     def __init__(self):
         self.counts = {}
@@ -83,24 +83,24 @@ class WordCounter:
 
     def total_words(self) -> int:
         return sum(self.counts.values())
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("WordCounter"), "Got: {}", result);
+    assert!(result.contains("WordCounter"), "Got: {result}");
 }
 
 // ===== Function + lambda + comprehension =====
 
 #[test]
 fn test_s12_b65_func_lambda_comp() {
-    let code = r#"
+    let code = r"
 def apply_ops(items: list, ops: list) -> list:
     result = list(items)
     for op in ops:
         result = [op(x) for x in result]
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn apply_ops"), "Got: {}", result);
+    assert!(result.contains("fn apply_ops"), "Got: {result}");
 }
 
 // ===== String processing pipeline =====
@@ -118,14 +118,14 @@ def clean_text(text: str) -> str:
     return "\n".join(cleaned)
 "##;
     let result = transpile(code);
-    assert!(result.contains("fn clean_text"), "Got: {}", result);
+    assert!(result.contains("fn clean_text"), "Got: {result}");
 }
 
 // ===== Dict + set + list interaction =====
 
 #[test]
 fn test_s12_b65_collection_interaction() {
-    let code = r#"
+    let code = r"
 def find_duplicates(items: list) -> list:
     seen = set()
     duplicates = set()
@@ -134,9 +134,9 @@ def find_duplicates(items: list) -> list:
             duplicates.add(item)
         seen.add(item)
     return sorted(list(duplicates))
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn find_duplicates"), "Got: {}", result);
+    assert!(result.contains("fn find_duplicates"), "Got: {result}");
 }
 
 // ===== Multiple helper functions =====
@@ -163,16 +163,16 @@ def replace_vowels(text: str, replacement: str) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn is_vowel"), "Got: {}", result);
-    assert!(result.contains("fn count_vowels"), "Got: {}", result);
-    assert!(result.contains("fn remove_vowels"), "Got: {}", result);
+    assert!(result.contains("fn is_vowel"), "Got: {result}");
+    assert!(result.contains("fn count_vowels"), "Got: {result}");
+    assert!(result.contains("fn remove_vowels"), "Got: {result}");
 }
 
 // ===== Complex data transformation =====
 
 #[test]
 fn test_s12_b65_data_transform() {
-    let code = r##"
+    let code = r#"
 def normalize_records(records: list) -> list:
     if not records:
         return []
@@ -187,16 +187,16 @@ def normalize_records(records: list) -> list:
             normalized[key] = record.get(key, "")
         result.append(normalized)
     return result
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn normalize_records"), "Got: {}", result);
+    assert!(result.contains("fn normalize_records"), "Got: {result}");
 }
 
 // ===== Error handling pipeline =====
 
 #[test]
 fn test_s12_b65_error_pipeline() {
-    let code = r#"
+    let code = r"
 def safe_process(items: list) -> list:
     results = []
     errors = []
@@ -207,16 +207,16 @@ def safe_process(items: list) -> list:
         except ValueError:
             errors.append(item)
     return results
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn safe_process"), "Got: {}", result);
+    assert!(result.contains("fn safe_process"), "Got: {result}");
 }
 
 // ===== Recursive + accumulator =====
 
 #[test]
 fn test_s12_b65_recursive_acc() {
-    let code = r#"
+    let code = r"
 def flatten_deep(items: list) -> list:
     result = []
     for item in items:
@@ -225,16 +225,16 @@ def flatten_deep(items: list) -> list:
         else:
             result.append(item)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn flatten_deep"), "Got: {}", result);
+    assert!(result.contains("fn flatten_deep"), "Got: {result}");
 }
 
 // ===== Complex class with multiple features =====
 
 #[test]
 fn test_s12_b65_complex_class() {
-    let code = r##"
+    let code = r#"
 class TextAnalyzer:
     def __init__(self, text: str):
         self.text = text
@@ -269,16 +269,16 @@ class TextAnalyzer:
             return 0.0
         total = sum(len(w) for w in self.words)
         return total / self.word_count
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("TextAnalyzer"), "Got: {}", result);
+    assert!(result.contains("TextAnalyzer"), "Got: {result}");
 }
 
 // ===== Numeric + boolean + string mix =====
 
 #[test]
 fn test_s12_b65_mixed_types() {
-    let code = r##"
+    let code = r#"
 def format_report(name: str, scores: list) -> str:
     if not scores:
         return f"{name}: no scores"
@@ -286,7 +286,7 @@ def format_report(name: str, scores: list) -> str:
     passed = all(s >= 60 for s in scores)
     status = "PASS" if passed else "FAIL"
     return f"{name}: avg={avg:.1f}, status={status}"
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn format_report"), "Got: {}", result);
+    assert!(result.contains("fn format_report"), "Got: {result}");
 }

@@ -1,13 +1,13 @@
-//! Targeted coverage tests for codegen_assign_stmt function
+//! Targeted coverage tests for `codegen_assign_stmt` function
 //!
-//! Target: codegen_assign_stmt (lines 791-1000, complexity 65)
-//! Coverage gap: 21.74% untested (288/1325 lines in stmt_gen.rs)
+//! Target: `codegen_assign_stmt` (lines 791-1000, complexity 65)
+//! Coverage gap: 21.74% untested (288/1325 lines in `stmt_gen.rs`)
 //! Focus: Dict augmented assignments, type tracking, edge cases
 //!
 //! Test Strategy:
 //! - Dict augmented assignments (+=, -=, *=, /=, %=)
 //! - Type annotation tracking for collections
-//! - String type tracking from Vec<String>.get()
+//! - String type tracking from Vec<String>.`get()`
 //! - List/Set/Dict literal type tracking
 //! - Slicing operation type tracking
 //! - Complex assignment patterns
@@ -17,7 +17,7 @@ use depyler_core::DepylerPipeline;
 /// Unit Test: Dict augmented assignment with +=
 ///
 /// Verifies: DEPYLER-0279 dict augmented assignment pattern (lines 797-825)
-/// Tests: is_dict_augassign_pattern() detection and special handling
+/// Tests: `is_dict_augassign_pattern()` detection and special handling
 #[test]
 fn test_dict_augmented_add() {
     let pipeline = DepylerPipeline::new();
@@ -38,7 +38,7 @@ def increment_dict_value():
 
 /// Unit Test: Dict augmented assignment with -=
 ///
-/// Verifies: BinOp::Sub handling in dict augmented assignment
+/// Verifies: `BinOp::Sub` handling in dict augmented assignment
 #[test]
 fn test_dict_augmented_sub() {
     let pipeline = DepylerPipeline::new();
@@ -55,7 +55,7 @@ def decrement_dict_value():
 
 /// Unit Test: Dict augmented assignment with *=
 ///
-/// Verifies: BinOp::Mul handling in dict augmented assignment
+/// Verifies: `BinOp::Mul` handling in dict augmented assignment
 #[test]
 fn test_dict_augmented_mul() {
     let pipeline = DepylerPipeline::new();
@@ -72,7 +72,7 @@ def multiply_dict_value():
 
 /// Unit Test: Dict augmented assignment with /=
 ///
-/// Verifies: BinOp::Div handling in dict augmented assignment
+/// Verifies: `BinOp::Div` handling in dict augmented assignment
 #[test]
 fn test_dict_augmented_div() {
     let pipeline = DepylerPipeline::new();
@@ -89,7 +89,7 @@ def divide_dict_value():
 
 /// Unit Test: Dict augmented assignment with %=
 ///
-/// Verifies: BinOp::Mod handling in dict augmented assignment
+/// Verifies: `BinOp::Mod` handling in dict augmented assignment
 #[test]
 fn test_dict_augmented_mod() {
     let pipeline = DepylerPipeline::new();
@@ -111,11 +111,11 @@ def modulo_dict_value():
 #[test]
 fn test_type_tracking_list_annotation() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def merge_lists(a: list[int], b: list[int]) -> list[int]:
     result: list[int] = a + b
     return result
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should track that 'result' is Vec<i32> for proper formatting
@@ -146,29 +146,29 @@ def create_mapping() -> dict[str, int]:
 #[test]
 fn test_type_tracking_set_annotation() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def unique_items() -> set[int]:
     items: set[int] = {1, 2, 3}
     return items
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should track that 'items' is HashSet<i32>
     assert!(rust_code.contains("fn unique_items"));
 }
 
-/// Unit Test: Type tracking from Vec<String>.get()
+/// Unit Test: Type tracking from Vec<String>.`get()`
 ///
-/// Verifies: DEPYLER-0327 Fix #1 - String type from Vec<String>.get() (lines 842-910)
+/// Verifies: DEPYLER-0327 Fix #1 - String type from Vec<String>.`get()` (lines 842-910)
 /// This was a specific bug fix for tracking String type from method calls
 #[test]
 fn test_type_tracking_string_from_vec_get() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def get_name(names: list[str], index: int) -> str:
     name = names[index]
     return name
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should track that 'name' is String
@@ -181,11 +181,11 @@ def get_name(names: list[str], index: int) -> str:
 #[test]
 fn test_type_tracking_list_literal() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def literal_list():
     numbers = [1, 2, 3]
     return len(numbers)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should track that 'numbers' is Vec<i32>
@@ -215,11 +215,11 @@ def literal_dict():
 #[test]
 fn test_type_tracking_set_literal() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def literal_set():
     unique = {1, 2, 3}
     return len(unique)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should track that 'unique' is HashSet<i32>
@@ -232,11 +232,11 @@ def literal_set():
 #[test]
 fn test_type_tracking_slice() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def slice_list(items: list[int]) -> list[int]:
     subset = items[1:3]
     return subset
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should track that 'subset' is Vec<i32> from slicing
@@ -249,11 +249,11 @@ def slice_list(items: list[int]) -> list[int]:
 #[test]
 fn test_assignment_with_method_call() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def append_and_return(items: list[int], value: int) -> list[int]:
     items.append(value)
     return items
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle method call in assignment context
@@ -266,11 +266,11 @@ def append_and_return(items: list[int], value: int) -> list[int]:
 #[test]
 fn test_result_unwrapping_assignment() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def safe_get(d: dict[str, int], key: str) -> int:
     value = d[key]
     return value
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should auto-unwrap Result from dict indexing
@@ -283,13 +283,13 @@ def safe_get(d: dict[str, int], key: str) -> int:
 #[test]
 fn test_plain_assignment_no_unwrap() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def accumulate(items: list[int]) -> int:
     total = 0
     for item in items:
         total = total + item
     return total
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should NOT add .unwrap() to plain int assignment
@@ -415,21 +415,21 @@ def test1():
     assert!(rust1.contains("fn test1"));
 
     // Test Case 2: Type annotations must be tracked
-    let type_annot = r#"
+    let type_annot = r"
 def test2() -> list[int]:
     result: list[int] = [1, 2, 3]
     return result
-"#;
+";
     let rust2 = pipeline.transpile(type_annot).unwrap();
     assert!(rust2.contains("fn test2"));
 
     // Test Case 3: Plain assignments should not add unwrap
-    let plain = r#"
+    let plain = r"
 def test3():
     x = 0
     y = x + 1
     return y
-"#;
+";
     let rust3 = pipeline.transpile(plain).unwrap();
     assert!(rust3.contains("fn test3"));
     // Mutation kill: Should NOT have unnecessary .unwrap()

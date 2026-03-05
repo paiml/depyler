@@ -1,6 +1,6 @@
-//! Coverage tests for cargo_toml_gen.rs
+//! Coverage tests for `cargo_toml_gen.rs`
 //!
-//! DEPYLER-99MODE-001: Targets cargo_toml_gen.rs (1,570 lines)
+//! DEPYLER-99MODE-001: Targets `cargo_toml_gen.rs` (1,570 lines)
 //! Covers: dependency detection, Cargo.toml generation, import-to-crate mapping,
 //! feature detection, library vs binary crate type selection.
 
@@ -21,23 +21,23 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_cargo_dep_json_loads() {
-    let code = r#"
+    let code = r"
 import json
 
 def parse(data: str) -> dict:
     return json.loads(data)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_cargo_dep_json_dumps() {
-    let code = r#"
+    let code = r"
 import json
 
 def serialize(data: dict) -> str:
     return json.dumps(data)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -73,12 +73,12 @@ def has_email(text: str) -> bool:
 
 #[test]
 fn test_cargo_dep_datetime() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 
 def now_str() -> str:
     return str(datetime.now())
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -88,23 +88,23 @@ def now_str() -> str:
 
 #[test]
 fn test_cargo_dep_hashlib_sha256() {
-    let code = r#"
+    let code = r"
 import hashlib
 
 def hash_data(data: str) -> str:
     return hashlib.sha256(data.encode()).hexdigest()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_cargo_dep_hashlib_md5() {
-    let code = r#"
+    let code = r"
 import hashlib
 
 def md5_hash(data: str) -> str:
     return hashlib.md5(data.encode()).hexdigest()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -114,12 +114,12 @@ def md5_hash(data: str) -> str:
 
 #[test]
 fn test_cargo_dep_base64() {
-    let code = r#"
+    let code = r"
 import base64
 
 def encode(data: str) -> str:
     return base64.b64encode(data.encode()).decode()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -129,12 +129,12 @@ def encode(data: str) -> str:
 
 #[test]
 fn test_cargo_dep_random() {
-    let code = r#"
+    let code = r"
 import random
 
 def roll_dice() -> int:
     return random.randint(1, 6)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -144,7 +144,7 @@ def roll_dice() -> int:
 
 #[test]
 fn test_cargo_dep_collections_defaultdict() {
-    let code = r#"
+    let code = r"
 from collections import defaultdict
 
 def count_items(items: list) -> dict:
@@ -152,7 +152,7 @@ def count_items(items: list) -> dict:
     for item in items:
         counts[item] += 1
     return dict(counts)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -195,12 +195,12 @@ async def fetch() -> str:
 
 #[test]
 fn test_cargo_dep_math() {
-    let code = r#"
+    let code = r"
 import math
 
 def hypotenuse(a: float, b: float) -> float:
     return math.sqrt(a * a + b * b)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -210,12 +210,12 @@ def hypotenuse(a: float, b: float) -> float:
 
 #[test]
 fn test_cargo_dep_os() {
-    let code = r#"
+    let code = r"
 import os
 
 def cwd() -> str:
     return os.getcwd()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -240,7 +240,7 @@ def process(text: str) -> str:
 
 #[test]
 fn test_cargo_dep_from_imports() {
-    let code = r#"
+    let code = r"
 from collections import defaultdict
 from datetime import datetime
 
@@ -249,7 +249,7 @@ def log_events(events: list) -> dict:
     for event in events:
         counts[event] += 1
     return dict(counts)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -259,19 +259,19 @@ def log_events(events: list) -> dict:
 
 #[test]
 fn test_cargo_dep_no_imports() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_cargo_dep_builtins_only() {
-    let code = r#"
+    let code = r"
 def process(items: list) -> int:
     return sum(items) + len(items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -297,7 +297,7 @@ def main():
 
 #[test]
 fn test_cargo_dep_data_processing() {
-    let code = r#"
+    let code = r"
 import json
 from collections import defaultdict
 
@@ -307,13 +307,13 @@ def analyze(json_str: str) -> dict:
     for item in data:
         counts[item] += 1
     return dict(counts)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_cargo_dep_class_with_imports() {
-    let code = r#"
+    let code = r"
 import json
 
 class DataStore:
@@ -325,6 +325,6 @@ class DataStore:
 
     def dump(self) -> str:
         return json.dumps(self.data)
-"#;
+";
     assert!(transpile_ok(code));
 }

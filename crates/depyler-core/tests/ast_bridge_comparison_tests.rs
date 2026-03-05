@@ -84,9 +84,9 @@ class Service:
 fn test_type_alias_requires_single_target() {
     // Test: Type alias with single target (valid)
     // assign.targets.len() != 1 should be false → continue processing
-    let python = r#"
+    let python = r"
 UserId = int
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -103,9 +103,9 @@ UserId = int
 fn test_multiple_assignment_not_type_alias() {
     // Test: Multiple assignment targets (not a type alias)
     // assign.targets.len() != 1 should be true → skip
-    let python = r#"
+    let python = r"
 x, y = 1, 2
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -124,10 +124,10 @@ x, y = 1, 2
 #[test]
 fn test_type_alias_with_type_params_validated() {
     // Test: Generic type alias with TypeVar
-    let python = r#"
+    let python = r"
 T = TypeVar('T')
 Container = list[T]
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -140,10 +140,10 @@ Container = list[T]
 #[test]
 fn test_type_alias_without_type_params() {
     // Test: Simple type alias without generics
-    let python = r#"
+    let python = r"
 UserId = int
 Name = str
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -162,10 +162,10 @@ Name = str
 #[test]
 fn test_non_generic_class_has_zero_type_params() {
     // Test: class.type_params.len() == 0 for non-generic
-    let python = r#"
+    let python = r"
 class User:
     name: str
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -179,11 +179,11 @@ class User:
 #[test]
 fn test_generic_class_has_type_params() {
     // Test: Generic class with type parameters
-    let python = r#"
+    let python = r"
 T = TypeVar('T')
 class Container:
     value: T
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -201,10 +201,10 @@ class Container:
 #[test]
 fn test_typevar_detection_by_name() {
     // Test: expr.id.as_str() == "TypeVar" correctly identifies TypeVar
-    let python = r#"
+    let python = r"
 T = TypeVar('T')
 U = TypeVar('U')
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let _hir = bridge.python_to_hir(ast).expect("conversion failed");
@@ -217,9 +217,9 @@ U = TypeVar('U')
 #[test]
 fn test_non_typevar_not_detected() {
     // Test: Other function calls are not TypeVar
-    let python = r#"
+    let python = r"
 result = calculate(42)
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let _hir = bridge.python_to_hir(ast).expect("conversion failed");
@@ -236,11 +236,11 @@ result = calculate(42)
 #[test]
 fn test_async_method_with_no_args_validated() {
     // Test: method.args.args.len() == 0 (besides self)
-    let python = r#"
+    let python = r"
 class Service:
     async def initialize(self):
         x = 1
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -255,11 +255,11 @@ class Service:
 #[test]
 fn test_async_method_with_args() {
     // Test: method.args.args.len() > 0 (has parameters besides self)
-    let python = r#"
+    let python = r"
 class Service:
     async def process(self, data, count):
         y = data
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -300,12 +300,12 @@ class Config:
 #[test]
 fn test_non_property_decorator_not_matched() {
     // Test: Other decorators don't match "property"
-    let python = r#"
+    let python = r"
 class Config:
     @cached
     def compute(self):
         x = 42
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");

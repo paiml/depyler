@@ -1,25 +1,25 @@
 //! Mutation Testing: Type Inference Validation
 //!
-//! This test file targets MISSED mutations in ast_bridge.rs:infer_type_from_expr
+//! This test file targets MISSED mutations in `ast_bridge.rs:infer_type_from_expr`
 //! Kill target: Lines 969-985 (type inference match arms)
 //!
 //! MISSED Mutations Being Targeted:
-//! - Line 971: delete match arm ast::Constant::Int(_)
-//! - Line 972: delete match arm ast::Constant::Float(_)
-//! - Line 973: delete match arm ast::Constant::Str(_)
-//! - Line 974: delete match arm ast::Constant::Bool(_)
-//! - Line 975: delete match arm ast::Constant::None
-//! - Line 978: delete match arm ast::Expr::List(_)
-//! - Line 979: delete match arm ast::Expr::Dict(_)
-//! - Line 970: delete match arm ast::Expr::Constant(c)
-//! - Line 982: delete match arm ast::Expr::Set(_)
+//! - Line 971: delete match arm `ast::Constant::Int`(_)
+//! - Line 972: delete match arm `ast::Constant::Float`(_)
+//! - Line 973: delete match arm `ast::Constant::Str`(_)
+//! - Line 974: delete match arm `ast::Constant::Bool`(_)
+//! - Line 975: delete match arm `ast::Constant::None`
+//! - Line 978: delete match arm `ast::Expr::List`(_)
+//! - Line 979: delete match arm `ast::Expr::Dict`(_)
+//! - Line 970: delete match arm `ast::Expr::Constant(c)`
+//! - Line 982: delete match arm `ast::Expr::Set`(_)
 
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::hir::Type;
 use rustpython_parser::{parse, Mode};
 
 /// Helper to test that a Python variable assignment correctly infers the type
-/// from the assigned expression. This exercises infer_type_from_expr through
+/// from the assigned expression. This exercises `infer_type_from_expr` through
 /// the field inference path in class __init__ methods.
 fn assert_field_type_inference(python_code: &str, expected_field_name: &str, expected_type: Type) {
     let ast = parse(python_code, Mode::Module, "<test>").expect("Failed to parse");
@@ -35,7 +35,7 @@ fn assert_field_type_inference(python_code: &str, expected_field_name: &str, exp
         .fields
         .iter()
         .find(|f| f.name == expected_field_name)
-        .unwrap_or_else(|| panic!("Field '{}' not found in class", expected_field_name));
+        .unwrap_or_else(|| panic!("Field '{expected_field_name}' not found in class"));
 
     assert_eq!(
         field.field_type, expected_type,
@@ -50,11 +50,11 @@ fn assert_field_type_inference(python_code: &str, expected_field_name: &str, exp
 
 #[test]
 fn test_infer_type_from_int_literal() {
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.count = 42
-"#;
+";
     assert_field_type_inference(python, "count", Type::Int);
 }
 
@@ -64,11 +64,11 @@ class Config:
 
 #[test]
 fn test_infer_type_from_zero() {
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.zero = 0
-"#;
+";
     assert_field_type_inference(python, "zero", Type::Int);
 }
 
@@ -78,21 +78,21 @@ class Config:
 
 #[test]
 fn test_infer_type_from_float_literal() {
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.pi = 3.14159
-"#;
+";
     assert_field_type_inference(python, "pi", Type::Float);
 }
 
 #[test]
 fn test_infer_type_from_scientific_notation() {
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.speed_of_light = 3.0e8
-"#;
+";
     assert_field_type_inference(python, "speed_of_light", Type::Float);
 }
 
@@ -142,21 +142,21 @@ class Config:
 
 #[test]
 fn test_infer_type_from_true_literal() {
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.enabled = True
-"#;
+";
     assert_field_type_inference(python, "enabled", Type::Bool);
 }
 
 #[test]
 fn test_infer_type_from_false_literal() {
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.disabled = False
-"#;
+";
     assert_field_type_inference(python, "disabled", Type::Bool);
 }
 
@@ -166,11 +166,11 @@ class Config:
 
 #[test]
 fn test_infer_type_from_none_literal() {
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.optional = None
-"#;
+";
     assert_field_type_inference(python, "optional", Type::None);
 }
 
@@ -180,21 +180,21 @@ class Config:
 
 #[test]
 fn test_infer_type_from_empty_list() {
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.items = []
-"#;
+";
     assert_field_type_inference(python, "items", Type::List(Box::new(Type::Unknown)));
 }
 
 #[test]
 fn test_infer_type_from_list_with_elements() {
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.numbers = [1, 2, 3]
-"#;
+";
     assert_field_type_inference(python, "numbers", Type::List(Box::new(Type::Unknown)));
 }
 
@@ -204,11 +204,11 @@ class Config:
 
 #[test]
 fn test_infer_type_from_empty_dict() {
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.mapping = {}
-"#;
+";
     assert_field_type_inference(
         python,
         "mapping",
@@ -236,11 +236,11 @@ class Config:
 
 #[test]
 fn test_infer_type_from_set_literal() {
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.unique_items = {1, 2, 3}
-"#;
+";
     assert_field_type_inference(python, "unique_items", Type::Set(Box::new(Type::Unknown)));
 }
 
@@ -299,7 +299,7 @@ class Config:
             .fields
             .iter()
             .find(|f| f.name == expected_name)
-            .unwrap_or_else(|| panic!("Field '{}' not found", expected_name));
+            .unwrap_or_else(|| panic!("Field '{expected_name}' not found"));
 
         assert_eq!(
             field.field_type, expected_type,
@@ -315,11 +315,11 @@ class Config:
 
 #[test]
 fn test_complex_expression_falls_back_to_unknown() {
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.computed = len([1, 2, 3])
-"#;
+";
 
     let ast = parse(python, Mode::Module, "<test>").expect("Failed to parse");
     let bridge = AstBridge::new();

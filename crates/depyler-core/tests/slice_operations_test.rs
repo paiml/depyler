@@ -6,7 +6,7 @@ use depyler_core::DepylerPipeline;
 fn test_basic_slicing() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test_basic_slices():
     items = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     
@@ -19,17 +19,17 @@ def test_basic_slices():
     copy_all = items[:]
     
     return len(first_three)
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Basic slicing result: {:?}", result);
+    println!("Basic slicing result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated slicing code:\n{}", rust_code);
+        println!("Generated slicing code:\n{rust_code}");
 
         // Check for slice operations
         assert!(
-            rust_code.contains("..") || rust_code.contains("["),
+            rust_code.contains("..") || rust_code.contains('['),
             "Should generate slice operations"
         );
     }
@@ -39,7 +39,7 @@ def test_basic_slices():
 fn test_step_slicing() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test_step_slices():
     numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     
@@ -52,13 +52,13 @@ def test_step_slices():
     reversed_all = numbers[::-1]  # [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
     
     return len(evens)
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Step slicing result: {:?}", result);
+    println!("Step slicing result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated step slicing code:\n{}", rust_code);
+        println!("Generated step slicing code:\n{rust_code}");
     }
 }
 
@@ -82,10 +82,10 @@ def test_negative_indices():
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Negative indices result: {:?}", result);
+    println!("Negative indices result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated negative indexing code:\n{}", rust_code);
+        println!("Generated negative indexing code:\n{rust_code}");
     }
 }
 
@@ -93,7 +93,7 @@ def test_negative_indices():
 fn test_slice_assignment() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test_slice_assignment():
     items = [1, 2, 3, 4, 5]
     
@@ -102,10 +102,10 @@ def test_slice_assignment():
     items[:2] = [10, 15]        # [10, 15, 30, 4, 5]
     
     return len(items)
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Slice assignment result: {:?}", result);
+    println!("Slice assignment result: {result:?}");
 
     // This might not work initially - slice assignment is complex
     assert!(result.is_ok() || result.is_err());
@@ -131,10 +131,10 @@ def test_string_slices():
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("String slicing result: {:?}", result);
+    println!("String slicing result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated string slicing code:\n{}", rust_code);
+        println!("Generated string slicing code:\n{rust_code}");
     }
 }
 
@@ -142,7 +142,7 @@ def test_string_slices():
 fn test_slice_methods() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test_slice_methods():
     numbers = [1, 2, 3, 4, 5]
     
@@ -155,10 +155,10 @@ def test_slice_methods():
     evens = numbers[s2]         # [1, 3, 5]
     
     return len(subset)
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Slice methods result: {:?}", result);
+    println!("Slice methods result: {result:?}");
 
     // This is advanced - might not work initially
     assert!(result.is_ok() || result.is_err());
@@ -168,7 +168,7 @@ def test_slice_methods():
 fn test_complex_slice_expressions() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test_complex_slices():
     matrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
     
@@ -180,10 +180,10 @@ def test_complex_slices():
     submatrix = matrix[1:3]     # [[4, 5, 6], [7, 8, 9]]
     
     return len(first_row)
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Complex slice expressions result: {:?}", result);
+    println!("Complex slice expressions result: {result:?}");
 
     // This tests the interaction with list comprehensions which might not work
     assert!(result.is_ok() || result.is_err());

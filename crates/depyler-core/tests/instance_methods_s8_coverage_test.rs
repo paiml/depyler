@@ -1,4 +1,4 @@
-//! Session 8 coverage tests for expr_gen_instance_methods.rs
+//! Session 8 coverage tests for `expr_gen_instance_methods.rs`
 //! Targets: set ops, regex match, operator overloads, deque, collections,
 //! math constants/functions, string constants, sys module, fractions, timedelta
 
@@ -21,10 +21,10 @@ fn transpile(python_code: &str) -> String {
 #[test]
 fn test_set_intersection_update() {
     let code = transpile(
-        r#"
+        r"
 def f(a: set, b: set) -> None:
     a.intersection_update(b)
-"#,
+",
     );
     assert!(
         code.contains("intersection") || code.contains("retain"),
@@ -35,10 +35,10 @@ def f(a: set, b: set) -> None:
 #[test]
 fn test_set_difference_update() {
     let code = transpile(
-        r#"
+        r"
 def f(a: set, b: set) -> None:
     a.difference_update(b)
-"#,
+",
     );
     assert!(
         code.contains("difference") || code.contains("retain"),
@@ -51,10 +51,10 @@ def f(a: set, b: set) -> None:
 #[test]
 fn test_set_discard() {
     let code = transpile(
-        r#"
+        r"
 def f(s: set) -> None:
     s.discard(42)
-"#,
+",
     );
     assert!(code.contains("remove") || code.contains("discard"), "Should generate discard: {code}");
 }
@@ -62,10 +62,10 @@ def f(s: set) -> None:
 #[test]
 fn test_set_issubset() {
     let code = transpile(
-        r#"
+        r"
 def f(a: set, b: set) -> bool:
     return a.issubset(b)
-"#,
+",
     );
     assert!(code.contains("is_subset"), "Should generate is_subset: {code}");
 }
@@ -73,10 +73,10 @@ def f(a: set, b: set) -> bool:
 #[test]
 fn test_set_issuperset() {
     let code = transpile(
-        r#"
+        r"
 def f(a: set, b: set) -> bool:
     return a.issuperset(b)
-"#,
+",
     );
     assert!(code.contains("is_superset"), "Should generate is_superset: {code}");
 }
@@ -86,12 +86,12 @@ def f(a: set, b: set) -> bool:
 #[test]
 fn test_deque_appendleft() {
     let code = transpile(
-        r#"
+        r"
 from collections import deque
 def f() -> None:
     d = deque()
     d.appendleft(1)
-"#,
+",
     );
     assert!(
         code.contains("push_front") || code.contains("VecDeque"),
@@ -102,12 +102,12 @@ def f() -> None:
 #[test]
 fn test_deque_extendleft() {
     let code = transpile(
-        r#"
+        r"
 from collections import deque
 def f() -> None:
     d = deque()
     d.extendleft([1, 2, 3])
-"#,
+",
     );
     assert!(
         code.contains("push_front") || code.contains("VecDeque"),
@@ -118,13 +118,13 @@ def f() -> None:
 #[test]
 fn test_deque_popleft() {
     let code = transpile(
-        r#"
+        r"
 from collections import deque
 def f() -> int:
     d = deque()
     d.append(1)
     return d.popleft()
-"#,
+",
     );
     assert!(
         code.contains("pop_front") || code.contains("VecDeque"),
@@ -135,12 +135,12 @@ def f() -> int:
 #[test]
 fn test_deque_rotate() {
     let code = transpile(
-        r#"
+        r"
 from collections import deque
 def f() -> None:
     d = deque()
     d.rotate(2)
-"#,
+",
     );
     assert!(code.contains("rotate") || code.contains("VecDeque"), "Should generate rotate: {code}");
 }
@@ -150,14 +150,14 @@ def f() -> None:
 #[test]
 fn test_math_e_constant() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f() -> float:
     return math.e
-"#,
+",
     );
     assert!(
-        code.contains("E") || code.contains("2.71828"),
+        code.contains('E') || code.contains("2.71828"),
         "Should generate math E constant: {code}"
     );
 }
@@ -165,11 +165,11 @@ def f() -> float:
 #[test]
 fn test_math_inf_constant() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f() -> float:
     return math.inf
-"#,
+",
     );
     assert!(
         code.contains("INFINITY") || code.contains("f64::INFINITY"),
@@ -180,11 +180,11 @@ def f() -> float:
 #[test]
 fn test_math_cos() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(x: float) -> float:
     return math.cos(x)
-"#,
+",
     );
     assert!(code.contains("cos"), "Should generate cos: {code}");
 }
@@ -192,11 +192,11 @@ def f(x: float) -> float:
 #[test]
 fn test_math_asin() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(x: float) -> float:
     return math.asin(x)
-"#,
+",
     );
     assert!(code.contains("asin"), "Should generate asin: {code}");
 }
@@ -204,11 +204,11 @@ def f(x: float) -> float:
 #[test]
 fn test_math_acos() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(x: float) -> float:
     return math.acos(x)
-"#,
+",
     );
     assert!(code.contains("acos"), "Should generate acos: {code}");
 }
@@ -216,11 +216,11 @@ def f(x: float) -> float:
 #[test]
 fn test_math_atan() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(x: float) -> float:
     return math.atan(x)
-"#,
+",
     );
     assert!(code.contains("atan"), "Should generate atan: {code}");
 }
@@ -228,11 +228,11 @@ def f(x: float) -> float:
 #[test]
 fn test_math_exp() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(x: float) -> float:
     return math.exp(x)
-"#,
+",
     );
     assert!(code.contains("exp"), "Should generate exp: {code}");
 }
@@ -240,11 +240,11 @@ def f(x: float) -> float:
 #[test]
 fn test_math_floor() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(x: float) -> int:
     return math.floor(x)
-"#,
+",
     );
     assert!(code.contains("floor"), "Should generate floor: {code}");
 }
@@ -252,11 +252,11 @@ def f(x: float) -> int:
 #[test]
 fn test_math_ceil() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(x: float) -> int:
     return math.ceil(x)
-"#,
+",
     );
     assert!(code.contains("ceil"), "Should generate ceil: {code}");
 }
@@ -264,11 +264,11 @@ def f(x: float) -> int:
 #[test]
 fn test_math_fabs() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(x: float) -> float:
     return math.fabs(x)
-"#,
+",
     );
     assert!(code.contains("abs") || code.contains("fabs"), "Should generate abs: {code}");
 }
@@ -276,11 +276,11 @@ def f(x: float) -> float:
 #[test]
 fn test_math_log() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(x: float) -> float:
     return math.log(x)
-"#,
+",
     );
     assert!(code.contains("ln") || code.contains("log"), "Should generate log: {code}");
 }
@@ -288,11 +288,11 @@ def f(x: float) -> float:
 #[test]
 fn test_math_log2() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(x: float) -> float:
     return math.log2(x)
-"#,
+",
     );
     assert!(code.contains("log2"), "Should generate log2: {code}");
 }
@@ -300,11 +300,11 @@ def f(x: float) -> float:
 #[test]
 fn test_math_log10() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(x: float) -> float:
     return math.log10(x)
-"#,
+",
     );
     assert!(code.contains("log10"), "Should generate log10: {code}");
 }
@@ -312,11 +312,11 @@ def f(x: float) -> float:
 #[test]
 fn test_math_pow() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(x: float, y: float) -> float:
     return math.pow(x, y)
-"#,
+",
     );
     assert!(code.contains("pow") || code.contains("powi"), "Should generate pow: {code}");
 }
@@ -324,11 +324,11 @@ def f(x: float, y: float) -> float:
 #[test]
 fn test_math_tan() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(x: float) -> float:
     return math.tan(x)
-"#,
+",
     );
     assert!(code.contains("tan"), "Should generate tan: {code}");
 }
@@ -336,11 +336,11 @@ def f(x: float) -> float:
 #[test]
 fn test_math_atan2() {
     let code = transpile(
-        r#"
+        r"
 import math
 def f(y: float, x: float) -> float:
     return math.atan2(y, x)
-"#,
+",
     );
     assert!(code.contains("atan2"), "Should generate atan2: {code}");
 }
@@ -350,11 +350,11 @@ def f(y: float, x: float) -> float:
 #[test]
 fn test_string_ascii_uppercase() {
     let code = transpile(
-        r#"
+        r"
 import string
 def f() -> str:
     return string.ascii_uppercase
-"#,
+",
     );
     assert!(
         code.contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
@@ -365,11 +365,11 @@ def f() -> str:
 #[test]
 fn test_string_ascii_letters() {
     let code = transpile(
-        r#"
+        r"
 import string
 def f() -> str:
     return string.ascii_letters
-"#,
+",
     );
     assert!(code.contains("abcdefghijklmnopqrstuvwxyz"), "Should generate all letters: {code}");
 }
@@ -377,11 +377,11 @@ def f() -> str:
 #[test]
 fn test_string_digits() {
     let code = transpile(
-        r#"
+        r"
 import string
 def f() -> str:
     return string.digits
-"#,
+",
     );
     assert!(code.contains("0123456789"), "Should generate digits: {code}");
 }
@@ -389,11 +389,11 @@ def f() -> str:
 #[test]
 fn test_string_hexdigits() {
     let code = transpile(
-        r#"
+        r"
 import string
 def f() -> str:
     return string.hexdigits
-"#,
+",
     );
     assert!(code.contains("0123456789abcdefABCDEF"), "Should generate hexdigits: {code}");
 }
@@ -401,15 +401,15 @@ def f() -> str:
 #[test]
 fn test_string_punctuation() {
     let code = transpile(
-        r#"
+        r"
 import string
 def f() -> str:
     return string.punctuation
-"#,
+",
     );
     // Transpiler generates the literal punctuation string
     assert!(
-        code.contains("punctuation") || code.contains("!") || code.contains("#$%"),
+        code.contains("punctuation") || code.contains('!') || code.contains("#$%"),
         "Should generate punctuation: {code}"
     );
 }
@@ -419,11 +419,11 @@ def f() -> str:
 #[test]
 fn test_sys_argv() {
     let code = transpile(
-        r#"
+        r"
 import sys
 def f() -> list:
     return sys.argv
-"#,
+",
     );
     assert!(
         code.contains("args()") || code.contains("env::args"),
@@ -434,11 +434,11 @@ def f() -> list:
 #[test]
 fn test_sys_exit() {
     let code = transpile(
-        r#"
+        r"
 import sys
 def f() -> None:
     sys.exit(1)
-"#,
+",
     );
     assert!(
         code.contains("exit") || code.contains("process::exit"),
@@ -453,11 +453,11 @@ def f() -> None:
 #[test]
 fn test_timedelta_days() {
     let code = transpile(
-        r#"
+        r"
 from datetime import timedelta
 def f(td: timedelta) -> int:
     return td.days
-"#,
+",
     );
     assert!(
         code.contains("days") || code.contains("num_days"),
@@ -468,11 +468,11 @@ def f(td: timedelta) -> int:
 #[test]
 fn test_timedelta_seconds() {
     let code = transpile(
-        r#"
+        r"
 from datetime import timedelta
 def f(td: timedelta) -> int:
     return td.seconds
-"#,
+",
     );
     assert!(
         code.contains("seconds") || code.contains("num_seconds"),
@@ -483,11 +483,11 @@ def f(td: timedelta) -> int:
 #[test]
 fn test_timedelta_total_seconds() {
     let code = transpile(
-        r#"
+        r"
 from datetime import timedelta
 def f(td: timedelta) -> float:
     return td.total_seconds()
-"#,
+",
     );
     assert!(
         code.contains("total_seconds") || code.contains("num_seconds"),
@@ -500,13 +500,13 @@ def f(td: timedelta) -> float:
 #[test]
 fn test_dunder_contains() {
     let code = transpile(
-        r#"
+        r"
 class Container:
     def __init__(self) -> None:
         self.items: list = []
     def __contains__(self, item: int) -> bool:
         return item in self.items
-"#,
+",
     );
     assert!(code.contains("contains"), "Should generate contains method: {code}");
 }
@@ -514,14 +514,14 @@ class Container:
 #[test]
 fn test_dunder_eq() {
     let code = transpile(
-        r#"
+        r"
 class Point:
     def __init__(self, x: int, y: int) -> None:
         self.x = x
         self.y = y
     def __eq__(self, other: object) -> bool:
         return self.x == other.x and self.y == other.y
-"#,
+",
     );
     assert!(code.contains("eq"), "Should generate eq method: {code}");
 }
@@ -529,14 +529,14 @@ class Point:
 #[test]
 fn test_dunder_hash() {
     let code = transpile(
-        r#"
+        r"
 class Point:
     def __init__(self, x: int, y: int) -> None:
         self.x = x
         self.y = y
     def __hash__(self) -> int:
         return hash((self.x, self.y))
-"#,
+",
     );
     assert!(code.contains("hash") || code.contains("Hash"), "Should generate hash: {code}");
 }
@@ -544,27 +544,27 @@ class Point:
 #[test]
 fn test_dunder_gt() {
     let code = transpile(
-        r#"
+        r"
 class Score:
     def __init__(self, value: int) -> None:
         self.value = value
     def __gt__(self, other: object) -> bool:
         return self.value > other.value
-"#,
+",
     );
-    assert!(code.contains("gt") || code.contains(">"), "Should generate gt: {code}");
+    assert!(code.contains("gt") || code.contains('>'), "Should generate gt: {code}");
 }
 
 #[test]
 fn test_dunder_ge() {
     let code = transpile(
-        r#"
+        r"
 class Score:
     def __init__(self, value: int) -> None:
         self.value = value
     def __ge__(self, other: object) -> bool:
         return self.value >= other.value
-"#,
+",
     );
     assert!(code.contains("ge") || code.contains(">="), "Should generate ge: {code}");
 }
@@ -572,27 +572,27 @@ class Score:
 #[test]
 fn test_dunder_lt() {
     let code = transpile(
-        r#"
+        r"
 class Score:
     def __init__(self, value: int) -> None:
         self.value = value
     def __lt__(self, other: object) -> bool:
         return self.value < other.value
-"#,
+",
     );
-    assert!(code.contains("lt") || code.contains("<"), "Should generate lt: {code}");
+    assert!(code.contains("lt") || code.contains('<'), "Should generate lt: {code}");
 }
 
 #[test]
 fn test_dunder_le() {
     let code = transpile(
-        r#"
+        r"
 class Score:
     def __init__(self, value: int) -> None:
         self.value = value
     def __le__(self, other: object) -> bool:
         return self.value <= other.value
-"#,
+",
     );
     assert!(code.contains("le") || code.contains("<="), "Should generate le: {code}");
 }
@@ -619,11 +619,11 @@ def f() -> dict:
 #[test]
 fn test_collections_counter() {
     let code = transpile(
-        r#"
+        r"
 from collections import Counter
 def f(items: list) -> dict:
     return Counter(items)
-"#,
+",
     );
     assert!(
         code.contains("HashMap") || code.contains("Counter") || code.contains("entry"),
@@ -654,11 +654,11 @@ def f(text: str) -> str:
 #[test]
 fn test_regex_search() {
     let code = transpile(
-        r#"
+        r"
 import re
 def f(text: str, pattern: str) -> bool:
     return re.search(pattern, text) is not None
-"#,
+",
     );
     assert!(
         code.contains("Regex") || code.contains("is_match") || code.contains("find"),
@@ -716,10 +716,10 @@ def f(text: str) -> list:
 #[test]
 fn test_str_center() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.center(20)
-"#,
+",
     );
     assert!(
         code.contains("center") || code.contains("pad") || code.contains("format"),
@@ -730,10 +730,10 @@ def f(s: str) -> str:
 #[test]
 fn test_str_zfill() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.zfill(5)
-"#,
+",
     );
     assert!(
         code.contains("zfill") || code.contains("pad") || code.contains("format"),
@@ -744,10 +744,10 @@ def f(s: str) -> str:
 #[test]
 fn test_str_expandtabs() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.expandtabs(4)
-"#,
+",
     );
     assert!(
         code.contains("expandtabs") || code.contains("replace") || code.contains("tab"),
@@ -772,10 +772,10 @@ def f(s: str) -> bytes:
 #[test]
 fn test_str_casefold() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.casefold()
-"#,
+",
     );
     assert!(
         code.contains("to_lowercase") || code.contains("casefold"),
@@ -802,10 +802,10 @@ def f(d: dict) -> int:
 #[test]
 fn test_dict_update() {
     let code = transpile(
-        r#"
+        r"
 def f(a: dict, b: dict) -> None:
     a.update(b)
-"#,
+",
     );
     assert!(
         code.contains("extend") || code.contains("update"),
@@ -844,11 +844,11 @@ def f() -> str:
 #[test]
 fn test_os_path_exists() {
     let code = transpile(
-        r#"
+        r"
 import os
 def f(p: str) -> bool:
     return os.path.exists(p)
-"#,
+",
     );
     assert!(
         code.contains("exists") || code.contains("Path"),
@@ -859,11 +859,11 @@ def f(p: str) -> bool:
 #[test]
 fn test_os_path_basename() {
     let code = transpile(
-        r#"
+        r"
 import os
 def f(p: str) -> str:
     return os.path.basename(p)
-"#,
+",
     );
     assert!(
         code.contains("file_name") || code.contains("basename") || code.contains("Path"),
@@ -876,10 +876,10 @@ def f(p: str) -> str:
 #[test]
 fn test_list_comprehension_with_condition() {
     let code = transpile(
-        r#"
+        r"
 def f(nums: list) -> list:
     return [x * 2 for x in nums if x > 0]
-"#,
+",
     );
     assert!(
         code.contains("filter") || code.contains("iter"),
@@ -890,10 +890,10 @@ def f(nums: list) -> list:
 #[test]
 fn test_dict_comprehension() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> dict:
     return {k: v for k, v in items}
-"#,
+",
     );
     assert!(
         code.contains("collect") || code.contains("HashMap"),
@@ -906,12 +906,12 @@ def f(items: list) -> dict:
 #[test]
 fn test_class_with_class_vars() {
     let code = transpile(
-        r#"
+        r"
 class Color:
     RED: int = 0
     GREEN: int = 1
     BLUE: int = 2
-"#,
+",
     );
     assert!(
         code.contains("RED") && code.contains("GREEN") && code.contains("BLUE"),

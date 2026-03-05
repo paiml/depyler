@@ -15,7 +15,7 @@ def divide(a: int, b: int) -> float:
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Divide function result: {:?}", result);
+    println!("Divide function result: {result:?}");
 
     // This will likely fail as exceptions aren't implemented yet
     assert!(result.is_err() || result.unwrap().contains("Result"));
@@ -25,13 +25,13 @@ def divide(a: int, b: int) -> float:
 fn test_try_except_block() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def safe_divide(a: int, b: int) -> float:
     try:
         return a / b
     except ZeroDivisionError:
         return 0.0
-"#;
+";
 
     let result = pipeline.transpile(python_code);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
@@ -59,11 +59,11 @@ def parse_int(s: str) -> int:
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Parse int result: {:?}", result);
+    println!("Parse int result: {result:?}");
 
     // Check if we handle the annotation
     if let Ok(rust_code) = result {
-        println!("Generated code:\n{}", rust_code);
+        println!("Generated code:\n{rust_code}");
         // Even without full exception support, we can check the annotation was parsed
         assert!(rust_code.contains("parse_int"));
     }
@@ -74,16 +74,16 @@ fn test_implicit_error_handling() {
     let pipeline = DepylerPipeline::new();
 
     // Functions that implicitly can fail
-    let python_code = r#"
+    let python_code = r"
 def get_first(items: List[int]) -> int:
     return items[0]  # Can raise IndexError
     
 def get_value(data: Dict[str, int], key: str) -> int:
     return data[key]  # Can raise KeyError
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Implicit errors result: {:?}", result);
+    println!("Implicit errors result: {result:?}");
 
     // Dictionary access isn't supported in V1, but check what we get
     assert!(result.is_err() || result.is_ok());
@@ -103,7 +103,7 @@ def may_fail(condition: bool):
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Custom exception result: {:?}", result);
+    println!("Custom exception result: {result:?}");
 
     // Classes aren't supported in V1, but we might generate something
     println!("Custom exception generated: {}", result.is_ok());

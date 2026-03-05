@@ -21,16 +21,16 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_ide_function_symbol() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ide_multiple_functions() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
 
@@ -39,7 +39,7 @@ def multiply(a: int, b: int) -> int:
 
 def divide(a: float, b: float) -> float:
     return a / b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -49,18 +49,18 @@ def divide(a: float, b: float) -> float:
 
 #[test]
 fn test_ide_class_symbol() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ide_class_with_methods() {
-    let code = r#"
+    let code = r"
 class Calculator:
     def __init__(self):
         self.result = 0
@@ -71,7 +71,7 @@ class Calculator:
 
     def get_result(self) -> int:
         return self.result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -81,13 +81,13 @@ class Calculator:
 
 #[test]
 fn test_ide_variable_declarations() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     x = 42
     y = x + 1
     z = y * 2
     return z
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -97,14 +97,14 @@ def f() -> int:
 
 #[test]
 fn test_ide_parameters() {
-    let code = r#"
+    let code = r"
 def process(data: list, threshold: int, flag: bool) -> int:
     total = 0
     for item in data:
         if item > threshold and flag:
             total += item
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -114,7 +114,7 @@ def process(data: list, threshold: int, flag: bool) -> int:
 
 #[test]
 fn test_ide_class_fields() {
-    let code = r#"
+    let code = r"
 class Person:
     def __init__(self, name: str, age: int):
         self.name = name
@@ -123,7 +123,7 @@ class Person:
 
     def get_name(self) -> str:
         return self.name
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -133,24 +133,24 @@ class Person:
 
 #[test]
 fn test_ide_import_symbols() {
-    let code = r#"
+    let code = r"
 import json
 
 def f(data: str) -> dict:
     return json.loads(data)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ide_from_import_symbols() {
-    let code = r#"
+    let code = r"
 from collections import defaultdict
 
 def f() -> dict:
     d = defaultdict(int)
     return dict(d)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -160,7 +160,7 @@ def f() -> dict:
 
 #[test]
 fn test_ide_mixed_symbols() {
-    let code = r#"
+    let code = r"
 import math
 
 def helper(x: float) -> float:
@@ -172,13 +172,13 @@ class MathHelper:
 
     def compute(self, x: float) -> float:
         return helper(x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ide_nested_structures() {
-    let code = r#"
+    let code = r"
 class Outer:
     def __init__(self):
         self.data = []
@@ -189,13 +189,13 @@ class Outer:
             if item > 0:
                 result.append(item * 2)
         return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_ide_comprehensive() {
-    let code = r#"
+    let code = r"
 def is_valid(x: int) -> bool:
     return x >= 0
 
@@ -213,6 +213,6 @@ class DataProcessor:
 
     def get_count(self) -> int:
         return self.count
-"#;
+";
     assert!(transpile_ok(code));
 }

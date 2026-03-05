@@ -162,13 +162,13 @@ mod tests {
 
     #[test]
     fn test_analyze_simple_function() {
-        let python = r#"
+        let python = r"
 def foo():
     return 42
 
 def bar():
     return foo() + 1
-"#;
+";
 
         let errors = vec![("E0308".to_string(), "mismatched types".to_string(), 5)];
 
@@ -182,7 +182,7 @@ def bar():
 
     #[test]
     fn test_analyze_class_hierarchy() {
-        let python = r#"
+        let python = r"
 class Base:
     def method(self):
         pass
@@ -190,7 +190,7 @@ class Base:
 class Derived(Base):
     def method(self):
         super().method()
-"#;
+";
 
         let errors = vec![("E0599".to_string(), "no method found".to_string(), 7)];
 
@@ -236,10 +236,10 @@ def caller3():
 
     #[test]
     fn test_vectorized_failure_output() {
-        let python = r#"
+        let python = r"
 def foo(x: int) -> str:
     return x  # E0308: expected str, found int
-"#;
+";
 
         let errors = vec![("E0308".to_string(), "expected str, found int".to_string(), 3)];
 
@@ -297,13 +297,13 @@ def foo(x: int) -> str:
 
     #[test]
     fn test_analyze_error_distribution() {
-        let python = r#"
+        let python = r"
 def foo():
     return 42
 
 def bar():
     return foo()
-"#;
+";
         let errors = vec![
             ("E0308".to_string(), "err1".to_string(), 10),
             ("E0599".to_string(), "err2".to_string(), 10),
@@ -397,7 +397,7 @@ def bar():
 
     #[test]
     fn test_analyze_complex_program() {
-        let python = r#"
+        let python = r"
 import math
 
 class Shape:
@@ -414,7 +414,7 @@ def compute(shape):
 def main():
     c = Circle()
     return compute(c)
-"#;
+";
         let errors = vec![
             ("E0599".to_string(), "no method area".to_string(), 30),
             ("E0308".to_string(), "type mismatch".to_string(), 50),
@@ -444,7 +444,7 @@ def main():
             error_count: 0,
             impact_score: 0.0,
         };
-        let debug = format!("{:?}", node);
+        let debug = format!("{node:?}");
         assert!(debug.contains("GraphNode"));
         let cloned = node.clone();
         assert_eq!(cloned.id, "n");
@@ -453,7 +453,7 @@ def main():
     #[test]
     fn test_s9b7_graph_edge_debug_clone() {
         let edge = GraphEdge { kind: EdgeKind::Imports, weight: 1.0 };
-        let debug = format!("{:?}", edge);
+        let debug = format!("{edge:?}");
         assert!(debug.contains("GraphEdge"));
         let cloned = edge.clone();
         assert_eq!(cloned.kind, EdgeKind::Imports);
@@ -469,7 +469,7 @@ def main():
             error_distribution: HashMap::new(),
             total_errors: 0,
         };
-        let debug = format!("{:?}", analysis);
+        let debug = format!("{analysis:?}");
         assert!(debug.contains("GraphAnalysis"));
         let cloned = analysis.clone();
         assert_eq!(cloned.node_count, 0);
@@ -489,25 +489,25 @@ def main():
     #[test]
     fn test_s9b7_graph_error_debug() {
         let e1 = GraphError::ParseError("bad".to_string());
-        let debug1 = format!("{:?}", e1);
+        let debug1 = format!("{e1:?}");
         assert!(debug1.contains("ParseError"));
 
         let e2 = GraphError::BuildError("err".to_string());
-        let debug2 = format!("{:?}", e2);
+        let debug2 = format!("{e2:?}");
         assert!(debug2.contains("BuildError"));
 
         let e3 = GraphError::OverlayError("fail".to_string());
-        let debug3 = format!("{:?}", e3);
+        let debug3 = format!("{e3:?}");
         assert!(debug3.contains("OverlayError"));
     }
 
     #[test]
     fn test_s9b7_analyze_with_graph_only_class() {
-        let python = r#"
+        let python = r"
 class Standalone:
     def method(self):
         pass
-"#;
+";
         let errors: Vec<(String, String, usize)> = vec![];
         let result = analyze_with_graph(python, &errors).unwrap();
         assert!(result.node_count >= 2);
@@ -561,7 +561,7 @@ class Standalone:
 
     #[test]
     fn test_s12_analyze_with_inheritance_chain() {
-        let python = r#"
+        let python = r"
 class A:
     def m(self):
         pass
@@ -571,7 +571,7 @@ class B(A):
 class C(B):
     def m(self):
         pass
-"#;
+";
         let errors = vec![("E0308".to_string(), "err".to_string(), 20)];
         let result = analyze_with_graph(python, &errors).unwrap();
         // 3 classes + 3 methods = 6 nodes minimum
@@ -580,12 +580,12 @@ class C(B):
 
     #[test]
     fn test_s12_graph_analysis_full_serde() {
-        let python = r#"
+        let python = r"
 def a():
     return b()
 def b():
     return 1
-"#;
+";
         let errors = vec![("E0308".to_string(), "mismatch".to_string(), 10)];
         let analysis = analyze_with_graph(python, &errors).unwrap();
         let json = serde_json::to_string(&analysis).unwrap();
@@ -596,12 +596,12 @@ def b():
 
     #[test]
     fn test_s12_error_distribution_multiple_nodes() {
-        let python = r#"
+        let python = r"
 def foo():
     return 1
 def bar():
     return 2
-"#;
+";
         // Two errors: one near foo, one near bar
         let errors = vec![
             ("E0308".to_string(), "e1".to_string(), 10), // py_line=1, near foo

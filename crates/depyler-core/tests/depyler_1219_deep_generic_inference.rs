@@ -9,7 +9,7 @@
 //! ```
 //! The `[]` should become `Vec<String>`, not `Vec<DepylerValue>` or `Vec<String>` (default).
 //!
-//! Root cause: Type context (current_assign_type) is set at the outer assignment level
+//! Root cause: Type context (`current_assign_type`) is set at the outer assignment level
 //! but not recursively propagated to nested dict/list literal values.
 
 use depyler_core::DepylerPipeline;
@@ -61,8 +61,7 @@ path = "src/lib.rs"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
@@ -86,8 +85,7 @@ def create_deep_dict() -> Dict[str, Dict[int, List[str]]]:
     // Should NOT be Vec<DepylerValue> or untyped
     assert!(
         rust.contains("Vec<String>") || rust.contains("Vec<&str>"),
-        "Deep nested empty list should have concrete String element type. Generated:\n{}",
-        rust
+        "Deep nested empty list should have concrete String element type. Generated:\n{rust}"
     );
 
     // Should compile without type errors
@@ -113,8 +111,7 @@ def create_nested() -> Dict[str, Dict[str, int]]:
     // Look for evidence of proper nested typing
     assert!(
         rust.contains("HashMap<String, i32>") || rust.contains("HashMap<String, i64>"),
-        "Nested empty dict should have concrete value type. Generated:\n{}",
-        rust
+        "Nested empty dict should have concrete value type. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "nested_dict_with_empty_inner");
@@ -137,8 +134,7 @@ def triple_nest() -> Dict[str, Dict[str, List[int]]]:
     // The innermost [] should be Vec<i32> or Vec<i64>
     assert!(
         rust.contains("Vec<i32>") || rust.contains("Vec<i64>"),
-        "Triple nested empty list should have concrete int type. Generated:\n{}",
-        rust
+        "Triple nested empty list should have concrete int type. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "triple_nested_empty_list");
@@ -146,24 +142,23 @@ def triple_nest() -> Dict[str, Dict[str, List[int]]]:
 
 /// DEPYLER-1219: Optional wrapping with deep nesting
 /// Python: `memo: Optional[Dict[int, Dict[int, int]]] = {}`
-/// The outer {} should become HashMap<i32, HashMap<i32, i32>>
+/// The outer {} should become `HashMap`<i32, `HashMap`<i32, i32>>
 #[test]
 fn test_optional_deep_dict() {
-    let python = r#"
+    let python = r"
 from typing import Dict, Optional
 
 def with_memo() -> Optional[Dict[int, Dict[int, int]]]:
     memo: Optional[Dict[int, Dict[int, int]]] = {}
     return memo
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Should have HashMap with i32 key type
     assert!(
         rust.contains("HashMap<i32") || rust.contains("HashMap<i64"),
-        "Optional-wrapped deep dict should have concrete key type. Generated:\n{}",
-        rust
+        "Optional-wrapped deep dict should have concrete key type. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "optional_deep_dict");
@@ -171,24 +166,23 @@ def with_memo() -> Optional[Dict[int, Dict[int, int]]]:
 
 /// DEPYLER-1219: List of Dict with empty dict element
 /// Python: `items: List[Dict[str, int]] = [{}]`
-/// The inner {} should become HashMap<String, i32>
+/// The inner {} should become `HashMap`<String, i32>
 #[test]
 fn test_list_of_dict_with_empty() {
-    let python = r#"
+    let python = r"
 from typing import Dict, List
 
 def list_of_dicts() -> List[Dict[str, int]]:
     items: List[Dict[str, int]] = [{}]
     return items
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // The empty dict inside the list should be HashMap<String, i32>
     assert!(
         rust.contains("HashMap<String, i32>") || rust.contains("HashMap<String, i64>"),
-        "Empty dict in List[Dict] should have concrete types. Generated:\n{}",
-        rust
+        "Empty dict in List[Dict] should have concrete types. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "list_of_dict_with_empty");
@@ -198,7 +192,7 @@ def list_of_dicts() -> List[Dict[str, int]]:
 /// Python: Recursive fibonacci with memoization uses Dict[int, int]
 #[test]
 fn test_memoization_dict_pattern() {
-    let python = r#"
+    let python = r"
 from typing import Dict
 
 def fib_memo(n: int, memo: Dict[int, int] = None) -> int:
@@ -211,7 +205,7 @@ def fib_memo(n: int, memo: Dict[int, int] = None) -> int:
     result = fib_memo(n - 1, memo) + fib_memo(n - 2, memo)
     memo[n] = result
     return result
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
@@ -219,8 +213,7 @@ def fib_memo(n: int, memo: Dict[int, int] = None) -> int:
     // This tests that we propagate from Optional[Dict[int, int]] annotation
     assert!(
         rust.contains("HashMap<i32") || rust.contains("HashMap<i64"),
-        "Memoization dict should have concrete int key type. Generated:\n{}",
-        rust
+        "Memoization dict should have concrete int key type. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "memoization_dict_pattern");

@@ -1,7 +1,7 @@
 //! TDD Tests for JSON Value Iteration Bug (DEPYLER-0607)
 //!
-//! Bug: When iterating over serde_json::Value, the transpiler generates code
-//! that tries to iterate directly over Value, but Value doesn't implement IntoIterator.
+//! Bug: When iterating over `serde_json::Value`, the transpiler generates code
+//! that tries to iterate directly over Value, but Value doesn't implement `IntoIterator`.
 //!
 //! Example:
 //! ```python
@@ -22,7 +22,7 @@
 //! ```
 //!
 //! Root cause: The for-loop codegen doesn't detect when the iterable expression
-//! evaluates to serde_json::Value and add the necessary .as_array() conversion.
+//! evaluates to `serde_json::Value` and add the necessary .`as_array()` conversion.
 
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::hir::HirModule;
@@ -106,8 +106,7 @@ serde_json = "1.0"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
@@ -127,15 +126,14 @@ def main():
     // Should contain .as_array() for JSON Value iteration
     assert!(
         rust.contains("as_array") || rust.contains("iter()"),
-        "Should handle JSON Value iteration. Generated:\n{}",
-        rust
+        "Should handle JSON Value iteration. Generated:\n{rust}"
     );
 
     assert_compiles(&rust, "iterate_dict_list_value");
 }
 
-/// Test: Iterate over dict.get() result
-/// DEPYLER-0610: dict.get() with default value pattern needs separate fix
+/// Test: Iterate over `dict.get()` result
+/// DEPYLER-0610: `dict.get()` with default value pattern needs separate fix
 #[test]
 #[ignore]
 fn test_iterate_dict_get_result() {

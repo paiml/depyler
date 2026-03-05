@@ -34,7 +34,7 @@ fn has_e0412_error(rust_code: &str) -> bool {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let rust_file = temp_dir.path().join("test_func_generic.rs");
     let mut file = std::fs::File::create(&rust_file).expect("Failed to create file");
-    writeln!(file, "{}", rust_code).expect("Failed to write file");
+    writeln!(file, "{rust_code}").expect("Failed to write file");
     drop(file);
 
     let output = Command::new("rustc")
@@ -53,7 +53,7 @@ fn has_e0412_error(rust_code: &str) -> bool {
 // ============================================================================
 
 /// Test: Function returns generic type, type var only in return
-/// Python: def nothing() -> Maybe[T]
+/// Python: def `nothing()` -> Maybe[T]
 /// Expected: fn nothing<T>() -> Maybe<T>
 #[test]
 fn test_depyler_0836_return_type_only_type_var() {
@@ -82,15 +82,13 @@ def nothing() -> Maybe[T]:
     // Generated code should NOT have E0412
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error: cannot find type 'T'\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error: cannot find type 'T'\n\nGenerated code:\n{rust_code}"
     );
 
     // Function should have type parameter
     assert!(
         rust_code.contains("fn nothing<T") || rust_code.contains("fn nothing <T"),
-        "nothing() should have type parameter <T>\n\nGenerated code:\n{}",
-        rust_code
+        "nothing() should have type parameter <T>\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -124,16 +122,14 @@ def left(value: L) -> Either[L, R]:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error\n\nGenerated code:\n{rust_code}"
     );
 
     // left function should have both L and R type params
     // L is in parameter, R is only in return type
     assert!(
-        rust_code.contains("fn left<") && rust_code.contains("R"),
-        "left() should have type parameter R\n\nGenerated code:\n{}",
-        rust_code
+        rust_code.contains("fn left<") && rust_code.contains('R'),
+        "left() should have type parameter R\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -167,16 +163,14 @@ def right(value: R) -> Either[L, R]:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error\n\nGenerated code:\n{rust_code}"
     );
 
     // right function should have both L and R type params
     // R is in parameter, L is only in return type
     assert!(
-        rust_code.contains("fn right<") && rust_code.contains("L"),
-        "right() should have type parameter L\n\nGenerated code:\n{}",
-        rust_code
+        rust_code.contains("fn right<") && rust_code.contains('L'),
+        "right() should have type parameter L\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -205,14 +199,12 @@ def identity(x: T) -> T:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error\n\nGenerated code:\n{rust_code}"
     );
 
     assert!(
         rust_code.contains("fn identity<T"),
-        "identity() should have type parameter <T>\n\nGenerated code:\n{}",
-        rust_code
+        "identity() should have type parameter <T>\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -238,15 +230,13 @@ def swap(a: T, b: U) -> tuple[U, T]:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error\n\nGenerated code:\n{rust_code}"
     );
 
     // Should have both T and U
     assert!(
-        rust_code.contains("fn swap<") && rust_code.contains("T") && rust_code.contains("U"),
-        "swap() should have type parameters T and U\n\nGenerated code:\n{}",
-        rust_code
+        rust_code.contains("fn swap<") && rust_code.contains('T') && rust_code.contains('U'),
+        "swap() should have type parameters T and U\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -282,15 +272,13 @@ def lift(f: Callable[[T], U]) -> Callable[[Maybe[T]], Maybe[U]]:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error\n\nGenerated code:\n{rust_code}"
     );
 
     // Should have T and U in function signature
     assert!(
         rust_code.contains("fn lift<"),
-        "lift() should have type parameters\n\nGenerated code:\n{}",
-        rust_code
+        "lift() should have type parameters\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -316,8 +304,7 @@ def apply2(f: Callable[[T, U], V], a: T, b: U) -> V:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -326,7 +313,7 @@ def apply2(f: Callable[[T, U], V], a: T, b: U) -> V:
 // ============================================================================
 
 /// Test: Function with list of type var
-/// Python: def safe_head(lst: list[T]) -> Maybe[T]
+/// Python: def `safe_head(lst`: list[T]) -> Maybe[T]
 #[test]
 fn test_depyler_0836_list_type_var() {
     let pipeline = DepylerPipeline::new();
@@ -358,19 +345,17 @@ def safe_head(lst: list[T]) -> Maybe[T]:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error\n\nGenerated code:\n{rust_code}"
     );
 
     assert!(
         rust_code.contains("fn safe_head<T"),
-        "safe_head() should have type parameter <T>\n\nGenerated code:\n{}",
-        rust_code
+        "safe_head() should have type parameter <T>\n\nGenerated code:\n{rust_code}"
     );
 }
 
 /// Test: Function with dict of type vars
-/// Python: def safe_get(d: dict[str, T], key: str) -> Maybe[T]
+/// Python: def `safe_get(d`: dict[str, T], key: str) -> Maybe[T]
 #[test]
 fn test_depyler_0836_dict_type_var() {
     let pipeline = DepylerPipeline::new();
@@ -402,15 +387,13 @@ def safe_get(d: dict[str, T], key: str) -> Maybe[T]:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error\n\nGenerated code:\n{rust_code}"
     );
 
     // Check that T appears as a type parameter (may have lifetimes before it)
     assert!(
         rust_code.contains("safe_get<") && rust_code.contains(", T") || rust_code.contains("<T"),
-        "safe_get() should have type parameter T\n\nGenerated code:\n{}",
-        rust_code
+        "safe_get() should have type parameter T\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -451,15 +434,13 @@ class Pipeline(Generic[T]):
     // Should NOT contain T___None - that's an invalid type name
     assert!(
         !rust_code.contains("T___None"),
-        "Should not generate T___None type\n\nGenerated code:\n{}",
-        rust_code
+        "Should not generate T___None type\n\nGenerated code:\n{rust_code}"
     );
 
     // Should use Option<T> instead
     assert!(
         rust_code.contains("Option<T>") || rust_code.contains("Pipeline<Option<T>>"),
-        "Union T | None should become Option<T>\n\nGenerated code:\n{}",
-        rust_code
+        "Union T | None should become Option<T>\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -467,7 +448,7 @@ class Pipeline(Generic[T]):
 // SECTION 6: Real-World Patterns from Corpus
 // ============================================================================
 
-/// Test: Either.left pattern from func_either
+/// Test: Either.left pattern from `func_either`
 #[test]
 fn test_depyler_0836_either_left_pattern() {
     let pipeline = DepylerPipeline::new();
@@ -495,12 +476,11 @@ def left(value: L) -> Either[L, R]:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error (left pattern)\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error (left pattern)\n\nGenerated code:\n{rust_code}"
     );
 }
 
-/// Test: Either.right pattern from func_either
+/// Test: Either.right pattern from `func_either`
 #[test]
 fn test_depyler_0836_either_right_pattern() {
     let pipeline = DepylerPipeline::new();
@@ -528,12 +508,11 @@ def right(value: R) -> Either[L, R]:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error (right pattern)\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error (right pattern)\n\nGenerated code:\n{rust_code}"
     );
 }
 
-/// Test: Maybe.nothing pattern from func_maybe
+/// Test: Maybe.nothing pattern from `func_maybe`
 #[test]
 fn test_depyler_0836_maybe_nothing_pattern() {
     let pipeline = DepylerPipeline::new();
@@ -558,8 +537,7 @@ def nothing() -> Maybe[T]:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error (nothing pattern)\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error (nothing pattern)\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -590,8 +568,7 @@ def some(value: T) -> Maybe[T]:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error (some pattern)\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error (some pattern)\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -618,14 +595,12 @@ def default() -> T:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error\n\nGenerated code:\n{rust_code}"
     );
 
     assert!(
         rust_code.contains("fn default<T"),
-        "default() should have type parameter\n\nGenerated code:\n{}",
-        rust_code
+        "default() should have type parameter\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -648,8 +623,7 @@ def wrap(x: T) -> list[T]:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -684,8 +658,7 @@ def sequence(maybes: list[Maybe[T]]) -> Maybe[list[T]]:
 
     assert!(
         !has_e0412_error(&rust_code),
-        "Generated code has E0412 error\n\nGenerated code:\n{}",
-        rust_code
+        "Generated code has E0412 error\n\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -759,7 +732,7 @@ def id(x: T) -> T:
         "The following test cases have E0412 errors (cannot find type):\n{}",
         e0412_failures
             .iter()
-            .map(|(name, code)| format!("=== {} ===\n{}", name, code))
+            .map(|(name, code)| format!("=== {name} ===\n{code}"))
             .collect::<Vec<_>>()
             .join("\n\n")
     );

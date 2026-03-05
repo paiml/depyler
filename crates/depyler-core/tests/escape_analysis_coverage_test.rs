@@ -1,10 +1,10 @@
-//! Comprehensive coverage tests for escape_analysis.rs
+//! Comprehensive coverage tests for `escape_analysis.rs`
 //!
-//! DEPYLER-99MODE-001: Targets 60%→95% coverage for escape_analysis module
-//! Covers: Try/Except, With, Assert, FunctionDef, Raise, Block statements,
-//! MethodCall, Slice, Dict, Comprehension, Lambda, IfExpr, Await, Yield,
-//! FString expressions, branch merging, loop state, nested captures,
-//! StrategicCloneAnalysis, and analyze_ownership result types.
+//! DEPYLER-99MODE-001: Targets 60%→95% coverage for `escape_analysis` module
+//! Covers: Try/Except, With, Assert, `FunctionDef`, Raise, Block statements,
+//! `MethodCall`, Slice, Dict, Comprehension, Lambda, `IfExpr`, Await, Yield,
+//! `FString` expressions, branch merging, loop state, nested captures,
+//! `StrategicCloneAnalysis`, and `analyze_ownership` result types.
 
 use depyler_core::escape_analysis::*;
 use depyler_core::hir::*;

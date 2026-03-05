@@ -13,7 +13,7 @@ use depyler_core::DepylerPipeline;
 #[test]
 fn test_dunder_len_method_generated() {
     // Python class with __len__ should generate len() method
-    let python = r#"
+    let python = r"
 from dataclasses import dataclass
 
 @dataclass
@@ -22,7 +22,7 @@ class Container:
 
     def __len__(self) -> int:
         return len(self.items)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -33,22 +33,20 @@ class Container:
     // Should generate a len() method (not __len__)
     assert!(
         rust_code.contains("pub fn len("),
-        "Should generate len() method from __len__\n\nGenerated:\n{}",
-        rust_code
+        "Should generate len() method from __len__\n\nGenerated:\n{rust_code}"
     );
 
     // Should NOT have __len__ as method name
     assert!(
         !rust_code.contains("fn __len__"),
-        "Should NOT have __len__ as method name\n\nGenerated:\n{}",
-        rust_code
+        "Should NOT have __len__ as method name\n\nGenerated:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_dunder_len_called_in_function() {
     // Python function calling len() on a custom class with __len__
-    let python = r#"
+    let python = r"
 from dataclasses import dataclass
 
 @dataclass
@@ -61,7 +59,7 @@ class Vector:
 
 def get_length(v: Vector) -> int:
     return len(v)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -72,13 +70,12 @@ def get_length(v: Vector) -> int:
     // Should have a len() method on Vector
     assert!(
         rust_code.contains("pub fn len("),
-        "Should generate len() method\n\nGenerated:\n{}",
-        rust_code
+        "Should generate len() method\n\nGenerated:\n{rust_code}"
     );
 
     // The function should call v.len() not len(v)
     // Note: This tests the method generation, actual call transformation is separate
-    assert!(rust_code.contains(".len()"), "Should call .len() method\n\nGenerated:\n{}", rust_code);
+    assert!(rust_code.contains(".len()"), "Should call .len() method\n\nGenerated:\n{rust_code}");
 }
 
 #[test]
@@ -105,15 +102,14 @@ class Point:
     // Should generate a to_string() method (not __str__)
     assert!(
         rust_code.contains("pub fn to_string("),
-        "Should generate to_string() method from __str__\n\nGenerated:\n{}",
-        rust_code
+        "Should generate to_string() method from __str__\n\nGenerated:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_dunder_getitem_method_generated() {
     // Python class with __getitem__ should generate index() method
-    let python = r#"
+    let python = r"
 from dataclasses import dataclass
 
 @dataclass
@@ -122,7 +118,7 @@ class MyList:
 
     def __getitem__(self, i: int) -> int:
         return self.data[i]
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -133,15 +129,14 @@ class MyList:
     // Should generate an index() method (not __getitem__)
     assert!(
         rust_code.contains("pub fn index("),
-        "Should generate index() method from __getitem__\n\nGenerated:\n{}",
-        rust_code
+        "Should generate index() method from __getitem__\n\nGenerated:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_dunder_eq_method_generated() {
     // Python class with __eq__ should generate eq() method
-    let python = r#"
+    let python = r"
 from dataclasses import dataclass
 
 @dataclass
@@ -150,7 +145,7 @@ class Value:
 
     def __eq__(self, other: Value) -> bool:
         return self.n == other.n
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -161,7 +156,6 @@ class Value:
     // Should generate an eq() method (not __eq__)
     assert!(
         rust_code.contains("pub fn eq("),
-        "Should generate eq() method from __eq__\n\nGenerated:\n{}",
-        rust_code
+        "Should generate eq() method from __eq__\n\nGenerated:\n{rust_code}"
     );
 }

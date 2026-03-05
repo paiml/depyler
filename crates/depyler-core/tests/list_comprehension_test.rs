@@ -6,7 +6,7 @@ use depyler_core::DepylerPipeline;
 fn test_basic_list_comprehension() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test_basic_comprehension():
     # Simple list comprehension
     squares = [x * x for x in range(5)]
@@ -15,13 +15,13 @@ def test_basic_comprehension():
     evens = [x for x in range(10) if x % 2 == 0]
     
     return len(squares)
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Basic list comprehension result: {:?}", result);
+    println!("Basic list comprehension result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated comprehension code:\n{}", rust_code);
+        println!("Generated comprehension code:\n{rust_code}");
 
         // Check for iterator patterns
         assert!(
@@ -37,7 +37,7 @@ def test_basic_comprehension():
 fn test_comprehension_with_filtering() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test_filtered_comprehension():
     numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     
@@ -48,13 +48,13 @@ def test_filtered_comprehension():
     special = [n for n in numbers if n > 5 and n < 9]
     
     return len(evens)
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Filtered comprehension result: {:?}", result);
+    println!("Filtered comprehension result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated filtered code:\n{}", rust_code);
+        println!("Generated filtered code:\n{rust_code}");
     }
 }
 
@@ -76,10 +76,10 @@ def test_transform_comprehension():
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Transform comprehension result: {:?}", result);
+    println!("Transform comprehension result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated transform code:\n{}", rust_code);
+        println!("Generated transform code:\n{rust_code}");
     }
 }
 
@@ -87,7 +87,7 @@ def test_transform_comprehension():
 fn test_nested_comprehension() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test_nested_comprehension():
     # Nested loops in comprehension
     matrix = [[i * j for j in range(3)] for i in range(3)]
@@ -96,10 +96,10 @@ def test_nested_comprehension():
     flat = [item for sublist in matrix for item in sublist]
     
     return len(flat)
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Nested comprehension result: {:?}", result);
+    println!("Nested comprehension result: {result:?}");
 
     // This is complex - might not work initially
     assert!(result.is_ok() || result.is_err());
@@ -109,7 +109,7 @@ def test_nested_comprehension():
 fn test_comprehension_with_complex_expressions() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test_complex_comprehension():
     data = [1, 2, 3, 4, 5]
     
@@ -120,13 +120,13 @@ def test_complex_comprehension():
     processed = [str(x) for x in result]
     
     return len(result)
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Complex comprehension result: {:?}", result);
+    println!("Complex comprehension result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated complex code:\n{}", rust_code);
+        println!("Generated complex code:\n{rust_code}");
     }
 }
 
@@ -134,7 +134,7 @@ def test_complex_comprehension():
 fn test_comprehension_scope() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test_comprehension_scope():
     x = 10
     
@@ -146,13 +146,13 @@ def test_comprehension_scope():
     # n should not be accessible here
     
     return x  # x should still be 10
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Comprehension scope result: {:?}", result);
+    println!("Comprehension scope result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated scope code:\n{}", rust_code);
+        println!("Generated scope code:\n{rust_code}");
     }
 }
 
@@ -160,7 +160,7 @@ def test_comprehension_scope():
 fn test_dict_and_set_comprehensions() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test_other_comprehensions():
     # Dict comprehension
     squares_dict = {x: x*x for x in range(5)}
@@ -169,10 +169,10 @@ def test_other_comprehensions():
     unique_squares = {x*x for x in range(-5, 6)}
     
     return len(squares_dict)
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Dict/set comprehension result: {:?}", result);
+    println!("Dict/set comprehension result: {result:?}");
 
     // These are advanced - might not work initially
     assert!(result.is_ok() || result.is_err());
@@ -182,7 +182,7 @@ def test_other_comprehensions():
 fn test_generator_expressions() {
     let pipeline = DepylerPipeline::new();
 
-    let python_code = r#"
+    let python_code = r"
 def test_generators():
     # Generator expression (not list comprehension)
     gen = (x * x for x in range(5))
@@ -191,10 +191,10 @@ def test_generators():
     squares = list(gen)
     
     return len(squares)
-"#;
+";
 
     let result = pipeline.transpile(python_code);
-    println!("Generator expression result: {:?}", result);
+    println!("Generator expression result: {result:?}");
 
     // Generators are advanced - might not work
     assert!(result.is_ok() || result.is_err());

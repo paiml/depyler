@@ -1,9 +1,9 @@
-//! TDD Test for DEPYLER-0951: os.environ.get() should not double-wrap in Some()
+//! TDD Test for DEPYLER-0951: `os.environ.get()` should not double-wrap in `Some()`
 //!
 //! Bug: `os.environ.get("KEY")` generates `Some(std::env::var("KEY").ok())`
 //! Expected: `std::env::var("KEY").ok()` (already returns Option<String>)
 //!
-//! Root cause: Return statement codegen wraps expression in Some() when return type
+//! Root cause: Return statement codegen wraps expression in `Some()` when return type
 //! is Option<T>, but doesn't check if expression ALREADY returns Option.
 
 use depyler_core::ast_bridge::AstBridge;
@@ -84,13 +84,12 @@ path = "src/lib.rs"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
 
-/// DEPYLER-0951: os.environ.get() returns Option<String>, should not be wrapped in Some()
+/// DEPYLER-0951: `os.environ.get()` returns Option<String>, should not be wrapped in `Some()`
 /// Python: `return os.environ.get("KEY")`
 /// Bad Rust: `Some(std::env::var("KEY").ok())` - Type error: Option<Option<String>>
 /// Good Rust: `std::env::var("KEY").ok()` - Correct: Option<String>
@@ -108,22 +107,20 @@ def test():
     // Should NOT contain Some(std::env::var - this would be double-wrapping
     assert!(
         !rust.contains("Some(std::env::var"),
-        "Should not double-wrap env::var().ok() in Some(). Generated:\n{}",
-        rust
+        "Should not double-wrap env::var().ok() in Some(). Generated:\n{rust}"
     );
 
     // Should contain std::env::var().ok() directly
     assert!(
         rust.contains("std::env::var") && rust.contains(".ok()"),
-        "Should have std::env::var(...).ok(). Generated:\n{}",
-        rust
+        "Should have std::env::var(...).ok(). Generated:\n{rust}"
     );
 
     // Should compile without type errors
     assert_compiles(&rust, "environ_get_no_double_wrap");
 }
 
-/// Test that env::var().ok() is recognized as already returning Option
+/// Test that `env::var().ok()` is recognized as already returning Option
 #[test]
 fn test_environ_get_returns_option_string() {
     let python = r#"
@@ -142,7 +139,7 @@ def get_config() -> str:
     assert_compiles(&rust, "environ_get_option_string");
 }
 
-/// Test dict.get() also returns Option and shouldn't be double-wrapped
+/// Test `dict.get()` also returns Option and shouldn't be double-wrapped
 /// Note: This test verifies no double-wrapping but doesn't compile due to separate
 /// dict value type bug (Items 45-47 in QA checklist)
 #[test]
@@ -158,8 +155,7 @@ def test():
     // Should NOT contain Some(d.get - dict.get() already returns Option
     assert!(
         !rust.contains("Some(d.get") && !rust.contains("Some(map.get"),
-        "Should not double-wrap dict.get() in Some(). Generated:\n{}",
-        rust
+        "Should not double-wrap dict.get() in Some(). Generated:\n{rust}"
     );
 
     // Note: Compilation fails due to separate dict value type issue (Items 45-47)

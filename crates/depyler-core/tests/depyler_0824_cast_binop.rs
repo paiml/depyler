@@ -2,7 +2,7 @@
 //!
 //! Problem: When `len(self.field)` returns `self.field.len() as i32` and a
 //! comparison operator follows, the code generator produces invalid Rust:
-//! `self.field.len() as i32 < x` which fails parse_quote! with "expected `,`"
+//! `self.field.len() as i32 < x` which fails `parse_quote`! with "expected `,`"
 //!
 //! Solution: Wrap cast expressions in parentheses: `(self.field.len() as i32) < x`
 
@@ -10,12 +10,12 @@
 
 use depyler_core::DepylerPipeline;
 
-/// Test that len() of class field followed by comparison generates valid Rust
+/// Test that `len()` of class field followed by comparison generates valid Rust
 #[test]
 fn test_DEPYLER_0824_len_class_field_comparison() {
     let pipeline = DepylerPipeline::new();
 
-    let python = r#"
+    let python = r"
 class Decoder:
     def __init__(self) -> None:
         self.buffer: list[int] = []
@@ -25,7 +25,7 @@ class Decoder:
         if len(self.buffer) < x:
             return True
         return False
-"#;
+";
 
     // This should NOT panic - it should generate valid Rust
     let result = pipeline.transpile(python);

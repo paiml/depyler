@@ -25,14 +25,14 @@ fn transpile_python_no_nasa(python: &str) -> anyhow::Result<String> {
 #[test]
 fn test_DEPYLER_0426_csv_dictwriter_basic() {
     // Basic csv.DictWriter with fieldnames kwarg
-    let python = r#"
+    let python = r"
 import csv
 
 def write_data(filename):
     with open(filename, 'w') as f:
         writer = csv.DictWriter(f, fieldnames=['name', 'age'])
         writer.writeheader()
-"#;
+";
 
     // Use non-NASA mode to verify correct csv crate codegen
     let result = transpile_python_no_nasa(python);
@@ -41,7 +41,7 @@ def write_data(filename):
     let rust = result.unwrap();
 
     // Should generate csv::Writer::from_writer (only in non-NASA mode)
-    assert!(rust.contains("csv::Writer"), "Should use csv::Writer (non-NASA mode): {}", rust);
+    assert!(rust.contains("csv::Writer"), "Should use csv::Writer (non-NASA mode): {rust}");
 
     // Should not bail with "requires at least 2 arguments"
     // (this test will fail initially, proving RED phase)
@@ -50,11 +50,11 @@ def write_data(filename):
 #[test]
 fn test_DEPYLER_0426_csv_dictwriter_multiple_fields() {
     // csv.DictWriter with multiple fieldnames
-    let python = r#"
+    let python = r"
 import csv
 
 writer = csv.DictWriter(output, fieldnames=['id', 'name', 'email', 'age'])
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should handle multiple fieldnames: {:?}", result.err());
@@ -63,7 +63,7 @@ writer = csv.DictWriter(output, fieldnames=['id', 'name', 'email', 'age'])
 #[test]
 fn test_DEPYLER_0426_csv_dictwriter_positional_args() {
     // Ensure positional args still work (backward compatibility)
-    let python = r#"
+    let python = r"
 import csv
 
 # This was the only syntax that worked before
@@ -71,7 +71,7 @@ import csv
 # Note: This is not valid Python syntax but tests our arg handling
 
 writer = csv.DictWriter(f, fieldnames=fields)
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Should handle variable fieldnames: {:?}", result.err());
@@ -108,7 +108,7 @@ def filter_csv(input_file, column, value, output_file=None):
     assert!(result.is_ok(), "Real-world pattern should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
-    assert!(rust.contains("csv::Writer"), "Should generate csv::Writer (non-NASA mode): {}", rust);
+    assert!(rust.contains("csv::Writer"), "Should generate csv::Writer (non-NASA mode): {rust}");
 }
 
 #[test]
@@ -121,7 +121,7 @@ fn test_DEPYLER_0426_property_based_fieldnames() {
     ];
 
     for (python_expr, description) in test_cases {
-        let python = format!("import csv\n{}", python_expr);
+        let python = format!("import csv\n{python_expr}");
         let result = transpile_python(&python);
         assert!(result.is_ok(), "Should handle {}: {:?}", description, result.err());
     }

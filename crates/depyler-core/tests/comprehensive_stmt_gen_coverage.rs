@@ -1,4 +1,4 @@
-//! Comprehensive tests for stmt_gen.rs coverage
+//! Comprehensive tests for `stmt_gen.rs` coverage
 //! DEPYLER-COVERAGE-95: Target 95% coverage on statement generation
 
 use depyler_core::DepylerPipeline;

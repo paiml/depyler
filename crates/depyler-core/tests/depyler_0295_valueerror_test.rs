@@ -1,21 +1,21 @@
-//! DEPYLER-0295: ValueError Type Generation Tests
+//! DEPYLER-0295: `ValueError` Type Generation Tests
 //!
-//! Tests that ValueError is properly generated when Python code raises ValueError.
+//! Tests that `ValueError` is properly generated when Python code raises `ValueError`.
 //!
 //! ## Problem
-//! When Python code raised ValueError, the transpiler generated code that used
-//! ValueError but did not generate the ValueError type definition, causing
+//! When Python code raised `ValueError`, the transpiler generated code that used
+//! `ValueError` but did not generate the `ValueError` type definition, causing
 //! compilation errors like "cannot find type `ValueError` in this scope".
 //!
 //! ## Solution
-//! - Added `needs_valueerror` flag to CodeGenContext
-//! - Generate ValueError type definition when flag is set
-//! - Set flag when ValueError is encountered in raise statements
+//! - Added `needs_valueerror` flag to `CodeGenContext`
+//! - Generate `ValueError` type definition when flag is set
+//! - Set flag when `ValueError` is encountered in raise statements
 //!
 //! ## Test Coverage
-//! - Basic ValueError usage
-//! - ValueError with custom message
-//! - Multiple ValueError raises in different functions
+//! - Basic `ValueError` usage
+//! - `ValueError` with custom message
+//! - Multiple `ValueError` raises in different functions
 //! - Compilation verification
 //! - Behavior correctness
 
@@ -164,12 +164,12 @@ def check_positive(x: int) -> int:
     let test_code = format!(
         "{}\n{}",
         strip_generated_main(&rust_code),
-        r#"
+        r"
 fn main() {
     assert!(check_positive(5).is_ok());
     assert!(check_positive(-1).is_err());
 }
-"#
+"
     );
 
     std::fs::write("/tmp/test_depyler_0295_compiles.rs", test_code)
@@ -282,10 +282,10 @@ def validate_age(age: int) -> int:
 
 #[test]
 fn test_valueerror_not_generated_when_not_used() {
-    let python_code = r#"
+    let python_code = r"
 def add(x: int, y: int) -> int:
     return x + y
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");

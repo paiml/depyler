@@ -24,9 +24,7 @@ fn transpile_python(python: &str) -> anyhow::Result<String> {
 fn assert_contains(rust_code: &str, pattern: &str) {
     assert!(
         rust_code.contains(pattern),
-        "Expected pattern not found:\n  Pattern: {}\n  Code:\n{}",
-        pattern,
-        rust_code
+        "Expected pattern not found:\n  Pattern: {pattern}\n  Code:\n{rust_code}"
     );
 }
 
@@ -34,9 +32,7 @@ fn assert_contains(rust_code: &str, pattern: &str) {
 fn assert_not_contains(rust_code: &str, pattern: &str) {
     assert!(
         !rust_code.contains(pattern),
-        "Unexpected pattern found:\n  Pattern: {}\n  Code:\n{}",
-        pattern,
-        rust_code
+        "Unexpected pattern found:\n  Pattern: {pattern}\n  Code:\n{rust_code}"
     );
 }
 
@@ -46,13 +42,13 @@ fn assert_not_contains(rust_code: &str, pattern: &str) {
 
 #[test]
 fn test_DEPYLER_0432_01_sys_stdin_iteration() {
-    let python = r#"
+    let python = r"
 import sys
 
 def process_stdin():
     for line in sys.stdin:
         print(line.rstrip())
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -92,8 +88,7 @@ def log_error(msg):
 
     assert!(
         has_eprintln || has_stderr_write,
-        "Expected eprintln! or std::io::stderr(), got:\n{}",
-        rust_code
+        "Expected eprintln! or std::io::stderr(), got:\n{rust_code}"
     );
 }
 
@@ -103,12 +98,12 @@ def log_error(msg):
 
 #[test]
 fn test_DEPYLER_0432_03_file_read_text() {
-    let python = r#"
+    let python = r"
 def read_file(filepath):
     with open(filepath) as f:
         content = f.read()
     return content
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -151,7 +146,7 @@ def read_binary(filepath):
     let has_read_to_end = rust_code.contains("read_to_end");
     let has_vec_u8 = rust_code.contains("Vec<u8>");
 
-    assert!(has_read_to_end || has_vec_u8, "Expected read_to_end or Vec<u8>, got:\n{}", rust_code);
+    assert!(has_read_to_end || has_vec_u8, "Expected read_to_end or Vec<u8>, got:\n{rust_code}");
 }
 
 // ====================================================================================
@@ -160,14 +155,14 @@ def read_binary(filepath):
 
 #[test]
 fn test_DEPYLER_0432_05_file_iteration() {
-    let python = r#"
+    let python = r"
 def count_lines(filepath):
     count = 0
     with open(filepath) as f:
         for line in f:
             count += 1
     return count
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -180,8 +175,7 @@ def count_lines(filepath):
 
     assert!(
         has_bufreader || has_lines_method,
-        "Expected BufReader or .lines() method, got:\n{}",
-        rust_code
+        "Expected BufReader or .lines() method, got:\n{rust_code}"
     );
 
     // Should NOT use .iter() on File directly (e.g., f.iter())
@@ -194,8 +188,7 @@ def count_lines(filepath):
             // Check that we're not calling .iter() directly on the file variable
             assert!(
                 !func_code.contains("f.iter()"),
-                "Should not use .iter() directly on File, got:\n{}",
-                func_code
+                "Should not use .iter() directly on File, got:\n{func_code}"
             );
         }
     }
@@ -237,8 +230,7 @@ def main():
 
     assert!(
         has_str_param && !has_value_param,
-        "Expected filepath: &str or String, not Value. Got:\n{}",
-        rust_code
+        "Expected filepath: &str or String, not Value. Got:\n{rust_code}"
     );
 }
 
@@ -276,8 +268,7 @@ def main():
 
     assert!(
         has_bool_param && !has_value_param,
-        "Expected verbose: bool, not Value. Got:\n{}",
-        rust_code
+        "Expected verbose: bool, not Value. Got:\n{rust_code}"
     );
 }
 
@@ -323,7 +314,7 @@ def main():
     // Pattern: Stdin, (unit variant) OR Stdin { } (empty struct)
     let has_stdin_variant = rust_code.contains("Stdin,") || rust_code.contains("Stdin {");
 
-    assert!(has_stdin_variant, "Expected Stdin enum variant, got:\n{}", rust_code);
+    assert!(has_stdin_variant, "Expected Stdin enum variant, got:\n{rust_code}");
 
     // Should also generate Read variant with file field
     assert_contains(&rust_code, "Read");
@@ -337,12 +328,12 @@ def main():
 #[test]
 #[ignore] // DEPYLER-0432: Hex encoding requires separate implementation (binascii/hex module)
 fn test_DEPYLER_0432_09_hex_encoding() {
-    let python = r#"
+    let python = r"
 def show_hex(data):
     hex_str = data[:10].hex()
     print(hex_str)
     return hex_str
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -356,8 +347,7 @@ def show_hex(data):
 
     assert!(
         has_hex_encode || has_hex_format,
-        "Expected hex::encode() or hex formatting, got:\n{}",
-        rust_code
+        "Expected hex::encode() or hex formatting, got:\n{rust_code}"
     );
 
     // Should NOT use .hex() method directly (doesn't exist in Rust)
@@ -389,11 +379,7 @@ def create_temp():
     let has_tempfile = rust_code.contains("tempfile::");
     let has_namedtempfile = rust_code.contains("NamedTempFile");
 
-    assert!(
-        has_tempfile || has_namedtempfile,
-        "Expected tempfile crate usage, got:\n{}",
-        rust_code
-    );
+    assert!(has_tempfile || has_namedtempfile, "Expected tempfile crate usage, got:\n{rust_code}");
 }
 
 // ====================================================================================
@@ -430,9 +416,7 @@ fn test_DEPYLER_0432_11_stream_processor_integration() {
 
     assert!(
         value_count < total_params_estimate,
-        "Too many serde_json::Value types ({}/{}). Type inference not working!",
-        value_count,
-        total_params_estimate
+        "Too many serde_json::Value types ({value_count}/{total_params_estimate}). Type inference not working!"
     );
 
     // Try to compile (this will fail initially, that's expected for RED phase)
@@ -454,7 +438,7 @@ fn test_DEPYLER_0432_11_stream_processor_integration() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let error_count = stderr.matches("error[E").count();
 
-        println!("Compilation errors: {}", error_count);
+        println!("Compilation errors: {error_count}");
         println!(
             "First 50 lines of errors:\n{}",
             stderr.lines().take(50).collect::<Vec<_>>().join("\n")
@@ -477,13 +461,13 @@ fn test_DEPYLER_0432_11_stream_processor_integration() {
 
 #[test]
 fn test_DEPYLER_0638_01_stdin_readlines() {
-    let python = r#"
+    let python = r"
 import sys
 
 def read_all_lines():
     lines = sys.stdin.readlines()
     return lines
-"#;
+";
 
     let result = transpile_python(python);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());

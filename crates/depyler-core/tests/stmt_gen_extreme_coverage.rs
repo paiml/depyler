@@ -1,4 +1,4 @@
-//! EXTREME TDD Tests for stmt_gen.rs
+//! EXTREME TDD Tests for `stmt_gen.rs`
 //!
 //! Comprehensive coverage for statement generation including:
 //! - All statement types
@@ -928,7 +928,7 @@ mod edge_cases {
     fn test_many_elif() {
         let mut code = "def f(x: int) -> int:\n    if x == 0:\n        return 0".to_string();
         for i in 1..20 {
-            code.push_str(&format!("\n    elif x == {}:\n        return {}", i, i));
+            code.push_str(&format!("\n    elif x == {i}:\n        return {i}"));
         }
         code.push_str("\n    else:\n        return -1");
         assert!(transpile_ok(&code));

@@ -1,14 +1,14 @@
-//! DEPYLER-0342: lifetime_analysis.rs Coverage Tests
+//! DEPYLER-0342: `lifetime_analysis.rs` Coverage Tests
 //!
 //! **EXTREME TDD Protocol - Coverage Boost**
 //!
-//! Target: lifetime_analysis.rs 35.45% → 85%+ coverage
+//! Target: `lifetime_analysis.rs` 35.45% → 85%+ coverage
 //! TDG Score: 77.1/100 (B) - High complexity (cyclomatic: 114, cognitive: 144)
 //!
 //! This test suite validates the lifetime inference functionality:
-//! - LifetimeInference initialization and lifetime generation
-//! - ParamUsage tracking (mutated, moved, escaped flags)
-//! - LifetimeInfo and LifetimeSource structures
+//! - `LifetimeInference` initialization and lifetime generation
+//! - `ParamUsage` tracking (mutated, moved, escaped flags)
+//! - `LifetimeInfo` and `LifetimeSource` structures
 //! - Basic constraint tracking
 
 #![allow(non_snake_case)]
@@ -24,7 +24,7 @@ fn test_lifetime_inference_new() {
     let inference = LifetimeInference::new();
 
     // Should create successfully
-    assert!(format!("{:?}", inference).contains("LifetimeInference"));
+    assert!(format!("{inference:?}").contains("LifetimeInference"));
 }
 
 // ============================================================================
@@ -359,7 +359,7 @@ mod property_tests {
         ) {
             let inference = LifetimeInference::new();
             // Should always create successfully
-            let debug_str = format!("{:?}", inference);
+            let debug_str = format!("{inference:?}");
             assert!(debug_str.contains("LifetimeInference"));
         }
 
@@ -390,7 +390,7 @@ mod property_tests {
         ) {
             use std::collections::HashSet;
 
-            let lifetime_name = format!("'{}", name);
+            let lifetime_name = format!("'{name}");
             let info = LifetimeInfo {
                 name: lifetime_name.clone(),
                 is_static,

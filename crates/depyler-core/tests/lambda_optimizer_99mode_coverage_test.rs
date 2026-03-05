@@ -1,6 +1,6 @@
-//! Coverage tests for lambda_optimizer.rs
+//! Coverage tests for `lambda_optimizer.rs`
 //!
-//! DEPYLER-99MODE-001: Targets lambda_optimizer.rs (1,203 lines)
+//! DEPYLER-99MODE-001: Targets `lambda_optimizer.rs` (1,203 lines)
 //! Covers: AWS Lambda cold start optimization, binary size reduction,
 //! pre-warming patterns, memory optimization, performance monitoring.
 

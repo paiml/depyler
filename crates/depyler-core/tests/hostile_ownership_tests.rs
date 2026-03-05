@@ -73,11 +73,11 @@ fn make_param(name: &str, ty: Type) -> HirParam {
 fn test_hostile_001_mutate_list_while_iterating() {
     let mut analyzer = DepylintAnalyzer::new();
     let warnings = analyzer.analyze(
-        r#"
+        r"
 def double_items(items):
     for x in items:
         items.append(x * 2)
-"#,
+",
     );
 
     // Should detect mutation-while-iterating
@@ -100,12 +100,12 @@ def double_items(items):
 fn test_hostile_002_remove_while_iterating() {
     let mut analyzer = DepylintAnalyzer::new();
     let warnings = analyzer.analyze(
-        r#"
+        r"
 def remove_negatives(items):
     for x in items:
         if x < 0:
             items.remove(x)
-"#,
+",
     );
 
     assert!(
@@ -151,11 +151,11 @@ def copy_dict_keys(d):
 fn test_hostile_004_set_modify_during_iteration() {
     let mut analyzer = DepylintAnalyzer::new();
     let warnings = analyzer.analyze(
-        r#"
+        r"
 def double_set(s):
     for x in s:
         s.add(x * 2)
-"#,
+",
     );
 
     assert!(
@@ -179,12 +179,12 @@ def double_set(s):
 fn test_hostile_005_nested_iteration_with_mutation() {
     let mut analyzer = DepylintAnalyzer::new();
     let warnings = analyzer.analyze(
-        r#"
+        r"
 def nested_mutation(outer, inner):
     for x in outer:
         for y in inner:
             outer.append(y)
-"#,
+",
     );
 
     // Current implementation may or may not catch nested mutation patterns
@@ -248,13 +248,13 @@ fn test_hostile_006_return_reference_to_local() {
 fn test_hostile_007_closure_captures_local() {
     let mut analyzer = DepylintAnalyzer::new();
     let warnings = analyzer.analyze(
-        r#"
+        r"
 def outer():
     x = 10
     def inner():
         return x
     return inner
-"#,
+",
     );
 
     // Closure capture is valid Python, should be handled properly
@@ -282,12 +282,12 @@ def outer():
 fn test_hostile_008_generator_lifetime_escape() {
     let mut analyzer = DepylintAnalyzer::new();
     let warnings = analyzer.analyze(
-        r#"
+        r"
 def gen():
     x = [1, 2, 3]
     for item in x:
         yield item
-"#,
+",
     );
 
     // Generator patterns need careful handling
@@ -308,12 +308,12 @@ def gen():
 fn test_hostile_009_nested_function_capture() {
     let mut analyzer = DepylintAnalyzer::new();
     let warnings = analyzer.analyze(
-        r#"
+        r"
 def outer(data):
     def inner():
         return len(data)
     return inner()
-"#,
+",
     );
 
     // Nested function capture should be handled
@@ -442,11 +442,11 @@ def bad():
 fn test_hostile_013_list_contains_itself() {
     let mut analyzer = DepylintAnalyzer::new();
     let warnings = analyzer.analyze(
-        r#"
+        r"
 def bad():
     lst = []
     lst.append(lst)
-"#,
+",
     );
 
     assert!(warnings.iter().any(|w| w.code == "DPL101"), "Should detect DPL101: list self-append");
@@ -463,10 +463,10 @@ def bad():
 fn test_hostile_014_aliased_mutable_params() {
     let mut analyzer = DepylintAnalyzer::new();
     let warnings = analyzer.analyze(
-        r#"
+        r"
 def swap_first(a, b):
     a[0], b[0] = b[0], a[0]
-"#,
+",
     );
 
     // This is a potential aliasing issue but may not be detected statically
@@ -485,10 +485,10 @@ def swap_first(a, b):
 fn test_hostile_015_swap_with_same_indices() {
     let mut analyzer = DepylintAnalyzer::new();
     let warnings = analyzer.analyze(
-        r#"
+        r"
 def swap(lst, i, j):
     lst[i], lst[j] = lst[j], lst[i]
-"#,
+",
     );
 
     // This is valid Python and should transpile correctly
@@ -597,12 +597,12 @@ fn test_hostile_017_conditional_move() {
 fn test_hostile_018_move_in_closure() {
     let mut analyzer = DepylintAnalyzer::new();
     let warnings = analyzer.analyze(
-        r#"
+        r"
 def bad(data):
     f = lambda: data
     f()
     print(data)
-"#,
+",
     );
 
     // Closure capture should be detected

@@ -1,10 +1,10 @@
 //! Comprehensive coverage tests targeting specific uncovered code paths
 //!
 //! This file contains tests designed to maximize coverage in:
-//! - stmt_gen.rs
-//! - expr_gen.rs
-//! - func_gen.rs
-//! - direct_rules.rs
+//! - `stmt_gen.rs`
+//! - `expr_gen.rs`
+//! - `func_gen.rs`
+//! - `direct_rules.rs`
 
 use depyler_core::DepylerPipeline;
 

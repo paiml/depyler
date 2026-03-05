@@ -32,7 +32,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s11_rare_class_add_operator() {
-    let code = r#"
+    let code = r"
 class Vector:
     def __init__(self, x: float, y: float):
         self.x = x
@@ -46,18 +46,17 @@ class Vector:
 
     def __mul__(self, scalar: float):
         return Vector(self.x * scalar, self.y * scalar)
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("Vector"),
-        "Should transpile class with operator overloading. Got: {}",
-        result
+        "Should transpile class with operator overloading. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_rare_class_contains() {
-    let code = r#"
+    let code = r"
 class Bag:
     def __init__(self):
         self.items: list = []
@@ -67,14 +66,14 @@ class Bag:
 
     def add(self, item: int):
         self.items.append(item)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Bag"), "Should transpile class with __contains__. Got: {}", result);
+    assert!(result.contains("Bag"), "Should transpile class with __contains__. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_class_iter() {
-    let code = r#"
+    let code = r"
 class Range:
     def __init__(self, start: int, end: int):
         self.start = start
@@ -90,14 +89,14 @@ class Range:
         val = self.current
         self.current += 1
         return val
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Range"), "Should transpile iterator class. Got: {}", result);
+    assert!(result.contains("Range"), "Should transpile iterator class. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_class_getitem() {
-    let code = r#"
+    let code = r"
 class Matrix:
     def __init__(self, rows: int, cols: int):
         self.rows = rows
@@ -109,9 +108,9 @@ class Matrix:
 
     def __setitem__(self, idx: int, value: list):
         self.data[idx] = value
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Matrix"), "Should transpile class with __getitem__. Got: {}", result);
+    assert!(result.contains("Matrix"), "Should transpile class with __getitem__. Got: {result}");
 }
 
 // ============================================================================
@@ -120,71 +119,66 @@ class Matrix:
 
 #[test]
 fn test_s11_rare_comprehension_nested_with_filter() {
-    let code = r#"
+    let code = r"
 def flat_evens(matrix: list) -> list:
     return [x for row in matrix for x in row if x % 2 == 0]
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn flat_evens"),
-        "Should transpile nested comp with filter. Got: {}",
-        result
+        "Should transpile nested comp with filter. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_rare_dict_comprehension_filter() {
-    let code = r#"
+    let code = r"
 def positive_only(d: dict) -> dict:
     return {k: v for k, v in d.items() if v > 0}
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn positive_only"),
-        "Should transpile dict comp with filter. Got: {}",
-        result
+        "Should transpile dict comp with filter. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_rare_set_comprehension_complex() {
-    let code = r#"
+    let code = r"
 def unique_lengths(words: list) -> set:
     return {len(w) for w in words if len(w) > 2}
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn unique_lengths"),
-        "Should transpile set comp with filter. Got: {}",
-        result
+        "Should transpile set comp with filter. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_rare_list_comp_with_method() {
-    let code = r#"
+    let code = r"
 def upper_words(text: str) -> list:
     return [w.upper() for w in text.split()]
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn upper_words"),
-        "Should transpile list comp with method call. Got: {}",
-        result
+        "Should transpile list comp with method call. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_rare_list_comp_with_ternary() {
-    let code = r#"
+    let code = r"
 def abs_list(items: list) -> list:
     return [x if x >= 0 else -x for x in items]
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn abs_list"),
-        "Should transpile list comp with ternary. Got: {}",
-        result
+        "Should transpile list comp with ternary. Got: {result}"
     );
 }
 
@@ -211,14 +205,13 @@ def safe_read(path: str) -> str:
     let result = transpile(code);
     assert!(
         result.contains("fn safe_read"),
-        "Should transpile complex try/except/finally. Got: {}",
-        result
+        "Should transpile complex try/except/finally. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_rare_nested_try() {
-    let code = r#"
+    let code = r"
 def nested_parse(a: str, b: str) -> int:
     try:
         x = int(a)
@@ -229,9 +222,9 @@ def nested_parse(a: str, b: str) -> int:
             return x
     except ValueError:
         return 0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn nested_parse"), "Should transpile nested try. Got: {}", result);
+    assert!(result.contains("fn nested_parse"), "Should transpile nested try. Got: {result}");
 }
 
 // ============================================================================
@@ -240,15 +233,15 @@ def nested_parse(a: str, b: str) -> int:
 
 #[test]
 fn test_s11_rare_subprocess_run() {
-    let code = r#"
+    let code = r"
 import subprocess
 
 def run_cmd(cmd: str) -> str:
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result.stdout
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn run_cmd"), "Should transpile subprocess.run. Got: {}", result);
+    assert!(result.contains("fn run_cmd"), "Should transpile subprocess.run. Got: {result}");
 }
 
 // ============================================================================
@@ -266,8 +259,7 @@ def template(name: str, items: list) -> str:
     let result = transpile(code);
     assert!(
         result.contains("fn template"),
-        "Should transpile multiline string building. Got: {}",
-        result
+        "Should transpile multiline string building. Got: {result}"
     );
 }
 
@@ -278,11 +270,7 @@ def clean(s: str) -> str:
     return s.strip().lower().replace(" ", "_")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn clean"),
-        "Should transpile chained string methods. Got: {}",
-        result
-    );
+    assert!(result.contains("fn clean"), "Should transpile chained string methods. Got: {result}");
 }
 
 #[test]
@@ -295,8 +283,7 @@ def remove_punctuation(s: str) -> str:
     let result = transpile(code);
     assert!(
         result.contains("fn remove_punctuation"),
-        "Should transpile string translate. Got: {}",
-        result
+        "Should transpile string translate. Got: {result}"
     );
 }
 
@@ -306,134 +293,134 @@ def remove_punctuation(s: str) -> str:
 
 #[test]
 fn test_s11_rare_math_comb() {
-    let code = r#"
+    let code = r"
 import math
 
 def combinations(n: int, k: int) -> int:
     return math.comb(n, k)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn combinations"), "Should transpile math.comb. Got: {}", result);
+    assert!(result.contains("fn combinations"), "Should transpile math.comb. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_perm() {
-    let code = r#"
+    let code = r"
 import math
 
 def permutations(n: int, k: int) -> int:
     return math.perm(n, k)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn permutations"), "Should transpile math.perm. Got: {}", result);
+    assert!(result.contains("fn permutations"), "Should transpile math.perm. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_isfinite() {
-    let code = r#"
+    let code = r"
 import math
 
 def check_finite(x: float) -> bool:
     return math.isfinite(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn check_finite"), "Should transpile math.isfinite. Got: {}", result);
+    assert!(result.contains("fn check_finite"), "Should transpile math.isfinite. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_isinf() {
-    let code = r#"
+    let code = r"
 import math
 
 def check_inf(x: float) -> bool:
     return math.isinf(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn check_inf"), "Should transpile math.isinf. Got: {}", result);
+    assert!(result.contains("fn check_inf"), "Should transpile math.isinf. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_isnan() {
-    let code = r#"
+    let code = r"
 import math
 
 def check_nan(x: float) -> bool:
     return math.isnan(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn check_nan"), "Should transpile math.isnan. Got: {}", result);
+    assert!(result.contains("fn check_nan"), "Should transpile math.isnan. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_copysign() {
-    let code = r#"
+    let code = r"
 import math
 
 def copy_sign(x: float, y: float) -> float:
     return math.copysign(x, y)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn copy_sign"), "Should transpile math.copysign. Got: {}", result);
+    assert!(result.contains("fn copy_sign"), "Should transpile math.copysign. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_fmod() {
-    let code = r#"
+    let code = r"
 import math
 
 def float_mod(x: float, y: float) -> float:
     return math.fmod(x, y)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn float_mod"), "Should transpile math.fmod. Got: {}", result);
+    assert!(result.contains("fn float_mod"), "Should transpile math.fmod. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_trunc() {
-    let code = r#"
+    let code = r"
 import math
 
 def truncate(x: float) -> int:
     return math.trunc(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn truncate"), "Should transpile math.trunc. Got: {}", result);
+    assert!(result.contains("fn truncate"), "Should transpile math.trunc. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_modf() {
-    let code = r#"
+    let code = r"
 import math
 
 def split_float(x: float) -> tuple:
     return math.modf(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn split_float"), "Should transpile math.modf. Got: {}", result);
+    assert!(result.contains("fn split_float"), "Should transpile math.modf. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_ldexp() {
-    let code = r#"
+    let code = r"
 import math
 
 def scale(x: float, n: int) -> float:
     return math.ldexp(x, n)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn scale"), "Should transpile math.ldexp. Got: {}", result);
+    assert!(result.contains("fn scale"), "Should transpile math.ldexp. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_frexp() {
-    let code = r#"
+    let code = r"
 import math
 
 def decompose(x: float) -> tuple:
     return math.frexp(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn decompose"), "Should transpile math.frexp. Got: {}", result);
+    assert!(result.contains("fn decompose"), "Should transpile math.frexp. Got: {result}");
 }
 
 // ============================================================================
@@ -442,110 +429,110 @@ def decompose(x: float) -> tuple:
 
 #[test]
 fn test_s11_rare_math_asin() {
-    let code = r#"
+    let code = r"
 import math
 
 def arc_sine(x: float) -> float:
     return math.asin(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn arc_sine"), "Should transpile math.asin. Got: {}", result);
+    assert!(result.contains("fn arc_sine"), "Should transpile math.asin. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_acos() {
-    let code = r#"
+    let code = r"
 import math
 
 def arc_cosine(x: float) -> float:
     return math.acos(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn arc_cosine"), "Should transpile math.acos. Got: {}", result);
+    assert!(result.contains("fn arc_cosine"), "Should transpile math.acos. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_atan() {
-    let code = r#"
+    let code = r"
 import math
 
 def arc_tangent(x: float) -> float:
     return math.atan(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn arc_tangent"), "Should transpile math.atan. Got: {}", result);
+    assert!(result.contains("fn arc_tangent"), "Should transpile math.atan. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_atan2() {
-    let code = r#"
+    let code = r"
 import math
 
 def angle(y: float, x: float) -> float:
     return math.atan2(y, x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn angle"), "Should transpile math.atan2. Got: {}", result);
+    assert!(result.contains("fn angle"), "Should transpile math.atan2. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_sinh() {
-    let code = r#"
+    let code = r"
 import math
 
 def hyp_sine(x: float) -> float:
     return math.sinh(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn hyp_sine"), "Should transpile math.sinh. Got: {}", result);
+    assert!(result.contains("fn hyp_sine"), "Should transpile math.sinh. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_cosh() {
-    let code = r#"
+    let code = r"
 import math
 
 def hyp_cosine(x: float) -> float:
     return math.cosh(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn hyp_cosine"), "Should transpile math.cosh. Got: {}", result);
+    assert!(result.contains("fn hyp_cosine"), "Should transpile math.cosh. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_tanh() {
-    let code = r#"
+    let code = r"
 import math
 
 def hyp_tangent(x: float) -> float:
     return math.tanh(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn hyp_tangent"), "Should transpile math.tanh. Got: {}", result);
+    assert!(result.contains("fn hyp_tangent"), "Should transpile math.tanh. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_degrees() {
-    let code = r#"
+    let code = r"
 import math
 
 def to_degrees(rad: float) -> float:
     return math.degrees(rad)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_degrees"), "Should transpile math.degrees. Got: {}", result);
+    assert!(result.contains("fn to_degrees"), "Should transpile math.degrees. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_math_radians() {
-    let code = r#"
+    let code = r"
 import math
 
 def to_radians(deg: float) -> float:
     return math.radians(deg)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_radians"), "Should transpile math.radians. Got: {}", result);
+    assert!(result.contains("fn to_radians"), "Should transpile math.radians. Got: {result}");
 }
 
 // ============================================================================
@@ -554,75 +541,75 @@ def to_radians(deg: float) -> float:
 
 #[test]
 fn test_s11_rare_random_randint() {
-    let code = r#"
+    let code = r"
 import random
 
 def dice() -> int:
     return random.randint(1, 6)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn dice"), "Should transpile random.randint. Got: {}", result);
+    assert!(result.contains("fn dice"), "Should transpile random.randint. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_random_choice() {
-    let code = r#"
+    let code = r"
 import random
 
 def pick(items: list) -> int:
     return random.choice(items)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn pick"), "Should transpile random.choice. Got: {}", result);
+    assert!(result.contains("fn pick"), "Should transpile random.choice. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_random_shuffle() {
-    let code = r#"
+    let code = r"
 import random
 
 def shuffle(items: list) -> list:
     random.shuffle(items)
     return items
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn shuffle"), "Should transpile random.shuffle. Got: {}", result);
+    assert!(result.contains("fn shuffle"), "Should transpile random.shuffle. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_random_random() {
-    let code = r#"
+    let code = r"
 import random
 
 def coin_flip() -> bool:
     return random.random() < 0.5
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn coin_flip"), "Should transpile random.random. Got: {}", result);
+    assert!(result.contains("fn coin_flip"), "Should transpile random.random. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_random_uniform() {
-    let code = r#"
+    let code = r"
 import random
 
 def rand_float(lo: float, hi: float) -> float:
     return random.uniform(lo, hi)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn rand_float"), "Should transpile random.uniform. Got: {}", result);
+    assert!(result.contains("fn rand_float"), "Should transpile random.uniform. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_random_sample() {
-    let code = r#"
+    let code = r"
 import random
 
 def pick_n(items: list, n: int) -> list:
     return random.sample(items, n)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn pick_n"), "Should transpile random.sample. Got: {}", result);
+    assert!(result.contains("fn pick_n"), "Should transpile random.sample. Got: {result}");
 }
 
 // ============================================================================
@@ -631,61 +618,58 @@ def pick_n(items: list, n: int) -> list:
 
 #[test]
 fn test_s11_rare_itertools_chain() {
-    let code = r#"
+    let code = r"
 import itertools
 
 def chain_lists(a: list, b: list) -> list:
     return list(itertools.chain(a, b))
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn chain_lists"), "Should transpile itertools.chain. Got: {}", result);
+    assert!(result.contains("fn chain_lists"), "Should transpile itertools.chain. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_itertools_product() {
-    let code = r#"
+    let code = r"
 import itertools
 
 def cross_product(a: list, b: list) -> list:
     return list(itertools.product(a, b))
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn cross_product"),
-        "Should transpile itertools.product. Got: {}",
-        result
+        "Should transpile itertools.product. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_rare_itertools_permutations() {
-    let code = r#"
+    let code = r"
 import itertools
 
 def all_orders(items: list) -> list:
     return list(itertools.permutations(items))
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn all_orders"),
-        "Should transpile itertools.permutations. Got: {}",
-        result
+        "Should transpile itertools.permutations. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_rare_itertools_combinations() {
-    let code = r#"
+    let code = r"
 import itertools
 
 def choose_pairs(items: list) -> list:
     return list(itertools.combinations(items, 2))
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn choose_pairs"),
-        "Should transpile itertools.combinations. Got: {}",
-        result
+        "Should transpile itertools.combinations. Got: {result}"
     );
 }
 
@@ -695,7 +679,7 @@ def choose_pairs(items: list) -> list:
 
 #[test]
 fn test_s11_rare_algo_merge_sort() {
-    let code = r#"
+    let code = r"
 def merge_sort(items: list) -> list:
     if len(items) <= 1:
         return items
@@ -719,14 +703,14 @@ def merge_sort(items: list) -> list:
         result.append(right[j])
         j += 1
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn merge_sort"), "Should transpile merge sort. Got: {}", result);
+    assert!(result.contains("fn merge_sort"), "Should transpile merge sort. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_algo_trie() {
-    let code = r#"
+    let code = r"
 class TrieNode:
     def __init__(self):
         self.children: dict = {}
@@ -751,18 +735,17 @@ class Trie:
                 return False
             node = node.children[ch]
         return node.is_end
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("TrieNode") || result.contains("Trie"),
-        "Should transpile Trie. Got: {}",
-        result
+        "Should transpile Trie. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_rare_algo_lru_cache() {
-    let code = r#"
+    let code = r"
 class LRUCache:
     def __init__(self, capacity: int):
         self.capacity = capacity
@@ -784,14 +767,14 @@ class LRUCache:
             del self.cache[oldest]
         self.cache[key] = value
         self.order.append(key)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("LRUCache"), "Should transpile LRU cache. Got: {}", result);
+    assert!(result.contains("LRUCache"), "Should transpile LRU cache. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_algo_graph_bfs() {
-    let code = r#"
+    let code = r"
 from collections import deque
 
 def bfs(graph: dict, start: str) -> list:
@@ -804,9 +787,9 @@ def bfs(graph: dict, start: str) -> list:
             for neighbor in graph.get(node, []):
                 queue.append(neighbor)
     return visited
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn bfs"), "Should transpile BFS algorithm. Got: {}", result);
+    assert!(result.contains("fn bfs"), "Should transpile BFS algorithm. Got: {result}");
 }
 
 // ============================================================================
@@ -815,7 +798,7 @@ def bfs(graph: dict, start: str) -> list:
 
 #[test]
 fn test_s11_rare_type_union_return() {
-    let code = r#"
+    let code = r"
 from typing import Union
 
 def parse_value(s: str) -> Union[int, float]:
@@ -823,33 +806,33 @@ def parse_value(s: str) -> Union[int, float]:
         return int(s)
     except ValueError:
         return float(s)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn parse_value"), "Should transpile Union return. Got: {}", result);
+    assert!(result.contains("fn parse_value"), "Should transpile Union return. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_type_callable() {
-    let code = r#"
+    let code = r"
 from typing import Callable
 
 def apply(f: Callable, x: int) -> int:
     return f(x)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn apply"), "Should transpile Callable param. Got: {}", result);
+    assert!(result.contains("fn apply"), "Should transpile Callable param. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_type_any() {
-    let code = r#"
+    let code = r"
 from typing import Any
 
 def identity(x: Any) -> Any:
     return x
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn identity"), "Should transpile Any type. Got: {}", result);
+    assert!(result.contains("fn identity"), "Should transpile Any type. Got: {result}");
 }
 
 // ============================================================================
@@ -858,45 +841,40 @@ def identity(x: Any) -> Any:
 
 #[test]
 fn test_s11_rare_expr_multiple_assignment() {
-    let code = r#"
+    let code = r"
 def init_vars() -> tuple:
     a = b = c = 0
     a += 1
     b += 2
     c += 3
     return (a, b, c)
-"#;
+";
     let result = transpile(code);
-    assert!(
-        result.contains("fn init_vars"),
-        "Should transpile multiple assignment. Got: {}",
-        result
-    );
+    assert!(result.contains("fn init_vars"), "Should transpile multiple assignment. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_expr_conditional_import() {
-    let code = r#"
+    let code = r"
 import sys
 
 def get_platform() -> str:
     return sys.platform
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn get_platform"), "Should transpile sys.platform. Got: {}", result);
+    assert!(result.contains("fn get_platform"), "Should transpile sys.platform. Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_expr_nested_function_call() {
-    let code = r#"
+    let code = r"
 def nested_calls(items: list) -> int:
     return len(list(set(items)))
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn nested_calls"),
-        "Should transpile nested function calls. Got: {}",
-        result
+        "Should transpile nested function calls. Got: {result}"
     );
 }
 
@@ -909,8 +887,7 @@ def complex_format(items: list) -> str:
     let result = transpile(code);
     assert!(
         result.contains("fn complex_format"),
-        "Should transpile complex f-string. Got: {}",
-        result
+        "Should transpile complex f-string. Got: {result}"
     );
 }
 
@@ -920,75 +897,74 @@ def complex_format(items: list) -> str:
 
 #[test]
 fn test_s11_rare_builtin_chr() {
-    let code = r#"
+    let code = r"
 def to_char(n: int) -> str:
     return chr(n)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_char"), "Should transpile chr(). Got: {}", result);
+    assert!(result.contains("fn to_char"), "Should transpile chr(). Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_builtin_ord() {
-    let code = r#"
+    let code = r"
 def to_code(c: str) -> int:
     return ord(c)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_code"), "Should transpile ord(). Got: {}", result);
+    assert!(result.contains("fn to_code"), "Should transpile ord(). Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_builtin_hex() {
-    let code = r#"
+    let code = r"
 def to_hex(n: int) -> str:
     return hex(n)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_hex"), "Should transpile hex(). Got: {}", result);
+    assert!(result.contains("fn to_hex"), "Should transpile hex(). Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_builtin_bin() {
-    let code = r#"
+    let code = r"
 def to_bin(n: int) -> str:
     return bin(n)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_bin"), "Should transpile bin(). Got: {}", result);
+    assert!(result.contains("fn to_bin"), "Should transpile bin(). Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_builtin_oct() {
-    let code = r#"
+    let code = r"
 def to_oct(n: int) -> str:
     return oct(n)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn to_oct"), "Should transpile oct(). Got: {}", result);
+    assert!(result.contains("fn to_oct"), "Should transpile oct(). Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_builtin_reversed() {
-    let code = r#"
+    let code = r"
 def reverse(items: list) -> list:
     return list(reversed(items))
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn reverse"), "Should transpile reversed(). Got: {}", result);
+    assert!(result.contains("fn reverse"), "Should transpile reversed(). Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_builtin_isinstance_multi() {
-    let code = r#"
+    let code = r"
 def is_number(x) -> bool:
     return isinstance(x, (int, float))
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn is_number"),
-        "Should transpile isinstance with tuple. Got: {}",
-        result
+        "Should transpile isinstance with tuple. Got: {result}"
     );
 }
 
@@ -999,15 +975,15 @@ def has_name(obj) -> bool:
     return hasattr(obj, "name")
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn has_name"), "Should transpile hasattr(). Got: {}", result);
+    assert!(result.contains("fn has_name"), "Should transpile hasattr(). Got: {result}");
 }
 
 #[test]
 fn test_s11_rare_builtin_divmod() {
-    let code = r#"
+    let code = r"
 def div_and_mod(a: int, b: int) -> tuple:
     return divmod(a, b)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn div_and_mod"), "Should transpile divmod(). Got: {}", result);
+    assert!(result.contains("fn div_and_mod"), "Should transpile divmod(). Got: {result}");
 }

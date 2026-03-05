@@ -41,7 +41,7 @@ def foo():
                     _ => panic!("Expected string literal"),
                 }
             }
-            _ => panic!("Expected Call, got: {:?}", value),
+            _ => panic!("Expected Call, got: {value:?}"),
         },
         _ => panic!("Expected Assign"),
     }
@@ -101,10 +101,10 @@ def foo():
 
 #[test]
 fn test_depyler_0364_kwargs_with_complex_expressions() {
-    let python = r#"
+    let python = r"
 def foo():
     result = bar(x=10 + 20, y=func())
-"#;
+";
     let hir = transpile_to_hir(python).unwrap();
 
     let func = &hir.functions[0];
@@ -127,10 +127,10 @@ def foo():
 
 #[test]
 fn test_depyler_0364_kwargs_with_nested_calls() {
-    let python = r#"
+    let python = r"
 def foo():
     result = outer(inner(x=10), y=20)
-"#;
+";
     let hir = transpile_to_hir(python).unwrap();
 
     let func = &hir.functions[0];
@@ -159,10 +159,10 @@ def foo():
 
 #[test]
 fn test_depyler_0364_empty_kwargs_backward_compat() {
-    let python = r#"
+    let python = r"
 def foo():
     result = bar(10, 20)
-"#;
+";
     let hir = transpile_to_hir(python).unwrap();
 
     let func = &hir.functions[0];
@@ -199,7 +199,7 @@ def foo():
                 assert_eq!(kwargs[0].0, "description");
                 assert_eq!(kwargs[1].0, "epilog");
             }
-            _ => panic!("Expected MethodCall, got: {:?}", value),
+            _ => panic!("Expected MethodCall, got: {value:?}"),
         },
         _ => panic!("Expected Assign"),
     }
@@ -253,10 +253,10 @@ def foo():
 
 #[test]
 fn test_depyler_0364_kwargs_order_preserved() {
-    let python = r#"
+    let python = r"
 def foo():
     result = bar(a=1, b=2, c=3, d=4)
-"#;
+";
     let hir = transpile_to_hir(python).unwrap();
 
     let func = &hir.functions[0];

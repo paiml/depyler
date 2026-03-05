@@ -1,6 +1,6 @@
-//! Coverage tests for rust_gen.rs
+//! Coverage tests for `rust_gen.rs`
 //!
-//! DEPYLER-99MODE-001: Targets rust_gen.rs (78.48% -> 85%+)
+//! DEPYLER-99MODE-001: Targets `rust_gen.rs` (78.48% -> 85%+)
 //! Covers: class generation, OOP patterns, exception handling,
 //! module-level code, import handling, complex type scenarios.
 
@@ -20,7 +20,7 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_class_with_multiple_methods() {
-    let code = r#"
+    let code = r"
 class Stack:
     def __init__(self):
         self.items = []
@@ -34,7 +34,7 @@ class Stack:
         return len(self.items) == 0
     def size(self) -> int:
         return len(self.items)
-"#;
+";
     let rust = transpile(code);
     assert!(rust.contains("struct Stack"));
 }
@@ -73,14 +73,14 @@ class Circle(Shape):
 
 #[test]
 fn test_dataclass_simple() {
-    let code = r#"
+    let code = r"
 from dataclasses import dataclass
 
 @dataclass
 class Point:
     x: float
     y: float
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -100,7 +100,7 @@ class Config:
 
 #[test]
 fn test_dataclass_with_methods() {
-    let code = r#"
+    let code = r"
 from dataclasses import dataclass
 
 @dataclass
@@ -113,20 +113,20 @@ class Rectangle:
 
     def perimeter(self) -> float:
         return 2.0 * (self.width + self.height)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_enum_class() {
-    let code = r#"
+    let code = r"
 from enum import Enum
 
 class Color(Enum):
     RED = 1
     GREEN = 2
     BLUE = 3
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -146,7 +146,7 @@ class Direction(Enum):
 
 #[test]
 fn test_class_with_classmethod() {
-    let code = r#"
+    let code = r"
 class Counter:
     count = 0
 
@@ -156,13 +156,13 @@ class Counter:
     @classmethod
     def get_count(cls) -> int:
         return cls.count
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_class_with_staticmethod() {
-    let code = r#"
+    let code = r"
 class MathUtils:
     @staticmethod
     def add(a: int, b: int) -> int:
@@ -171,13 +171,13 @@ class MathUtils:
     @staticmethod
     def multiply(a: int, b: int) -> int:
         return a * b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_class_with_property() {
-    let code = r#"
+    let code = r"
 class Temperature:
     def __init__(self, celsius: float):
         self._celsius = celsius
@@ -185,7 +185,7 @@ class Temperature:
     @property
     def fahrenheit(self) -> float:
         return self._celsius * 1.8 + 32.0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -195,31 +195,31 @@ class Temperature:
 
 #[test]
 fn test_try_except_value_error() {
-    let code = r#"
+    let code = r"
 def safe_int(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_try_except_key_error() {
-    let code = r#"
+    let code = r"
 def safe_get(d: dict, key: str) -> int:
     try:
         return d[key]
     except KeyError:
         return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_try_except_multiple_types() {
-    let code = r#"
+    let code = r"
 def safe_parse(s: str) -> int:
     try:
         return int(s)
@@ -229,7 +229,7 @@ def safe_parse(s: str) -> int:
         return -2
     except Exception:
         return -99
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -251,7 +251,7 @@ def process(data: str) -> int:
 
 #[test]
 fn test_try_else() {
-    let code = r#"
+    let code = r"
 def divide(a: int, b: int) -> int:
     try:
         result = a // b
@@ -260,7 +260,7 @@ def divide(a: int, b: int) -> int:
     else:
         return result * 2
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -286,12 +286,12 @@ def not_implemented():
 
 #[test]
 fn test_custom_exception_class() {
-    let code = r#"
+    let code = r"
 class AppError(Exception):
     def __init__(self, message: str, code: int):
         self.message = message
         self.code = code
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -314,7 +314,7 @@ def get_name() -> str:
 
 #[test]
 fn test_module_constant_types() {
-    let code = r#"
+    let code = r"
 PI = 3.14159
 E = 2.71828
 MAX_INT = 2147483647
@@ -322,13 +322,13 @@ IS_DEBUG = False
 
 def get_pi() -> float:
     return PI
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_multiple_functions() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
 
@@ -340,7 +340,7 @@ def mul(a: int, b: int) -> int:
 
 def div(a: float, b: float) -> float:
     return a / b
-"#;
+";
     let rust = transpile(code);
     assert!(rust.contains("fn add"));
     assert!(rust.contains("fn sub"));
@@ -354,7 +354,7 @@ def div(a: float, b: float) -> float:
 
 #[test]
 fn test_import_typing() {
-    let code = r#"
+    let code = r"
 from typing import List, Dict, Optional, Tuple, Set
 
 def f(items: List[int]) -> Dict[str, int]:
@@ -362,25 +362,25 @@ def f(items: List[int]) -> Dict[str, int]:
     for i, item in enumerate(items):
         result[str(i)] = item
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_import_collections() {
-    let code = r#"
+    let code = r"
 from collections import Counter
 
 def count_chars(text: str) -> int:
     c = Counter(text)
     return len(c)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_import_math() {
-    let code = r#"
+    let code = r"
 import math
 
 def circle_area(radius: float) -> float:
@@ -388,18 +388,18 @@ def circle_area(radius: float) -> float:
 
 def hypotenuse(a: float, b: float) -> float:
     return math.sqrt(a * a + b * b)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_import_sys() {
-    let code = r#"
+    let code = r"
 import sys
 
 def get_args() -> list:
     return sys.argv
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -416,7 +416,7 @@ def get_env(key: str) -> str:
 
 #[test]
 fn test_import_json() {
-    let code = r#"
+    let code = r"
 import json
 
 def parse(text: str) -> dict:
@@ -424,7 +424,7 @@ def parse(text: str) -> dict:
 
 def serialize(data: dict) -> str:
     return json.dumps(data)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -447,7 +447,7 @@ def greet(name: Optional[str] = None) -> str:
 
 #[test]
 fn test_list_of_tuples() {
-    let code = r#"
+    let code = r"
 from typing import List, Tuple
 
 def pairs(n: int) -> List[Tuple[int, int]]:
@@ -455,13 +455,13 @@ def pairs(n: int) -> List[Tuple[int, int]]:
     for i in range(n):
         result.append((i, i * i))
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_dict_of_lists() {
-    let code = r#"
+    let code = r"
 from typing import Dict, List
 
 def group_by_mod(items: List[int], m: int) -> Dict[int, List[int]]:
@@ -472,20 +472,20 @@ def group_by_mod(items: List[int], m: int) -> Dict[int, List[int]]:
             groups[key] = []
         groups[key].append(item)
     return groups
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_nested_optional() {
-    let code = r#"
+    let code = r"
 from typing import Optional, Dict
 
 def find_value(data: Dict[str, int], key: str) -> Optional[int]:
     if key in data:
         return data[key]
     return None
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -495,36 +495,36 @@ def find_value(data: Dict[str, int], key: str) -> Optional[int]:
 
 #[test]
 fn test_generator_count_up() {
-    let code = r#"
+    let code = r"
 def count_up(n: int):
     i = 0
     while i < n:
         yield i
         i += 1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_generator_fibonacci() {
-    let code = r#"
+    let code = r"
 def fibonacci():
     a, b = 0, 1
     while True:
         yield a
         a, b = b, a + b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_generator_filter() {
-    let code = r#"
+    let code = r"
 def evens(n: int):
     for i in range(n):
         if i % 2 == 0:
             yield i
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -534,20 +534,20 @@ def evens(n: int):
 
 #[test]
 fn test_async_basic() {
-    let code = r#"
+    let code = r"
 async def fetch(url: str) -> str:
     return url
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_async_with_await() {
-    let code = r#"
+    let code = r"
 async def process(url: str) -> str:
     data = await fetch(url)
     return data
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -557,36 +557,36 @@ async def process(url: str) -> str:
 
 #[test]
 fn test_nested_function_basic() {
-    let code = r#"
+    let code = r"
 def outer() -> int:
     def inner(x: int) -> int:
         return x * 2
     return inner(5)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_closure_capturing_var() {
-    let code = r#"
+    let code = r"
 def make_adder(n: int):
     def add(x: int) -> int:
         return x + n
     return add
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_multiple_nested_functions() {
-    let code = r#"
+    let code = r"
 def outer() -> int:
     def double(x: int) -> int:
         return x * 2
     def triple(x: int) -> int:
         return x * 3
     return double(5) + triple(3)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -596,12 +596,12 @@ def outer() -> int:
 
 #[test]
 fn test_protocol_class() {
-    let code = r#"
+    let code = r"
 from typing import Protocol
 
 class Serializable(Protocol):
     def serialize(self) -> str: ...
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -621,20 +621,20 @@ class Processor:
 
 #[test]
 fn test_nested_for_loops() {
-    let code = r#"
+    let code = r"
 def matrix_sum(matrix: list) -> int:
     total = 0
     for row in matrix:
         for val in row:
             total += val
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_while_with_complex_condition() {
-    let code = r#"
+    let code = r"
 def find_threshold(items: list, target: int) -> int:
     i = 0
     total = 0
@@ -642,7 +642,7 @@ def find_threshold(items: list, target: int) -> int:
         total += items[i]
         i += 1
     return i
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -685,7 +685,7 @@ class Logger:
 
 #[test]
 fn test_function_returning_class() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
@@ -693,13 +693,13 @@ class Point:
 
 def origin() -> Point:
     return Point(0, 0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_class_using_other_class() {
-    let code = r#"
+    let code = r"
 class Node:
     def __init__(self, value: int):
         self.value = value
@@ -712,13 +712,13 @@ def create_list(values: list) -> Node:
         current.next = Node(v)
         current = current.next
     return head
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_multiple_classes() {
-    let code = r#"
+    let code = r"
 class Engine:
     def __init__(self, hp: int):
         self.hp = hp
@@ -730,7 +730,7 @@ class Car:
 
     def describe(self) -> str:
         return self.name
-"#;
+";
     let rust = transpile(code);
     assert!(rust.contains("struct Engine"));
     assert!(rust.contains("struct Car"));
@@ -738,7 +738,7 @@ class Car:
 
 #[test]
 fn test_function_with_many_params() {
-    let code = r#"
+    let code = r"
 def configure(
     host: str,
     port: int,
@@ -747,7 +747,7 @@ def configure(
     timeout: float
 ) -> str:
     return host
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -766,18 +766,18 @@ def connect(
 
 #[test]
 fn test_recursive_function() {
-    let code = r#"
+    let code = r"
 def factorial(n: int) -> int:
     if n <= 1:
         return 1
     return n * factorial(n - 1)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_mutual_recursion() {
-    let code = r#"
+    let code = r"
 def is_even(n: int) -> bool:
     if n == 0:
         return True
@@ -787,7 +787,7 @@ def is_odd(n: int) -> bool:
     if n == 0:
         return False
     return is_even(n - 1)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -859,10 +859,10 @@ def greet(name: str, age: int) -> str:
 
 #[test]
 fn test_string_return_method() {
-    let code = r#"
+    let code = r"
 def normalize(text: str) -> str:
     return text.strip().lower()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -885,39 +885,39 @@ def label(x: int) -> str:
 
 #[test]
 fn test_variable_hoisting_if() {
-    let code = r#"
+    let code = r"
 def f(flag: bool) -> int:
     if flag:
         result = 10
     else:
         result = 20
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_variable_hoisting_loop() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     last = 0
     for item in items:
         last = item
     return last
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_variable_hoisting_try() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> int:
     try:
         value = int(s)
     except ValueError:
         value = 0
     return value
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -927,18 +927,18 @@ def f(s: str) -> int:
 
 #[test]
 fn test_int_division_returns_float() {
-    let code = r#"
+    let code = r"
 def average(items: list) -> float:
     return sum(items) / len(items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_mixed_arithmetic() {
-    let code = r#"
+    let code = r"
 def compute(a: int, b: float) -> float:
     return a * b + 1.0
-"#;
+";
     assert!(transpile_ok(code));
 }

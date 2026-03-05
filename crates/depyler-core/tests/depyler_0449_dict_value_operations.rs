@@ -34,45 +34,42 @@ def has_host(config):
     // Should NOT use .contains_key() directly on Value (doesn't exist)
     assert!(
         !rust.contains("config.contains_key("),
-        "Should not call contains_key directly on Value. Generated:\n{}",
-        rust
+        "Should not call contains_key directly on Value. Generated:\n{rust}"
     );
 
     // Should use Value methods: .get() or .as_object()
     assert!(
         rust.contains(".get(") || rust.contains(".as_object()"),
-        "Should use Value methods for membership test. Generated:\n{}",
-        rust
+        "Should use Value methods for membership test. Generated:\n{rust}"
     );
 }
 
 #[test]
 fn test_depyler_0449_dict_in_loop() {
-    let python = r#"
+    let python = r"
 def check_keys(data, keys):
     for key in keys:
         if key in data:
             return True
     return False
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should NOT use HashMap methods on Value
     assert!(
         !rust.contains("data.contains_key("),
-        "Should not use HashMap methods on Value. Generated:\n{}",
-        rust
+        "Should not use HashMap methods on Value. Generated:\n{rust}"
     );
 }
 
 #[test]
 fn test_depyler_0449_isinstance_and_in() {
-    let python = r#"
+    let python = r"
 def get_value(data, key):
     if isinstance(data, dict) and key in data:
         return data[key]
     return None
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should compile without E0599 errors
@@ -84,10 +81,10 @@ def get_value(data, key):
 
 #[test]
 fn test_depyler_0449_not_in_operator() {
-    let python = r#"
+    let python = r"
 def is_missing(data, key):
     return key not in data
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should handle "not in" correctly
@@ -125,11 +122,11 @@ def get_port(config):
 
 #[test]
 fn test_depyler_0449_iterate_dict_keys() {
-    let python = r#"
+    let python = r"
 def print_keys(data):
     for key in data:
         print(key)
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should compile
@@ -138,13 +135,13 @@ def print_keys(data):
 
 #[test]
 fn test_depyler_0449_iterate_dict_values() {
-    let python = r#"
+    let python = r"
 def sum_values(data):
     total = 0
     for value in data.values():
         total += value
     return total
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should handle .values()
@@ -170,22 +167,22 @@ def print_items(data):
 
 #[test]
 fn test_depyler_0449_dict_get_method() {
-    let python = r#"
+    let python = r"
 def safe_get(data, key, default):
     return data.get(key, default)
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should use Value.get()
-    assert!(rust.contains("data.get("), "Should use .get() method. Generated:\n{}", rust);
+    assert!(rust.contains("data.get("), "Should use .get() method. Generated:\n{rust}");
 }
 
 #[test]
 fn test_depyler_0449_dict_keys_method() {
-    let python = r#"
+    let python = r"
 def get_keys(data):
     return list(data.keys())
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should handle .keys() on Value
@@ -194,10 +191,10 @@ def get_keys(data):
 
 #[test]
 fn test_depyler_0449_dict_update() {
-    let python = r#"
+    let python = r"
 def merge_dicts(target, source):
     target.update(source)
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should compile (may need special handling for mutable Value)
@@ -206,10 +203,10 @@ def merge_dicts(target, source):
 
 #[test]
 fn test_depyler_0449_dict_pop() {
-    let python = r#"
+    let python = r"
 def remove_key(data, key):
     return data.pop(key, None)
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should compile
@@ -225,10 +222,10 @@ def remove_key(data, key):
 
 #[test]
 fn test_depyler_0449_dict_comprehension_filter() {
-    let python = r#"
+    let python = r"
 def filter_dict(data, keys):
     return {k: data[k] for k in keys if k in data}
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should compile
@@ -244,10 +241,10 @@ def filter_dict(data, keys):
 
 #[test]
 fn test_depyler_0449_empty_dict() {
-    let python = r#"
+    let python = r"
 def is_empty(data):
     return len(data) == 0
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should compile
@@ -256,12 +253,12 @@ def is_empty(data):
 
 #[test]
 fn test_depyler_0449_dict_bool_context() {
-    let python = r#"
+    let python = r"
 def has_data(data):
     if data:
         return True
     return False
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should compile
@@ -270,10 +267,10 @@ def has_data(data):
 
 #[test]
 fn test_depyler_0449_dict_comparison() {
-    let python = r#"
+    let python = r"
 def dicts_equal(a, b):
     return a == b
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should compile
@@ -331,12 +328,12 @@ def set_nested_value(config, key, new_value):
 
 #[test]
 fn test_depyler_0449_simple_lookup_compiles() {
-    let python = r#"
+    let python = r"
 def get_value(data, key):
     if key in data:
         return data[key]
     return None
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should transpile without panic
@@ -345,10 +342,10 @@ def get_value(data, key):
 
 #[test]
 fn test_depyler_0449_dict_mutation_compiles() {
-    let python = r#"
+    let python = r"
 def add_item(data, key, value):
     data[key] = value
-"#;
+";
     let rust = transpile_python(python).unwrap();
 
     // Should transpile

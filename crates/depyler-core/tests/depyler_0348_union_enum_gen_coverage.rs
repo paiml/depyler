@@ -1,8 +1,8 @@
-//! DEPYLER-0348: union_enum_gen.rs Coverage Tests
+//! DEPYLER-0348: `union_enum_gen.rs` Coverage Tests
 //!
 //! **EXTREME TDD Protocol - Coverage Boost**
 //!
-//! Target: union_enum_gen.rs 20% → 85%+ coverage
+//! Target: `union_enum_gen.rs` 20% → 85%+ coverage
 //! TDG Score: ~1.2 (B+) - Moderate complexity (285 lines, 7 functions)
 //!
 //! This test suite validates union enum generation:
@@ -11,7 +11,7 @@
 //! - From trait generation and validation
 //! - Match methods (is_* and as_*)
 //! - Caching with complex types
-//! - Edge cases (nested types, custom types, TypeVar)
+//! - Edge cases (nested types, custom types, `TypeVar`)
 
 #![allow(non_snake_case)]
 

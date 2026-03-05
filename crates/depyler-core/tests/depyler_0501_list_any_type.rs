@@ -3,9 +3,9 @@
 //! RED → GREEN Phase: Tests for Any type support in collections
 //!
 //! Tests verify:
-//! 1. List[Any] transpiles to Vec<serde_json::Value>
+//! 1. List[Any] transpiles to Vec<`serde_json::Value`>
 //! 2. Callable[[Any], Any] transpiles correctly
-//! 3. data_processor.py compiles successfully
+//! 3. `data_processor.py` compiles successfully
 
 #![allow(non_snake_case)]
 
@@ -46,22 +46,21 @@ def get_data() -> List[Any]:
             assert!(
                 matches!(inner.as_ref(), Type::Unknown)
                     || matches!(inner.as_ref(), Type::Custom(s) if s == "serde_json::Value" || s == "Any"),
-                "List[Any] should map to List<Unknown>, List<Any>, or List<Value>, got: {:?}",
-                inner
+                "List[Any] should map to List<Unknown>, List<Any>, or List<Value>, got: {inner:?}"
             );
         }
-        other => panic!("Expected List type, got: {:?}", other),
+        other => panic!("Expected List type, got: {other:?}"),
     }
 }
 
 #[test]
 fn test_callable_with_any() {
-    let python = r#"
+    let python = r"
 from typing import Callable, Any
 
 def apply(transform: Callable[[Any], Any], value: Any) -> Any:
     return transform(value)
-"#;
+";
     let hir = parse_and_generate(python);
 
     assert_eq!(hir.functions.len(), 1, "Should have 1 function");

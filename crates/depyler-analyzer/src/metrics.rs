@@ -340,7 +340,7 @@ mod tests {
             direct_transpilation_rate: 1.0,
             mcp_fallback_count: 0,
         };
-        let debug = format!("{:?}", metrics);
+        let debug = format!("{metrics:?}");
         assert!(debug.contains("TranspilationMetrics"));
         let cloned = metrics.clone();
         assert_eq!(cloned.source_size_bytes, 500);
@@ -382,7 +382,7 @@ mod tests {
             terminating_functions: 3,
             pure_functions: 1,
         };
-        let debug = format!("{:?}", qm);
+        let debug = format!("{qm:?}");
         assert!(debug.contains("QualityMetrics"));
         let cloned = qm.clone();
         assert_eq!(cloned.pure_functions, 1);
@@ -409,7 +409,7 @@ mod tests {
             transpilation_throughput_mbps: 3.0,
             memory_peak_mb: 4.0,
         };
-        let debug = format!("{:?}", pp);
+        let debug = format!("{pp:?}");
         assert!(debug.contains("PerformanceProfile"));
         let cloned = pp.clone();
         assert_eq!(cloned.memory_peak_mb, 4.0);
@@ -445,7 +445,7 @@ mod tests {
     #[test]
     fn test_complexity_distribution_debug() {
         let dist = ComplexityDistribution::new();
-        let debug = format!("{:?}", dist);
+        let debug = format!("{dist:?}");
         assert!(debug.contains("ComplexityDistribution"));
     }
 

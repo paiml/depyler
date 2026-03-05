@@ -22,10 +22,10 @@ def showcase_collections():
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Collections showcase result: {:?}", result);
+    println!("Collections showcase result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated showcase code:\n{}", rust_code);
+        println!("Generated showcase code:\n{rust_code}");
 
         // Verify key features
         assert!(rust_code.contains("vec !") || rust_code.contains("vec!"), "Should use vec! macro");
@@ -75,10 +75,10 @@ def method_showcase():
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Method calls showcase result: {:?}", result);
+    println!("Method calls showcase result: {result:?}");
 
     if let Ok(rust_code) = result {
-        println!("Generated method calls code:\n{}", rust_code);
+        println!("Generated method calls code:\n{rust_code}");
         println!("✅ Method call mapping working!");
     }
 }

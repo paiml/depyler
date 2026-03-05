@@ -23,7 +23,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s11_integ_stack_class() {
-    let code = r#"
+    let code = r"
 class Stack:
     def __init__(self) -> None:
         self.items: list = []
@@ -42,9 +42,9 @@ class Stack:
 
     def size(self) -> int:
         return len(self.items)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Stack"), "Should transpile Stack class. Got: {}", result);
+    assert!(result.contains("Stack"), "Should transpile Stack class. Got: {result}");
 }
 
 // ============================================================================
@@ -79,7 +79,7 @@ def calculate(a: float, b: float, op: str) -> float:
         return 0.0
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn calculate"), "Should transpile calculator. Got: {}", result);
+    assert!(result.contains("fn calculate"), "Should transpile calculator. Got: {result}");
 }
 
 // ============================================================================
@@ -88,7 +88,7 @@ def calculate(a: float, b: float, op: str) -> float:
 
 #[test]
 fn test_s11_integ_linked_list_ops() {
-    let code = r#"
+    let code = r"
 def list_sum(items: list) -> int:
     if len(items) == 0:
         return 0
@@ -119,15 +119,14 @@ def list_average(items: list) -> float:
     if len(items) == 0:
         return 0.0
     return float(list_sum(items)) / float(len(items))
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn list_sum")
             && result.contains("fn list_max")
             && result.contains("fn list_min")
             && result.contains("fn list_average"),
-        "Should transpile all list functions. Got: {}",
-        result
+        "Should transpile all list functions. Got: {result}"
     );
 }
 
@@ -167,8 +166,7 @@ def most_common_char(text: str) -> str:
     let result = transpile(code);
     assert!(
         result.contains("fn normalize") && result.contains("fn char_frequency"),
-        "Should transpile string pipeline. Got: {}",
-        result
+        "Should transpile string pipeline. Got: {result}"
     );
 }
 
@@ -178,7 +176,7 @@ def most_common_char(text: str) -> str:
 
 #[test]
 fn test_s11_integ_selection_sort() {
-    let code = r#"
+    let code = r"
 def selection_sort(arr: list) -> list:
     n: int = len(arr)
     for i in range(n):
@@ -189,18 +187,14 @@ def selection_sort(arr: list) -> list:
         if min_idx != i:
             arr[i], arr[min_idx] = arr[min_idx], arr[i]
     return arr
-"#;
+";
     let result = transpile(code);
-    assert!(
-        result.contains("fn selection_sort"),
-        "Should transpile selection sort. Got: {}",
-        result
-    );
+    assert!(result.contains("fn selection_sort"), "Should transpile selection sort. Got: {result}");
 }
 
 #[test]
 fn test_s11_integ_insertion_sort() {
-    let code = r#"
+    let code = r"
 def insertion_sort(arr: list) -> list:
     for i in range(1, len(arr)):
         key: int = arr[i]
@@ -210,13 +204,9 @@ def insertion_sort(arr: list) -> list:
             j -= 1
         arr[j + 1] = key
     return arr
-"#;
+";
     let result = transpile(code);
-    assert!(
-        result.contains("fn insertion_sort"),
-        "Should transpile insertion sort. Got: {}",
-        result
-    );
+    assert!(result.contains("fn insertion_sort"), "Should transpile insertion sort. Got: {result}");
 }
 
 // ============================================================================
@@ -225,7 +215,7 @@ def insertion_sort(arr: list) -> list:
 
 #[test]
 fn test_s11_integ_matrix_ops() {
-    let code = r#"
+    let code = r"
 def matrix_add(a: list, b: list) -> list:
     result: list = []
     for i in range(len(a)):
@@ -247,12 +237,11 @@ def matrix_transpose(m: list) -> list:
             row.append(m[i][j])
         result.append(row)
     return result
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn matrix_add") && result.contains("fn matrix_transpose"),
-        "Should transpile matrix ops. Got: {}",
-        result
+        "Should transpile matrix ops. Got: {result}"
     );
 }
 
@@ -262,7 +251,7 @@ def matrix_transpose(m: list) -> list:
 
 #[test]
 fn test_s11_integ_word_counter() {
-    let code = r#"
+    let code = r"
 def count_words(text: str) -> dict:
     words: list = text.lower().split()
     counts: dict = {}
@@ -283,12 +272,11 @@ def top_words(counts: dict, n: int) -> list:
     for i in range(min(n, len(items))):
         result.append(items[i])
     return result
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn count_words") && result.contains("fn top_words"),
-        "Should transpile word counter. Got: {}",
-        result
+        "Should transpile word counter. Got: {result}"
     );
 }
 
@@ -328,8 +316,7 @@ def parse_config(text: str) -> dict:
     let result = transpile(code);
     assert!(
         result.contains("fn parse_int_safe") && result.contains("fn parse_config"),
-        "Should transpile robust parser. Got: {}",
-        result
+        "Should transpile robust parser. Got: {result}"
     );
 }
 
@@ -339,7 +326,7 @@ def parse_config(text: str) -> dict:
 
 #[test]
 fn test_s11_integ_recursive_algos() {
-    let code = r#"
+    let code = r"
 def fib_recursive(n: int) -> int:
     if n <= 1:
         return n
@@ -359,14 +346,13 @@ def sum_digits(n: int) -> int:
     if n < 10:
         return n
     return n % 10 + sum_digits(n // 10)
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn fib_recursive")
             && result.contains("fn power")
             && result.contains("fn sum_digits"),
-        "Should transpile recursive algos. Got: {}",
-        result
+        "Should transpile recursive algos. Got: {result}"
     );
 }
 
@@ -405,7 +391,7 @@ def tokenize(text: str) -> list:
     return tokens
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn tokenize"), "Should transpile state machine. Got: {}", result);
+    assert!(result.contains("fn tokenize"), "Should transpile state machine. Got: {result}");
 }
 
 // ============================================================================
@@ -414,7 +400,7 @@ def tokenize(text: str) -> list:
 
 #[test]
 fn test_s11_integ_vector2d() {
-    let code = r#"
+    let code = r"
 class Vector2D:
     def __init__(self, x: float, y: float) -> None:
         self.x = x
@@ -431,9 +417,9 @@ class Vector2D:
 
     def scale(self, factor: float):
         return Vector2D(self.x * factor, self.y * factor)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Vector2D"), "Should transpile Vector2D. Got: {}", result);
+    assert!(result.contains("Vector2D"), "Should transpile Vector2D. Got: {result}");
 }
 
 // ============================================================================
@@ -442,7 +428,7 @@ class Vector2D:
 
 #[test]
 fn test_s11_integ_range_utilities() {
-    let code = r#"
+    let code = r"
 def evens(n: int) -> list:
     return [i for i in range(n) if i % 2 == 0]
 
@@ -463,14 +449,13 @@ def primes_up_to(n: int) -> list:
         if is_prime:
             result.append(num)
     return result
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn evens")
             && result.contains("fn odds")
             && result.contains("fn primes_up_to"),
-        "Should transpile range utilities. Got: {}",
-        result
+        "Should transpile range utilities. Got: {result}"
     );
 }
 
@@ -480,7 +465,7 @@ def primes_up_to(n: int) -> list:
 
 #[test]
 fn test_s11_integ_statistics() {
-    let code = r#"
+    let code = r"
 def mean(data: list) -> float:
     if len(data) == 0:
         return 0.0
@@ -510,14 +495,13 @@ def median(data: list) -> float:
     if n % 2 == 0:
         return float(sorted_data[n // 2 - 1] + sorted_data[n // 2]) / 2.0
     return float(sorted_data[n // 2])
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn mean")
             && result.contains("fn variance")
             && result.contains("fn median"),
-        "Should transpile statistics. Got: {}",
-        result
+        "Should transpile statistics. Got: {result}"
     );
 }
 
@@ -557,7 +541,7 @@ def status_message(code: int) -> str:
         return "Unknown"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn status_message"), "Should transpile HTTP status. Got: {}", result);
+    assert!(result.contains("fn status_message"), "Should transpile HTTP status. Got: {result}");
 }
 
 // ============================================================================
@@ -566,7 +550,7 @@ def status_message(code: int) -> str:
 
 #[test]
 fn test_s11_integ_comprehension_complex() {
-    let code = r#"
+    let code = r"
 def pythagorean_triples(n: int) -> list:
     result: list = []
     for a in range(1, n):
@@ -576,12 +560,11 @@ def pythagorean_triples(n: int) -> list:
             if c * c == c_sq and c <= n:
                 result.append((a, b, c))
     return result
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn pythagorean_triples"),
-        "Should transpile complex comprehension. Got: {}",
-        result
+        "Should transpile complex comprehension. Got: {result}"
     );
 }
 
@@ -591,7 +574,7 @@ def pythagorean_triples(n: int) -> list:
 
 #[test]
 fn test_s11_integ_decorator() {
-    let code = r#"
+    let code = r"
 class Registry:
     def __init__(self) -> None:
         self.handlers: dict = {}
@@ -604,9 +587,9 @@ class Registry:
 
     def count(self) -> int:
         return len(self.handlers)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Registry"), "Should transpile Registry. Got: {}", result);
+    assert!(result.contains("Registry"), "Should transpile Registry. Got: {result}");
 }
 
 // ============================================================================
@@ -630,7 +613,6 @@ def generate_report(name: str, score: int, grade: str) -> str:
     let result = transpile(code);
     assert!(
         result.contains("fn generate_report"),
-        "Should transpile f-string report. Got: {}",
-        result
+        "Should transpile f-string report. Got: {result}"
     );
 }

@@ -34,7 +34,7 @@ struct TestCase {
 enum Behavior {
     /// Same output
     Equivalent,
-    /// Python raises exception, Rust returns Result::Err or Option::None
+    /// Python raises exception, Rust returns `Result::Err` or `Option::None`
     ExceptionToResult,
     /// Python raises exception, Rust panics
     ExceptionToPanic,
@@ -62,12 +62,12 @@ fn test_json_loads_semantic_equivalence() {
     // Test cases that should be equivalent
     let equivalent_inputs = vec![
         r#"{"key": "value"}"#,
-        r#"[1, 2, 3]"#,
-        r#"null"#,
-        r#"true"#,
-        r#"false"#,
-        r#"42"#,
-        r#"3.14159"#,
+        r"[1, 2, 3]",
+        r"null",
+        r"true",
+        r"false",
+        r"42",
+        r"3.14159",
         r#""hello""#,
         r#"{"nested": {"deep": "value"}}"#,
     ];
@@ -75,7 +75,7 @@ fn test_json_loads_semantic_equivalence() {
     for input in equivalent_inputs {
         // Verify serde_json can parse the same inputs
         let result: Result<serde_json::Value, _> = serde_json::from_str(input);
-        assert!(result.is_ok(), "Failed to parse: {}", input);
+        assert!(result.is_ok(), "Failed to parse: {input}");
     }
 }
 
@@ -98,7 +98,7 @@ fn test_json_dumps_semantic_equivalence() {
     for value in test_values {
         let serialized = serde_json::to_string(&value).unwrap();
         let deserialized: serde_json::Value = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(value, deserialized, "Round-trip failed for: {:?}", value);
+        assert_eq!(value, deserialized, "Round-trip failed for: {value:?}");
     }
 }
 
@@ -116,7 +116,7 @@ fn test_json_error_handling_divergence() {
 
     for input in invalid_inputs {
         let result: Result<serde_json::Value, _> = serde_json::from_str(input);
-        assert!(result.is_err(), "Should fail to parse: {}", input);
+        assert!(result.is_err(), "Should fail to parse: {input}");
     }
 }
 
@@ -344,7 +344,7 @@ fn document_known_divergences() {
 
     // Document all divergences
     for (case, description) in &divergences {
-        eprintln!("Divergence: {} - {}", case, description);
+        eprintln!("Divergence: {case} - {description}");
     }
 
     assert!(!divergences.is_empty(), "Should have documented divergences");
@@ -382,7 +382,7 @@ fn test_numpy_mapping_coverage() {
         vec!["array", "zeros", "ones", "sum", "mean", "dot", "sqrt", "exp", "log"];
 
     for func in required_mappings {
-        assert!(numpy.item_map.contains_key(func), "numpy.{} should be mapped", func);
+        assert!(numpy.item_map.contains_key(func), "numpy.{func} should be mapped");
     }
 }
 
@@ -404,11 +404,10 @@ fn test_sklearn_mapping_coverage() {
 
     for module in sklearn_modules {
         let mapping = mapper.get_mapping(module);
-        assert!(mapping.is_some(), "{} should be mapped", module);
+        assert!(mapping.is_some(), "{module} should be mapped");
         assert!(
             mapping.unwrap().rust_path.starts_with("aprender::"),
-            "{} should map to aprender",
-            module
+            "{module} should map to aprender"
         );
     }
 }

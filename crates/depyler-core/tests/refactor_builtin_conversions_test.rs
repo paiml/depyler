@@ -3,15 +3,15 @@
 //! EXTREME TDD Protocol:
 //! - These tests are written FIRST (RED phase)
 //! - Tests must FAIL until module is extracted (GREEN phase)
-//! - Tests verify identical behavior to original expr_gen.rs
+//! - Tests verify identical behavior to original `expr_gen.rs`
 //!
 //! Target Module: crates/depyler-core/src/rust_gen/builtin_conversions.rs
 //! Functions to Extract:
-//!   - convert_len_call
-//!   - convert_int_cast
-//!   - convert_float_cast
-//!   - convert_str_conversion
-//!   - convert_bool_cast
+//!   - `convert_len_call`
+//!   - `convert_int_cast`
+//!   - `convert_float_cast`
+//!   - `convert_str_conversion`
+//!   - `convert_bool_cast`
 
 use depyler_core::DepylerPipeline;
 
@@ -19,7 +19,7 @@ use depyler_core::DepylerPipeline;
 // Phase 1: Module Existence Tests (RED - will fail until module exists)
 // ============================================================================
 
-/// RED PHASE: Test that builtin_conversions module is accessible
+/// RED PHASE: Test that `builtin_conversions` module is accessible
 /// This test MUST FAIL until the module is extracted
 #[test]
 #[ignore = "RED PHASE: Module not yet extracted"]
@@ -34,7 +34,7 @@ fn test_builtin_conversions_module_exists() {
 // Phase 2: Behavior Preservation Tests
 // ============================================================================
 
-/// Test int() conversion preserves behavior
+/// Test `int()` conversion preserves behavior
 #[test]
 fn test_int_conversion_basic() {
     let pipeline = DepylerPipeline::new();
@@ -52,7 +52,7 @@ def convert_int():
     );
 }
 
-/// Test int() with base argument
+/// Test `int()` with base argument
 #[test]
 fn test_int_conversion_with_base() {
     let pipeline = DepylerPipeline::new();
@@ -70,7 +70,7 @@ def convert_hex():
     );
 }
 
-/// Test float() conversion
+/// Test `float()` conversion
 #[test]
 fn test_float_conversion_basic() {
     let pipeline = DepylerPipeline::new();
@@ -88,16 +88,16 @@ def convert_float():
     );
 }
 
-/// Test str() conversion
+/// Test `str()` conversion
 #[test]
 fn test_str_conversion_basic() {
     let pipeline = DepylerPipeline::new();
 
     // str(123) -> 123.to_string()
-    let python = r#"
+    let python = r"
 def convert_str():
     return str(123)
-"#;
+";
 
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(
@@ -106,16 +106,16 @@ def convert_str():
     );
 }
 
-/// Test bool() conversion
+/// Test `bool()` conversion
 #[test]
 fn test_bool_conversion_basic() {
     let pipeline = DepylerPipeline::new();
 
     // bool(1) -> 1 != 0
-    let python = r#"
+    let python = r"
 def convert_bool():
     return bool(1)
-"#;
+";
 
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(
@@ -124,22 +124,22 @@ def convert_bool():
     );
 }
 
-/// Test len() conversion
+/// Test `len()` conversion
 #[test]
 fn test_len_conversion_list() {
     let pipeline = DepylerPipeline::new();
 
     // len([1,2,3]) -> vec![1,2,3].len()
-    let python = r#"
+    let python = r"
 def get_length():
     return len([1, 2, 3])
-"#;
+";
 
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(rust.contains(".len()"), "len() should generate .len(). Got:\n{rust}");
 }
 
-/// Test len() conversion for string
+/// Test `len()` conversion for string
 #[test]
 fn test_len_conversion_string() {
     let pipeline = DepylerPipeline::new();
@@ -161,16 +161,16 @@ def get_string_length():
 // Phase 3: Edge Case Tests
 // ============================================================================
 
-/// Test int() on float truncates
+/// Test `int()` on float truncates
 #[test]
 fn test_int_from_float_truncates() {
     let pipeline = DepylerPipeline::new();
 
     // int(3.7) -> 3.7 as i64 (truncates to 3)
-    let python = r#"
+    let python = r"
 def truncate():
     return int(3.7)
-"#;
+";
 
     let rust = pipeline.transpile(python).expect("Should transpile");
     // Should use `as i64` or similar truncation
@@ -180,7 +180,7 @@ def truncate():
     );
 }
 
-/// Test bool() on empty string returns False
+/// Test `bool()` on empty string returns False
 #[test]
 fn test_bool_empty_string() {
     let pipeline = DepylerPipeline::new();
@@ -199,7 +199,7 @@ def check_empty():
     );
 }
 
-/// Test len() on dict
+/// Test `len()` on dict
 #[test]
 fn test_len_conversion_dict() {
     let pipeline = DepylerPipeline::new();
@@ -278,12 +278,12 @@ def test_float():
 fn test_str_conversion_compiles() {
     let pipeline = DepylerPipeline::new();
 
-    let python = r#"
+    let python = r"
 def test_str():
     x = str(42)
     y = str(3.14)
     return x + y
-"#;
+";
 
     let rust = pipeline.transpile(python).expect("Should transpile");
     compile_rust_code(&rust, "str_conversion").expect("Generated str conversion code must compile");
@@ -339,7 +339,7 @@ prop_compose! {
 // Strategy for generating valid float string inputs
 prop_compose! {
     fn arb_float_string()(n in -1000.0f64..1000.0f64) -> String {
-        format!("{:.2}", n)
+        format!("{n:.2}")
     }
 }
 
@@ -359,8 +359,8 @@ proptest! {
         let pipeline = DepylerPipeline::new();
         let python = format!(r#"
 def convert():
-    return int("{}")
-"#, int_str);
+    return int("{int_str}")
+"#);
         // Should not panic - may return error but no panic
         let _ = pipeline.transpile(&python);
     }
@@ -371,8 +371,8 @@ def convert():
         let pipeline = DepylerPipeline::new();
         let python = format!(r#"
 def convert():
-    return float("{}")
-"#, float_str);
+    return float("{float_str}")
+"#);
         // Should not panic - may return error but no panic
         let _ = pipeline.transpile(&python);
     }
@@ -381,10 +381,10 @@ def convert():
     #[test]
     fn prop_str_conversion_from_int_never_panics(n in -1000i64..1000i64) {
         let pipeline = DepylerPipeline::new();
-        let python = format!(r#"
+        let python = format!(r"
 def convert():
-    return str({})
-"#, n);
+    return str({n})
+");
         // Should not panic - may return error but no panic
         let _ = pipeline.transpile(&python);
     }
@@ -395,10 +395,10 @@ def convert():
         let pipeline = DepylerPipeline::new();
         let items: Vec<String> = (0..size).map(|i| i.to_string()).collect();
         let list_str = format!("[{}]", items.join(", "));
-        let python = format!(r#"
+        let python = format!(r"
 def get_len():
-    return len({})
-"#, list_str);
+    return len({list_str})
+");
 
         if let Ok(rust) = pipeline.transpile(&python) {
             prop_assert!(
@@ -414,10 +414,10 @@ def get_len():
         let pipeline = DepylerPipeline::new();
         let python = format!(r#"
 def convert():
-    x = int("{}")
-    y = str({})
+    x = int("{n}")
+    y = str({n})
     return x
-"#, n, n);
+"#);
 
         let result1 = pipeline.transpile(&python);
         let result2 = pipeline.transpile(&python);
@@ -433,15 +433,15 @@ def convert():
     #[test]
     fn prop_function_names_are_valid_rust(name in arb_identifier()) {
         let pipeline = DepylerPipeline::new();
-        let python = format!(r#"
-def {}():
+        let python = format!(r"
+def {name}():
     return 42
-"#, name);
+");
 
         if let Ok(rust) = pipeline.transpile(&python) {
             // Function name should appear in output
             prop_assert!(
-                rust.contains(&format!("fn {}", name)) || rust.contains(&format!("fn r#{}", name)),
+                rust.contains(&format!("fn {name}")) || rust.contains(&format!("fn r#{name}")),
                 "Function name should be preserved or escaped. Got:\n{}", rust
             );
         }

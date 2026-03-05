@@ -1,8 +1,8 @@
-//! DEPYLER-0350: generator_yield_analysis.rs Coverage Tests
+//! DEPYLER-0350: `generator_yield_analysis.rs` Coverage Tests
 //!
 //! **EXTREME TDD Protocol - Coverage Boost**
 //!
-//! Target: generator_yield_analysis.rs 0-10% → 85%+ coverage
+//! Target: `generator_yield_analysis.rs` 0-10% → 85%+ coverage
 //! TDG Score: Unknown (estimated A/A-) - Clean, well-documented generator analysis code
 //!
 //! This test suite validates generator yield point analysis functionality:
@@ -614,7 +614,7 @@ fn test_depyler_0350_yield_point_debug() {
         depth: 0,
     };
 
-    let debug = format!("{:?}", yp);
+    let debug = format!("{yp:?}");
     assert!(debug.contains("YieldPoint"), "Debug output should contain struct name");
     assert!(debug.contains("state_id"), "Debug output should contain field names");
 }
