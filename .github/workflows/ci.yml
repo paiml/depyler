@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   unified:
-    uses: paiml/infra/.github/workflows/unified-gate.yml@main
+    uses: paiml/.github/.github/workflows/unified-gate.yml@main
     with:
       repo: ${{ github.event.repository.name }}
       pr_sha: ${{ github.event.pull_request.head.sha || github.sha }}
