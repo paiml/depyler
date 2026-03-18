@@ -240,8 +240,13 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
             }
             Ok(())
         }
-        CacheCommands::Warm { input_dir, jobs: _jobs } => {
+        CacheCommands::Warm { input_dir, jobs } => {
             use depyler::converge::cache_warmer::CacheWarmer;
+
+            // GH-239: Warn that --jobs is not yet passed to CacheWarmer
+            if jobs != 0 {
+                eprintln!("Warning: --jobs is not yet implemented for cache warm. Flag ignored.");
+            }
 
             let cache_path = get_cache_dir();
             println!("Warming cache from {}", input_dir.display());

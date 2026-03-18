@@ -18,11 +18,21 @@ pub fn handle_utol_command(
     patience: usize,
     display: String,
     output: Option<PathBuf>,
-    _config: Option<PathBuf>,
+    config_path: Option<PathBuf>,
     status: bool,
-    _watch: bool,
-    _watch_debounce: u64,
+    watch: bool,
+    watch_debounce: u64,
 ) -> Result<()> {
+    // GH-239: Warn on unimplemented flags
+    if config_path.is_some() {
+        eprintln!("Warning: --config is not yet implemented. Flag ignored.");
+    }
+    if watch {
+        eprintln!("Warning: --watch is not yet implemented. Flag ignored.");
+    }
+    if watch && watch_debounce != 500 {
+        eprintln!("Warning: --watch-debounce is not yet implemented. Flag ignored.");
+    }
     let config = build_config(corpus, target_rate, max_iterations, patience, &display)?;
 
     if status {

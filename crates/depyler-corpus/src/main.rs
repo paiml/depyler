@@ -81,7 +81,8 @@ fn main() -> anyhow::Result<()> {
         Commands::Analyze { corpus, format, output, skip_clean, target_rate, depyler_bin } => {
             let corpus_path = corpus.unwrap_or_else(default_corpus_path);
 
-            println!(
+            // GH-239: Use eprintln for status messages to avoid contaminating JSON output
+            eprintln!(
                 "{} Corpus analysis for: {}",
                 "[DEPYLER-CORPUS]".blue().bold(),
                 corpus_path.display()
@@ -102,38 +103,38 @@ fn main() -> anyhow::Result<()> {
 
             let analyzer = CorpusAnalyzer::new(config);
 
-            println!("{} Phase 1: Cleaning artifacts (5S)", "  ->".cyan());
-            println!("{} Phase 2: Batch transpilation", "  ->".cyan());
-            println!("{} Phase 3: Compilation verification", "  ->".cyan());
-            println!("{} Phase 4: Error taxonomy analysis", "  ->".cyan());
-            println!("{} Phase 5: Report generation", "  ->".cyan());
+            eprintln!("{} Phase 1: Cleaning artifacts (5S)", "  ->".cyan());
+            eprintln!("{} Phase 2: Batch transpilation", "  ->".cyan());
+            eprintln!("{} Phase 3: Compilation verification", "  ->".cyan());
+            eprintln!("{} Phase 4: Error taxonomy analysis", "  ->".cyan());
+            eprintln!("{} Phase 5: Report generation", "  ->".cyan());
 
             // For now, show a placeholder since we need depyler-core integration
-            println!(
+            eprintln!(
                 "\n{} Full analysis requires integration with depyler-core.",
                 "[INFO]".yellow()
             );
-            println!(
+            eprintln!(
                 "{} Corpus path: {}",
                 "[INFO]".yellow(),
                 analyzer.config().corpus_path.display()
             );
-            println!("{} Target rate: {:.1}%", "[INFO]".yellow(), analyzer.config().target_rate);
+            eprintln!("{} Target rate: {:.1}%", "[INFO]".yellow(), analyzer.config().target_rate);
 
             match format {
                 OutputFormat::Terminal => {
-                    println!("{} Output: Terminal", "[INFO]".yellow());
+                    eprintln!("{} Output: Terminal", "[INFO]".yellow());
                 }
                 OutputFormat::Json => {
-                    println!("{} Output: JSON", "[INFO]".yellow());
+                    eprintln!("{} Output: JSON", "[INFO]".yellow());
                     if let Some(out) = output {
-                        println!("{} Output dir: {}", "[INFO]".yellow(), out.display());
+                        eprintln!("{} Output dir: {}", "[INFO]".yellow(), out.display());
                     }
                 }
                 OutputFormat::Markdown => {
-                    println!("{} Output: Markdown", "[INFO]".yellow());
+                    eprintln!("{} Output: Markdown", "[INFO]".yellow());
                     if let Some(out) = output {
-                        println!("{} Output dir: {}", "[INFO]".yellow(), out.display());
+                        eprintln!("{} Output dir: {}", "[INFO]".yellow(), out.display());
                     }
                 }
             }
