@@ -52,7 +52,7 @@ pub fn handle_report_command(args: ReportArgs) -> Result<()> {
     println!("Corpus Analysis Report");
     println!("======================");
     println!("Corpus: {}", corpus_path.display());
-    println!("Target: {:.0}%", args.target_rate * 100.0);
+    println!("Target: {:.0}%", args.target_rate);
     println!("Format: {}", args.format);
 
     // For now, just print status - actual compilation delegated to converge command
