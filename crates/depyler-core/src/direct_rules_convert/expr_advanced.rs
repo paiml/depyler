@@ -122,266 +122,17 @@ impl<'a> ExprConverter<'a> {
         let arg_exprs: Vec<syn::Expr> =
             args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
 
+        let nasa_mode = self.type_mapper.nasa_mode;
         let result = match module {
-            "threading" => match constructor {
-                "Semaphore" | "BoundedSemaphore" => {
-                    // threading.Semaphore(n) → std::sync::Mutex::new(n)
-                    // Use first arg or default to 0
-                    if let Some(arg) = arg_exprs.first() {
-                        Some(parse_quote! { std::sync::Mutex::new(#arg) })
-                    } else {
-                        Some(parse_quote! { std::sync::Mutex::new(0) })
-                    }
-                }
-                "Lock" | "RLock" => {
-                    // threading.Lock() → std::sync::Mutex::new(())
-                    Some(parse_quote! { std::sync::Mutex::new(()) })
-                }
-                "Event" => {
-                    // threading.Event() → std::sync::Condvar::new()
-                    Some(parse_quote! { std::sync::Condvar::new() })
-                }
-                "Thread" => {
-                    // threading.Thread(target=fn) → std::thread::spawn(fn)
-                    // Simplified - just return a placeholder
-                    Some(parse_quote! { std::thread::spawn(|| {}) })
-                }
-                _ => None,
-            },
-            "queue" => match constructor {
-                "Queue" | "LifoQueue" | "PriorityQueue" => {
-                    // queue.Queue() → std::collections::VecDeque::new()
-                    Some(parse_quote! { std::collections::VecDeque::new() })
-                }
-                _ => None,
-            },
-            "datetime" => match constructor {
-                "datetime" => {
-                    // DEPYLER-1025: In NASA mode, use std::time instead of chrono
-                    if self.type_mapper.nasa_mode {
-                        Some(parse_quote! { std::time::SystemTime::now() })
-                    } else {
-                        // datetime.datetime(y,m,d,...) → chrono placeholder
-                        Some(parse_quote! { chrono::Utc::now() })
-                    }
-                }
-                "date" => {
-                    if self.type_mapper.nasa_mode {
-                        Some(parse_quote! { std::time::SystemTime::now() })
-                    } else {
-                        Some(parse_quote! { chrono::Utc::now().date_naive() })
-                    }
-                }
-                "time" => {
-                    if self.type_mapper.nasa_mode {
-                        Some(parse_quote! { std::time::SystemTime::now() })
-                    } else {
-                        Some(parse_quote! { chrono::Utc::now().time() })
-                    }
-                }
-                "timedelta" => {
-                    // DEPYLER-1025: In NASA mode, use std::time::Duration
-                    if self.type_mapper.nasa_mode {
-                        if let Some(arg) = arg_exprs.first() {
-                            Some(
-                                parse_quote! { std::time::Duration::from_secs((#arg as u64) * 86400) },
-                            )
-                        } else {
-                            Some(parse_quote! { std::time::Duration::from_secs(0) })
-                        }
-                    } else {
-                        // datetime.timedelta(days=n) → chrono::Duration::days(n)
-                        if let Some(arg) = arg_exprs.first() {
-                            Some(parse_quote! { chrono::Duration::days(#arg) })
-                        } else {
-                            Some(parse_quote! { chrono::Duration::zero() })
-                        }
-                    }
-                }
-                "now" => {
-                    // DEPYLER-1025: In NASA mode, use std::time
-                    if self.type_mapper.nasa_mode {
-                        Some(parse_quote! { std::time::SystemTime::now() })
-                    } else {
-                        // datetime.datetime.now() → chrono::Utc::now()
-                        Some(parse_quote! { chrono::Utc::now() })
-                    }
-                }
-                _ => None,
-            },
-            // GH-204: Collections module constructors - delegate to collection_constructors
-            // These constructors need proper argument handling, not just new()
-            "collections" => match constructor {
-                "deque" => {
-                    // collections.deque([1,2,3]) → VecDeque::from(vec![...])
-                    if arg_exprs.is_empty() {
-                        Some(parse_quote! { std::collections::VecDeque::new() })
-                    } else {
-                        let arg = &arg_exprs[0];
-                        Some(parse_quote! { std::collections::VecDeque::from(#arg) })
-                    }
-                }
-                "Counter" => {
-                    // collections.Counter([1,2,2,3]) → fold with entry().or_insert()
-                    if arg_exprs.is_empty() {
-                        Some(parse_quote! { std::collections::HashMap::new() })
-                    } else {
-                        let arg = &arg_exprs[0];
-                        Some(parse_quote! {
-                            #arg.into_iter().fold(std::collections::HashMap::new(), |mut acc, item| {
-                                *acc.entry(item).or_insert(0) += 1;
-                                acc
-                            })
-                        })
-                    }
-                }
-                "OrderedDict" => {
-                    // OrderedDict preserves insertion order - in Rust 1.36+, HashMap does too
-                    // but we use indexmap for explicit ordering
-                    if arg_exprs.is_empty() {
-                        Some(parse_quote! { std::collections::HashMap::new() })
-                    } else {
-                        let arg = &arg_exprs[0];
-                        Some(
-                            parse_quote! { #arg.into_iter().collect::<std::collections::HashMap<_, _>>() },
-                        )
-                    }
-                }
-                "defaultdict" => {
-                    // defaultdict(factory) → HashMap::new() (use entry API for defaults)
-                    Some(parse_quote! { std::collections::HashMap::new() })
-                }
-                _ => None,
-            },
-            "asyncio" => match constructor {
-                // DEPYLER-1024: In NASA mode, use std-only primitives
-                "Event" => {
-                    if self.type_mapper.nasa_mode {
-                        Some(parse_quote! { std::sync::Condvar::new() })
-                    } else {
-                        Some(parse_quote! { tokio::sync::Notify::new() })
-                    }
-                }
-                // DEPYLER-1024: In NASA mode, use std-only primitives instead of tokio
-                "Lock" => {
-                    if self.type_mapper.nasa_mode {
-                        Some(parse_quote! { std::sync::Mutex::new(()) })
-                    } else {
-                        Some(parse_quote! { tokio::sync::Mutex::new(()) })
-                    }
-                }
-                "Semaphore" => {
-                    // NASA mode: No direct std equivalent, use dummy
-                    if self.type_mapper.nasa_mode {
-                        Some(parse_quote! { () })
-                    } else if let Some(arg) = arg_exprs.first() {
-                        Some(parse_quote! { tokio::sync::Semaphore::new(#arg as usize) })
-                    } else {
-                        Some(parse_quote! { tokio::sync::Semaphore::new(1) })
-                    }
-                }
-                "Queue" => {
-                    if self.type_mapper.nasa_mode {
-                        Some(parse_quote! { std::sync::mpsc::channel().1 })
-                    } else {
-                        Some(parse_quote! { tokio::sync::mpsc::channel(100).1 })
-                    }
-                }
-                // DEPYLER-0747: asyncio.sleep(secs) → tokio::time::sleep(Duration)
-                // DEPYLER-1024: In NASA mode, use std::thread::sleep instead
-                "sleep" => {
-                    if self.type_mapper.nasa_mode {
-                        if let Some(arg) = arg_exprs.first() {
-                            Some(parse_quote! {
-                                std::thread::sleep(std::time::Duration::from_secs_f64(#arg as f64))
-                            })
-                        } else {
-                            Some(parse_quote! {
-                                std::thread::sleep(std::time::Duration::from_secs(0))
-                            })
-                        }
-                    } else if let Some(arg) = arg_exprs.first() {
-                        Some(parse_quote! {
-                            tokio::time::sleep(std::time::Duration::from_secs_f64(#arg as f64))
-                        })
-                    } else {
-                        Some(parse_quote! {
-                            tokio::time::sleep(std::time::Duration::from_secs(0))
-                        })
-                    }
-                }
-                // DEPYLER-0747: asyncio.run(coro) → tokio runtime block_on
-                // DEPYLER-1024: In NASA mode, just call the function directly (since async is converted to sync)
-                "run" => {
-                    if self.type_mapper.nasa_mode {
-                        arg_exprs.first().map(|arg| parse_quote! { #arg })
-                    } else {
-                        arg_exprs.first().map(|arg| {
-                            parse_quote! {
-                                tokio::runtime::Runtime::new().expect("tokio runtime failed").block_on(#arg)
-                            }
-                        })
-                    }
-                }
-                _ => None,
-            },
-            // DEPYLER-0950: json.loads/load need proper type annotation and borrowing
-            // DEPYLER-1098: NASA mode uses inline JSON parser, non-NASA uses serde_json
-            "json" => match constructor {
-                "loads" | "load" => {
-                    if self.type_mapper.nasa_mode {
-                        // NASA mode: return empty HashMap stub
-                        arg_exprs.first().map(|_| parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() })
-                    } else {
-                        arg_exprs.first().map(|arg| parse_quote! { serde_json::from_str::<serde_json::Value>(&#arg).expect("JSON parse failed") })
-                    }
-                }
-                "dumps" | "dump" => {
-                    if self.type_mapper.nasa_mode {
-                        // NASA mode: simple string format
-                        arg_exprs.first().map(|arg| parse_quote! { format!("{:?}", #arg) })
-                    } else {
-                        arg_exprs
-                            .first()
-                            .map(|arg| parse_quote! { serde_json::to_string(&#arg).expect("JSON serialize failed") })
-                    }
-                }
-                _ => None,
-            },
-            "os" => match constructor {
-                "getcwd" => {
-                    Some(parse_quote! { std::env::current_dir()?.to_string_lossy().to_string() })
-                }
-                "getenv" => arg_exprs.first().map(|arg| parse_quote! { std::env::var(#arg).ok() }),
-                "listdir" => {
-                    if let Some(arg) = arg_exprs.first() {
-                        Some(
-                            parse_quote! { std::fs::read_dir(#arg)?.map(|e| e.expect("dir entry error").file_name().to_string_lossy().to_string()).collect::<Vec<_>>() },
-                        )
-                    } else {
-                        Some(
-                            parse_quote! { std::fs::read_dir(".")?.map(|e| e.expect("dir entry error").file_name().to_string_lossy().to_string()).collect::<Vec<_>>() },
-                        )
-                    }
-                }
-                _ => None,
-            },
-            // DEPYLER-1200: re module methods are NOT constructors - handled separately
-            // Do NOT add re handling here - it's handled in convert_re_method below
+            "threading" => convert_threading_constructor(constructor, &arg_exprs),
+            "queue" => convert_queue_constructor(constructor),
+            "datetime" => convert_datetime_constructor(constructor, &arg_exprs, nasa_mode),
+            "collections" => convert_collections_constructor(constructor, &arg_exprs),
+            "asyncio" => convert_asyncio_constructor(constructor, &arg_exprs, nasa_mode),
+            "json" => convert_json_constructor(constructor, &arg_exprs, nasa_mode),
+            "os" => convert_os_constructor(constructor, &arg_exprs),
             "re" => None,
-            "fnmatch" => match constructor {
-                "fnmatch" => {
-                    // fnmatch.fnmatch(name, pattern) → name.contains(pattern) as stub
-                    if arg_exprs.len() >= 2 {
-                        let name = &arg_exprs[0];
-                        let pattern = &arg_exprs[1];
-                        Some(parse_quote! { #name.contains(&#pattern) })
-                    } else {
-                        Some(parse_quote! { false })
-                    }
-                }
-                _ => None,
-            },
+            "fnmatch" => convert_fnmatch_constructor(constructor, &arg_exprs),
             _ => None,
         };
 
@@ -674,5 +425,276 @@ impl<'a> ExprConverter<'a> {
         } else {
             Ok(parse_quote! { (#callee_expr)(#(#arg_exprs),*) })
         }
+    }
+}
+
+fn convert_threading_constructor(constructor: &str, arg_exprs: &[syn::Expr]) -> Option<syn::Expr> {
+    match constructor {
+        "Semaphore" | "BoundedSemaphore" => {
+            if let Some(arg) = arg_exprs.first() {
+                Some(parse_quote! { std::sync::Mutex::new(#arg) })
+            } else {
+                Some(parse_quote! { std::sync::Mutex::new(0) })
+            }
+        }
+        "Lock" | "RLock" => Some(parse_quote! { std::sync::Mutex::new(()) }),
+        "Event" => Some(parse_quote! { std::sync::Condvar::new() }),
+        "Thread" => Some(parse_quote! { std::thread::spawn(|| {}) }),
+        _ => None,
+    }
+}
+
+fn convert_queue_constructor(constructor: &str) -> Option<syn::Expr> {
+    match constructor {
+        "Queue" | "LifoQueue" | "PriorityQueue" => {
+            Some(parse_quote! { std::collections::VecDeque::new() })
+        }
+        _ => None,
+    }
+}
+
+fn convert_datetime_constructor(
+    constructor: &str,
+    arg_exprs: &[syn::Expr],
+    nasa_mode: bool,
+) -> Option<syn::Expr> {
+    match constructor {
+        "datetime" => convert_datetime_datetime(nasa_mode),
+        "date" => convert_datetime_date(nasa_mode),
+        "time" => convert_datetime_time(nasa_mode),
+        "timedelta" => convert_datetime_timedelta(arg_exprs, nasa_mode),
+        "now" => convert_datetime_now(nasa_mode),
+        _ => None,
+    }
+}
+
+fn convert_datetime_datetime(nasa_mode: bool) -> Option<syn::Expr> {
+    if nasa_mode {
+        Some(parse_quote! { std::time::SystemTime::now() })
+    } else {
+        Some(parse_quote! { chrono::Utc::now() })
+    }
+}
+
+fn convert_datetime_date(nasa_mode: bool) -> Option<syn::Expr> {
+    if nasa_mode {
+        Some(parse_quote! { std::time::SystemTime::now() })
+    } else {
+        Some(parse_quote! { chrono::Utc::now().date_naive() })
+    }
+}
+
+fn convert_datetime_time(nasa_mode: bool) -> Option<syn::Expr> {
+    if nasa_mode {
+        Some(parse_quote! { std::time::SystemTime::now() })
+    } else {
+        Some(parse_quote! { chrono::Utc::now().time() })
+    }
+}
+
+fn convert_datetime_timedelta(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Option<syn::Expr> {
+    if nasa_mode {
+        if let Some(arg) = arg_exprs.first() {
+            Some(parse_quote! { std::time::Duration::from_secs((#arg as u64) * 86400) })
+        } else {
+            Some(parse_quote! { std::time::Duration::from_secs(0) })
+        }
+    } else if let Some(arg) = arg_exprs.first() {
+        Some(parse_quote! { chrono::Duration::days(#arg) })
+    } else {
+        Some(parse_quote! { chrono::Duration::zero() })
+    }
+}
+
+fn convert_datetime_now(nasa_mode: bool) -> Option<syn::Expr> {
+    if nasa_mode {
+        Some(parse_quote! { std::time::SystemTime::now() })
+    } else {
+        Some(parse_quote! { chrono::Utc::now() })
+    }
+}
+
+fn convert_collections_constructor(
+    constructor: &str,
+    arg_exprs: &[syn::Expr],
+) -> Option<syn::Expr> {
+    match constructor {
+        "deque" => {
+            if arg_exprs.is_empty() {
+                Some(parse_quote! { std::collections::VecDeque::new() })
+            } else {
+                let arg = &arg_exprs[0];
+                Some(parse_quote! { std::collections::VecDeque::from(#arg) })
+            }
+        }
+        "Counter" => {
+            if arg_exprs.is_empty() {
+                Some(parse_quote! { std::collections::HashMap::new() })
+            } else {
+                let arg = &arg_exprs[0];
+                Some(parse_quote! {
+                    #arg.into_iter().fold(std::collections::HashMap::new(), |mut acc, item| {
+                        *acc.entry(item).or_insert(0) += 1;
+                        acc
+                    })
+                })
+            }
+        }
+        "OrderedDict" => {
+            if arg_exprs.is_empty() {
+                Some(parse_quote! { std::collections::HashMap::new() })
+            } else {
+                let arg = &arg_exprs[0];
+                Some(parse_quote! { #arg.into_iter().collect::<std::collections::HashMap<_, _>>() })
+            }
+        }
+        "defaultdict" => Some(parse_quote! { std::collections::HashMap::new() }),
+        _ => None,
+    }
+}
+
+fn convert_asyncio_constructor(
+    constructor: &str,
+    arg_exprs: &[syn::Expr],
+    nasa_mode: bool,
+) -> Option<syn::Expr> {
+    match constructor {
+        "Event" => convert_asyncio_event(nasa_mode),
+        "Lock" => convert_asyncio_lock(nasa_mode),
+        "Semaphore" => convert_asyncio_semaphore(arg_exprs, nasa_mode),
+        "Queue" => convert_asyncio_queue(nasa_mode),
+        "sleep" => convert_asyncio_sleep(arg_exprs, nasa_mode),
+        "run" => convert_asyncio_run(arg_exprs, nasa_mode),
+        _ => None,
+    }
+}
+
+fn convert_asyncio_event(nasa_mode: bool) -> Option<syn::Expr> {
+    if nasa_mode {
+        Some(parse_quote! { std::sync::Condvar::new() })
+    } else {
+        Some(parse_quote! { tokio::sync::Notify::new() })
+    }
+}
+
+fn convert_asyncio_lock(nasa_mode: bool) -> Option<syn::Expr> {
+    if nasa_mode {
+        Some(parse_quote! { std::sync::Mutex::new(()) })
+    } else {
+        Some(parse_quote! { tokio::sync::Mutex::new(()) })
+    }
+}
+
+fn convert_asyncio_semaphore(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Option<syn::Expr> {
+    if nasa_mode {
+        Some(parse_quote! { () })
+    } else if let Some(arg) = arg_exprs.first() {
+        Some(parse_quote! { tokio::sync::Semaphore::new(#arg as usize) })
+    } else {
+        Some(parse_quote! { tokio::sync::Semaphore::new(1) })
+    }
+}
+
+fn convert_asyncio_queue(nasa_mode: bool) -> Option<syn::Expr> {
+    if nasa_mode {
+        Some(parse_quote! { std::sync::mpsc::channel().1 })
+    } else {
+        Some(parse_quote! { tokio::sync::mpsc::channel(100).1 })
+    }
+}
+
+fn convert_asyncio_sleep(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Option<syn::Expr> {
+    if nasa_mode {
+        if let Some(arg) = arg_exprs.first() {
+            Some(parse_quote! {
+                std::thread::sleep(std::time::Duration::from_secs_f64(#arg as f64))
+            })
+        } else {
+            Some(parse_quote! {
+                std::thread::sleep(std::time::Duration::from_secs(0))
+            })
+        }
+    } else if let Some(arg) = arg_exprs.first() {
+        Some(parse_quote! {
+            tokio::time::sleep(std::time::Duration::from_secs_f64(#arg as f64))
+        })
+    } else {
+        Some(parse_quote! {
+            tokio::time::sleep(std::time::Duration::from_secs(0))
+        })
+    }
+}
+
+fn convert_asyncio_run(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Option<syn::Expr> {
+    if nasa_mode {
+        arg_exprs.first().map(|arg| parse_quote! { #arg })
+    } else {
+        arg_exprs.first().map(|arg| {
+            parse_quote! {
+                tokio::runtime::Runtime::new().expect("tokio runtime failed").block_on(#arg)
+            }
+        })
+    }
+}
+
+fn convert_json_constructor(
+    constructor: &str,
+    arg_exprs: &[syn::Expr],
+    nasa_mode: bool,
+) -> Option<syn::Expr> {
+    match constructor {
+        "loads" | "load" => {
+            if nasa_mode {
+                arg_exprs.first().map(
+                    |_| parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() },
+                )
+            } else {
+                arg_exprs.first().map(|arg| parse_quote! { serde_json::from_str::<serde_json::Value>(&#arg).expect("JSON parse failed") })
+            }
+        }
+        "dumps" | "dump" => {
+            if nasa_mode {
+                arg_exprs.first().map(|arg| parse_quote! { format!("{:?}", #arg) })
+            } else {
+                arg_exprs
+                    .first()
+                    .map(|arg| parse_quote! { serde_json::to_string(&#arg).expect("JSON serialize failed") })
+            }
+        }
+        _ => None,
+    }
+}
+
+fn convert_os_constructor(constructor: &str, arg_exprs: &[syn::Expr]) -> Option<syn::Expr> {
+    match constructor {
+        "getcwd" => Some(parse_quote! { std::env::current_dir()?.to_string_lossy().to_string() }),
+        "getenv" => arg_exprs.first().map(|arg| parse_quote! { std::env::var(#arg).ok() }),
+        "listdir" => {
+            if let Some(arg) = arg_exprs.first() {
+                Some(
+                    parse_quote! { std::fs::read_dir(#arg)?.map(|e| e.expect("dir entry error").file_name().to_string_lossy().to_string()).collect::<Vec<_>>() },
+                )
+            } else {
+                Some(
+                    parse_quote! { std::fs::read_dir(".")?.map(|e| e.expect("dir entry error").file_name().to_string_lossy().to_string()).collect::<Vec<_>>() },
+                )
+            }
+        }
+        _ => None,
+    }
+}
+
+fn convert_fnmatch_constructor(constructor: &str, arg_exprs: &[syn::Expr]) -> Option<syn::Expr> {
+    match constructor {
+        "fnmatch" => {
+            if arg_exprs.len() >= 2 {
+                let name = &arg_exprs[0];
+                let pattern = &arg_exprs[1];
+                Some(parse_quote! { #name.contains(&#pattern) })
+            } else {
+                Some(parse_quote! { false })
+            }
+        }
+        _ => None,
     }
 }

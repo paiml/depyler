@@ -155,127 +155,50 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     pub(crate) fn is_string_base(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Literal(Literal::String(_)) => true,
-            HirExpr::Var(sym) => {
-                // DEPYLER-0479: Check type system first (most reliable)
-                if let Some(ty) = self.ctx.var_types.get(sym) {
-                    // Return true if definitely String, false if definitely NOT string
-                    // Fall through to heuristics for Unknown/Any types
-                    match ty {
-                        Type::String => return true,
-                        // DEPYLER-0579: Optional<String> is still string-like
-                        Type::Optional(inner) if matches!(**inner, Type::String) => return true,
-                        Type::Int | Type::Float | Type::Bool | Type::List(_) | Type::Dict(_, _) => {
-                            return false;
-                        }
-                        _ => {} // Unknown/Any - fall through to heuristics
-                    }
-                }
-
-                // DEPYLER-0267 FIX: Only match singular string-like names, NOT plurals
-                // "words" (plural) is likely list[str], not str!
-                // "word" (singular) without 's' ending is likely str
-                let name = sym.as_str();
-                // Only match if: singular AND string-like name
-                let is_singular = !name.ends_with('s');
-                name == "text"
-                    || name == "s"
-                    || name == "string"
-                    || name == "line"
-                    || name == "content"     // DEPYLER-0538: File content is usually String
-                    || name == "timestamp"  // GH-70: Common string field (ISO 8601, etc.)
-                    || name == "message"     // GH-70: Log messages are strings
-                    || name == "level"       // GH-70: Log levels are strings ("INFO", "ERROR")
-                    || name == "prefix"      // String prefix for startswith operations
-                    || name == "suffix"      // String suffix for endswith operations
-                    || name == "pattern"     // String pattern for matching
-                    || name == "char"        // Single character string
-                    || name == "delimiter"   // String delimiter
-                    || name == "separator"   // String separator
-                    || (name == "word" && is_singular)
-                    || (name.starts_with("text") && is_singular)
-                    || (name.starts_with("str") && is_singular)
-                    || (name.ends_with("_str") && is_singular)
-                    || (name.ends_with("_string") && is_singular)
-                    || (name.ends_with("_word") && is_singular)
-                    || (name.ends_with("_text") && is_singular)
-                    || (name.ends_with("timestamp") && is_singular)  // GH-70: created_timestamp, etc.
-                    || (name.ends_with("_message") && is_singular) // GH-70: error_message, etc.
-            }
-            // DEPYLER-0577: Handle attribute access (e.g., args.text, args.prefix)
-            HirExpr::Attribute { attr, .. } => {
-                let name = attr.as_str();
-                let is_singular = !name.ends_with('s');
-                name == "text"
-                    || name == "s"
-                    || name == "string"
-                    || name == "line"
-                    || name == "content"
-                    || name == "message"
-                    || name == "prefix"      // String prefix for startswith operations
-                    || name == "suffix"      // String suffix for endswith operations
-                    || name == "pattern"     // String pattern for matching
-                    || name == "char"        // Single character string
-                    || name == "delimiter"   // String delimiter
-                    || name == "separator"   // String separator
-                    || name == "old"         // String replacement old value
-                    || name == "new"         // String replacement new value
-                    || (name.starts_with("text") && is_singular)
-                    || (name.ends_with("_text") && is_singular)
-                    || (name.ends_with("_string") && is_singular)
-            }
-            HirExpr::MethodCall { method, .. }
-                if method.as_str().contains("upper")
-                    || method.as_str().contains("lower")
-                    || method.as_str().contains("strip")
-                    || method.as_str().contains("lstrip")
-                    || method.as_str().contains("rstrip")
-                    || method.as_str().contains("title") =>
-            {
-                true
-            }
+            HirExpr::Var(sym) => self.is_string_base_var(sym),
+            HirExpr::Attribute { attr, .. } => is_string_base_attr(attr),
+            HirExpr::MethodCall { method, .. } if is_string_returning_method(method) => true,
             HirExpr::Call { func, .. } if func.as_str() == "str" => true,
-            // DEPYLER-0573: Dict value access with string-like keys
-            // Pattern: dict["hash"], dict.get("hash")... - these return string values
             HirExpr::Index { base, index } if self.is_dict_expr(base) => {
-                // Check if key suggests string value
-                if let HirExpr::Literal(Literal::String(key)) = index.as_ref() {
-                    let k = key.to_lowercase();
-                    k.contains("hash")
-                        || k.contains("name")
-                        || k.contains("path")
-                        || k.contains("text")
-                        || k.contains("message")
-                        || k.contains("algorithm")
-                        || k.contains("filename")
-                        || k.contains("modified")
-                } else {
-                    false
-                }
+                is_string_valued_dict_key(index)
             }
-            // DEPYLER-0573: Dict.get() chain with string-like keys
             HirExpr::MethodCall { object, method, args, .. }
                 if (method == "get" || method == "cloned" || method == "unwrap_or_default")
                     && self.is_dict_value_access(object) =>
             {
-                // If it's a get() call, check the key
-                if method == "get" && !args.is_empty() {
-                    if let HirExpr::Literal(Literal::String(key)) = &args[0] {
-                        let k = key.to_lowercase();
-                        return k.contains("hash")
-                            || k.contains("name")
-                            || k.contains("path")
-                            || k.contains("text")
-                            || k.contains("message")
-                            || k.contains("algorithm")
-                            || k.contains("filename")
-                            || k.contains("modified");
-                    }
-                }
-                // For cloned/unwrap_or_default, check the chain
-                self.is_string_base(object)
+                self.is_string_base_dict_chain(object, method, args)
             }
             _ => false,
         }
+    }
+
+    fn is_string_base_var(&self, sym: &str) -> bool {
+        // DEPYLER-0479: Check type system first (most reliable)
+        if let Some(ty) = self.ctx.var_types.get(sym) {
+            match ty {
+                Type::String => return true,
+                // DEPYLER-0579: Optional<String> is still string-like
+                Type::Optional(inner) if matches!(**inner, Type::String) => return true,
+                Type::Int | Type::Float | Type::Bool | Type::List(_) | Type::Dict(_, _) => {
+                    return false;
+                }
+                _ => {} // Unknown/Any - fall through to heuristics
+            }
+        }
+
+        // DEPYLER-0267 FIX: Only match singular string-like names, NOT plurals
+        let name = sym;
+        let is_singular = !name.ends_with('s');
+        is_string_like_var_name(name, is_singular)
+    }
+
+    fn is_string_base_dict_chain(&self, object: &HirExpr, method: &str, args: &[HirExpr]) -> bool {
+        if method == "get" && !args.is_empty() {
+            if let HirExpr::Literal(Literal::String(key)) = &args[0] {
+                return is_string_valued_key_name(key);
+            }
+        }
+        self.is_string_base(object)
     }
 
     /// DEPYLER-0701: Check if base expression is a tuple type
@@ -2113,5 +2036,82 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Var(name) => name == var_name,
             _ => false,
         }
+    }
+}
+
+fn is_string_like_var_name(name: &str, is_singular: bool) -> bool {
+    name == "text"
+        || name == "s"
+        || name == "string"
+        || name == "line"
+        || name == "content"
+        || name == "timestamp"
+        || name == "message"
+        || name == "level"
+        || name == "prefix"
+        || name == "suffix"
+        || name == "pattern"
+        || name == "char"
+        || name == "delimiter"
+        || name == "separator"
+        || (name == "word" && is_singular)
+        || (name.starts_with("text") && is_singular)
+        || (name.starts_with("str") && is_singular)
+        || (name.ends_with("_str") && is_singular)
+        || (name.ends_with("_string") && is_singular)
+        || (name.ends_with("_word") && is_singular)
+        || (name.ends_with("_text") && is_singular)
+        || (name.ends_with("timestamp") && is_singular)
+        || (name.ends_with("_message") && is_singular)
+}
+
+fn is_string_base_attr(attr: &str) -> bool {
+    let name = attr;
+    let is_singular = !name.ends_with('s');
+    name == "text"
+        || name == "s"
+        || name == "string"
+        || name == "line"
+        || name == "content"
+        || name == "message"
+        || name == "prefix"
+        || name == "suffix"
+        || name == "pattern"
+        || name == "char"
+        || name == "delimiter"
+        || name == "separator"
+        || name == "old"
+        || name == "new"
+        || (name.starts_with("text") && is_singular)
+        || (name.ends_with("_text") && is_singular)
+        || (name.ends_with("_string") && is_singular)
+}
+
+fn is_string_returning_method(method: &str) -> bool {
+    method.contains("upper")
+        || method.contains("lower")
+        || method.contains("strip")
+        || method.contains("lstrip")
+        || method.contains("rstrip")
+        || method.contains("title")
+}
+
+fn is_string_valued_key_name(key: &str) -> bool {
+    let k = key.to_lowercase();
+    k.contains("hash")
+        || k.contains("name")
+        || k.contains("path")
+        || k.contains("text")
+        || k.contains("message")
+        || k.contains("algorithm")
+        || k.contains("filename")
+        || k.contains("modified")
+}
+
+fn is_string_valued_dict_key(index: &HirExpr) -> bool {
+    if let HirExpr::Literal(Literal::String(key)) = index {
+        is_string_valued_key_name(key)
+    } else {
+        false
     }
 }

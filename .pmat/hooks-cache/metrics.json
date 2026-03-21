@@ -1,0 +1,9 @@
+{
+  "total_runs": 0,
+  "cache_hits": 0,
+  "cache_misses": 0,
+  "avg_cache_hit_time_ms": 0.0,
+  "avg_cache_miss_time_ms": 0.0,
+  "last_full_rebuild": null,
+  "cache_size_bytes": 0
+}

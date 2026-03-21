@@ -205,93 +205,130 @@ pub(crate) fn codegen_return_type(
     bool,
     Option<crate::rust_gen::context::ErrorType>,
 )> {
-    // GH-70: Check if function returns a nested function/closure
-    if let Some((_nested_name, params, nested_ret_type)) = detect_returns_nested_function(func, ctx)
-    {
-        use quote::quote;
-
-        // Build Box<dyn Fn(params) -> ret> type
-        let param_types: Vec<proc_macro2::TokenStream> = params
-            .iter()
-            .map(|p| crate::rust_gen::type_tokens::hir_type_to_tokens(&p.ty))
-            .collect();
-
-        let ret_ty_tokens = crate::rust_gen::type_tokens::hir_type_to_tokens(&nested_ret_type);
-
-        let fn_type = if params.is_empty() {
-            quote! { -> Box<dyn Fn() -> #ret_ty_tokens> }
-        } else {
-            quote! { -> Box<dyn Fn(#(#param_types),*) -> #ret_ty_tokens> }
-        };
-
-        return Ok((
-            fn_type.clone(),
-            crate::type_mapper::RustType::Custom("BoxedFn".to_string()),
-            false, // can_fail
-            None,  // error_type
-        ));
+    if let Some(result) = try_nested_function_return(func, ctx) {
+        return Ok(result);
     }
 
-    // DEPYLER-0626: Check if function returns heterogeneous IO types (File vs Stdout)
-    // If so, return type should be Box<dyn std::io::Write>
-    if function_returns_heterogeneous_io(func) {
-        use quote::quote;
-        ctx.function_returns_boxed_write = true;
-        ctx.needs_io_write = true;
-
-        // Check if function can fail (uses open() which can fail)
-        let can_fail = func.properties.can_fail;
-        let error_type = if can_fail {
-            Some(crate::rust_gen::context::ErrorType::Concrete("std::io::Error".to_string()))
-        } else {
-            None
-        };
-
-        let return_type = if can_fail {
-            quote! { -> Result<Box<dyn std::io::Write>, std::io::Error> }
-        } else {
-            quote! { -> Box<dyn std::io::Write> }
-        };
-
-        return Ok((
-            return_type,
-            crate::type_mapper::RustType::Custom("BoxedWrite".to_string()),
-            can_fail,
-            error_type,
-        ));
+    if let Some(result) = try_heterogeneous_io_return(func, ctx) {
+        return Ok(result);
     }
 
-    // DEPYLER-0410: Infer return type from body when annotation is Unknown
-    // DEPYLER-0420: Also infer when tuple/list contains Unknown elements
-    // DEPYLER-0460: Use _with_params version for Optional pattern detection
-    // DEPYLER-0460: Also infer when ret_type is None, because that could be:
-    // 1. A function returning None in all paths → () in Rust
-    // 2. A function returning None|T (Optional pattern) → Option<T> in Rust
-    // DEPYLER-0662: Also infer when ret_type is empty tuple (from `-> tuple` annotation)
-    // Python `-> tuple` without type params should be inferred from return statements
-    // DEPYLER-0662: Python `-> tuple` parses to Type::Custom("tuple"), not Type::Tuple
-    // DEPYLER-1209: Also check for UnificationVar
+    let effective_ret_type = compute_effective_return_type(func, ctx);
+
+    let rust_ret_type = map_and_resolve_return_type(func, ctx, &effective_ret_type);
+
+    update_import_needs(ctx, &rust_ret_type);
+
+    let can_fail = func.properties.can_fail;
+    let error_type_str = compute_error_type_string(func, ctx);
+
+    let error_type = if can_fail {
+        Some(if error_type_str.contains("Box<dyn") {
+            crate::rust_gen::context::ErrorType::DynBox
+        } else {
+            crate::rust_gen::context::ErrorType::Concrete(error_type_str.clone())
+        })
+    } else {
+        None
+    };
+
+    mark_error_type_needs(ctx, &error_type_str, &func.properties.error_types);
+
+    let return_type = build_return_type_tokens(
+        func,
+        lifetime_result,
+        ctx,
+        &rust_ret_type,
+        can_fail,
+        &error_type_str,
+    )?;
+
+    Ok((return_type, rust_ret_type, can_fail, error_type))
+}
+
+fn try_nested_function_return(
+    func: &HirFunction,
+    ctx: &mut CodeGenContext,
+) -> Option<(
+    proc_macro2::TokenStream,
+    crate::type_mapper::RustType,
+    bool,
+    Option<crate::rust_gen::context::ErrorType>,
+)> {
+    let (_nested_name, params, nested_ret_type) = detect_returns_nested_function(func, ctx)?;
+
+    let param_types: Vec<proc_macro2::TokenStream> =
+        params.iter().map(|p| crate::rust_gen::type_tokens::hir_type_to_tokens(&p.ty)).collect();
+
+    let ret_ty_tokens = crate::rust_gen::type_tokens::hir_type_to_tokens(&nested_ret_type);
+
+    let fn_type = if params.is_empty() {
+        quote! { -> Box<dyn Fn() -> #ret_ty_tokens> }
+    } else {
+        quote! { -> Box<dyn Fn(#(#param_types),*) -> #ret_ty_tokens> }
+    };
+
+    Some((
+        fn_type.clone(),
+        crate::type_mapper::RustType::Custom("BoxedFn".to_string()),
+        false,
+        None,
+    ))
+}
+
+fn try_heterogeneous_io_return(
+    func: &HirFunction,
+    ctx: &mut CodeGenContext,
+) -> Option<(
+    proc_macro2::TokenStream,
+    crate::type_mapper::RustType,
+    bool,
+    Option<crate::rust_gen::context::ErrorType>,
+)> {
+    if !function_returns_heterogeneous_io(func) {
+        return None;
+    }
+
+    ctx.function_returns_boxed_write = true;
+    ctx.needs_io_write = true;
+
+    let can_fail = func.properties.can_fail;
+    let error_type = if can_fail {
+        Some(crate::rust_gen::context::ErrorType::Concrete("std::io::Error".to_string()))
+    } else {
+        None
+    };
+
+    let return_type = if can_fail {
+        quote! { -> Result<Box<dyn std::io::Write>, std::io::Error> }
+    } else {
+        quote! { -> Box<dyn std::io::Write> }
+    };
+
+    Some((
+        return_type,
+        crate::type_mapper::RustType::Custom("BoxedWrite".to_string()),
+        can_fail,
+        error_type,
+    ))
+}
+
+fn compute_effective_return_type(func: &HirFunction, ctx: &mut CodeGenContext) -> Type {
     let should_infer = matches!(func.ret_type, Type::Unknown | Type::None)
         || matches!(&func.ret_type, Type::Tuple(elems) if elems.is_empty() || elems.iter().any(|t| matches!(t, Type::Unknown)))
         || matches!(&func.ret_type, Type::List(elem) if matches!(**elem, Type::Unknown | Type::UnificationVar(_)))
         || matches!(&func.ret_type, Type::Custom(name) if name == "tuple");
 
     let effective_ret_type = if should_infer {
-        // Try to infer from return statements in body (with parameter type tracking for Optional detection)
         infer_return_type_from_body_with_params(func, ctx).unwrap_or_else(|| func.ret_type.clone())
     } else {
         func.ret_type.clone()
     };
 
-    // DEPYLER-0719: Update function_return_types with inferred type
-    // When a function's return type is inferred (e.g., `-> tuple` → `(f64, f64)`),
-    // update the map so callers like `point: tuple = get_point()` can use the inferred type
     if should_infer && effective_ret_type != func.ret_type {
         ctx.function_return_types.insert(func.name.clone(), effective_ret_type.clone());
     }
 
-    // DEPYLER-0716: Apply type substitutions to return type
-    // When generic parameters are substituted (e.g., T -> String), apply to return type too
     let effective_ret_type = if !ctx.type_substitutions.is_empty() {
         crate::generic_inference::TypeVarRegistry::apply_substitutions(
             &effective_ret_type,
@@ -301,20 +338,20 @@ pub(crate) fn codegen_return_type(
         effective_ret_type
     };
 
-    // DEPYLER-0936: Rewrite ADT child types to parent enum types
-    // When a Python ABC hierarchy is converted to a Rust enum, return types mentioning
-    // child classes (e.g., ListIter[T]) must be rewritten to parent (e.g., Iter[T])
-    let effective_ret_type = rewrite_adt_child_type(&effective_ret_type, &ctx.adt_child_to_parent);
+    rewrite_adt_child_type(&effective_ret_type, &ctx.adt_child_to_parent)
+}
 
-    // Convert return type using annotation-aware mapping
+fn map_and_resolve_return_type(
+    func: &HirFunction,
+    ctx: &mut CodeGenContext,
+    effective_ret_type: &Type,
+) -> crate::type_mapper::RustType {
     let mapped_ret_type = ctx
         .annotation_aware_mapper
-        .map_return_type_with_annotations(&effective_ret_type, &func.annotations);
+        .map_return_type_with_annotations(effective_ret_type, &func.annotations);
 
-    // Check if this is a placeholder Union enum that needs proper generation
     let rust_ret_type = if let crate::type_mapper::RustType::Enum { name, .. } = &mapped_ret_type {
         if name == "UnionType" {
-            // Generate a proper enum name and definition from the original Union type
             if let Type::Union(types) = &func.ret_type {
                 let enum_name = ctx.process_union_type(types);
                 crate::type_mapper::RustType::Custom(enum_name)
@@ -328,23 +365,16 @@ pub(crate) fn codegen_return_type(
         mapped_ret_type
     };
 
-    // v3.16.0 Phase 1: Override return type to String if function returns owned via string methods
-    // This prevents lifetime analysis from incorrectly converting to borrowed &str
-    let rust_ret_type =
-        if matches!(func.ret_type, Type::String) && function_returns_owned_string(func) {
-            // Force owned String return, don't use lifetime borrowing
-            crate::type_mapper::RustType::String
-        } else {
-            rust_ret_type
-        };
+    if matches!(func.ret_type, Type::String) && function_returns_owned_string(func) {
+        crate::type_mapper::RustType::String
+    } else {
+        rust_ret_type
+    }
+}
 
-    // Update import needs based on return type
-    update_import_needs(ctx, &rust_ret_type);
-
-    // Check if function can fail and needs Result wrapper
-    let can_fail = func.properties.can_fail;
-    let mut error_type_str = if can_fail && !func.properties.error_types.is_empty() {
-        // Use first error type or generic for mixed types
+fn compute_error_type_string(func: &HirFunction, ctx: &CodeGenContext) -> String {
+    let mut error_type_str = if func.properties.can_fail && !func.properties.error_types.is_empty()
+    {
         if func.properties.error_types.len() == 1 {
             func.properties.error_types[0].clone()
         } else {
@@ -354,15 +384,20 @@ pub(crate) fn codegen_return_type(
         "Box<dyn std::error::Error>".to_string()
     };
 
-    // DEPYLER-0597: Map Python exception types to Rust error types
-    // This ensures function signatures like `-> Result<T, OSError>` compile
-    // Using Box<dyn std::error::Error> for most exceptions since it doesn't require external crates
-    error_type_str = match error_type_str.as_str() {
-        // File/IO related exceptions map to std::io::Error for idiomatic Rust
+    error_type_str = map_python_error_to_rust(&error_type_str);
+
+    if ctx.validator_functions.contains(&func.name) {
+        error_type_str = "Box<dyn std::error::Error>".to_string();
+    }
+
+    error_type_str
+}
+
+fn map_python_error_to_rust(error_type_str: &str) -> String {
+    match error_type_str {
         "OSError" | "IOError" | "FileNotFoundError" | "PermissionError" => {
             "std::io::Error".to_string()
         }
-        // General exceptions map to Box<dyn std::error::Error> (no external crate needed)
         "Exception"
         | "BaseException"
         | "ValueError"
@@ -377,206 +412,168 @@ pub(crate) fn codegen_return_type(
         | "ZeroDivisionError"
         | "OverflowError"
         | "ArithmeticError" => "Box<dyn std::error::Error>".to_string(),
-        // Keep other types as-is (might be custom error types)
-        _ => error_type_str,
-    };
-
-    // DEPYLER-0447: Validators always use Box<dyn Error> for compatibility with clap
-    if ctx.validator_functions.contains(&func.name) {
-        error_type_str = "Box<dyn std::error::Error>".to_string();
+        _ => error_type_str.to_string(),
     }
+}
 
-    // DEPYLER-0310: Determine ErrorType for raise statement wrapping
-    // If Box<dyn Error>, we need to wrap exceptions with Box::new()
-    // If concrete type, no wrapping needed
-    let error_type = if can_fail {
-        Some(if error_type_str.contains("Box<dyn") {
-            crate::rust_gen::context::ErrorType::DynBox
-        } else {
-            crate::rust_gen::context::ErrorType::Concrete(error_type_str.clone())
-        })
-    } else {
-        None
-    };
+fn mark_error_type_needs(
+    ctx: &mut CodeGenContext,
+    error_type_str: &str,
+    property_error_types: &[String],
+) {
+    mark_single_error_type(ctx, error_type_str);
 
-    // DEPYLER-0327 Fix #5: Mark error types as needed for type generation
-    // Check BOTH error_type_str (for functions that return Result) AND
-    // func.properties.error_types (for types used in try/except blocks)
-    // DEPYLER-0551: Added RuntimeError and FileNotFoundError
-    if error_type_str.contains("ZeroDivisionError") {
+    for err_type in property_error_types {
+        mark_single_error_type(ctx, err_type);
+    }
+}
+
+fn mark_single_error_type(ctx: &mut CodeGenContext, err_type: &str) {
+    if err_type.contains("ZeroDivisionError") {
         ctx.needs_zerodivisionerror = true;
     }
-    if error_type_str.contains("IndexError") {
+    if err_type.contains("IndexError") {
         ctx.needs_indexerror = true;
     }
-    if error_type_str.contains("ValueError") {
+    if err_type.contains("ValueError") {
         ctx.needs_valueerror = true;
     }
-    if error_type_str.contains("RuntimeError") {
+    if err_type.contains("RuntimeError") {
         ctx.needs_runtimeerror = true;
     }
-    if error_type_str.contains("FileNotFoundError") {
+    if err_type.contains("FileNotFoundError") {
         ctx.needs_filenotfounderror = true;
     }
+}
 
-    // Also check all error_types from properties (even if can_fail=false)
-    // This ensures types used in try/except blocks are generated
-    for err_type in &func.properties.error_types {
-        if err_type.contains("ZeroDivisionError") {
-            ctx.needs_zerodivisionerror = true;
+fn build_return_type_tokens(
+    func: &HirFunction,
+    lifetime_result: &crate::lifetime_analysis::LifetimeResult,
+    ctx: &mut CodeGenContext,
+    rust_ret_type: &crate::type_mapper::RustType,
+    can_fail: bool,
+    error_type_str: &str,
+) -> Result<proc_macro2::TokenStream> {
+    if matches!(rust_ret_type, crate::type_mapper::RustType::Unit) {
+        return build_unit_return_tokens(func, ctx, can_fail, error_type_str);
+    }
+
+    let mut ty = rust_type_to_syn(rust_ret_type)?;
+    ty = apply_cow_or_lifetime(func, lifetime_result, ctx, rust_ret_type, ty)?;
+
+    if can_fail {
+        let error_type: syn::Type = syn::parse_str(error_type_str)
+            .unwrap_or_else(|_| parse_quote! { Box<dyn std::error::Error> });
+        if func.name == "main" {
+            Ok(quote! { -> Result<(), #error_type> })
+        } else {
+            Ok(quote! { -> Result<#ty, #error_type> })
         }
-        if err_type.contains("IndexError") {
-            ctx.needs_indexerror = true;
-        }
-        if err_type.contains("ValueError") {
-            ctx.needs_valueerror = true;
-        }
-        if err_type.contains("RuntimeError") {
-            ctx.needs_runtimeerror = true;
-        }
-        if err_type.contains("FileNotFoundError") {
-            ctx.needs_filenotfounderror = true;
+    } else if func.name == "main" && matches!(func.ret_type, Type::Int) {
+        Ok(quote! {})
+    } else {
+        Ok(quote! { -> #ty })
+    }
+}
+
+fn build_unit_return_tokens(
+    func: &HirFunction,
+    ctx: &mut CodeGenContext,
+    can_fail: bool,
+    error_type_str: &str,
+) -> Result<proc_macro2::TokenStream> {
+    if !can_fail {
+        return Ok(quote! {});
+    }
+
+    let error_type: syn::Type = syn::parse_str(error_type_str)
+        .unwrap_or_else(|_| parse_quote! { Box<dyn std::error::Error> });
+
+    if let Some(inferred_type) = infer_return_type_from_body_with_params(func, ctx) {
+        let inferred_rust_type = ctx
+            .annotation_aware_mapper
+            .map_return_type_with_annotations(&inferred_type, &func.annotations);
+
+        if let Ok(ty) = rust_type_to_syn(&inferred_rust_type) {
+            if func.name == "main" {
+                return Ok(quote! { -> Result<(), #error_type> });
+            }
+            return Ok(quote! { -> Result<#ty, #error_type> });
         }
     }
 
-    let return_type = if matches!(rust_ret_type, crate::type_mapper::RustType::Unit) {
-        if can_fail {
-            let error_type: syn::Type = syn::parse_str(&error_type_str)
-                .unwrap_or_else(|_| parse_quote! { Box<dyn std::error::Error> });
+    Ok(quote! { -> Result<(), #error_type> })
+}
 
-            // DEPYLER-0455 #7: Infer return type from function body
-            // Functions without type annotations but that return values (e.g., argparse validators)
-            // should infer their return type from actual return statements
-            //
-            // Example: def email_address(value):
-            //              return value  # <- Returns string, not None
-            //
-            // Before fix: Result<(), Box<dyn Error>>  [WRONG - type mismatch with returned value]
-            // After fix:  Result<String, Box<dyn Error>>  [CORRECT - matches return value]
-            if let Some(inferred_type) = infer_return_type_from_body_with_params(func, ctx) {
-                // We found a return statement with a value!
-                // Map the inferred HIR type to Rust type
-                let inferred_rust_type = ctx
-                    .annotation_aware_mapper
-                    .map_return_type_with_annotations(&inferred_type, &func.annotations);
+fn apply_cow_or_lifetime(
+    func: &HirFunction,
+    lifetime_result: &crate::lifetime_analysis::LifetimeResult,
+    ctx: &mut CodeGenContext,
+    rust_ret_type: &crate::type_mapper::RustType,
+    mut ty: syn::Type,
+) -> Result<syn::Type> {
+    let returns_concatenation = matches!(func.ret_type, crate::hir::Type::String)
+        && function_returns_string_concatenation(func);
 
-                // Convert to syn type
-                if let Ok(ty) = rust_type_to_syn(&inferred_rust_type) {
-                    // DEPYLER-0612: main() can only return () or Result<(), E>
-                    if func.name == "main" {
-                        quote! { -> Result<(), #error_type> }
-                    } else {
-                        // Use inferred type instead of ()
-                        quote! { -> Result<#ty, #error_type> }
-                    }
-                } else {
-                    // Fallback to () if conversion fails
-                    quote! { -> Result<(), #error_type> }
-                }
-            } else {
-                // No return value found, use ()
-                quote! { -> Result<(), #error_type> }
-            }
+    let uses_cow_return = !returns_concatenation && check_cow_return(func, lifetime_result);
+
+    if uses_cow_return && !returns_concatenation {
+        ctx.needs_cow = true;
+        if let Some(ref return_lt) = lifetime_result.return_lifetime {
+            let lt = syn::Lifetime::new(return_lt.as_str(), proc_macro2::Span::call_site());
+            ty = parse_quote! { Cow<#lt, str> };
         } else {
-            quote! {}
+            ty = parse_quote! { Cow<'static, str> };
         }
     } else {
-        let mut ty = rust_type_to_syn(&rust_ret_type)?;
+        let returns_owned_string =
+            matches!(func.ret_type, Type::String) && function_returns_owned_string(func);
 
-        // DEPYLER-0270: Check if function returns string concatenation
-        // String concatenation (format!(), a + b) always returns owned String
-        // Never use Cow for concatenation results
-        let returns_concatenation = matches!(func.ret_type, crate::hir::Type::String)
-            && function_returns_string_concatenation(func);
-
-        // Check if any parameter escapes through return and uses Cow
-        let mut uses_cow_return = false;
-        if !returns_concatenation {
-            // Only consider Cow if NOT doing string concatenation
-            for param in &func.params {
-                if let Some(strategy) = lifetime_result.borrowing_strategies.get(&param.name) {
-                    if matches!(
-                        strategy,
-                        crate::borrowing_context::BorrowingStrategy::UseCow { .. }
-                    ) {
-                        if let Some(_usage) = lifetime_result.param_lifetimes.get(&param.name) {
-                            // If a Cow parameter escapes, return type should also be Cow
-                            if matches!(func.ret_type, crate::hir::Type::String) {
-                                uses_cow_return = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if uses_cow_return && !returns_concatenation {
-            // Use the same Cow type for return
-            ctx.needs_cow = true;
-            if let Some(ref return_lt) = lifetime_result.return_lifetime {
+        if let Some(ref return_lt) = lifetime_result.return_lifetime {
+            if matches!(
+                rust_ret_type,
+                crate::type_mapper::RustType::Str { .. }
+                    | crate::type_mapper::RustType::Reference { .. }
+            ) && !returns_owned_string
+            {
                 let lt = syn::Lifetime::new(return_lt.as_str(), proc_macro2::Span::call_site());
-                ty = parse_quote! { Cow<#lt, str> };
-            } else {
-                ty = parse_quote! { Cow<'static, str> };
+                match rust_ret_type {
+                    crate::type_mapper::RustType::Str { .. } => {
+                        ty = parse_quote! { &#lt str };
+                    }
+                    crate::type_mapper::RustType::Reference { mutable, inner, .. } => {
+                        let inner_ty = rust_type_to_syn(inner)?;
+                        ty = if *mutable {
+                            parse_quote! { &#lt mut #inner_ty }
+                        } else {
+                            parse_quote! { &#lt #inner_ty }
+                        };
+                    }
+                    _ => {}
+                }
             }
-        } else {
-            // v3.16.0 Phase 1: Check if function returns owned String via transformation methods
-            // If so, don't convert to borrowed &str even if lifetime analysis suggests it
-            let returns_owned_string =
-                matches!(func.ret_type, Type::String) && function_returns_owned_string(func);
+        }
+    }
 
-            // Apply return lifetime if needed (unless returning owned String)
-            if let Some(ref return_lt) = lifetime_result.return_lifetime {
-                // Check if the return type needs lifetime substitution
-                if matches!(
-                    rust_ret_type,
-                    crate::type_mapper::RustType::Str { .. }
-                        | crate::type_mapper::RustType::Reference { .. }
-                ) && !returns_owned_string
-                {
-                    // Only apply lifetime if NOT returning owned String
-                    let lt = syn::Lifetime::new(return_lt.as_str(), proc_macro2::Span::call_site());
-                    match &rust_ret_type {
-                        crate::type_mapper::RustType::Str { .. } => {
-                            ty = parse_quote! { &#lt str };
-                        }
-                        crate::type_mapper::RustType::Reference { mutable, inner, .. } => {
-                            let inner_ty = rust_type_to_syn(inner)?;
-                            ty = if *mutable {
-                                parse_quote! { &#lt mut #inner_ty }
-                            } else {
-                                parse_quote! { &#lt #inner_ty }
-                            };
-                        }
-                        _ => {}
+    Ok(ty)
+}
+
+fn check_cow_return(
+    func: &HirFunction,
+    lifetime_result: &crate::lifetime_analysis::LifetimeResult,
+) -> bool {
+    for param in &func.params {
+        if let Some(strategy) = lifetime_result.borrowing_strategies.get(&param.name) {
+            if matches!(strategy, crate::borrowing_context::BorrowingStrategy::UseCow { .. }) {
+                if let Some(_usage) = lifetime_result.param_lifetimes.get(&param.name) {
+                    if matches!(func.ret_type, crate::hir::Type::String) {
+                        return true;
                     }
                 }
             }
-            // If returns_owned_string is true, keep ty as String (already set from rust_type_to_syn)
         }
-
-        if can_fail {
-            let error_type: syn::Type = syn::parse_str(&error_type_str)
-                .unwrap_or_else(|_| parse_quote! { Box<dyn std::error::Error> });
-
-            // DEPYLER-0612: main() can only return () or Result<(), E>
-            // Convert Result<i32, E> to Result<(), E> for main
-            if func.name == "main" {
-                quote! { -> Result<(), #error_type> }
-            } else {
-                quote! { -> Result<#ty, #error_type> }
-            }
-        } else if func.name == "main" && matches!(func.ret_type, Type::Int) {
-            // DEPYLER-0617: main() can only return () or Result<(), E>
-            // Convert i32 return to () for non-fallible main
-            quote! {} // No return type annotation (defaults to ())
-        } else {
-            quote! { -> #ty }
-        }
-    };
-
-    Ok((return_type, rust_ret_type, can_fail, error_type))
+    }
+    false
 }
 
 // ========== Phase 3c: Generator Implementation ==========

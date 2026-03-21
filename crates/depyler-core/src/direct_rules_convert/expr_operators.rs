@@ -35,373 +35,236 @@ impl<'a> ExprConverter<'a> {
         let right_expr = self.convert(right)?;
 
         match op {
-            BinOp::In => {
-                // DEPYLER-0960: Check dict FIRST before string (overlapping names like "data", "result")
-                if self.is_dict_expr(right) {
-                    // DEPYLER-99MODE-S9: Use .get().is_some() instead of .contains_key()
-                    // This works for both HashMap AND HashSet, preventing false positives
-                    // from the name-based dict heuristic (e.g., "visited" can be a set)
-                    Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
-                } else if self.is_tuple_or_list_expr(right) {
-                    // DEPYLER-0832: For tuples/lists, convert to array and use .contains()
-                    // Python: x in (A, B, C) -> Rust: [A, B, C].contains(&x)
-                    let elements: Vec<syn::Expr> = match right {
-                        HirExpr::Tuple(elems) | HirExpr::List(elems) => {
-                            elems.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?
-                        }
-                        _ => vec![right_expr.clone()],
-                    };
-                    Ok(parse_quote! { [#(#elements),*].contains(&#left_expr) })
-                } else if self.is_string_expr(right) {
-                    // DEPYLER-0601: For strings, use .contains() instead of .contains_key()
-                    // DEPYLER-0200: Use raw string literal or &* for Pattern trait
-                    let pattern: syn::Expr = match left {
-                        HirExpr::Literal(Literal::String(s)) => {
-                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                            parse_quote! { #lit }
-                        }
-                        _ => {
-                            // Use &* to deref-reborrow - works for both String (&*String -> &str)
-                            // and &str (&*&str -> &str), avoiding unstable str_as_str feature
-                            parse_quote! { &*#left_expr }
-                        }
-                    };
-                    Ok(parse_quote! { #right_expr.contains(#pattern) })
-                } else if self.is_set_expr(right) {
-                    // DEPYLER-99MODE-S9: HashSet uses .contains(), not .contains_key()
-                    Ok(parse_quote! { #right_expr.contains(&#left_expr) })
-                } else {
-                    // Fallback: use .get().is_some() which works for both HashMap and HashSet
-                    Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
-                }
-            }
-            BinOp::NotIn => {
-                // DEPYLER-0960: Check dict FIRST before string (overlapping names like "data", "result")
-                if self.is_dict_expr(right) {
-                    // DEPYLER-99MODE-S9: Use .get().is_none() instead of !.contains_key()
-                    // This works for both HashMap AND HashSet
-                    Ok(parse_quote! { #right_expr.get(&#left_expr).is_none() })
-                } else if self.is_tuple_or_list_expr(right) {
-                    // DEPYLER-0832: For tuples/lists, convert to array and use !.contains()
-                    // Python: x not in (A, B, C) -> Rust: ![A, B, C].contains(&x)
-                    let elements: Vec<syn::Expr> = match right {
-                        HirExpr::Tuple(elems) | HirExpr::List(elems) => {
-                            elems.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?
-                        }
-                        _ => vec![right_expr.clone()],
-                    };
-                    Ok(parse_quote! { ![#(#elements),*].contains(&#left_expr) })
-                } else if self.is_string_expr(right) {
-                    // DEPYLER-0601: For strings, use !.contains() instead of !.contains_key()
-                    // DEPYLER-0200: Use raw string literal or &* for Pattern trait
-                    let pattern: syn::Expr = match left {
-                        HirExpr::Literal(Literal::String(s)) => {
-                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                            parse_quote! { #lit }
-                        }
-                        _ => {
-                            // Use &* to deref-reborrow - works for both String and &str
-                            parse_quote! { &*#left_expr }
-                        }
-                    };
-                    Ok(parse_quote! { !#right_expr.contains(#pattern) })
-                } else if self.is_set_expr(right) {
-                    // DEPYLER-99MODE-S9: HashSet uses .contains(), not .contains_key()
-                    Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
-                } else {
-                    // Fallback: use .get().is_none() which works for both HashMap and HashSet
-                    Ok(parse_quote! { #right_expr.get(&#left_expr).is_none() })
-                }
-            }
-            // Set operators - check if both operands are sets
+            BinOp::In => self.convert_in_op(left, right, left_expr, right_expr),
+            BinOp::NotIn => self.convert_not_in_op(left, right, left_expr, right_expr),
             BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor
                 if self.is_set_expr(left) && self.is_set_expr(right) =>
             {
                 self.convert_set_operation(op, left_expr, right_expr)
             }
             BinOp::Sub if self.is_set_expr(left) && self.is_set_expr(right) => {
-                // Set difference operation
                 self.convert_set_operation(op, left_expr, right_expr)
             }
-            BinOp::Sub => {
-                // Check if we're subtracting from a .len() call to prevent underflow
-                if is_len_call(left) {
-                    // Use saturating_sub to prevent underflow when subtracting from array length
-                    // DEPYLER-0746: Wrap in parens to handle cast expressions like `x as usize`
-                    Ok(parse_quote! { (#left_expr).saturating_sub(#right_expr) })
-                } else {
-                    let rust_op = convert_binop(op)?;
-
-                    // DEPYLER-1094: Handle mixed i32/f64 subtraction
-                    // Python promotes to float: int - float → float, float - int → float
-                    let left_is_float = self.expr_returns_float_direct(left);
-                    let right_is_float = self.expr_returns_float_direct(right);
-
-                    // DEPYLER-0824: Wrap cast expressions in parentheses
-                    let safe_left: syn::Expr = if matches!(left_expr, syn::Expr::Cast(_)) {
-                        parse_quote! { (#left_expr) }
-                    } else {
-                        left_expr.clone()
-                    };
-                    let safe_right: syn::Expr = if matches!(right_expr, syn::Expr::Cast(_)) {
-                        parse_quote! { (#right_expr) }
-                    } else {
-                        right_expr.clone()
-                    };
-
-                    if left_is_float && !right_is_float {
-                        // Float - Int: cast right to f64
-                        Ok(parse_quote! { #safe_left #rust_op (#safe_right as f64) })
-                    } else if right_is_float && !left_is_float {
-                        // Int - Float: cast left to f64
-                        Ok(parse_quote! { (#safe_left as f64) #rust_op #safe_right })
-                    } else {
-                        // Same types: no coercion needed
-                        Ok(parse_quote! { #safe_left #rust_op #safe_right })
-                    }
-                }
-            }
-            BinOp::FloorDiv => {
-                // Python floor division semantics differ from Rust integer division
-                // Python: rounds towards negative infinity (floor)
-                // Rust: truncates towards zero
-                // Note: This implementation works for integers with proper floor semantics.
-                // Type-based dispatch for float division (using .floor()) would be ideal
-                // but requires full type inference integration. This is a known limitation.
-                // DEPYLER-0236: Use intermediate variables to avoid formatting issues with != operator
-
-                Ok(parse_quote! {
-                    {
-                        let a = #left_expr;
-                        let b = #right_expr;
-                        let q = a / b;
-                        let r = a % b;
-                        let r_negative = r < 0;
-                        let b_negative = b < 0;
-                        let r_nonzero = r != 0;
-                        let signs_differ = r_negative != b_negative;
-                        let needs_adjustment = r_nonzero && signs_differ;
-                        if needs_adjustment { q - 1 } else { q }
-                    }
-                })
-            }
-            BinOp::Mul => {
-                // Special case: [value] * n or n * [value] creates an array
-                match (left, right) {
-                    // Pattern: [x] * n
-                    (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size)))
-                        if elts.len() == 1 && *size > 0 && *size <= 32 =>
-                    {
-                        let elem = self.convert(&elts[0])?;
-                        let size_lit =
-                            syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
-                        Ok(parse_quote! { [#elem; #size_lit] })
-                    }
-                    // Pattern: n * [x]
-                    (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
-                        if elts.len() == 1 && *size > 0 && *size <= 32 =>
-                    {
-                        let elem = self.convert(&elts[0])?;
-                        let size_lit =
-                            syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
-                        Ok(parse_quote! { [#elem; #size_lit] })
-                    }
-                    // Default multiplication
-                    _ => {
-                        let rust_op = convert_binop(op)?;
-                        // DEPYLER-0704: Type coercion for mixed int/float multiplication
-                        // Rust doesn't auto-coerce, so we need explicit casts
-                        let left_is_float = self.expr_returns_float_direct(left);
-                        let right_is_float = self.expr_returns_float_direct(right);
-                        let left_is_int = self.is_int_expr(left);
-                        let right_is_int = self.is_int_expr(right);
-
-                        let final_left = if right_is_float && left_is_int {
-                            parse_quote! { (#left_expr as f64) }
-                        } else {
-                            left_expr
-                        };
-                        let final_right = if left_is_float && right_is_int {
-                            parse_quote! { (#right_expr as f64) }
-                        } else {
-                            right_expr
-                        };
-                        // DEPYLER-CLASS-001: Preserve parentheses for operator precedence
-                        // 2 * (a + b) must become 2 * (a + b), not 2 * a + b
-                        let left_wrapped =
-                            precedence::parenthesize_if_lower_precedence(final_left, op);
-                        let right_wrapped =
-                            precedence::parenthesize_if_lower_precedence(final_right, op);
-                        Ok(parse_quote! { #left_wrapped #rust_op #right_wrapped })
-                    }
-                }
-            }
-            BinOp::Pow => {
-                // Python power operator ** needs type-specific handling in Rust
-                // For integers: use .pow() with u32 exponent
-                // For floats: use .powf() with f64 exponent
-                // For negative integer exponents: convert to float
-
-                // DEPYLER-0699: Wrap expressions in block to ensure correct operator precedence
-                // Without this, `a + b as f64` parses as `a + (b as f64)` instead of `(a + b) as f64`
-                // DEPYLER-0707: Construct block directly instead of using parse_quote!
-                // parse_quote! re-parses tokens which can fail with complex expressions
-                fn wrap_expr_in_block(expr: syn::Expr) -> syn::Expr {
-                    syn::Expr::Block(syn::ExprBlock {
-                        attrs: vec![],
-                        label: None,
-                        block: syn::Block {
-                            brace_token: syn::token::Brace::default(),
-                            stmts: vec![syn::Stmt::Expr(expr, None)],
-                        },
-                    })
-                }
-                let left_paren = wrap_expr_in_block(left_expr.clone());
-                let right_paren = wrap_expr_in_block(right_expr.clone());
-
-                // Check if we have literals to determine types
-                match (left, right) {
-                    // Integer literal base with integer literal exponent
-                    (HirExpr::Literal(Literal::Int(_)), HirExpr::Literal(Literal::Int(exp))) => {
-                        if *exp < 0 {
-                            // Negative exponent: convert to float operation
-                            Ok(parse_quote! {
-                                (#left_paren as f64).powf(#right_paren as f64)
-                            })
-                        } else {
-                            // Positive integer exponent: use .pow() with u32
-                            // Add checked_pow for overflow safety
-                            // DEPYLER-0746: Wrap in parens to handle cast expressions
-                            Ok(parse_quote! {
-                                (#left_expr).checked_pow(#right_expr as u32)
-                                    .expect("Power operation overflowed")
-                            })
-                        }
-                    }
-                    // Float literal base: always use .powf()
-                    // DEPYLER-0408: Cast float literal to f64 for concrete type
-                    (HirExpr::Literal(Literal::Float(_)), _) => Ok(parse_quote! {
-                        (#left_paren as f64).powf(#right_paren as f64)
-                    }),
-                    // Any base with float exponent: use .powf()
-                    // DEPYLER-0408: Cast float literal exponent to f64 for concrete type
-                    (_, HirExpr::Literal(Literal::Float(_))) => Ok(parse_quote! {
-                        (#left_paren as f64).powf(#right_paren as f64)
-                    }),
-                    // Variables or complex expressions: generate type-safe code
-                    _ => {
-                        // For non-literal expressions, we need runtime type checking
-                        // This is a conservative approach that works for common cases
-                        // DEPYLER-0405: Cast both sides to i64 for type-safe comparison
-                        Ok(parse_quote! {
-                            {
-                                // Try integer power first if exponent can be u32
-                                if #right_expr >= 0 && (#right_expr as i64) <= (u32::MAX as i64) {
-                                    (#left_paren as i32).checked_pow(#right_paren as u32)
-                                        .expect("Power operation overflowed")
-                                } else {
-                                    // Fall back to float power for negative or large exponents
-                                    // DEPYLER-0401: Use i32 to match common Python int mapping
-                                    (#left_paren as f64).powf(#right_paren as f64) as i32
-                                }
-                            }
-                        })
-                    }
-                }
-            }
-            // DEPYLER-0720: Handle comparison operators with int-to-float coercion
+            BinOp::Sub => self.convert_sub_op(left, right, left_expr, right_expr),
+            BinOp::FloorDiv => convert_floor_div(left_expr, right_expr),
+            BinOp::Mul => self.convert_mul_op(op, left, right, left_expr, right_expr),
+            BinOp::Pow => self.convert_pow_op(left, right, left_expr, right_expr),
             BinOp::Gt | BinOp::GtEq | BinOp::Lt | BinOp::LtEq | BinOp::Eq | BinOp::NotEq => {
-                let rust_op = convert_binop(op)?;
-
-                // DEPYLER-0824: Wrap cast expressions in parentheses before binary operators
-                // Rust parses `x as i32 < y` incorrectly. Must be: `(x as i32) < y`
-                let safe_left: syn::Expr = if matches!(left_expr, syn::Expr::Cast(_)) {
-                    parse_quote! { (#left_expr) }
-                } else {
-                    left_expr.clone()
-                };
-                let safe_right: syn::Expr = if matches!(right_expr, syn::Expr::Cast(_)) {
-                    parse_quote! { (#right_expr) }
-                } else {
-                    right_expr.clone()
-                };
-
-                // Check if either side is float
-                let left_is_float = self.expr_returns_float_direct(left);
-                let right_is_float = self.expr_returns_float_direct(right);
-
-                // DEPYLER-0828: Handle float/int comparisons with proper coercion
-                // DEPYLER-1051: Helper to extract integer value from literal or negative literal
-                fn extract_int_value(expr: &HirExpr) -> Option<i64> {
-                    match expr {
-                        HirExpr::Literal(Literal::Int(n)) => Some(*n),
-                        // Handle -N which is represented as Unary(Neg, Literal(Int(N)))
-                        HirExpr::Unary { op: UnaryOp::Neg, operand } => {
-                            if let HirExpr::Literal(Literal::Int(n)) = operand.as_ref() {
-                                Some(-*n)
-                            } else {
-                                None
-                            }
-                        }
-                        _ => None,
-                    }
-                }
-
-                // If left is float and right is integer (literal or variable), convert right to float
-                if left_is_float && !right_is_float {
-                    if let Some(n) = extract_int_value(right) {
-                        // Integer literal: convert at compile time
-                        // DEPYLER-1051: Use explicit f64 suffix to avoid tokenization issues with negative numbers
-                        let float_lit = syn::LitFloat::new(
-                            &format!("{}f64", n),
-                            proc_macro2::Span::call_site(),
-                        );
-                        return Ok(parse_quote! { #safe_left #rust_op #float_lit });
-                    }
-                    // Integer variable or expression: cast to f64 at runtime
-                    return Ok(parse_quote! { #safe_left #rust_op (#safe_right as f64) });
-                }
-
-                // If right is float and left is integer (literal or variable), convert left to float
-                if right_is_float && !left_is_float {
-                    if let Some(n) = extract_int_value(left) {
-                        // Integer literal: convert at compile time
-                        // DEPYLER-1051: Use explicit f64 suffix to avoid tokenization issues with negative numbers
-                        let float_lit = syn::LitFloat::new(
-                            &format!("{}f64", n),
-                            proc_macro2::Span::call_site(),
-                        );
-                        return Ok(parse_quote! { #float_lit #rust_op #safe_right });
-                    }
-                    // Integer variable or expression: cast to f64 at runtime
-                    return Ok(parse_quote! { (#safe_left as f64) #rust_op #safe_right });
-                }
-
-                // No coercion needed (both same type)
-                Ok(parse_quote! { #safe_left #rust_op #safe_right })
+                self.convert_comparison_op(op, left, right, left_expr, right_expr)
             }
-            // DEPYLER-E0308-001: Handle string concatenation with format!()
-            // Python: "a" + "b" → Rust: format!("{}{}", a, b)
-            // The Rust + operator on strings requires &str on the right side
             BinOp::Add if self.is_string_expr(left) || self.is_string_expr(right) => {
                 Ok(parse_quote! { format!("{}{}", #left_expr, #right_expr) })
             }
+            _ => convert_default_binary(op, left_expr, right_expr),
+        }
+    }
+
+    fn convert_in_op(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+    ) -> Result<syn::Expr> {
+        if self.is_dict_expr(right) {
+            Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
+        } else if self.is_tuple_or_list_expr(right) {
+            let elements = self.convert_collection_elements(right, &right_expr)?;
+            Ok(parse_quote! { [#(#elements),*].contains(&#left_expr) })
+        } else if self.is_string_expr(right) {
+            let pattern = make_string_pattern(left, &left_expr);
+            Ok(parse_quote! { #right_expr.contains(#pattern) })
+        } else if self.is_set_expr(right) {
+            Ok(parse_quote! { #right_expr.contains(&#left_expr) })
+        } else {
+            Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
+        }
+    }
+
+    fn convert_not_in_op(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+    ) -> Result<syn::Expr> {
+        if self.is_dict_expr(right) {
+            Ok(parse_quote! { #right_expr.get(&#left_expr).is_none() })
+        } else if self.is_tuple_or_list_expr(right) {
+            let elements = self.convert_collection_elements(right, &right_expr)?;
+            Ok(parse_quote! { ![#(#elements),*].contains(&#left_expr) })
+        } else if self.is_string_expr(right) {
+            let pattern = make_string_pattern(left, &left_expr);
+            Ok(parse_quote! { !#right_expr.contains(#pattern) })
+        } else if self.is_set_expr(right) {
+            Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
+        } else {
+            Ok(parse_quote! { #right_expr.get(&#left_expr).is_none() })
+        }
+    }
+
+    fn convert_collection_elements(
+        &self,
+        right: &HirExpr,
+        right_expr: &syn::Expr,
+    ) -> Result<Vec<syn::Expr>> {
+        match right {
+            HirExpr::Tuple(elems) | HirExpr::List(elems) => {
+                elems.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()
+            }
+            _ => Ok(vec![right_expr.clone()]),
+        }
+    }
+
+    fn convert_sub_op(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+    ) -> Result<syn::Expr> {
+        if is_len_call(left) {
+            return Ok(parse_quote! { (#left_expr).saturating_sub(#right_expr) });
+        }
+
+        let rust_op = convert_binop(BinOp::Sub)?;
+        let left_is_float = self.expr_returns_float_direct(left);
+        let right_is_float = self.expr_returns_float_direct(right);
+        let safe_left = wrap_cast_in_parens(left_expr);
+        let safe_right = wrap_cast_in_parens(right_expr);
+
+        if left_is_float && !right_is_float {
+            Ok(parse_quote! { #safe_left #rust_op (#safe_right as f64) })
+        } else if right_is_float && !left_is_float {
+            Ok(parse_quote! { (#safe_left as f64) #rust_op #safe_right })
+        } else {
+            Ok(parse_quote! { #safe_left #rust_op #safe_right })
+        }
+    }
+
+    fn convert_mul_op(
+        &self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+    ) -> Result<syn::Expr> {
+        match (left, right) {
+            (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size)))
+                if elts.len() == 1 && *size > 0 && *size <= 32 =>
+            {
+                let elem = self.convert(&elts[0])?;
+                let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                Ok(parse_quote! { [#elem; #size_lit] })
+            }
+            (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
+                if elts.len() == 1 && *size > 0 && *size <= 32 =>
+            {
+                let elem = self.convert(&elts[0])?;
+                let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                Ok(parse_quote! { [#elem; #size_lit] })
+            }
             _ => {
                 let rust_op = convert_binop(op)?;
-                // DEPYLER-0824: Wrap cast expressions in parentheses
-                let safe_left: syn::Expr = if matches!(left_expr, syn::Expr::Cast(_)) {
-                    parse_quote! { (#left_expr) }
+                let left_is_float = self.expr_returns_float_direct(left);
+                let right_is_float = self.expr_returns_float_direct(right);
+                let left_is_int = self.is_int_expr(left);
+                let right_is_int = self.is_int_expr(right);
+
+                let final_left = if right_is_float && left_is_int {
+                    parse_quote! { (#left_expr as f64) }
                 } else {
-                    left_expr.clone()
+                    left_expr
                 };
-                let safe_right: syn::Expr = if matches!(right_expr, syn::Expr::Cast(_)) {
-                    parse_quote! { (#right_expr) }
+                let final_right = if left_is_float && right_is_int {
+                    parse_quote! { (#right_expr as f64) }
                 } else {
-                    right_expr.clone()
+                    right_expr
                 };
-                Ok(parse_quote! { #safe_left #rust_op #safe_right })
+                let left_wrapped = precedence::parenthesize_if_lower_precedence(final_left, op);
+                let right_wrapped = precedence::parenthesize_if_lower_precedence(final_right, op);
+                Ok(parse_quote! { #left_wrapped #rust_op #right_wrapped })
             }
         }
+    }
+
+    fn convert_pow_op(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+    ) -> Result<syn::Expr> {
+        let left_paren = wrap_expr_in_block(left_expr.clone());
+        let right_paren = wrap_expr_in_block(right_expr.clone());
+
+        match (left, right) {
+            (HirExpr::Literal(Literal::Int(_)), HirExpr::Literal(Literal::Int(exp))) => {
+                if *exp < 0 {
+                    Ok(parse_quote! {
+                        (#left_paren as f64).powf(#right_paren as f64)
+                    })
+                } else {
+                    Ok(parse_quote! {
+                        (#left_expr).checked_pow(#right_expr as u32)
+                            .expect("Power operation overflowed")
+                    })
+                }
+            }
+            (HirExpr::Literal(Literal::Float(_)), _) => Ok(parse_quote! {
+                (#left_paren as f64).powf(#right_paren as f64)
+            }),
+            (_, HirExpr::Literal(Literal::Float(_))) => Ok(parse_quote! {
+                (#left_paren as f64).powf(#right_paren as f64)
+            }),
+            _ => Ok(parse_quote! {
+                {
+                    if #right_expr >= 0 && (#right_expr as i64) <= (u32::MAX as i64) {
+                        (#left_paren as i32).checked_pow(#right_paren as u32)
+                            .expect("Power operation overflowed")
+                    } else {
+                        (#left_paren as f64).powf(#right_paren as f64) as i32
+                    }
+                }
+            }),
+        }
+    }
+
+    fn convert_comparison_op(
+        &self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+    ) -> Result<syn::Expr> {
+        let rust_op = convert_binop(op)?;
+        let safe_left = wrap_cast_in_parens(left_expr);
+        let safe_right = wrap_cast_in_parens(right_expr);
+
+        let left_is_float = self.expr_returns_float_direct(left);
+        let right_is_float = self.expr_returns_float_direct(right);
+
+        if left_is_float && !right_is_float {
+            if let Some(n) = extract_int_value(right) {
+                let float_lit =
+                    syn::LitFloat::new(&format!("{}f64", n), proc_macro2::Span::call_site());
+                return Ok(parse_quote! { #safe_left #rust_op #float_lit });
+            }
+            return Ok(parse_quote! { #safe_left #rust_op (#safe_right as f64) });
+        }
+
+        if right_is_float && !left_is_float {
+            if let Some(n) = extract_int_value(left) {
+                let float_lit =
+                    syn::LitFloat::new(&format!("{}f64", n), proc_macro2::Span::call_site());
+                return Ok(parse_quote! { #float_lit #rust_op #safe_right });
+            }
+            return Ok(parse_quote! { (#safe_left as f64) #rust_op #safe_right });
+        }
+
+        Ok(parse_quote! { #safe_left #rust_op #safe_right })
     }
 
     /// DEPYLER-1096: Apply truthiness coercion to an expression for use in if/while conditions.
@@ -596,5 +459,78 @@ impl<'a> ExprConverter<'a> {
             UnaryOp::Pos => Ok(operand_expr), // No +x in Rust
             UnaryOp::BitNot => Ok(parse_quote! { !#operand_expr }),
         }
+    }
+}
+
+fn make_string_pattern(left: &HirExpr, left_expr: &syn::Expr) -> syn::Expr {
+    match left {
+        HirExpr::Literal(Literal::String(s)) => {
+            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+            parse_quote! { #lit }
+        }
+        _ => {
+            parse_quote! { &*#left_expr }
+        }
+    }
+}
+
+fn wrap_cast_in_parens(expr: syn::Expr) -> syn::Expr {
+    if matches!(expr, syn::Expr::Cast(_)) {
+        parse_quote! { (#expr) }
+    } else {
+        expr
+    }
+}
+
+fn convert_floor_div(left_expr: syn::Expr, right_expr: syn::Expr) -> Result<syn::Expr> {
+    Ok(parse_quote! {
+        {
+            let a = #left_expr;
+            let b = #right_expr;
+            let q = a / b;
+            let r = a % b;
+            let r_negative = r < 0;
+            let b_negative = b < 0;
+            let r_nonzero = r != 0;
+            let signs_differ = r_negative != b_negative;
+            let needs_adjustment = r_nonzero && signs_differ;
+            if needs_adjustment { q - 1 } else { q }
+        }
+    })
+}
+
+fn convert_default_binary(
+    op: BinOp,
+    left_expr: syn::Expr,
+    right_expr: syn::Expr,
+) -> Result<syn::Expr> {
+    let rust_op = convert_binop(op)?;
+    let safe_left = wrap_cast_in_parens(left_expr);
+    let safe_right = wrap_cast_in_parens(right_expr);
+    Ok(parse_quote! { #safe_left #rust_op #safe_right })
+}
+
+fn wrap_expr_in_block(expr: syn::Expr) -> syn::Expr {
+    syn::Expr::Block(syn::ExprBlock {
+        attrs: vec![],
+        label: None,
+        block: syn::Block {
+            brace_token: syn::token::Brace::default(),
+            stmts: vec![syn::Stmt::Expr(expr, None)],
+        },
+    })
+}
+
+fn extract_int_value(expr: &HirExpr) -> Option<i64> {
+    match expr {
+        HirExpr::Literal(Literal::Int(n)) => Some(*n),
+        HirExpr::Unary { op: UnaryOp::Neg, operand } => {
+            if let HirExpr::Literal(Literal::Int(n)) = operand.as_ref() {
+                Some(-*n)
+            } else {
+                None
+            }
+        }
+        _ => None,
     }
 }
