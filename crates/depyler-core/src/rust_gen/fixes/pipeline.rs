@@ -17,12 +17,19 @@ use super::truthiness::*;
 ///
 /// This is the main entry point for the fix pipeline. It takes the formatted
 /// Rust code from codegen and applies ~130 text-level fixes in sequence.
-pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) -> String {
+pub(in crate::rust_gen) fn apply_text_level_fixes(formatted_code: String) -> String {
+    let code = apply_initial_cleanup(formatted_code);
+    let code = apply_type_and_enum_fixes(code);
+    let code = apply_converge_iter5_6_fixes(code);
+    let code = apply_converge_iter7_8_fixes(code);
+    let code = apply_converge_iter9_10_fixes(code);
+    let code = apply_converge_iter11_17_fixes(code);
+    let code = apply_99mode_fixes_part1(code);
+    apply_99mode_fixes_part2(code)
+}
+
+fn apply_initial_cleanup(mut formatted_code: String) -> String {
     // DEPYLER-CONVERGE-MULTI: Strip `if TYPE_CHECKING {}` that leaks through codegen.
-    // The ast_bridge skips top-level TYPE_CHECKING blocks, but they can appear in
-    // synthesized main() or in function bodies processed via StmtConverter::convert_if.
-    // Robust fallback: remove the statement from generated code at text level.
-    // Use line-based filtering for robustness against varying indentation.
     formatted_code = formatted_code
         .lines()
         .filter(|line| {
@@ -36,18 +43,11 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     }
 
     // DEPYLER-CONVERGE-MULTI: Fix `type(x).__name__` pattern.
-    // Python: type(n).__name__ returns the type name as a string.
-    // Transpiler emits: std::any::type_name_of_val(&n).__name__
-    // But type_name_of_val already returns &str, so .__name__ is invalid.
-    // Strip the trailing .__name__ since the function already gives us what we need.
-    // Also handle .__name as a field access (E0609).
     while formatted_code.contains(".__name__") {
         formatted_code = formatted_code.replace(".__name__", "");
     }
 
     // DEPYLER-CONVERGE-MULTI: Map typing.Sequence<T> to &[T] (slice reference).
-    // Python's typing.Sequence is an abstract read-only sequence type.
-    // In Rust, &[T] is the idiomatic equivalent for borrowed sequence data.
     formatted_code = formatted_code.replace("Sequence<i32>", "&[i32]");
     formatted_code = formatted_code.replace("Sequence<i64>", "&[i64]");
     formatted_code = formatted_code.replace("Sequence<f64>", "&[f64]");
@@ -55,6 +55,10 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     formatted_code = formatted_code.replace("Sequence<bool>", "&[bool]");
     formatted_code = formatted_code.replace("Sequence<u8>", "&[u8]");
 
+    formatted_code
+}
+
+fn apply_type_and_enum_fixes(mut formatted_code: String) -> String {
     // DEPYLER-CONVERGE-MULTI: Fix enum/class path separator (E0423).
     formatted_code = fix_enum_path_separator(&formatted_code);
 
@@ -80,31 +84,25 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     formatted_code = formatted_code.replace("operator.sub", "|a, b| a - b");
 
     // DEPYLER-1404: Fix DepylerValue `as` casts (E0605).
-    // DepylerValue can't use `as f64` — replace with comparison without cast
-    // since DepylerValue already implements PartialEq for numeric types.
     formatted_code = fix_depyler_value_casts(&formatted_code);
 
     // DEPYLER-1404: Fix struct field assignment with raw literals (E0308).
-    // Wraps `p.x = 5.0;` → `p.x = DepylerValue::Float(5.0);` for stub struct fields.
     formatted_code = fix_struct_field_literal_assignment(&formatted_code);
 
     // DEPYLER-1404: Hoist variable declarations out of with-statement blocks (E0425).
-    // Python `with` blocks transpile to `{ let mut var = ...; { body } }` but
-    // assert statements after the block can't see `var`. Hoist the let binding.
     formatted_code = fix_with_block_scope(&formatted_code);
 
     // DEPYLER-1404: Add .clone() to arguments of stub struct instance methods (E0382/E0505).
-    // When a struct instance is passed as an argument to its own method, or reused
-    // after being consumed, we need .clone() to satisfy the borrow checker.
     formatted_code = fix_stub_method_ownership(&formatted_code);
 
+    formatted_code
+}
+
+fn apply_converge_iter5_6_fixes(mut formatted_code: String) -> String {
     // DEPYLER-1404: Wrap nested HashMap block expressions as DepylerValue::Dict (E0308).
-    // Inner maps `{ let mut map = HashMap::new(); map.insert(...); map }` inside
-    // outer DepylerValue inserts need wrapping as DepylerValue::Dict.
     formatted_code = fix_nested_hashmap_to_depyler_value(&formatted_code);
 
     // DEPYLER-1404: Replace bare UnionType with DepylerValue (E0425).
-    // Python Union[...] type aliases sometimes emit `UnionType` which doesn't exist.
     formatted_code = formatted_code
         .replace("pub type JsonValue = UnionType;", "pub type JsonValue = DepylerValue;");
     formatted_code = formatted_code.replace("= UnionType;", "= DepylerValue;");
@@ -113,10 +111,8 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     formatted_code = formatted_code.replace("(UnionType)", "(DepylerValue)");
 
     // DEPYLER-1404: Disambiguate empty vec![] comparisons with DepylerValue (E0283).
-    // Multiple PartialEq<Vec<T>> impls make `== vec![]` ambiguous.
     formatted_code = formatted_code.replace("== vec![]", "== Vec::<DepylerValue>::new()");
     formatted_code = formatted_code.replace("!= vec![]", "!= Vec::<DepylerValue>::new()");
-    // Also disambiguate empty HashMap::new() in comparisons (E0282).
     formatted_code = formatted_code.replace(
         "== {\n                let mut map = std::collections::HashMap::new();\n                map\n            }",
         "== std::collections::HashMap::<String, DepylerValue>::new()"
@@ -156,8 +152,6 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     formatted_code = fix_enum_dot_to_path_separator(&formatted_code);
 
     // DEPYLER-1404: Fix stub function arities to match call sites.
-    // Must run AFTER fix_enum_dot_to_path_separator so class-type stubs
-    // see `Color::` notation (not `Color.`) when scanning for usage.
     formatted_code = fix_stub_arities(&formatted_code);
 
     // DEPYLER-CONVERGE-MULTI-ITER6: Fix pathlib::PurePosixPath (E0425).
@@ -179,6 +173,10 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
         formatted_code = format!("{}{}", helper, formatted_code);
     }
 
+    formatted_code
+}
+
+fn apply_converge_iter7_8_fixes(mut formatted_code: String) -> String {
     // DEPYLER-CONVERGE-MULTI-ITER7: Fix generator yield scope (E0425 on `items`).
     formatted_code = fix_generator_yield_scope(&formatted_code);
 
@@ -206,6 +204,10 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     // DEPYLER-CONVERGE-MULTI-ITER8: Fix heterogeneous dict inserts (E0308).
     formatted_code = fix_heterogeneous_dict_inserts(&formatted_code);
 
+    formatted_code
+}
+
+fn apply_converge_iter9_10_fixes(mut formatted_code: String) -> String {
     // DEPYLER-CONVERGE-MULTI-ITER9: Fix LazyLock<String> static blocks used as types (E0573).
     formatted_code = fix_lazylock_static_as_type(&formatted_code);
 
@@ -269,6 +271,10 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     // DEPYLER-CONVERGE-MULTI-ITER10b: Fix Vec<char>.join("") → .collect::<String>().
     formatted_code = fix_vec_char_join(&formatted_code);
 
+    formatted_code
+}
+
+fn apply_converge_iter11_17_fixes(mut formatted_code: String) -> String {
     // DEPYLER-CONVERGE-MULTI-ITER11: Fix borrowed type-alias params in ::new() calls.
     formatted_code = fix_borrowed_alias_in_new_calls(&formatted_code);
 
@@ -354,6 +360,10 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     // DEPYLER-CONVERGE-MULTI-ITER17: Fix .to_string() where &str expected.
     formatted_code = fix_regex_match_string_arg(&formatted_code);
 
+    formatted_code
+}
+
+fn apply_99mode_fixes_part1(mut formatted_code: String) -> String {
     // DEPYLER-99MODE-S9: Fix `format!(...).expect(...)` on String (E0599).
     formatted_code = fix_format_expect(&formatted_code);
 
@@ -448,6 +458,10 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     // DEPYLER-99MODE-S9: Fix &str.clone() → .to_string() in Vec<String> context (E0308).
     formatted_code = fix_str_clone_to_string(&formatted_code);
 
+    formatted_code
+}
+
+fn apply_99mode_fixes_part2(mut formatted_code: String) -> String {
     // DEPYLER-99MODE-S9: Fix Option<i32> as u32 cast (E0605).
     formatted_code = fix_option_as_cast(&formatted_code);
 
