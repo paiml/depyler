@@ -69,182 +69,162 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     ) -> Result<syn::Expr> {
         let nasa_mode = self.ctx.type_mapper.nasa_mode;
 
-        // DEPYLER-1201: Boundary Enforcement for Vec<DepylerValue>
-        // When target type expects Vec<DepylerValue> (from List[Any], List[Unknown], etc.),
-        // wrap ALL elements in DepylerValue constructors to prevent E0308 type mismatches.
-        // This enforces strict type boundaries: `1` → `DepylerValue::Int(1)` when needed.
-        let target_needs_depyler_value = if let Some(Type::List(elem_type)) =
-            &self.ctx.current_assign_type
-        {
-            matches!(elem_type.as_ref(), Type::Unknown)
-                || matches!(elem_type.as_ref(), Type::UnificationVar(_))
-                || matches!(elem_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "object")
-        } else {
-            false
-        };
-
-        // Also check current_return_type for function return context
-        let return_needs_depyler_value = if let Some(Type::List(elem_type)) =
-            &self.ctx.current_return_type
-        {
-            matches!(elem_type.as_ref(), Type::Unknown)
-                || matches!(elem_type.as_ref(), Type::UnificationVar(_))
-                || matches!(elem_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "object")
-        } else {
-            false
-        };
-
-        // DEPYLER-1212: If no target type is specified AND elements have unknown/mixed types,
-        // default to DepylerValue wrapping to prevent E0308 type mismatches.
-        // This is the "genesis fix" - catching the problem at list literal creation.
-        let inferred_needs_depyler_value = if self.ctx.current_assign_type.is_none()
-            && self.ctx.current_return_type.is_none()
-            && nasa_mode
-        {
-            self.list_needs_depyler_value(elts)
-        } else {
-            false
-        };
-
-        if nasa_mode
-            && (target_needs_depyler_value
-                || return_needs_depyler_value
-                || inferred_needs_depyler_value)
-        {
-            self.ctx.needs_depyler_value_enum = true;
-
-            let elt_exprs: Vec<syn::Expr> = elts
-                .iter()
-                .map(|e| {
-                    let expr = e.to_rust_expr(self.ctx)?;
-                    // Wrap each element in appropriate DepylerValue constructor
-                    let wrapped = match e {
-                        HirExpr::Literal(Literal::Int(_)) => {
-                            parse_quote! { DepylerValue::Int(#expr as i64) }
-                        }
-                        HirExpr::Literal(Literal::Float(_)) => {
-                            parse_quote! { DepylerValue::Float(#expr) }
-                        }
-                        HirExpr::Literal(Literal::String(_)) => {
-                            parse_quote! { DepylerValue::Str(#expr.to_string()) }
-                        }
-                        HirExpr::Literal(Literal::Bool(_)) => {
-                            parse_quote! { DepylerValue::Bool(#expr) }
-                        }
-                        HirExpr::Literal(Literal::None) => {
-                            parse_quote! { DepylerValue::None }
-                        }
-                        HirExpr::List(_) => {
-                            // Nested list: recursively convert and wrap
-                            parse_quote! { DepylerValue::List(#expr) }
-                        }
-                        HirExpr::Dict(_) => {
-                            // Nested dict: wrap in DepylerValue::Dict
-                            parse_quote! { DepylerValue::Dict(#expr) }
-                        }
-                        // DEPYLER-1212: For variables, look up type and use appropriate constructor
-                        HirExpr::Var(name) => {
-                            match self.ctx.var_types.get(name) {
-                                Some(Type::Int) => parse_quote! { DepylerValue::Int(#expr as i64) },
-                                Some(Type::Float) => {
-                                    parse_quote! { DepylerValue::Float(#expr as f64) }
-                                }
-                                Some(Type::String) => {
-                                    parse_quote! { DepylerValue::Str(#expr.to_string()) }
-                                }
-                                Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#expr) },
-                                // For &String references (from match arms), clone and wrap
-                                _ => parse_quote! { DepylerValue::Str(#expr.to_string()) },
-                            }
-                        }
-                        _ => {
-                            // For complex expressions, default to Str with Debug format
-                            parse_quote! { DepylerValue::Str(format!("{:?}", #expr)) }
-                        }
-                    };
-                    Ok(wrapped)
-                })
-                .collect::<Result<Vec<_>>>()?;
-
-            return Ok(parse_quote! { vec![#(#elt_exprs),*] });
+        if nasa_mode && self.needs_depyler_value_wrapping(elts, nasa_mode) {
+            return self.convert_list_depyler_value(elts);
         }
 
-        // DEPYLER-0270: Check if return type explicitly specifies a concrete list element type
-        // If so, trust the annotation and skip mixed-type fallback
-        // DEPYLER-99MODE-S9: Also match nested List/Dict/Set/Tuple types as concrete
-        let has_concrete_return_type = matches!(
-            &self.ctx.current_return_type,
-            Some(Type::List(elem_type)) if matches!(
-                elem_type.as_ref(),
-                Type::Int | Type::Float | Type::String | Type::Bool
-                    | Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_)
-            )
-        ) || matches!(
-            &self.ctx.current_assign_type,
-            Some(Type::List(elem_type)) if matches!(
-                elem_type.as_ref(),
-                Type::Int | Type::Float | Type::String | Type::Bool
-                    | Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_)
-            )
-        );
+        let has_concrete_return_type = self.has_concrete_list_return_type();
 
         if has_mixed_types && !has_concrete_return_type {
-            // DEPYLER-1033: In NASA mode, convert all elements to String instead of using serde_json
-            if nasa_mode {
-                let elt_exprs: Vec<syn::Expr> = elts
-                    .iter()
-                    .map(|e| {
-                        let expr = e.to_rust_expr(self.ctx)?;
-                        // Convert all elements to String for NASA mode compatibility
-                        Ok(parse_quote! { format!("{:?}", #expr) })
-                    })
-                    .collect::<Result<Vec<_>>>()?;
+            return self.convert_list_mixed_types(elts, nasa_mode);
+        }
 
-                return Ok(parse_quote! { vec![#(#elt_exprs),*] });
+        if elts.iter().any(|e| matches!(e, HirExpr::Literal(Literal::None))) {
+            return self.convert_list_with_none(elts);
+        }
+
+        self.convert_list_homogeneous(elts, needs_string_unify)
+    }
+
+    fn needs_depyler_value_wrapping(&self, elts: &[HirExpr], nasa_mode: bool) -> bool {
+        let target_needs = self.list_type_needs_depyler_value(&self.ctx.current_assign_type);
+        let return_needs = self.list_type_needs_depyler_value(&self.ctx.current_return_type);
+        let inferred_needs = self.ctx.current_assign_type.is_none()
+            && self.ctx.current_return_type.is_none()
+            && nasa_mode
+            && self.list_needs_depyler_value(elts);
+        target_needs || return_needs || inferred_needs
+    }
+
+    fn list_type_needs_depyler_value(&self, ty: &Option<Type>) -> bool {
+        if let Some(Type::List(elem_type)) = ty {
+            matches!(elem_type.as_ref(), Type::Unknown)
+                || matches!(elem_type.as_ref(), Type::UnificationVar(_))
+                || matches!(elem_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "object")
+        } else {
+            false
+        }
+    }
+
+    fn convert_list_depyler_value(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
+        self.ctx.needs_depyler_value_enum = true;
+
+        let elt_exprs: Vec<syn::Expr> = elts
+            .iter()
+            .map(|e| {
+                let expr = e.to_rust_expr(self.ctx)?;
+                let wrapped = self.wrap_literal_as_depyler_value(e, &expr);
+                Ok(wrapped)
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok(parse_quote! { vec![#(#elt_exprs),*] })
+    }
+
+    fn wrap_literal_as_depyler_value(&self, hir: &HirExpr, expr: &syn::Expr) -> syn::Expr {
+        match hir {
+            HirExpr::Literal(Literal::Int(_)) => {
+                parse_quote! { DepylerValue::Int(#expr as i64) }
             }
+            HirExpr::Literal(Literal::Float(_)) => {
+                parse_quote! { DepylerValue::Float(#expr) }
+            }
+            HirExpr::Literal(Literal::String(_)) => {
+                parse_quote! { DepylerValue::Str(#expr.to_string()) }
+            }
+            HirExpr::Literal(Literal::Bool(_)) => {
+                parse_quote! { DepylerValue::Bool(#expr) }
+            }
+            HirExpr::Literal(Literal::None) => {
+                parse_quote! { DepylerValue::None }
+            }
+            HirExpr::List(_) => {
+                parse_quote! { DepylerValue::List(#expr) }
+            }
+            HirExpr::Dict(_) => {
+                parse_quote! { DepylerValue::Dict(#expr) }
+            }
+            HirExpr::Var(name) => self.wrap_var_as_depyler_value(name, expr),
+            _ => {
+                parse_quote! { DepylerValue::Str(format!("{:?}", #expr)) }
+            }
+        }
+    }
 
-            // DEPYLER-0711: Convert to Vec<serde_json::Value> for heterogeneous lists
-            self.ctx.needs_serde_json = true;
+    fn wrap_var_as_depyler_value(&self, name: &str, expr: &syn::Expr) -> syn::Expr {
+        match self.ctx.var_types.get(name) {
+            Some(Type::Int) => parse_quote! { DepylerValue::Int(#expr as i64) },
+            Some(Type::Float) => parse_quote! { DepylerValue::Float(#expr as f64) },
+            Some(Type::String) => parse_quote! { DepylerValue::Str(#expr.to_string()) },
+            Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#expr) },
+            _ => parse_quote! { DepylerValue::Str(#expr.to_string()) },
+        }
+    }
 
+    fn has_concrete_list_return_type(&self) -> bool {
+        let check = |ty: &Option<Type>| {
+            matches!(
+                ty,
+                Some(Type::List(elem_type)) if matches!(
+                    elem_type.as_ref(),
+                    Type::Int | Type::Float | Type::String | Type::Bool
+                        | Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_)
+                )
+            )
+        };
+        check(&self.ctx.current_return_type) || check(&self.ctx.current_assign_type)
+    }
+
+    fn convert_list_mixed_types(&mut self, elts: &[HirExpr], nasa_mode: bool) -> Result<syn::Expr> {
+        if nasa_mode {
             let elt_exprs: Vec<syn::Expr> = elts
                 .iter()
                 .map(|e| {
                     let expr = e.to_rust_expr(self.ctx)?;
-                    // Wrap each element in serde_json::json!()
-                    Ok(parse_quote! { serde_json::json!(#expr) })
+                    Ok(parse_quote! { format!("{:?}", #expr) })
                 })
                 .collect::<Result<Vec<_>>>()?;
 
             return Ok(parse_quote! { vec![#(#elt_exprs),*] });
         }
 
-        // DEPYLER-0739: Detect if list contains None elements
-        // If so, wrap non-None elements in Some() to create Vec<Option<T>>
-        let has_none = elts.iter().any(|e| matches!(e, HirExpr::Literal(Literal::None)));
+        self.ctx.needs_serde_json = true;
 
-        if has_none {
-            let elt_exprs: Vec<syn::Expr> = elts
-                .iter()
-                .map(|e| {
-                    if matches!(e, HirExpr::Literal(Literal::None)) {
-                        // None stays as None
-                        Ok(parse_quote! { None })
-                    } else {
-                        // Non-None elements get wrapped in Some()
-                        let mut expr = e.to_rust_expr(self.ctx)?;
-                        // Convert string literals to owned Strings
-                        if matches!(e, HirExpr::Literal(Literal::String(_))) {
-                            expr = parse_quote! { #expr.to_string() };
-                        }
-                        Ok(parse_quote! { Some(#expr) })
+        let elt_exprs: Vec<syn::Expr> = elts
+            .iter()
+            .map(|e| {
+                let expr = e.to_rust_expr(self.ctx)?;
+                Ok(parse_quote! { serde_json::json!(#expr) })
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok(parse_quote! { vec![#(#elt_exprs),*] })
+    }
+
+    fn convert_list_with_none(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
+        let elt_exprs: Vec<syn::Expr> = elts
+            .iter()
+            .map(|e| {
+                if matches!(e, HirExpr::Literal(Literal::None)) {
+                    Ok(parse_quote! { None })
+                } else {
+                    let mut expr = e.to_rust_expr(self.ctx)?;
+                    if matches!(e, HirExpr::Literal(Literal::String(_))) {
+                        expr = parse_quote! { #expr.to_string() };
                     }
-                })
-                .collect::<Result<Vec<_>>>()?;
+                    Ok(parse_quote! { Some(#expr) })
+                }
+            })
+            .collect::<Result<Vec<_>>>()?;
 
-            return Ok(parse_quote! { vec![#(#elt_exprs),*] });
-        }
+        Ok(parse_quote! { vec![#(#elt_exprs),*] })
+    }
 
-        // DEPYLER-0782: Check if list has string literals to determine if it's Vec<String>
+    fn convert_list_homogeneous(
+        &mut self,
+        elts: &[HirExpr],
+        needs_string_unify: bool,
+    ) -> Result<syn::Expr> {
         let has_string_literals =
             elts.iter().any(|e| matches!(e, HirExpr::Literal(Literal::String(_))));
 
@@ -252,21 +232,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .iter()
             .map(|e| {
                 let mut expr = e.to_rust_expr(self.ctx)?;
-                // Check if element is a string literal
                 if matches!(e, HirExpr::Literal(Literal::String(_))) {
                     expr = parse_quote! { #expr.to_string() };
                 }
-                // DEPYLER-0782: Variables need .to_string() in Vec<String> context
-                // Both constants (SCRIPT: &str) and parameters (arg: &str) need conversion
-                // String.to_string() is a no-op, so safe to call on any string type
                 if matches!(e, HirExpr::Var(_)) && has_string_literals {
                     expr = parse_quote! { #expr.to_string() };
                 }
-                // DEPYLER-99MODE-S9: Clone String/Vec/HashMap variables in list literals
-                // Python list creation never moves the original, so clone to prevent E0382
                 if let HirExpr::Var(name) = e {
                     if !has_string_literals {
-                        // Only clone if not already handled by .to_string() above
                         if let Some(ty) = self.ctx.var_types.get(name) {
                             if matches!(
                                 ty,
@@ -281,7 +254,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     }
                 }
-                // DEPYLER-0572: Convert dict Value to String when mixed with f-strings
                 if needs_string_unify && self.is_dict_value_access(e) {
                     expr = parse_quote! { #expr.to_string() };
                 }
@@ -289,8 +261,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        // Always use vec! for now to ensure mutability works
-        // In the future, we should analyze if the list is mutated before deciding
         Ok(parse_quote! { vec![#(#elt_exprs),*] })
     }
 

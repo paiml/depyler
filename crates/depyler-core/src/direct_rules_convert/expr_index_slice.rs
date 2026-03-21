@@ -10,32 +10,50 @@ impl<'a> ExprConverter<'a> {
     pub(super) fn convert_index(&self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
         let base_expr = self.convert(base)?;
 
-        // DEPYLER-0735: Check if base is a tuple type (from param_types) and index is integer literal
-        // Rust tuples use .0, .1 syntax, not [0], [1]
-        if let HirExpr::Literal(Literal::Int(idx)) = index {
-            if *idx >= 0 {
-                // Check if base variable has tuple type from param_types or class_field_types
-                let is_tuple = if let HirExpr::Var(var_name) = base {
-                    matches!(self.param_types.get(var_name), Some(Type::Tuple(_)))
-                        || matches!(self.class_field_types.get(var_name), Some(Type::Tuple(_)))
-                } else {
-                    false
-                };
-
-                if is_tuple {
-                    let field_idx = syn::Index::from(*idx as usize);
-                    return Ok(parse_quote! { #base_expr.#field_idx });
-                }
-            }
+        if let Some(tuple_access) = self.try_tuple_index(base, index, &base_expr)? {
+            return Ok(tuple_access);
         }
 
-        // DEPYLER-0200: Detect dict vs list access
-        // String literal index = dict access, use .get()
-        // Numeric index = list access, use [idx as usize]
-        let is_dict_access = match index {
+        let is_dict_access = self.index_looks_like_dict_key(index);
+        let base_is_dict = self.base_looks_like_dict(base);
+        let is_depyler_value_dict = self.base_has_depyler_value_keys(base);
+
+        if is_dict_access || base_is_dict {
+            self.convert_dict_access(index, &base_expr, is_depyler_value_dict)
+        } else {
+            self.convert_vec_access(index, &base_expr)
+        }
+    }
+
+    fn try_tuple_index(
+        &self,
+        base: &HirExpr,
+        index: &HirExpr,
+        base_expr: &syn::Expr,
+    ) -> Result<Option<syn::Expr>> {
+        let HirExpr::Literal(Literal::Int(idx)) = index else {
+            return Ok(None);
+        };
+        if *idx < 0 {
+            return Ok(None);
+        }
+        let is_tuple = if let HirExpr::Var(var_name) = base {
+            matches!(self.param_types.get(var_name), Some(Type::Tuple(_)))
+                || matches!(self.class_field_types.get(var_name), Some(Type::Tuple(_)))
+        } else {
+            false
+        };
+        if !is_tuple {
+            return Ok(None);
+        }
+        let field_idx = syn::Index::from(*idx as usize);
+        Ok(Some(parse_quote! { #base_expr.#field_idx }))
+    }
+
+    fn index_looks_like_dict_key(&self, index: &HirExpr) -> bool {
+        match index {
             HirExpr::Literal(Literal::String(_)) => true,
             HirExpr::Var(name) => {
-                // Heuristic: variable names that look like string keys
                 let n = name.as_str();
                 n == "key"
                     || n.ends_with("_key")
@@ -45,10 +63,11 @@ impl<'a> ExprConverter<'a> {
                     || n == "attr"
             }
             _ => false,
-        };
+        }
+    }
 
-        // Also check if base looks like a dict
-        let base_is_dict = match base {
+    fn base_looks_like_dict(&self, base: &HirExpr) -> bool {
+        match base {
             HirExpr::Var(name) => {
                 let n = name.as_str();
                 n.contains("dict")
@@ -62,7 +81,6 @@ impl<'a> ExprConverter<'a> {
                     || n == "env"
             }
             HirExpr::Call { func, .. } => {
-                // Functions returning dicts
                 func.contains("dict")
                     || func.contains("json")
                     || func.contains("config")
@@ -70,115 +88,88 @@ impl<'a> ExprConverter<'a> {
                     || func.contains("result")
             }
             _ => false,
+        }
+    }
+
+    fn base_has_depyler_value_keys(&self, base: &HirExpr) -> bool {
+        let HirExpr::Var(var_name) = base else {
+            return false;
         };
-
-        // DEPYLER-1123: Check if base has bare dict type with DepylerValue keys
-        // DEPYLER-1214: Type::Dict(Unknown, Unknown) generates HashMap<String, DepylerValue> (String keys!)
-        // per type_mapper.rs DEPYLER-0776. Only an explicit DepylerValue key type would need wrapping,
-        // which is rare in practice. So is_depyler_value_dict is almost always false.
-        let is_depyler_value_dict = if let HirExpr::Var(var_name) = base {
-            match self.param_types.get(var_name) {
-                // Only wrap keys if key type is explicitly DepylerValue, not Unknown
-                Some(Type::Dict(k, _)) => {
-                    matches!(k.as_ref(), Type::Custom(n) if n == "DepylerValue")
-                }
-                // Custom types like "dict" use String keys
-                Some(Type::Custom(_)) => false,
-                _ => false,
+        match self.param_types.get(var_name) {
+            Some(Type::Dict(k, _)) => {
+                matches!(k.as_ref(), Type::Custom(n) if n == "DepylerValue")
             }
-        } else {
-            false
-        };
+            _ => false,
+        }
+    }
 
-        if is_dict_access || base_is_dict {
-            // DEPYLER-1320: Check if NASA mode (DepylerValue values need .into() for type conversion)
-            let needs_into = self.type_mapper.nasa_mode;
+    fn convert_dict_access(
+        &self,
+        index: &HirExpr,
+        base_expr: &syn::Expr,
+        is_depyler_value_dict: bool,
+    ) -> Result<syn::Expr> {
+        let needs_into = self.type_mapper.nasa_mode;
 
-            // DEPYLER-1123: For bare dict types (HashMap<DepylerValue, DepylerValue>),
-            // wrap key in DepylerValue::Str and add .into() for type conversion
-            if is_depyler_value_dict {
-                // String literal key - wrap in DepylerValue::Str
-                if let HirExpr::Literal(Literal::String(_)) = index {
-                    let index_expr = self.convert(index)?;
-                    // DEPYLER-99MODE-S9: String literal needs .to_string() for DepylerValue::Str(String)
-                    return Ok(parse_quote! {
-                        #base_expr.get(&DepylerValue::Str(#index_expr.to_string())).cloned().unwrap_or_default().into()
-                    });
-                }
+        if is_depyler_value_dict {
+            if let HirExpr::Literal(Literal::String(_)) = index {
+                let index_expr = self.convert(index)?;
+                return Ok(parse_quote! {
+                    #base_expr.get(&DepylerValue::Str(#index_expr.to_string())).cloned().unwrap_or_default().into()
+                });
             }
+        }
 
-            // DEPYLER-1320: For string literal keys, use the literal directly without .to_string()
-            // This prevents &"key".to_string() which creates unnecessary allocation
-            if let HirExpr::Literal(Literal::String(s)) = index {
-                if needs_into {
-                    return Ok(parse_quote! {
-                        #base_expr.get(#s).cloned().unwrap_or_default().into()
-                    });
-                } else {
-                    return Ok(parse_quote! {
-                        #base_expr.get(#s).cloned().unwrap_or_default()
-                    });
-                }
-            }
-
-            // Non-literal index - convert and borrow
-            let index_expr = self.convert(index)?;
-
-            // Standard dict access (HashMap<String, T> or HashMap<K, V> with known types)
-            if needs_into {
-                Ok(parse_quote! {
-                    #base_expr.get(&#index_expr).cloned().unwrap_or_default().into()
-                })
+        if let HirExpr::Literal(Literal::String(s)) = index {
+            return if needs_into {
+                Ok(parse_quote! { #base_expr.get(#s).cloned().unwrap_or_default().into() })
             } else {
-                Ok(parse_quote! {
-                    #base_expr.get(&#index_expr).cloned().unwrap_or_default()
-                })
-            }
-        } else {
-            // DEPYLER-1095: Vec/List access with numeric index - handle negative indices
-            // Python supports list[-1] to get last element, list[-2] for second-to-last, etc.
-            // Check if index is a negative literal
-            let is_negative_literal = match index {
-                HirExpr::Literal(Literal::Int(idx)) => *idx < 0,
-                HirExpr::Unary { op: UnaryOp::Neg, .. } => true,
-                _ => false,
+                Ok(parse_quote! { #base_expr.get(#s).cloned().unwrap_or_default() })
             };
+        }
 
-            let index_expr = self.convert(index)?;
+        let index_expr = self.convert(index)?;
+        if needs_into {
+            Ok(parse_quote! { #base_expr.get(&#index_expr).cloned().unwrap_or_default().into() })
+        } else {
+            Ok(parse_quote! { #base_expr.get(&#index_expr).cloned().unwrap_or_default() })
+        }
+    }
 
-            if is_negative_literal {
-                // For negative literals, use runtime-safe indexing:
-                // base.get(base.len().wrapping_add(idx as usize)).cloned().unwrap()
-                // This handles -1 → len-1, -2 → len-2, etc.
-                // DEPYLER-1140: Cast to isize first to handle usize indices correctly
-                Ok(parse_quote! {
-                    {
-                        let _base = &#base_expr;
-                        let _idx = (#index_expr) as isize;
-                        let _actual_idx = if _idx < 0 {
-                            _base.len().wrapping_sub((-_idx) as usize)
-                        } else {
-                            _idx as usize
-                        };
-                        _base[_actual_idx].clone()
+    fn convert_vec_access(&self, index: &HirExpr, base_expr: &syn::Expr) -> Result<syn::Expr> {
+        let is_negative_literal = match index {
+            HirExpr::Literal(Literal::Int(idx)) => *idx < 0,
+            HirExpr::Unary { op: UnaryOp::Neg, .. } => true,
+            _ => false,
+        };
+
+        let index_expr = self.convert(index)?;
+
+        if is_negative_literal {
+            Ok(parse_quote! {
+                {
+                    let _base = &#base_expr;
+                    let _idx = (#index_expr) as isize;
+                    let _actual_idx = if _idx < 0 {
+                        _base.len().wrapping_sub((-_idx) as usize)
+                    } else {
+                        _idx as usize
+                    };
+                    _base[_actual_idx].clone()
+                }
+            })
+        } else {
+            Ok(parse_quote! {
+                {
+                    let _base = &#base_expr;
+                    let _idx = (#index_expr) as isize;
+                    if _idx < 0 {
+                        _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
+                    } else {
+                        _base[_idx as usize].clone()
                     }
-                })
-            } else {
-                // For non-negative or variable indices, generate simpler code
-                // but still handle potential negatives at runtime
-                // DEPYLER-1140: Cast to isize first to handle usize indices correctly
-                Ok(parse_quote! {
-                    {
-                        let _base = &#base_expr;
-                        let _idx = (#index_expr) as isize;
-                        if _idx < 0 {
-                            _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
-                        } else {
-                            _base[_idx as usize].clone()
-                        }
-                    }
-                })
-            }
+                }
+            })
         }
     }
 

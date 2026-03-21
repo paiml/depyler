@@ -494,30 +494,67 @@ fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> R
 pub fn convert_class_to_struct(
     class: &HirClass,
     type_mapper: &TypeMapper,
-    vararg_functions: &std::collections::HashSet<String>, // DEPYLER-0648: Track vararg functions
+    vararg_functions: &std::collections::HashSet<String>,
 ) -> Result<Vec<syn::Item>> {
-    let mut items = Vec::new();
-    // DEPYLER-0900: Rename class if it shadows stdlib type (e.g., Vec -> PyVec)
     let safe_name = safe_class_name(&class.name);
     let struct_name = make_ident(&safe_name);
 
-    // DEPYLER-1403: Check if class inherits from Enum
-    // Enum classes should generate Rust enums, not structs
-    let is_enum_class = class.base_classes.iter().any(|base| {
+    if class_is_enum(class) {
+        return convert_enum_class(class, type_mapper, vararg_functions);
+    }
+
+    let is_exception_class = class_is_exception(class);
+
+    let (instance_fields, class_fields): (Vec<_>, Vec<_>) =
+        class.fields.iter().partition(|f| !f.is_class_var);
+
+    let (fields, has_non_clone_field) =
+        build_struct_fields(&instance_fields, is_exception_class, type_mapper)?;
+
+    let generics = build_class_generics(&class.type_params, !has_non_clone_field);
+
+    let final_fields = add_phantom_data_if_needed(fields, &class.type_params);
+
+    let struct_item = build_struct_item(
+        &struct_name,
+        &generics,
+        final_fields,
+        has_non_clone_field,
+        class.is_dataclass,
+    );
+
+    let impl_items = build_class_impl_items(
+        class,
+        &struct_name,
+        type_mapper,
+        vararg_functions,
+        &class_fields,
+    )?;
+
+    let mut items = vec![struct_item];
+    if !impl_items.is_empty() {
+        items.push(build_impl_block(
+            &struct_name,
+            &class.type_params,
+            &generics,
+            impl_items,
+        ));
+    }
+
+    Ok(items)
+}
+
+fn class_is_enum(class: &HirClass) -> bool {
+    class.base_classes.iter().any(|base| {
         matches!(
             base.as_str(),
             "Enum" | "IntEnum" | "enum.Enum" | "enum.IntEnum" | "StrEnum" | "enum.StrEnum"
         )
-    });
+    })
+}
 
-    // If this is an enum class, generate a Rust enum instead of struct
-    if is_enum_class {
-        return convert_enum_class(class, type_mapper, vararg_functions);
-    }
-
-    // DEPYLER-0957: Check if class inherits from Exception
-    // Exception classes should default Unknown types to String (not serde_json::Value)
-    let is_exception_class = class.base_classes.iter().any(|base| {
+fn class_is_exception(class: &HirClass) -> bool {
+    class.base_classes.iter().any(|base| {
         matches!(
             base.as_str(),
             "Exception"
@@ -535,20 +572,20 @@ pub fn convert_class_to_struct(
                 | "FileNotFoundError"
                 | "ZeroDivisionError"
         )
-    });
+    })
+}
 
-    // Separate instance fields from class fields (constants/statics)
-    let (instance_fields, class_fields): (Vec<_>, Vec<_>) =
-        class.fields.iter().partition(|f| !f.is_class_var);
-
-    // Generate struct fields (only instance fields)
+fn build_struct_fields(
+    instance_fields: &[&HirField],
+    is_exception_class: bool,
+    type_mapper: &TypeMapper,
+) -> Result<(Vec<syn::Field>, bool)> {
     let mut fields = Vec::new();
     let mut has_non_clone_field = false;
 
     for field in instance_fields {
         let field_name =
             syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
-        // DEPYLER-0957: For Exception classes, default Unknown types to String
         let effective_field_type = if is_exception_class && field.field_type == Type::Unknown {
             Type::String
         } else {
@@ -557,7 +594,6 @@ pub fn convert_class_to_struct(
         let rust_type = type_mapper.map_type(&effective_field_type);
         let field_type = rust_type_to_syn_type(&rust_type)?;
 
-        // DEPYLER-0611: Check if field type contains non-Clone types
         let type_str = quote::quote!(#field_type).to_string();
         if type_str.contains("Mutex")
             || type_str.contains("RefCell")
@@ -581,101 +617,109 @@ pub fn convert_class_to_struct(
         });
     }
 
-    // DEPYLER-0739: Build generics from type_params (e.g., Generic[T, U] -> <T, U>)
-    // Add Clone bound to type params when struct derives Clone
-    let needs_clone_bound = !has_non_clone_field;
-    let generics = if class.type_params.is_empty() {
-        syn::Generics::default()
-    } else {
-        let params: syn::punctuated::Punctuated<syn::GenericParam, syn::Token![,]> = class
-            .type_params
-            .iter()
-            .map(|name| {
-                let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-                let bounds = if needs_clone_bound {
-                    // Add Clone bound: T: Clone
-                    let clone_bound: syn::TypeParamBound = parse_quote!(Clone);
-                    let mut bounds = syn::punctuated::Punctuated::new();
-                    bounds.push(clone_bound);
-                    bounds
+    Ok((fields, has_non_clone_field))
+}
+
+fn build_class_generics(
+    type_params: &[String],
+    needs_clone_bound: bool,
+) -> syn::Generics {
+    if type_params.is_empty() {
+        return syn::Generics::default();
+    }
+    let params: syn::punctuated::Punctuated<syn::GenericParam, syn::Token![,]> = type_params
+        .iter()
+        .map(|name| {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            let bounds = if needs_clone_bound {
+                let clone_bound: syn::TypeParamBound = parse_quote!(Clone);
+                let mut bounds = syn::punctuated::Punctuated::new();
+                bounds.push(clone_bound);
+                bounds
+            } else {
+                syn::punctuated::Punctuated::new()
+            };
+            syn::GenericParam::Type(syn::TypeParam {
+                attrs: vec![],
+                ident,
+                colon_token: if needs_clone_bound {
+                    Some(syn::Token![:](proc_macro2::Span::call_site()))
                 } else {
-                    syn::punctuated::Punctuated::new()
-                };
-                syn::GenericParam::Type(syn::TypeParam {
-                    attrs: vec![],
-                    ident,
-                    colon_token: if needs_clone_bound {
-                        Some(syn::Token![:](proc_macro2::Span::call_site()))
-                    } else {
-                        None
-                    },
-                    bounds,
-                    eq_token: None,
-                    default: None,
-                })
+                    None
+                },
+                bounds,
+                eq_token: None,
+                default: None,
             })
-            .collect();
-        syn::Generics {
-            lt_token: Some(syn::Token![<](proc_macro2::Span::call_site())),
-            params,
-            gt_token: Some(syn::Token![>](proc_macro2::Span::call_site())),
-            where_clause: None,
-        }
-    };
+        })
+        .collect();
+    syn::Generics {
+        lt_token: Some(syn::Token![<](proc_macro2::Span::call_site())),
+        params,
+        gt_token: Some(syn::Token![>](proc_macro2::Span::call_site())),
+        where_clause: None,
+    }
+}
 
-    // DEPYLER-0837: Check EACH type param individually for usage in fields
-    // If a param isn't used in any field, we need PhantomData for it
-    let unused_type_params: Vec<&String> = if class.type_params.is_empty() {
-        vec![] // No type params, nothing to check
-    } else {
-        // For each type param, check if it's used in ANY field
-        class
-            .type_params
-            .iter()
-            .filter(|tp| {
-                !fields.iter().any(|f| {
-                    let type_str = quote::quote!(#f.ty).to_string();
-                    type_str.contains(*tp)
-                })
+fn add_phantom_data_if_needed(
+    mut fields: Vec<syn::Field>,
+    type_params: &[String],
+) -> Vec<syn::Field> {
+    if type_params.is_empty() {
+        return fields;
+    }
+    let unused_type_params: Vec<&String> = type_params
+        .iter()
+        .filter(|tp| {
+            !fields.iter().any(|f| {
+                let type_str = quote::quote!(#f.ty).to_string();
+                type_str.contains(*tp)
             })
-            .collect()
-    };
+        })
+        .collect();
 
-    // Add PhantomData field for unused type params only
-    let mut final_fields: Vec<syn::Field> = fields;
-    if !unused_type_params.is_empty() {
-        // Build PhantomData<(T, U, ...)> for unused type params only
-        let phantom_types: Vec<syn::Type> = unused_type_params
-            .iter()
-            .map(|tp| {
-                let ident = syn::Ident::new(tp, proc_macro2::Span::call_site());
-                parse_quote!(#ident)
-            })
-            .collect();
-
-        let phantom_type: syn::Type = if phantom_types.len() == 1 {
-            let t = &phantom_types[0];
-            parse_quote!(std::marker::PhantomData<#t>)
-        } else {
-            parse_quote!(std::marker::PhantomData<(#(#phantom_types),*)>)
-        };
-
-        final_fields.push(syn::Field {
-            attrs: vec![],
-            vis: syn::Visibility::Inherited, // private field
-            mutability: syn::FieldMutability::None,
-            ident: Some(syn::Ident::new("_phantom", proc_macro2::Span::call_site())),
-            colon_token: Some(syn::Token![:](proc_macro2::Span::call_site())),
-            ty: phantom_type,
-        });
+    if unused_type_params.is_empty() {
+        return fields;
     }
 
-    // Create the struct - skip Clone derive for non-Clone field types
-    let struct_item = syn::Item::Struct(syn::ItemStruct {
+    let phantom_types: Vec<syn::Type> = unused_type_params
+        .iter()
+        .map(|tp| {
+            let ident = syn::Ident::new(tp, proc_macro2::Span::call_site());
+            parse_quote!(#ident)
+        })
+        .collect();
+
+    let phantom_type: syn::Type = if phantom_types.len() == 1 {
+        let t = &phantom_types[0];
+        parse_quote!(std::marker::PhantomData<#t>)
+    } else {
+        parse_quote!(std::marker::PhantomData<(#(#phantom_types),*)>)
+    };
+
+    fields.push(syn::Field {
+        attrs: vec![],
+        vis: syn::Visibility::Inherited,
+        mutability: syn::FieldMutability::None,
+        ident: Some(syn::Ident::new("_phantom", proc_macro2::Span::call_site())),
+        colon_token: Some(syn::Token![:](proc_macro2::Span::call_site())),
+        ty: phantom_type,
+    });
+
+    fields
+}
+
+fn build_struct_item(
+    struct_name: &syn::Ident,
+    generics: &syn::Generics,
+    final_fields: Vec<syn::Field>,
+    has_non_clone_field: bool,
+    is_dataclass: bool,
+) -> syn::Item {
+    syn::Item::Struct(syn::ItemStruct {
         attrs: if has_non_clone_field {
-            // DEPYLER-0611: Skip Clone for structs with Mutex/RefCell/etc fields
             vec![parse_quote! { #[derive(Debug)] }]
-        } else if class.is_dataclass {
+        } else if is_dataclass {
             vec![parse_quote! { #[derive(Debug, Clone, PartialEq)] }]
         } else {
             vec![parse_quote! { #[derive(Debug, Clone)] }]
@@ -683,53 +727,51 @@ pub fn convert_class_to_struct(
         vis: syn::Visibility::Public(syn::Token![pub](proc_macro2::Span::call_site())),
         struct_token: syn::Token![struct](proc_macro2::Span::call_site()),
         ident: struct_name.clone(),
-        generics: generics.clone(), // DEPYLER-0739: Use extracted type params
+        generics: generics.clone(),
         fields: syn::Fields::Named(syn::FieldsNamed {
             brace_token: syn::token::Brace::default(),
             named: final_fields.into_iter().collect(),
         }),
         semi_token: None,
-    });
-    items.push(struct_item);
+    })
+}
 
-    // Generate impl block with methods
+fn build_class_impl_items(
+    class: &HirClass,
+    struct_name: &syn::Ident,
+    type_mapper: &TypeMapper,
+    vararg_functions: &std::collections::HashSet<String>,
+    class_fields: &[&HirField],
+) -> Result<Vec<syn::ImplItem>> {
     let mut impl_items = Vec::new();
 
-    // Add class constants first
-    for class_field in &class_fields {
+    for class_field in class_fields {
         if let Some(default_value) = &class_field.default_value {
             let const_name = make_ident(&class_field.name);
             let rust_type = type_mapper.map_type(&class_field.field_type);
             let const_type = rust_type_to_syn_type(&rust_type)?;
             let value_expr = convert_expr(default_value, type_mapper)?;
 
-            // Generate: pub const NAME: Type = value;
             impl_items.push(parse_quote! {
                 pub const #const_name: #const_type = #value_expr;
             });
         }
     }
 
-    // Check if class has explicit __init__
     let has_init = class.methods.iter().any(|m| m.name == "__init__");
 
-    // Convert __init__ to new() if present, or generate default new() for dataclasses
     if has_init {
         for method in &class.methods {
             if method.name == "__init__" {
-                // DEPYLER-0648: Pass vararg_functions for proper slice wrapping
                 let new_method = convert_init_to_new(
                     method,
                     class,
-                    &struct_name,
+                    struct_name,
                     type_mapper,
                     vararg_functions,
                 )?;
                 impl_items.push(syn::ImplItem::Fn(new_method));
             } else {
-                // DEPYLER-0648: Pass vararg_functions for proper slice wrapping
-                // DEPYLER-0696: Pass class fields for return type inference
-                // DEPYLER-0740: Pass class type_params to distinguish method-level generics
                 let rust_method = convert_method_to_impl_item(
                     method,
                     type_mapper,
@@ -741,19 +783,14 @@ pub fn convert_class_to_struct(
             }
         }
     } else {
-        // Generate default new() for dataclasses or classes with default field values
         if class.is_dataclass
             || class.fields.iter().all(|f| f.default_value.is_some() || f.field_type == Type::Int)
         {
-            let new_method = generate_dataclass_new(class, &struct_name, type_mapper)?;
+            let new_method = generate_dataclass_new(class, struct_name, type_mapper)?;
             impl_items.push(syn::ImplItem::Fn(new_method));
         }
 
-        // Add other methods
         for method in &class.methods {
-            // DEPYLER-0648: Pass vararg_functions for proper slice wrapping
-            // DEPYLER-0696: Pass class fields for return type inference
-            // DEPYLER-0740: Pass class type_params to distinguish method-level generics
             let rust_method = convert_method_to_impl_item(
                 method,
                 type_mapper,
@@ -765,38 +802,39 @@ pub fn convert_class_to_struct(
         }
     }
 
-    // Only generate impl block if there are methods
-    if !impl_items.is_empty() {
-        // DEPYLER-0739: Build self_ty with generics if present (e.g., Container<T>)
-        let self_ty: syn::Type = if class.type_params.is_empty() {
-            parse_quote! { #struct_name }
-        } else {
-            let type_args: syn::punctuated::Punctuated<syn::Type, syn::Token![,]> = class
-                .type_params
-                .iter()
-                .map(|name| {
-                    let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-                    syn::Type::Path(syn::TypePath { qself: None, path: syn::Path::from(ident) })
-                })
-                .collect();
-            parse_quote! { #struct_name<#type_args> }
-        };
+    Ok(impl_items)
+}
 
-        let impl_block = syn::Item::Impl(syn::ItemImpl {
-            attrs: vec![],
-            defaultness: None,
-            unsafety: None,
-            impl_token: syn::Token![impl](proc_macro2::Span::call_site()),
-            generics: generics.clone(), // DEPYLER-0739: Use same generics
-            trait_: None,
-            self_ty: Box::new(self_ty),
-            brace_token: syn::token::Brace::default(),
-            items: impl_items,
-        });
-        items.push(impl_block);
-    }
+fn build_impl_block(
+    struct_name: &syn::Ident,
+    type_params: &[String],
+    generics: &syn::Generics,
+    impl_items: Vec<syn::ImplItem>,
+) -> syn::Item {
+    let self_ty: syn::Type = if type_params.is_empty() {
+        parse_quote! { #struct_name }
+    } else {
+        let type_args: syn::punctuated::Punctuated<syn::Type, syn::Token![,]> = type_params
+            .iter()
+            .map(|name| {
+                let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                syn::Type::Path(syn::TypePath { qself: None, path: syn::Path::from(ident) })
+            })
+            .collect();
+        parse_quote! { #struct_name<#type_args> }
+    };
 
-    Ok(items)
+    syn::Item::Impl(syn::ItemImpl {
+        attrs: vec![],
+        defaultness: None,
+        unsafety: None,
+        impl_token: syn::Token![impl](proc_macro2::Span::call_site()),
+        generics: generics.clone(),
+        trait_: None,
+        self_ty: Box::new(self_ty),
+        brace_token: syn::token::Brace::default(),
+        items: impl_items,
+    })
 }
 
 /// DEPYLER-1403: Convert Python Enum class to Rust enum
@@ -1531,11 +1569,68 @@ fn convert_method_to_impl_item(
     fields: &[HirField],
     class_type_params: &[String],
 ) -> Result<syn::ImplItemFn> {
-    // DEPYLER-0967: Map Python dunder methods to Rust equivalents
-    let rust_method_name = match method.name.as_str() {
+    let (method_name, method_level_type_params) =
+        resolve_method_name_and_generics(method, class_type_params);
+
+    let inputs = build_method_inputs(method, type_mapper, fields)?;
+
+    let effective_ret_type = infer_effective_return_type(method, fields);
+    let rust_ret_type = type_mapper.map_type(&effective_ret_type);
+    let ret_type = rust_type_to_syn_type(&rust_ret_type)?;
+
+    let param_types: std::collections::HashMap<String, Type> =
+        method.params.iter().map(|p| (p.name.clone(), p.ty.clone())).collect();
+    let class_field_types: std::collections::HashMap<String, Type> =
+        fields.iter().map(|f| (f.name.clone(), f.field_type.clone())).collect();
+
+    let body = build_method_body(
+        method,
+        type_mapper,
+        vararg_functions,
+        &param_types,
+        &class_field_types,
+        &effective_ret_type,
+    )?;
+
+    let generics = build_method_generics(&method_level_type_params);
+
+    Ok(syn::ImplItemFn {
+        attrs: vec![],
+        vis: syn::Visibility::Public(syn::Token![pub](proc_macro2::Span::call_site())),
+        defaultness: None,
+        sig: syn::Signature {
+            constness: None,
+            asyncness: if method.is_async {
+                Some(syn::Token![async](proc_macro2::Span::call_site()))
+            } else {
+                None
+            },
+            unsafety: None,
+            abi: None,
+            fn_token: syn::Token![fn](proc_macro2::Span::call_site()),
+            ident: method_name,
+            generics,
+            paren_token: syn::token::Paren::default(),
+            inputs,
+            variadic: None,
+            output: if matches!(effective_ret_type, Type::None) {
+                syn::ReturnType::Default
+            } else {
+                syn::ReturnType::Type(
+                    syn::Token![->](proc_macro2::Span::call_site()),
+                    Box::new(ret_type),
+                )
+            },
+        },
+        block: body,
+    })
+}
+
+fn map_dunder_method_name(name: &str) -> String {
+    match name {
         "__len__" => "len".to_string(),
         "__str__" => "to_string".to_string(),
-        "__repr__" => "fmt".to_string(), // Debug trait
+        "__repr__" => "fmt".to_string(),
         "__getitem__" => "index".to_string(),
         "__setitem__" => "index_mut".to_string(),
         "__contains__" => "contains".to_string(),
@@ -1553,65 +1648,76 @@ fn convert_method_to_impl_item(
         "__truediv__" => "div".to_string(),
         "__neg__" => "neg".to_string(),
         "__hash__" => "hash".to_string(),
-        _ => method.name.clone(),
-    };
+        other => other.to_string(),
+    }
+}
 
-    // DEPYLER-0306 FIX: Use raw identifiers for method names that are Rust keywords
+fn resolve_method_name_and_generics(
+    method: &HirMethod,
+    class_type_params: &[String],
+) -> (syn::Ident, Vec<String>) {
+    let rust_method_name = map_dunder_method_name(&method.name);
+
     let method_name = if is_rust_keyword(&rust_method_name) {
         syn::Ident::new_raw(&rust_method_name, proc_macro2::Span::call_site())
     } else {
         make_ident(&rust_method_name)
     };
 
-    // DEPYLER-0740: Collect type variables used in method signature
     let mut method_type_vars = std::collections::HashSet::new();
     for param in &method.params {
         collect_type_vars(&param.ty, &mut method_type_vars);
     }
     collect_type_vars(&method.ret_type, &mut method_type_vars);
 
-    // Filter out class-level type params to get method-level ones
     let method_level_type_params: Vec<String> =
         method_type_vars.into_iter().filter(|tv| !class_type_params.contains(tv)).collect();
 
-    // Convert parameters
-    let mut inputs = syn::punctuated::Punctuated::new();
+    (method_name, method_level_type_params)
+}
 
-    // Add self parameter based on method type
-    if method.is_static {
-        // Static methods have no self parameter
-    } else if method.is_classmethod {
-        // Note: Class methods would ideally take a type parameter (e.g., &Self),
-        // but currently classmethods are transpiled without self parameter.
-        // Proper classmethod support with type parameter is a known limitation.
-    } else if method.is_property {
-        // Properties typically use &self
-        inputs.push(parse_quote! { &self });
-    } else {
-        // Regular instance methods: use &mut self if method mutates self, otherwise &self
-        if method_mutates_self(method) {
-            inputs.push(parse_quote! { &mut self });
-        } else {
-            inputs.push(parse_quote! { &self });
-        }
+fn build_method_self_param(
+    method: &HirMethod,
+    inputs: &mut syn::punctuated::Punctuated<syn::FnArg, syn::Token![,]>,
+) {
+    if method.is_static || method.is_classmethod {
+        return;
     }
+    if method.is_property {
+        inputs.push(parse_quote! { &self });
+    } else if method_mutates_self(method) {
+        inputs.push(parse_quote! { &mut self });
+    } else {
+        inputs.push(parse_quote! { &self });
+    }
+}
 
-    // Add other parameters
+fn build_method_inputs(
+    method: &HirMethod,
+    type_mapper: &TypeMapper,
+    fields: &[HirField],
+) -> Result<syn::punctuated::Punctuated<syn::FnArg, syn::Token![,]>> {
+    let mut inputs = syn::punctuated::Punctuated::new();
+    build_method_self_param(method, &mut inputs);
+
     for param in &method.params {
-        let param_ident = make_ident(&param.name);
-
-        // DEPYLER-0708: Infer &Self type for parameters with Unknown type that are used like self
-        // DEPYLER-0271: For method params with Unknown type, use () instead of T to avoid undeclared generic
-        let param_syn_type = if matches!(param.ty, Type::Unknown)
+        if matches!(param.ty, Type::Unknown)
             && should_param_be_self_type(&param.name, &method.body, fields)
         {
-            // Parameter is used with attribute access matching class fields - use &Self
-            parse_quote! { &Self }
+            let param_ident = make_ident(&param.name);
+            inputs.push(syn::FnArg::Typed(syn::PatType {
+                attrs: vec![],
+                pat: Box::new(syn::Pat::Ident(syn::PatIdent {
+                    attrs: vec![],
+                    by_ref: None,
+                    mutability: None,
+                    ident: param_ident,
+                    subpat: None,
+                })),
+                colon_token: syn::Token![:](proc_macro2::Span::call_site()),
+                ty: Box::new(parse_quote! { &Self }),
+            }));
         } else if matches!(param.ty, Type::Unknown) {
-            // DEPYLER-0271: Unknown type in method params should be () not TypeParam("T")
-            // This is especially important for __exit__(exc_type, exc_val, exc_tb) where
-            // the exception parameters are typically unused and should not create generic T
-            // Also prefix parameter name with _ to avoid unused warnings
             let prefixed_name = if !param.name.starts_with('_') {
                 format!("_{}", param.name)
             } else {
@@ -1619,7 +1725,6 @@ fn convert_method_to_impl_item(
             };
             let prefixed_ident = make_ident(&prefixed_name);
 
-            // Add parameter with prefixed name and () type
             inputs.push(syn::FnArg::Typed(syn::PatType {
                 attrs: vec![],
                 pat: Box::new(syn::Pat::Ident(syn::PatIdent {
@@ -1632,151 +1737,101 @@ fn convert_method_to_impl_item(
                 colon_token: syn::Token![:](proc_macro2::Span::call_site()),
                 ty: Box::new(parse_quote! { () }),
             }));
-            continue; // Skip the normal parameter addition below
         } else {
+            let param_ident = make_ident(&param.name);
             let rust_type = type_mapper.map_type(&param.ty);
             let base_type = rust_type_to_syn_type(&rust_type)?;
 
-            // DEPYLER-0709: For class-typed parameters, use reference instead of owned value
-            // Python objects are passed by reference, so method signatures should take &ClassName
-            // This matches the call-site behavior in DEPYLER-0712 which adds & to class args
-            if matches!(&param.ty, Type::Custom(_)) {
-                // Wrap in reference: ClassName -> &ClassName
+            let param_syn_type: syn::Type = if matches!(&param.ty, Type::Custom(_)) {
                 parse_quote! { &#base_type }
             } else {
                 base_type
-            }
-        };
+            };
 
-        inputs.push(syn::FnArg::Typed(syn::PatType {
-            attrs: vec![],
-            pat: Box::new(syn::Pat::Ident(syn::PatIdent {
+            inputs.push(syn::FnArg::Typed(syn::PatType {
                 attrs: vec![],
-                by_ref: None,
-                mutability: None,
-                ident: param_ident,
-                subpat: None,
-            })),
-            colon_token: syn::Token![:](proc_macro2::Span::call_site()),
-            ty: Box::new(param_syn_type),
-        }));
+                pat: Box::new(syn::Pat::Ident(syn::PatIdent {
+                    attrs: vec![],
+                    by_ref: None,
+                    mutability: None,
+                    ident: param_ident,
+                    subpat: None,
+                })),
+                colon_token: syn::Token![:](proc_macro2::Span::call_site()),
+                ty: Box::new(param_syn_type),
+            }));
+        }
     }
 
-    // Convert return type - infer if Unknown or None (DEPYLER-0422 Fix #10)
-    // Five-Whys Root Cause:
-    // 1. Why: expected `()`, found `bool` in __exit__ method
-    // 2. Why: Method has no return type annotation, so ret_type is Unknown/None
-    // 3. Why: convert_method_to_impl_item uses type_mapper.map_type directly
-    // 4. Why: No return type inference is applied to class methods
-    // 5. ROOT CAUSE: direct_rules.rs doesn't infer return type for methods
-    // DEPYLER-0696: Pass class fields for self.field type inference
-    let effective_ret_type = if matches!(method.ret_type, Type::Unknown | Type::None) {
-        // Try to infer from body - if we find a typed return, use it
+    Ok(inputs)
+}
+
+fn infer_effective_return_type(method: &HirMethod, fields: &[HirField]) -> Type {
+    if matches!(method.ret_type, Type::Unknown | Type::None) {
         infer_method_return_type(&method.body, fields).unwrap_or_else(|| method.ret_type.clone())
     } else {
         method.ret_type.clone()
-    };
-    let rust_ret_type = type_mapper.map_type(&effective_ret_type);
-    let ret_type = rust_type_to_syn_type(&rust_ret_type)?;
+    }
+}
 
-    // DEPYLER-0704: Extract parameter types for type coercion in binary operations
-    let param_types: std::collections::HashMap<String, Type> =
-        method.params.iter().map(|p| (p.name.clone(), p.ty.clone())).collect();
-
-    // DEPYLER-0720: Build class field types map from fields
-    let class_field_types: std::collections::HashMap<String, Type> =
-        fields.iter().map(|f| (f.name.clone(), f.field_type.clone())).collect();
-
-    // Convert method body
-    // DEPYLER-0838: Check if body consists only of pass statements
+fn build_method_body(
+    method: &HirMethod,
+    type_mapper: &TypeMapper,
+    vararg_functions: &std::collections::HashSet<String>,
+    param_types: &std::collections::HashMap<String, Type>,
+    class_field_types: &std::collections::HashMap<String, Type>,
+    effective_ret_type: &Type,
+) -> Result<syn::Block> {
     let body_is_only_pass = method.body.iter().all(|stmt| matches!(stmt, HirStmt::Pass));
     let is_non_unit_return = !matches!(effective_ret_type, Type::None | Type::Unknown);
 
-    let body = if method.body.is_empty() || (body_is_only_pass && is_non_unit_return) {
-        // Empty body or pass-only with non-unit return type - use unimplemented!()
-        // This handles Python's @abstractmethod pattern where body is just `pass`
+    if method.body.is_empty() || (body_is_only_pass && is_non_unit_return) {
         if is_non_unit_return {
-            parse_quote! { { unimplemented!() } }
+            Ok(parse_quote! { { unimplemented!() } })
         } else {
-            parse_quote! { {} }
+            Ok(parse_quote! { {} })
         }
     } else {
-        // Convert the method body statements with classmethod context
-        // DEPYLER-0648: Pass vararg_functions for proper slice wrapping at call sites
-        // DEPYLER-0704: Pass param_types for type coercion
-        // DEPYLER-0720: Pass class_field_types for self.field float coercion
-        // DEPYLER-1037: Pass effective_ret_type for Optional wrapping in returns
         convert_method_body_block(
             &method.body,
             type_mapper,
             method.is_classmethod,
             vararg_functions,
-            &param_types,
-            &class_field_types,
-            &effective_ret_type,
-        )?
-    };
+            param_types,
+            class_field_types,
+            effective_ret_type,
+        )
+    }
+}
 
-    Ok(syn::ImplItemFn {
-        attrs: vec![],
-        vis: syn::Visibility::Public(syn::Token![pub](proc_macro2::Span::call_site())),
-        defaultness: None,
-        sig: syn::Signature {
-            constness: None,
-            asyncness: if method.is_async {
-                Some(syn::Token![async](proc_macro2::Span::call_site()))
-            } else {
-                None
-            },
-            unsafety: None,
-            abi: None,
-            fn_token: syn::Token![fn](proc_macro2::Span::call_site()),
-            ident: method_name,
-            // DEPYLER-0740: Build method-level generics for type params not in class signature
-            // Add Clone bound to method-level type params since they're often used with Clone-bounded structs
-            generics: if method_level_type_params.is_empty() {
-                syn::Generics::default()
-            } else {
-                let params: syn::punctuated::Punctuated<syn::GenericParam, syn::Token![,]> =
-                    method_level_type_params
-                        .iter()
-                        .map(|name| {
-                            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-                            // Add Clone bound
-                            let clone_bound: syn::TypeParamBound = parse_quote!(Clone);
-                            let mut bounds = syn::punctuated::Punctuated::new();
-                            bounds.push(clone_bound);
-                            syn::GenericParam::Type(syn::TypeParam {
-                                attrs: vec![],
-                                ident,
-                                colon_token: Some(syn::Token![:](proc_macro2::Span::call_site())),
-                                bounds,
-                                eq_token: None,
-                                default: None,
-                            })
-                        })
-                        .collect();
-                syn::Generics {
-                    lt_token: Some(syn::Token![<](proc_macro2::Span::call_site())),
-                    params,
-                    gt_token: Some(syn::Token![>](proc_macro2::Span::call_site())),
-                    where_clause: None,
-                }
-            },
-            paren_token: syn::token::Paren::default(),
-            inputs,
-            variadic: None,
-            output: if matches!(effective_ret_type, Type::None) {
-                syn::ReturnType::Default
-            } else {
-                syn::ReturnType::Type(
-                    syn::Token![->](proc_macro2::Span::call_site()),
-                    Box::new(ret_type),
-                )
-            },
-        },
-        block: body,
-    })
+fn build_method_generics(method_level_type_params: &[String]) -> syn::Generics {
+    if method_level_type_params.is_empty() {
+        return syn::Generics::default();
+    }
+    let params: syn::punctuated::Punctuated<syn::GenericParam, syn::Token![,]> =
+        method_level_type_params
+            .iter()
+            .map(|name| {
+                let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                let clone_bound: syn::TypeParamBound = parse_quote!(Clone);
+                let mut bounds = syn::punctuated::Punctuated::new();
+                bounds.push(clone_bound);
+                syn::GenericParam::Type(syn::TypeParam {
+                    attrs: vec![],
+                    ident,
+                    colon_token: Some(syn::Token![:](proc_macro2::Span::call_site())),
+                    bounds,
+                    eq_token: None,
+                    default: None,
+                })
+            })
+            .collect();
+    syn::Generics {
+        lt_token: Some(syn::Token![<](proc_macro2::Span::call_site())),
+        params,
+        gt_token: Some(syn::Token![>](proc_macro2::Span::call_site())),
+        where_clause: None,
+    }
 }
 
 fn convert_protocol_method_to_trait_method(

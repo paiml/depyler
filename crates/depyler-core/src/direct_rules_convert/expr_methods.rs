@@ -17,171 +17,200 @@ impl<'a> ExprConverter<'a> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<syn::Expr> {
-        // Handle classmethod cls.method() → Self::method()
+        if let Some(e) = self.try_convert_classmethod_call(object, method, args)? {
+            return Ok(e);
+        }
+
+        if let Some(e) = self.try_convert_module_level_call(object, method, args)? {
+            return Ok(e);
+        }
+
+        if let Some(e) = self.try_convert_os_submodule_call(object, method, args)? {
+            return Ok(e);
+        }
+
+        if let Some(e) = self.try_convert_class_method_call(object, method, args)? {
+            return Ok(e);
+        }
+
+        if let Some(e) = self.try_convert_static_class_call(object, method, args)? {
+            return Ok(e);
+        }
+
+        let (object_expr, arg_exprs) = self.prepare_instance_call(object, method, args)?;
+
+        self.convert_instance_method(object, method, args, object_expr, arg_exprs)
+    }
+
+    fn try_convert_classmethod_call(
+        &self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
         if let HirExpr::Var(var_name) = object {
             if var_name == "cls" && self.is_classmethod {
                 let method_ident = make_ident(method);
                 let arg_exprs: Vec<syn::Expr> =
                     args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
-                return Ok(parse_quote! { Self::#method_ident(#(#arg_exprs),*) });
+                return Ok(Some(parse_quote! { Self::#method_ident(#(#arg_exprs),*) }));
+            }
+        }
+        Ok(None)
+    }
+
+    fn try_convert_module_level_call(
+        &self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let HirExpr::Var(module_name) = object else {
+            return Ok(None);
+        };
+
+        if let Some(rust_expr) = self.convert_module_constructor(module_name, method, args)? {
+            return Ok(Some(rust_expr));
+        }
+
+        if module_name == "os" {
+            if let Some(rust_expr) = self.try_convert_os_method(method, args)? {
+                return Ok(Some(rust_expr));
             }
         }
 
-        // DEPYLER-0610: Handle Python stdlib module constructor calls
-        if let HirExpr::Var(module_name) = object {
-            if let Some(rust_expr) = self.convert_module_constructor(module_name, method, args)? {
-                return Ok(rust_expr);
+        match module_name.as_str() {
+            "sys" => self.try_convert_sys_method(method, args),
+            "re" => self.try_convert_re_method(method, args),
+            "colorsys" => self.try_convert_colorsys_method(method, args),
+            "base64" => self.try_convert_base64_method(method, args),
+            "hashlib" => self.try_convert_hashlib_method(method, args),
+            "json" => self.try_convert_json_method(method, args),
+            "math" => self.try_convert_math_method(method, args),
+            "random" => self.try_convert_random_method(method, args),
+            "time" => self.try_convert_time_method(method, args),
+            _ => Ok(None),
+        }
+    }
+
+    fn try_convert_os_submodule_call(
+        &self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let HirExpr::Attribute { value, attr } = object else {
+            return Ok(None);
+        };
+        let HirExpr::Var(module_name) = value.as_ref() else {
+            return Ok(None);
+        };
+        if module_name != "os" {
+            return Ok(None);
+        }
+        if attr == "path" {
+            if let Some(rust_expr) = self.try_convert_os_path_method(method, args)? {
+                return Ok(Some(rust_expr));
             }
         }
-
-        // DEPYLER-0200: Handle os module method calls in class methods
-        if let HirExpr::Var(module_name) = object {
-            if module_name == "os" {
-                if let Some(rust_expr) = self.try_convert_os_method(method, args)? {
-                    return Ok(rust_expr);
-                }
+        if attr == "environ" {
+            if let Some(rust_expr) = self.try_convert_os_environ_method(method, args)? {
+                return Ok(Some(rust_expr));
             }
         }
+        Ok(None)
+    }
 
-        // Dispatch module-level method calls via match
-        if let HirExpr::Var(module_name) = object {
-            match module_name.as_str() {
-                "sys" => {
-                    if let Some(e) = self.try_convert_sys_method(method, args)? {
-                        return Ok(e);
-                    }
-                }
-                "re" => {
-                    if let Some(e) = self.try_convert_re_method(method, args)? {
-                        return Ok(e);
-                    }
-                }
-                "colorsys" => {
-                    if let Some(e) = self.try_convert_colorsys_method(method, args)? {
-                        return Ok(e);
-                    }
-                }
-                "base64" => {
-                    if let Some(e) = self.try_convert_base64_method(method, args)? {
-                        return Ok(e);
-                    }
-                }
-                "hashlib" => {
-                    if let Some(e) = self.try_convert_hashlib_method(method, args)? {
-                        return Ok(e);
-                    }
-                }
-                "json" => {
-                    if let Some(e) = self.try_convert_json_method(method, args)? {
-                        return Ok(e);
-                    }
-                }
-                "math" => {
-                    if let Some(e) = self.try_convert_math_method(method, args)? {
-                        return Ok(e);
-                    }
-                }
-                "random" => {
-                    if let Some(e) = self.try_convert_random_method(method, args)? {
-                        return Ok(e);
-                    }
-                }
-                "time" => {
-                    if let Some(e) = self.try_convert_time_method(method, args)? {
-                        return Ok(e);
-                    }
-                }
-                _ => {}
+    fn try_convert_class_method_call(
+        &self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let HirExpr::Var(var_name) = object else {
+            return Ok(None);
+        };
+        if var_name == "dict" && method == "fromkeys" {
+            let arg_exprs: Vec<syn::Expr> =
+                args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
+            if arg_exprs.len() >= 2 {
+                let keys_expr = &arg_exprs[0];
+                let default_expr = &arg_exprs[1];
+                return Ok(Some(parse_quote! {
+                    #keys_expr.iter().map(|k| (k.clone(), #default_expr)).collect()
+                }));
+            } else if arg_exprs.len() == 1 {
+                let keys_expr = &arg_exprs[0];
+                return Ok(Some(parse_quote! {
+                    #keys_expr.iter().map(|k| (k.clone(), ())).collect()
+                }));
             }
         }
-
-        // DEPYLER-0200: Handle os.path.* and os.environ.* method calls in class methods
-        if let HirExpr::Attribute { value, attr } = object {
-            if let HirExpr::Var(module_name) = value.as_ref() {
-                if module_name == "os" && attr == "path" {
-                    if let Some(rust_expr) = self.try_convert_os_path_method(method, args)? {
-                        return Ok(rust_expr);
-                    }
-                }
-                if module_name == "os" && attr == "environ" {
-                    if let Some(rust_expr) = self.try_convert_os_environ_method(method, args)? {
-                        return Ok(rust_expr);
-                    }
-                }
-            }
+        if var_name == "int" && method == "from_bytes" {
+            return self.try_convert_int_from_bytes(args);
         }
+        Ok(None)
+    }
 
-        // DEPYLER-0932: Handle dict.fromkeys(keys, default) class method
-        if let HirExpr::Var(var_name) = object {
-            if var_name == "dict" && method == "fromkeys" {
-                let arg_exprs: Vec<syn::Expr> =
-                    args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
-
-                if arg_exprs.len() >= 2 {
-                    let keys_expr = &arg_exprs[0];
-                    let default_expr = &arg_exprs[1];
-                    return Ok(parse_quote! {
-                        #keys_expr.iter().map(|k| (k.clone(), #default_expr)).collect()
-                    });
-                } else if arg_exprs.len() == 1 {
-                    let keys_expr = &arg_exprs[0];
-                    return Ok(parse_quote! {
-                        #keys_expr.iter().map(|k| (k.clone(), ())).collect()
-                    });
-                }
-            }
+    fn try_convert_int_from_bytes(&self, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
+        if arg_exprs.len() < 2 {
+            return Ok(None);
         }
-
-        // DEPYLER-0933: Handle int.from_bytes(bytes, byteorder) class method
-        if let HirExpr::Var(var_name) = object {
-            if var_name == "int" && method == "from_bytes" {
-                let arg_exprs: Vec<syn::Expr> =
-                    args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
-
-                if arg_exprs.len() >= 2 {
-                    let bytes_expr = &arg_exprs[0];
-                    let is_big_endian = if let HirExpr::Literal(Literal::String(s)) = &args[1] {
-                        s == "big"
-                    } else {
-                        true
-                    };
-
-                    if is_big_endian {
-                        return Ok(parse_quote! {
-                            i64::from_be_bytes({
-                                let mut arr = [0u8; 8];
-                                let bytes: &[u8] = #bytes_expr.as_ref();
-                                let start = 8usize.saturating_sub(bytes.len());
-                                arr[start..].copy_from_slice(bytes);
-                                arr
-                            })
-                        });
-                    } else {
-                        return Ok(parse_quote! {
-                            i64::from_le_bytes({
-                                let mut arr = [0u8; 8];
-                                let bytes: &[u8] = #bytes_expr.as_ref();
-                                arr[..bytes.len().min(8)].copy_from_slice(&bytes[..bytes.len().min(8)]);
-                                arr
-                            })
-                        });
-                    }
-                }
-            }
+        let bytes_expr = &arg_exprs[0];
+        let is_big_endian = if let HirExpr::Literal(Literal::String(s)) = &args[1] {
+            s == "big"
+        } else {
+            true
+        };
+        if is_big_endian {
+            Ok(Some(parse_quote! {
+                i64::from_be_bytes({
+                    let mut arr = [0u8; 8];
+                    let bytes: &[u8] = #bytes_expr.as_ref();
+                    let start = 8usize.saturating_sub(bytes.len());
+                    arr[start..].copy_from_slice(bytes);
+                    arr
+                })
+            }))
+        } else {
+            Ok(Some(parse_quote! {
+                i64::from_le_bytes({
+                    let mut arr = [0u8; 8];
+                    let bytes: &[u8] = #bytes_expr.as_ref();
+                    arr[..bytes.len().min(8)].copy_from_slice(&bytes[..bytes.len().min(8)]);
+                    arr
+                })
+            }))
         }
+    }
 
-        // Check if this is a static method call on a class
-        if let HirExpr::Var(class_name) = object {
-            if class_name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
-                let class_ident = make_ident(class_name);
-                let method_ident = make_ident(method);
-                let arg_exprs: Vec<syn::Expr> =
-                    args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
-                return Ok(parse_quote! { #class_ident::#method_ident(#(#arg_exprs),*) });
-            }
+    fn try_convert_static_class_call(
+        &self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let HirExpr::Var(class_name) = object else {
+            return Ok(None);
+        };
+        if !class_name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+            return Ok(None);
         }
+        let class_ident = make_ident(class_name);
+        let method_ident = make_ident(method);
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
+        Ok(Some(parse_quote! { #class_ident::#method_ident(#(#arg_exprs),*) }))
+    }
 
-        // DEPYLER-1008: Check if this is a mutating method call on self.field
+    fn prepare_instance_call(
+        &self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<(syn::Expr, Vec<syn::Expr>)> {
         let is_mutating_method = matches!(
             method,
             "append"
@@ -219,7 +248,7 @@ impl<'a> ExprConverter<'a> {
         let arg_exprs: Vec<syn::Expr> =
             args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
 
-        self.convert_instance_method(object, method, args, object_expr, arg_exprs)
+        Ok((object_expr, arg_exprs))
     }
 
     // ---- Module-level method handlers ----
