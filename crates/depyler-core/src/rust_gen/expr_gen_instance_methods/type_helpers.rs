@@ -612,108 +612,107 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match expr {
             HirExpr::Dict(_) => true,
             HirExpr::Call { func, .. } if func == "dict" => true,
-            HirExpr::Var(name) => {
-                // Check var_types to see if this variable is a dict/HashMap
-                if let Some(var_type) = self.ctx.var_types.get(name) {
-                    match var_type {
-                        Type::Dict(_, _) => true,
-                        // DEPYLER-1004: Handle bare Dict from typing import (becomes Type::Custom("Dict"))
-                        Type::Custom(s) if s == "Dict" => true,
-                        // DEPYLER-1004: json.loads() returns serde_json::Value which is dict-like
-                        // When assigned from json.loads(), variables get Type::Custom("serde_json::Value")
-                        Type::Custom(s) if s == "serde_json::Value" || s == "Value" => true,
-                        _ => false,
-                    }
-                // DEPYLER-1060: Check module_constant_types for module-level static dicts
-                // var_types is cleared per-function, but module_constant_types persists
-                } else if let Some(var_type) = self.ctx.module_constant_types.get(name.as_str()) {
-                    matches!(var_type, Type::Dict(_, _))
-                } else {
-                    // DEPYLER-99MODE: Heuristic fallback for common dict variable names
-                    // DEPYLER-99MODE-S9: Added data, info, metadata, headers, kwargs,
-                    // context, registry, mapping, index, table, frequencies
-                    let n = name.as_str();
-                    n.contains("dict")
-                        || n.contains("map")
-                        || n.contains("hash")
-                        || n == "memo"
-                        || n == "counts"
-                        || n == "freq"
-                        || n == "frequency"
-                        || n == "frequencies"
-                        || n == "lookup"
-                        || n == "graph"
-                        || n == "adj"
-                        || n == "dp"
-                        || n == "cache"
-                        || n == "config"
-                        || n == "settings"
-                        || n == "params"
-                        || n == "options"
-                        || n == "env"
-                        || n == "data"
-                        || n == "info"
-                        || n == "metadata"
-                        || n == "headers"
-                        || n == "kwargs"
-                        || n == "context"
-                        || n == "registry"
-                        || n == "index"
-                        || n == "table"
-                        || n.ends_with("_map")
-                        || n.ends_with("_dict")
-                        || n.ends_with("_cache")
-                        || n.ends_with("_index")
-                        || n.ends_with("_lookup")
-                        || n.ends_with("_table")
-                }
-            }
-            // DEPYLER-1044: Handle attribute access (e.g., self.config)
-            HirExpr::Attribute { attr, .. } => {
-                if let Some(field_type) = self.ctx.class_field_types.get(attr) {
-                    matches!(field_type, Type::Dict(_, _))
-                        || matches!(field_type, Type::Custom(s) if s == "Dict")
-                } else {
-                    // Heuristic: common dict-like attribute names
-                    let name = attr.as_str();
-                    name == "config"
-                        || name == "settings"
-                        || name == "options"
-                        || name == "data"
-                        || name == "metadata"
-                        || name == "headers"
-                        || name == "params"
-                        || name == "kwargs"
-                        || name.ends_with("_dict")
-                        || name.ends_with("_map")
-                }
-            }
-            // DEPYLER-1189: Handle dict-of-dicts indexing (e.g., distances[current])
-            // If base is a dict with dict value type, the result is also a dict
-            HirExpr::Index { base, .. } => {
-                if let HirExpr::Var(name) = base.as_ref() {
-                    if let Some(Type::Dict(_, value_type)) = self.ctx.var_types.get(name) {
-                        // If the value type is also a Dict, indexing returns a dict
-                        matches!(value_type.as_ref(), Type::Dict(_, _))
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            }
-            // GH-207-PHASE2: Handle method calls that preserve dict type
-            // dict.clone() and dict.copy() return a dict, so items()/keys()/values() should work
+            HirExpr::Var(name) => self.is_dict_var(name),
+            HirExpr::Attribute { attr, .. } => self.is_dict_attribute(attr),
+            HirExpr::Index { base, .. } => Self::is_dict_index(base, &self.ctx.var_types),
             HirExpr::MethodCall { object, method, .. } => {
-                // Methods that return the same dict type
-                if method == "clone" || method == "copy" {
-                    self.is_dict_expr(object)
-                } else {
-                    false
-                }
+                (method == "clone" || method == "copy") && self.is_dict_expr(object)
             }
             _ => false,
         }
+    }
+
+    fn is_dict_var(&self, name: &str) -> bool {
+        if let Some(var_type) = self.ctx.var_types.get(name) {
+            return Self::is_dict_like_type(var_type);
+        }
+        // DEPYLER-1060: Check module_constant_types for module-level static dicts
+        if let Some(var_type) = self.ctx.module_constant_types.get(name) {
+            return matches!(var_type, Type::Dict(_, _));
+        }
+        Self::is_dict_heuristic_name(name)
+    }
+
+    fn is_dict_like_type(var_type: &Type) -> bool {
+        match var_type {
+            Type::Dict(_, _) => true,
+            Type::Custom(s) if s == "Dict" => true,
+            Type::Custom(s) if s == "serde_json::Value" || s == "Value" => true,
+            _ => false,
+        }
+    }
+
+    fn is_dict_heuristic_name(n: &str) -> bool {
+        if n.contains("dict") || n.contains("map") || n.contains("hash") {
+            return true;
+        }
+        if matches!(
+            n,
+            "memo"
+                | "counts"
+                | "freq"
+                | "frequency"
+                | "frequencies"
+                | "lookup"
+                | "graph"
+                | "adj"
+                | "dp"
+                | "cache"
+                | "config"
+                | "settings"
+                | "params"
+                | "options"
+                | "env"
+                | "data"
+                | "info"
+                | "metadata"
+                | "headers"
+                | "kwargs"
+                | "context"
+                | "registry"
+                | "index"
+                | "table"
+        ) {
+            return true;
+        }
+        n.ends_with("_map")
+            || n.ends_with("_dict")
+            || n.ends_with("_cache")
+            || n.ends_with("_index")
+            || n.ends_with("_lookup")
+            || n.ends_with("_table")
+    }
+
+    fn is_dict_attribute(&self, attr: &str) -> bool {
+        if let Some(field_type) = self.ctx.class_field_types.get(attr) {
+            return matches!(field_type, Type::Dict(_, _))
+                || matches!(field_type, Type::Custom(s) if s == "Dict");
+        }
+        Self::is_dict_heuristic_attr_name(attr)
+    }
+
+    fn is_dict_heuristic_attr_name(name: &str) -> bool {
+        matches!(
+            name,
+            "config"
+                | "settings"
+                | "options"
+                | "data"
+                | "metadata"
+                | "headers"
+                | "params"
+                | "kwargs"
+        ) || name.ends_with("_dict")
+            || name.ends_with("_map")
+    }
+
+    fn is_dict_index(base: &HirExpr, var_types: &std::collections::HashMap<String, Type>) -> bool {
+        if let HirExpr::Var(name) = base {
+            if let Some(Type::Dict(_, value_type)) = var_types.get(name.as_str()) {
+                return matches!(value_type.as_ref(), Type::Dict(_, _));
+            }
+        }
+        false
     }
 
     /// DEPYLER-0572: Check if expression is a dict value access (returns serde_json::Value)

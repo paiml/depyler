@@ -14,6 +14,42 @@ use anyhow::{bail, Result};
 use quote::quote;
 use syn::parse_quote;
 
+#[derive(Default)]
+struct DictTypeTracker {
+    has_bool: bool,
+    has_int: bool,
+    has_float: bool,
+    has_string: bool,
+    has_complex: bool,
+    unknown_attribute_count: usize,
+    has_list_of_int: bool,
+    has_list_of_string: bool,
+    has_list_of_bool: bool,
+    has_list_of_float: bool,
+}
+
+impl DictTypeTracker {
+    fn has_mixed_types(&self) -> bool {
+        let distinct_literal_types =
+            [self.has_bool, self.has_int, self.has_float, self.has_string, self.has_complex]
+                .iter()
+                .filter(|&&b| b)
+                .count();
+
+        let distinct_list_types = [
+            self.has_list_of_int,
+            self.has_list_of_string,
+            self.has_list_of_bool,
+            self.has_list_of_float,
+        ]
+        .iter()
+        .filter(|&&b| b)
+        .count();
+
+        distinct_literal_types >= 2 || distinct_list_types >= 2 || self.unknown_attribute_count >= 2
+    }
+}
+
 impl<'a, 'b> ExpressionConverter<'a, 'b> {
     pub(crate) fn convert_dict(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
         // CITL: Trace dict construction decision
@@ -755,158 +791,123 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-0461: Also detect nested dicts which require serde_json::Value
     pub(crate) fn dict_has_mixed_types(&self, items: &[(HirExpr, HirExpr)]) -> Result<bool> {
         // DEPYLER-1166: Check for nested dicts FIRST (before item count check)
-        // A single-item dict like {"key": {...}} should still trigger DepylerValue
-        // wrapping because the nested dict needs to be wrapped as DepylerValue::Dict
         if self.dict_contains_nested_dict(items) {
             return Ok(true);
         }
 
         if items.len() <= 1 {
-            return Ok(false); // Single type or empty
+            return Ok(false);
         }
 
-        // STRATEGY 1: Check for obvious mixing of literal types
-        let mut has_bool_literal = false;
-        let mut has_int_literal = false;
-        let mut has_float_literal = false;
-        let mut has_string_literal = false;
-        // DEPYLER-1031: Track complex expressions (function calls, method calls, etc.)
-        // These are treated as "unknown type" and trigger mixed type handling
-        let mut has_complex_expr = false;
-        // DEPYLER-1040: Track unknown-type attribute accesses
-        // If we have multiple, assume they're potentially different types
-        let mut unknown_attribute_count = 0;
-        // DEPYLER-0601: Also track list element types for heterogeneous detection
-        let mut has_list_of_int = false;
-        let mut has_list_of_string = false;
-        let mut has_list_of_bool = false;
-        let mut has_list_of_float = false;
-
+        let mut tracker = DictTypeTracker::default();
         for (_key, value) in items {
-            match value {
-                HirExpr::Literal(Literal::Bool(_)) => has_bool_literal = true,
-                HirExpr::Literal(Literal::Int(_)) => has_int_literal = true,
-                HirExpr::Literal(Literal::Float(_)) => has_float_literal = true,
-                HirExpr::Literal(Literal::String(_)) => has_string_literal = true,
-                // DEPYLER-1031: Function calls and method calls are complex expressions
-                HirExpr::Call { .. } | HirExpr::MethodCall { .. } => has_complex_expr = true,
-                // DEPYLER-1023: Check variable types from ctx.var_types for heterogeneous detection
-                HirExpr::Var(name) => {
-                    if let Some(var_type) = self.ctx.var_types.get(name) {
-                        match var_type {
-                            Type::Bool => has_bool_literal = true,
-                            Type::Int => has_int_literal = true,
-                            Type::Float => has_float_literal = true,
-                            Type::String => has_string_literal = true,
-                            _ => {}
-                        }
-                    }
-                }
-                // DEPYLER-1040: Handle struct field access (e.g., args.debug, args.count)
-                // Look up field type from class_field_types or argparse_tracker
-                // DEPYLER-1143: Also check argparse field types for heterogeneous dict detection
-                HirExpr::Attribute { value, attr, .. } => {
-                    // First try class_field_types
-                    let mut found_type: Option<&Type> = self.ctx.class_field_types.get(attr);
-                    // Track inferred type string from argparse rust_type()
-                    let mut inferred_type_str: Option<String> = None;
+            self.classify_dict_value(value, &mut tracker);
+        }
+        Ok(tracker.has_mixed_types())
+    }
 
-                    // DEPYLER-1143: If not found, check if this is an argparse args.field access
-                    if found_type.is_none() {
-                        if let HirExpr::Var(obj_name) = value.as_ref() {
-                            // Check if obj_name is an argparse args_var
-                            for parser_info in self.ctx.argparser_tracker.parsers.values() {
-                                if let Some(ref args_var) = parser_info.args_var {
-                                    if args_var == obj_name {
-                                        // Found matching parser, look up field type
-                                        for arg in &parser_info.arguments {
-                                            if arg.rust_field_name() == *attr {
-                                                // Try explicit arg_type first
-                                                found_type = arg.arg_type.as_ref();
-                                                // If not set, use rust_type() which handles
-                                                // action="store_true" → bool, nargs="+" → Vec, etc.
-                                                if found_type.is_none() {
-                                                    inferred_type_str = Some(arg.rust_type());
-                                                }
-                                                break;
-                                            }
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
+    fn classify_dict_value(&self, value: &HirExpr, tracker: &mut DictTypeTracker) {
+        match value {
+            HirExpr::Literal(Literal::Bool(_)) => tracker.has_bool = true,
+            HirExpr::Literal(Literal::Int(_)) => tracker.has_int = true,
+            HirExpr::Literal(Literal::Float(_)) => tracker.has_float = true,
+            HirExpr::Literal(Literal::String(_)) => tracker.has_string = true,
+            HirExpr::Call { .. } | HirExpr::MethodCall { .. } => tracker.has_complex = true,
+            HirExpr::Var(name) => self.classify_var_value(name, tracker),
+            HirExpr::Attribute { value: val, attr, .. } => {
+                self.classify_attribute_value(val, attr, tracker);
+            }
+            HirExpr::List(elems) if !elems.is_empty() => {
+                Self::classify_list_element_type(&elems[0], tracker);
+            }
+            _ => {}
+        }
+    }
 
-                    // Process found explicit Type
-                    if let Some(field_type) = found_type {
-                        match field_type {
-                            Type::Bool => has_bool_literal = true,
-                            Type::Int => has_int_literal = true,
-                            Type::Float => has_float_literal = true,
-                            Type::String => has_string_literal = true,
-                            Type::List(_) => has_complex_expr = true,
-                            Type::Optional(_) => has_complex_expr = true,
-                            _ => has_complex_expr = true,
-                        }
-                    } else if let Some(type_str) = inferred_type_str {
-                        // DEPYLER-1143: Handle inferred types from argparse rust_type()
-                        match type_str.as_str() {
-                            "bool" => has_bool_literal = true,
-                            "i32" | "i64" | "isize" | "u8" | "u32" | "u64" => {
-                                has_int_literal = true
-                            }
-                            "f32" | "f64" => has_float_literal = true,
-                            "String" => has_string_literal = true,
-                            s if s.starts_with("Vec<") => has_complex_expr = true,
-                            s if s.starts_with("Option<") => has_complex_expr = true,
-                            _ => has_complex_expr = true,
-                        }
-                    } else {
-                        // DEPYLER-1040: Without explicit type info, count as unknown
-                        // Multiple unknown attributes likely have different types
-                        unknown_attribute_count += 1;
-                    }
-                }
-                // DEPYLER-0601: Check list element types for heterogeneous detection
-                HirExpr::List(elems) if !elems.is_empty() => {
-                    // Determine list element type from first element
-                    match &elems[0] {
-                        HirExpr::Literal(Literal::Int(_)) => has_list_of_int = true,
-                        HirExpr::Literal(Literal::String(_)) => has_list_of_string = true,
-                        HirExpr::Literal(Literal::Bool(_)) => has_list_of_bool = true,
-                        HirExpr::Literal(Literal::Float(_)) => has_list_of_float = true,
-                        _ => {}
-                    }
-                }
+    fn classify_var_value(&self, name: &str, tracker: &mut DictTypeTracker) {
+        if let Some(var_type) = self.ctx.var_types.get(name) {
+            match var_type {
+                Type::Bool => tracker.has_bool = true,
+                Type::Int => tracker.has_int = true,
+                Type::Float => tracker.has_float = true,
+                Type::String => tracker.has_string = true,
                 _ => {}
             }
         }
+    }
 
-        // Count how many distinct literal types we have
-        // DEPYLER-1031: Include complex expressions in the count
-        let distinct_literal_types = [
-            has_bool_literal,
-            has_int_literal,
-            has_float_literal,
-            has_string_literal,
-            has_complex_expr, // Treat complex expressions as a distinct type
-        ]
-        .iter()
-        .filter(|&&b| b)
-        .count();
+    fn classify_attribute_value(&self, value: &HirExpr, attr: &str, tracker: &mut DictTypeTracker) {
+        let mut found_type: Option<&Type> = self.ctx.class_field_types.get(attr);
+        let mut inferred_type_str: Option<String> = None;
 
-        // DEPYLER-0601: Count how many distinct list element types we have
-        let distinct_list_types =
-            [has_list_of_int, has_list_of_string, has_list_of_bool, has_list_of_float]
-                .iter()
-                .filter(|&&b| b)
-                .count();
+        if found_type.is_none() {
+            self.lookup_argparse_field_type(value, attr, &mut found_type, &mut inferred_type_str);
+        }
 
-        // Use DepylerValue/json! if we have 2+ distinct literal types OR 2+ distinct list types
-        // This handles both {"a": 1, "b": "str"} and {"items": [1,2], "tags": ["a"]}
-        // DEPYLER-1040: Also trigger for multiple unknown-type attributes (likely different types)
-        Ok(distinct_literal_types >= 2 || distinct_list_types >= 2 || unknown_attribute_count >= 2)
+        if let Some(field_type) = found_type {
+            Self::classify_explicit_type(field_type, tracker);
+        } else if let Some(type_str) = inferred_type_str {
+            Self::classify_inferred_type(&type_str, tracker);
+        } else {
+            tracker.unknown_attribute_count += 1;
+        }
+    }
+
+    fn lookup_argparse_field_type<'c>(
+        &'c self,
+        value: &HirExpr,
+        attr: &str,
+        found_type: &mut Option<&'c Type>,
+        inferred_type_str: &mut Option<String>,
+    ) {
+        if let HirExpr::Var(obj_name) = value {
+            for parser_info in self.ctx.argparser_tracker.parsers.values() {
+                if let Some(ref args_var) = parser_info.args_var {
+                    if args_var == obj_name {
+                        for arg in &parser_info.arguments {
+                            if arg.rust_field_name() == *attr {
+                                *found_type = arg.arg_type.as_ref();
+                                if found_type.is_none() {
+                                    *inferred_type_str = Some(arg.rust_type());
+                                }
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    fn classify_explicit_type(field_type: &Type, tracker: &mut DictTypeTracker) {
+        match field_type {
+            Type::Bool => tracker.has_bool = true,
+            Type::Int => tracker.has_int = true,
+            Type::Float => tracker.has_float = true,
+            Type::String => tracker.has_string = true,
+            _ => tracker.has_complex = true,
+        }
+    }
+
+    fn classify_inferred_type(type_str: &str, tracker: &mut DictTypeTracker) {
+        match type_str {
+            "bool" => tracker.has_bool = true,
+            "i32" | "i64" | "isize" | "u8" | "u32" | "u64" => tracker.has_int = true,
+            "f32" | "f64" => tracker.has_float = true,
+            "String" => tracker.has_string = true,
+            _ => tracker.has_complex = true,
+        }
+    }
+
+    fn classify_list_element_type(first_elem: &HirExpr, tracker: &mut DictTypeTracker) {
+        match first_elem {
+            HirExpr::Literal(Literal::Int(_)) => tracker.has_list_of_int = true,
+            HirExpr::Literal(Literal::String(_)) => tracker.has_list_of_string = true,
+            HirExpr::Literal(Literal::Bool(_)) => tracker.has_list_of_bool = true,
+            HirExpr::Literal(Literal::Float(_)) => tracker.has_list_of_float = true,
+            _ => {}
+        }
     }
 
     /// DEPYLER-0461: Recursively check if dict contains any nested dicts

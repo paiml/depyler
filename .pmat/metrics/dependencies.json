@@ -1,119 +1,24 @@
 {
   "direct_count": 0,
   "transitive_count": 1,
-  "timestamp": "2026-03-21T17:45:13.145351192+00:00",
+  "timestamp": "2026-03-21T18:05:30.456891714+00:00",
   "previous": {
     "direct_count": 0,
     "transitive_count": 1,
-    "timestamp": "2026-03-21T17:45:03.419163531+00:00",
+    "timestamp": "2026-03-21T18:05:21.569621764+00:00",
     "previous": {
       "direct_count": 0,
       "transitive_count": 1,
-      "timestamp": "2026-03-21T17:21:09.326650636+00:00",
+      "timestamp": "2026-03-21T18:03:12.723315400+00:00",
       "previous": {
         "direct_count": 0,
         "transitive_count": 1,
-        "timestamp": "2026-03-21T17:19:01.784298674+00:00",
+        "timestamp": "2026-03-21T18:02:27.177768738+00:00",
         "previous": {
           "direct_count": 0,
           "transitive_count": 1,
-          "timestamp": "2026-03-21T17:18:16.091511093+00:00",
-          "previous": {
-            "direct_count": 0,
-            "transitive_count": 1,
-            "timestamp": "2026-03-21T17:17:27.027089269+00:00",
-            "previous": {
-              "direct_count": 0,
-              "transitive_count": 1,
-              "timestamp": "2026-03-21T17:12:52.637390282+00:00",
-              "previous": {
-                "direct_count": 0,
-                "transitive_count": 1,
-                "timestamp": "2026-03-21T16:56:55.053980383+00:00",
-                "previous": {
-                  "direct_count": 0,
-                  "transitive_count": 1,
-                  "timestamp": "2026-03-21T16:54:39.837687688+00:00",
-                  "previous": {
-                    "direct_count": 0,
-                    "transitive_count": 1,
-                    "timestamp": "2026-03-21T16:28:47.566453611+00:00",
-                    "previous": {
-                      "direct_count": 0,
-                      "transitive_count": 1,
-                      "timestamp": "2026-03-21T16:27:18.819023616+00:00",
-                      "previous": {
-                        "direct_count": 0,
-                        "transitive_count": 1,
-                        "timestamp": "2026-03-21T16:23:27.622689937+00:00",
-                        "previous": {
-                          "direct_count": 0,
-                          "transitive_count": 1,
-                          "timestamp": "2026-03-21T16:22:51.479044894+00:00",
-                          "previous": {
-                            "direct_count": 0,
-                            "transitive_count": 1,
-                            "timestamp": "2026-03-21T16:19:21.523202575+00:00",
-                            "previous": {
-                              "direct_count": 0,
-                              "transitive_count": 1,
-                              "timestamp": "2026-03-21T16:19:14.565647965+00:00",
-                              "previous": {
-                                "direct_count": 0,
-                                "transitive_count": 1,
-                                "timestamp": "2026-03-21T16:15:15.322162439+00:00",
-                                "previous": {
-                                  "direct_count": 0,
-                                  "transitive_count": 1,
-                                  "timestamp": "2026-03-21T16:14:31.419064713+00:00",
-                                  "previous": {
-                                    "direct_count": 0,
-                                    "transitive_count": 1,
-                                    "timestamp": "2026-03-21T16:11:05.930527252+00:00",
-                                    "previous": {
-                                      "direct_count": 0,
-                                      "transitive_count": 1,
-                                      "timestamp": "2026-03-21T16:09:07.522879397+00:00",
-                                      "previous": {
-                                        "direct_count": 0,
-                                        "transitive_count": 1,
-                                        "timestamp": "2026-03-21T16:03:53.377012519+00:00",
-                                        "previous": {
-                                          "direct_count": 0,
-                                          "transitive_count": 1,
-                                          "timestamp": "2026-03-21T16:03:49.411934191+00:00",
-                                          "previous": {
-                                            "direct_count": 0,
-                                            "transitive_count": 1,
-                                            "timestamp": "2026-03-21T15:45:35.960135465+00:00",
-                                            "previous": {
-                                              "direct_count": 0,
-                                              "transitive_count": 1,
-                                              "timestamp": "2026-03-21T15:43:17.964366449+00:00",
-                                              "previous": {
-                                                "direct_count": 0,
-                                                "transitive_count": 1,
-                                                "timestamp": "2026-03-21T15:37:55.525651587+00:00",
-                                                "previous": null
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
+          "timestamp": "2026-03-21T17:59:28.302035957+00:00",
+          "previous": null
         }
       }
     }

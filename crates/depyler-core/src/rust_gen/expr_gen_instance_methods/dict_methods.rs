@@ -30,316 +30,377 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             self.expr_returns_depyler_value(hir_object) && self.ctx.type_mapper.nasa_mode;
 
         match method {
-            "get" => {
-                if arg_exprs.len() == 1 {
-                    let key = &arg_exprs[0];
-                    // DEPYLER-0330: Keep dict.get() as Option to support .is_none() checks
-                    // Python: result = d.get(key); if result is None: ...
-                    // Rust: let result = d.get(key).cloned(); if result.is_none() { ... }
-
-                    // DEPYLER-1316: For DepylerValue, use get_str() for string keys
-                    if object_is_depyler_value {
-                        // Check if key is a string literal or string variable
-                        if let Some(HirExpr::Literal(Literal::String(s))) = hir_args.first() {
-                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                            return Ok(parse_quote! { #object_expr.get_str(#lit).cloned() });
-                        } else if let Some(HirExpr::Var(var_name)) = hir_args.first() {
-                            // String variable - borrow if needed
-                            if self.is_borrowed_str_param(var_name) {
-                                return Ok(parse_quote! { #object_expr.get_str(#key).cloned() });
-                            } else {
-                                return Ok(parse_quote! { #object_expr.get_str(&#key).cloned() });
-                            }
-                        }
-                        // For non-string keys on DepylerValue, fall through to standard handling
-                    }
-
-                    // DEPYLER-0542: Always borrow the key to prevent move semantics issues
-                    // HashMap::get() expects &Q where Q: Borrow<K>. Using & prevents:
-                    // 1. Moving owned String keys (error E0382: use of moved value)
-                    // 2. Type mismatches when key is &str vs String
-                    // For &str params, &key becomes &&str but HashMap::get handles this fine
-                    let key_expr: syn::Expr = if let Some(HirExpr::Var(var_name)) = hir_args.first()
-                    {
-                        // DEPYLER-0539: Check if var is known &str param - don't double borrow
-                        if self.is_borrowed_str_param(var_name) {
-                            parse_quote! { #key }
-                        } else {
-                            // Owned String or unknown - borrow to prevent move
-                            parse_quote! { &#key }
-                        }
-                    } else if let Some(HirExpr::Literal(Literal::String(s))) = hir_args.first() {
-                        // DEPYLER-0634: String literal key - use bare literal, not .to_string()
-                        // HashMap.get() expects &Q where Q: Borrow<K>. A &str literal works
-                        // directly with Borrow<String> because String implements Borrow<str>.
-                        // Using "key".to_string() creates owned String which doesn't match &Q.
-                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                        parse_quote! { #lit }
-                    } else {
-                        // Other expression - borrow to prevent move
-                        parse_quote! { &#key }
-                    };
-
-                    // Return Option - downstream code will handle unwrapping if needed
-                    Ok(parse_quote! { #object_expr.get(#key_expr).cloned() })
-                } else if arg_exprs.len() == 2 {
-                    let key = &arg_exprs[0];
-                    let default = &arg_exprs[1];
-
-                    // DEPYLER-1316: For DepylerValue, use get_str() for string keys
-                    if object_is_depyler_value {
-                        // Check if key is a string literal or string variable
-                        if let Some(HirExpr::Literal(Literal::String(s))) = hir_args.first() {
-                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                            // For DepylerValue, wrap the default in DepylerValue if needed
-                            let default_expr: syn::Expr = match hir_args.get(1) {
-                                Some(HirExpr::Literal(Literal::Int(i))) => {
-                                    parse_quote! { DepylerValue::Int(#i) }
-                                }
-                                Some(HirExpr::Literal(Literal::Float(f))) => {
-                                    parse_quote! { DepylerValue::Float(#f) }
-                                }
-                                Some(HirExpr::Literal(Literal::String(s))) => {
-                                    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                                    parse_quote! { DepylerValue::Str(#lit.to_string()) }
-                                }
-                                _ => parse_quote! { #default },
-                            };
-                            return Ok(
-                                parse_quote! { #object_expr.get_str(#lit).cloned().unwrap_or(#default_expr) },
-                            );
-                        } else if let Some(HirExpr::Var(var_name)) = hir_args.first() {
-                            let default_expr: syn::Expr = match hir_args.get(1) {
-                                Some(HirExpr::Literal(Literal::Int(i))) => {
-                                    parse_quote! { DepylerValue::Int(#i) }
-                                }
-                                Some(HirExpr::Literal(Literal::Float(f))) => {
-                                    parse_quote! { DepylerValue::Float(#f) }
-                                }
-                                Some(HirExpr::Literal(Literal::String(s))) => {
-                                    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                                    parse_quote! { DepylerValue::Str(#lit.to_string()) }
-                                }
-                                _ => parse_quote! { #default },
-                            };
-                            if self.is_borrowed_str_param(var_name) {
-                                return Ok(
-                                    parse_quote! { #object_expr.get_str(#key).cloned().unwrap_or(#default_expr) },
-                                );
-                            } else {
-                                return Ok(
-                                    parse_quote! { #object_expr.get_str(&#key).cloned().unwrap_or(#default_expr) },
-                                );
-                            }
-                        }
-                    }
-
-                    // DEPYLER-0542: Borrow keys for dict.get() (but not string literals)
-                    let key_expr: syn::Expr = if let Some(HirExpr::Var(var_name)) = hir_args.first()
-                    {
-                        if self.is_borrowed_str_param(var_name) {
-                            parse_quote! { #key }
-                        } else {
-                            parse_quote! { &#key }
-                        }
-                    } else if let Some(HirExpr::Literal(Literal::String(s))) = hir_args.first() {
-                        // DEPYLER-0634: String literal key - use bare literal, not .to_string()
-                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                        parse_quote! { #lit }
-                    } else {
-                        parse_quote! { &#key }
-                    };
-
-                    // DEPYLER-0700: Check if dict has serde_json::Value values (heterogeneous dict)
-                    // If so, we need to wrap the default with serde_json::json!() for type compatibility
-                    let dict_has_json_values = self.dict_has_json_value_values(hir_object);
-
-                    // DEPYLER-0631: For string literal defaults, use directly without .to_string()
-                    // HashMap<String, &str>.get() returns Option<&&str>, .cloned() gives Option<&str>
-                    // unwrap_or expects &str, not String
-                    let result = if dict_has_json_values {
-                        // DEPYLER-0700: Dict has serde_json::Value values
-                        // For dict.get(key, default), we need to:
-                        // 1. Get the Value from dict
-                        // 2. Convert to the expected type (usually String)
-                        // Pattern: dict.get(key).and_then(|v| v.as_str()).unwrap_or(default).to_string()
-                        self.ctx.needs_serde_json = true;
-                        if matches!(hir_args.get(1), Some(HirExpr::Literal(Literal::String(s))) if !s.is_empty())
-                        {
-                            // String default - extract as string with fallback
-                            if let Some(HirExpr::Literal(Literal::String(s))) = hir_args.get(1) {
-                                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                                parse_quote! { #object_expr.get(#key_expr).and_then(|v| v.as_str()).unwrap_or(#lit).to_string() }
-                            } else {
-                                parse_quote! { #object_expr.get(#key_expr).and_then(|v| v.as_str()).unwrap_or(#default).to_string() }
-                            }
-                        } else {
-                            // Non-string default - use json!() and keep as Value
-                            parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(serde_json::json!(#default)) }
-                        }
-                    } else if matches!(hir_args.get(1), Some(HirExpr::Literal(Literal::String(_))))
-                    {
-                        // DEPYLER-0729: String literal default
-                        // Check if dict value type is String (needs .to_string()) or &str (bare literal ok)
-                        let dict_value_is_string = self.dict_value_type_is_string(hir_object);
-                        if let HirExpr::Literal(Literal::String(s)) = &hir_args[1] {
-                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                            if dict_value_is_string {
-                                // HashMap<K, String>.get().cloned() returns Option<String>
-                                // unwrap_or needs String, so convert literal
-                                parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#lit.to_string()) }
-                            } else {
-                                // HashMap<K, &str> or unknown - use bare literal
-                                parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#lit) }
-                            }
-                        } else {
-                            parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#default) }
-                        }
-                    } else {
-                        // Non-literal default - use as-is
-                        parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#default) }
-                    };
-                    Ok(result)
-                } else if arg_exprs.is_empty() {
-                    // DEPYLER-0188: 0-arg get() is NOT dict.get() - fall through to generic handler
-                    // This supports asyncio.Queue.get(), multiprocessing.Queue.get(), etc.
-                    let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
-                    Ok(parse_quote! { #object_expr.#method_ident() })
-                } else {
-                    bail!("get() requires 1 or 2 arguments (or 0 for Queue.get())");
-                }
-            }
-            "keys" => {
-                // DEPYLER-0596: If keys() has arguments, it's a user-defined method, not dict.keys()
-                // Fall through to generic handler for user-defined keys(section) methods
-                if arg_exprs.is_empty() {
-                    // DEPYLER-0303 Phase 3 Fix #8: Return Vec for compatibility
-                    // .keys() returns an iterator, but Python's dict.keys() returns a list-like view
-                    // We collect to Vec for better ergonomics (indexing, len(), etc.)
-                    // DEPYLER-0540: serde_json::Value needs .as_object().unwrap() before .keys()
-                    if is_json_value {
-                        Ok(
-                            parse_quote! { #object_expr.as_object().expect("expected JSON object").keys().cloned().collect::<Vec<_>>() },
-                        )
-                    } else {
-                        Ok(parse_quote! { #object_expr.keys().cloned().collect::<Vec<_>>() })
-                    }
-                } else {
-                    // User-defined keys() method with arguments - use generic call
-                    let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
-                    Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) })
-                }
-            }
-            "values" => {
-                if !arg_exprs.is_empty() {
-                    bail!("values() takes no arguments");
-                }
-                // DEPYLER-0303 Phase 3 Fix #8: Return Vec for compatibility
-                // However, this causes redundant .collect().iter() in sum(d.values())
-                // NOTE: Consider context-aware return type (Vec vs Iterator) for optimization (tracked in DEPYLER-0303)
-                // DEPYLER-0540: serde_json::Value needs .as_object().unwrap() before .values()
-                if is_json_value {
-                    Ok(
-                        parse_quote! { #object_expr.as_object().expect("expected JSON object").values().cloned().collect::<Vec<_>>() },
-                    )
-                } else {
-                    Ok(parse_quote! { #object_expr.values().cloned().collect::<Vec<_>>() })
-                }
-            }
-            "items" => {
-                if !arg_exprs.is_empty() {
-                    bail!("items() takes no arguments");
-                }
-                // DEPYLER-0540: serde_json::Value needs .as_object().unwrap() before .iter()
-                if is_json_value {
-                    Ok(
-                        parse_quote! { #object_expr.as_object().expect("expected JSON object").iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() },
-                    )
-                } else {
-                    Ok(
-                        parse_quote! { #object_expr.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() },
-                    )
-                }
-            }
-            "update" => {
-                if arg_exprs.len() != 1 {
-                    bail!("update() requires exactly one argument");
-                }
-                let arg = &arg_exprs[0];
-                // DEPYLER-0728: When iterating over borrowed HashMap<K, V>, iterator yields (&K, &V)
-                // insert() expects (K, V), so we need to clone the references
-                // Using .iter() explicitly handles both owned and borrowed dicts correctly
-                Ok(parse_quote! {
-                    for (k, v) in (#arg).iter() {
-                        #object_expr.insert(k.clone(), v.clone());
-                    }
-                })
-            }
-            "setdefault" => {
-                // dict.setdefault(key, default) - get or insert with default
-                // Python: dict.setdefault(key, default) returns value at key, or inserts default and returns it
-                // Rust: entry().or_insert(default).clone()
-                if arg_exprs.len() != 2 {
-                    bail!("setdefault() requires exactly 2 arguments (key, default)");
-                }
-                let key = &arg_exprs[0];
-                let default = &arg_exprs[1];
-                Ok(parse_quote! {
-                    #object_expr.entry(#key).or_insert(#default).clone()
-                })
-            }
-            "popitem" => {
-                // dict.popitem() - remove and return arbitrary (key, value) pair
-                // Python: dict.popitem() removes and returns arbitrary item, or raises KeyError
-                // Rust: iter().next() to get first item, then remove it
-                if !arg_exprs.is_empty() {
-                    bail!("popitem() takes no arguments");
-                }
-                Ok(parse_quote! {
-                    {
-                        let key = #object_expr.keys().next().cloned()
-                            .expect("KeyError: popitem(): dictionary is empty");
-                        let value = #object_expr.remove(&key)
-                            .expect("KeyError: key disappeared");
-                        (key, value)
-                    }
-                })
-            }
-            "pop" => {
-                // dict.pop(key, default=None) - remove and return value for key
-                // Python: dict.pop(key[, default]) removes key and returns value, or returns default
-                // Rust: remove() returns Option, use unwrap_or() for default
-                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
-                    bail!("pop() requires 1 or 2 arguments (key, optional default)");
-                }
-                let key = &arg_exprs[0];
-                if arg_exprs.len() == 2 {
-                    let default = &arg_exprs[1];
-                    Ok(parse_quote! {
-                        #object_expr.remove(#key).unwrap_or(#default)
-                    })
-                } else {
-                    Ok(parse_quote! {
-                        #object_expr.remove(#key).expect("KeyError: key not found")
-                    })
-                }
-            }
-            // DEPYLER-STDLIB-50: clear() - remove all items
-            "clear" => {
-                if !arg_exprs.is_empty() {
-                    bail!("clear() takes no arguments");
-                }
-                Ok(parse_quote! { #object_expr.clear() })
-            }
-            // DEPYLER-STDLIB-50: copy() - shallow copy
-            "copy" => {
-                if !arg_exprs.is_empty() {
-                    bail!("copy() takes no arguments");
-                }
-                Ok(parse_quote! { #object_expr.clone() })
-            }
+            "get" => self.convert_dict_get(
+                object_expr,
+                hir_object,
+                arg_exprs,
+                hir_args,
+                object_is_depyler_value,
+            ),
+            "keys" => Self::convert_dict_keys(object_expr, arg_exprs, method, is_json_value),
+            "values" => Self::convert_dict_values(object_expr, arg_exprs, is_json_value),
+            "items" => Self::convert_dict_items(object_expr, arg_exprs, is_json_value),
+            "update" => Self::convert_dict_update(object_expr, arg_exprs),
+            "setdefault" => Self::convert_dict_setdefault(object_expr, arg_exprs),
+            "popitem" => Self::convert_dict_popitem(object_expr, arg_exprs),
+            "pop" => Self::convert_dict_pop(object_expr, arg_exprs),
+            "clear" => Self::convert_dict_clear(object_expr, arg_exprs),
+            "copy" => Self::convert_dict_copy(object_expr, arg_exprs),
             _ => bail!("Unknown dict method: {}", method),
         }
+    }
+
+    fn convert_dict_get(
+        &mut self,
+        object_expr: &syn::Expr,
+        hir_object: &HirExpr,
+        arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
+        object_is_depyler_value: bool,
+    ) -> Result<syn::Expr> {
+        if arg_exprs.len() == 1 {
+            self.convert_dict_get_single(object_expr, arg_exprs, hir_args, object_is_depyler_value)
+        } else if arg_exprs.len() == 2 {
+            self.convert_dict_get_with_default(
+                object_expr,
+                hir_object,
+                arg_exprs,
+                hir_args,
+                object_is_depyler_value,
+            )
+        } else if arg_exprs.is_empty() {
+            // DEPYLER-0188: 0-arg get() is NOT dict.get() - fall through to generic handler
+            // This supports asyncio.Queue.get(), multiprocessing.Queue.get(), etc.
+            let method_ident = syn::Ident::new("get", proc_macro2::Span::call_site());
+            Ok(parse_quote! { #object_expr.#method_ident() })
+        } else {
+            bail!("get() requires 1 or 2 arguments (or 0 for Queue.get())");
+        }
+    }
+
+    fn convert_dict_get_single(
+        &self,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
+        object_is_depyler_value: bool,
+    ) -> Result<syn::Expr> {
+        let key = &arg_exprs[0];
+
+        // DEPYLER-1316: For DepylerValue, use get_str() for string keys
+        if object_is_depyler_value {
+            if let Some(result) = self.try_depyler_value_get_str(object_expr, key, hir_args.first())
+            {
+                return Ok(result);
+            }
+        }
+
+        let key_expr = self.build_dict_key_expr(key, hir_args.first());
+        Ok(parse_quote! { #object_expr.get(#key_expr).cloned() })
+    }
+
+    fn try_depyler_value_get_str(
+        &self,
+        object_expr: &syn::Expr,
+        key: &syn::Expr,
+        hir_key: Option<&HirExpr>,
+    ) -> Option<syn::Expr> {
+        match hir_key {
+            Some(HirExpr::Literal(Literal::String(s))) => {
+                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                Some(parse_quote! { #object_expr.get_str(#lit).cloned() })
+            }
+            Some(HirExpr::Var(var_name)) => {
+                if self.is_borrowed_str_param(var_name) {
+                    Some(parse_quote! { #object_expr.get_str(#key).cloned() })
+                } else {
+                    Some(parse_quote! { #object_expr.get_str(&#key).cloned() })
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn build_dict_key_expr(&self, key: &syn::Expr, hir_key: Option<&HirExpr>) -> syn::Expr {
+        if let Some(HirExpr::Var(var_name)) = hir_key {
+            // DEPYLER-0539: Check if var is known &str param - don't double borrow
+            if self.is_borrowed_str_param(var_name) {
+                parse_quote! { #key }
+            } else {
+                parse_quote! { &#key }
+            }
+        } else if let Some(HirExpr::Literal(Literal::String(s))) = hir_key {
+            // DEPYLER-0634: String literal key - use bare literal, not .to_string()
+            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+            parse_quote! { #lit }
+        } else {
+            parse_quote! { &#key }
+        }
+    }
+
+    fn wrap_depyler_value_default(default: &syn::Expr, hir_default: Option<&HirExpr>) -> syn::Expr {
+        match hir_default {
+            Some(HirExpr::Literal(Literal::Int(i))) => {
+                parse_quote! { DepylerValue::Int(#i) }
+            }
+            Some(HirExpr::Literal(Literal::Float(f))) => {
+                parse_quote! { DepylerValue::Float(#f) }
+            }
+            Some(HirExpr::Literal(Literal::String(s))) => {
+                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                parse_quote! { DepylerValue::Str(#lit.to_string()) }
+            }
+            _ => parse_quote! { #default },
+        }
+    }
+
+    fn convert_dict_get_with_default(
+        &mut self,
+        object_expr: &syn::Expr,
+        hir_object: &HirExpr,
+        arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
+        object_is_depyler_value: bool,
+    ) -> Result<syn::Expr> {
+        let key = &arg_exprs[0];
+        let default = &arg_exprs[1];
+
+        // DEPYLER-1316: For DepylerValue, use get_str() for string keys
+        if object_is_depyler_value {
+            if let Some(result) =
+                self.try_depyler_value_get_with_default(object_expr, key, default, hir_args)
+            {
+                return Ok(result);
+            }
+        }
+
+        let key_expr = self.build_dict_key_expr(key, hir_args.first());
+        let result =
+            self.build_dict_get_default_expr(object_expr, hir_object, &key_expr, default, hir_args);
+        Ok(result)
+    }
+
+    fn try_depyler_value_get_with_default(
+        &self,
+        object_expr: &syn::Expr,
+        key: &syn::Expr,
+        default: &syn::Expr,
+        hir_args: &[HirExpr],
+    ) -> Option<syn::Expr> {
+        let default_expr = Self::wrap_depyler_value_default(default, hir_args.get(1));
+        match hir_args.first() {
+            Some(HirExpr::Literal(Literal::String(s))) => {
+                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                Some(parse_quote! { #object_expr.get_str(#lit).cloned().unwrap_or(#default_expr) })
+            }
+            Some(HirExpr::Var(var_name)) => {
+                if self.is_borrowed_str_param(var_name) {
+                    Some(
+                        parse_quote! { #object_expr.get_str(#key).cloned().unwrap_or(#default_expr) },
+                    )
+                } else {
+                    Some(
+                        parse_quote! { #object_expr.get_str(&#key).cloned().unwrap_or(#default_expr) },
+                    )
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn build_dict_get_default_expr(
+        &mut self,
+        object_expr: &syn::Expr,
+        hir_object: &HirExpr,
+        key_expr: &syn::Expr,
+        default: &syn::Expr,
+        hir_args: &[HirExpr],
+    ) -> syn::Expr {
+        // DEPYLER-0700: Check if dict has serde_json::Value values (heterogeneous dict)
+        let dict_has_json_values = self.dict_has_json_value_values(hir_object);
+
+        if dict_has_json_values {
+            self.build_json_value_default_expr(object_expr, key_expr, default, hir_args)
+        } else if matches!(hir_args.get(1), Some(HirExpr::Literal(Literal::String(_)))) {
+            self.build_string_literal_default_expr(
+                object_expr,
+                hir_object,
+                key_expr,
+                default,
+                hir_args,
+            )
+        } else {
+            parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#default) }
+        }
+    }
+
+    fn build_json_value_default_expr(
+        &mut self,
+        object_expr: &syn::Expr,
+        key_expr: &syn::Expr,
+        default: &syn::Expr,
+        hir_args: &[HirExpr],
+    ) -> syn::Expr {
+        self.ctx.needs_serde_json = true;
+        if matches!(hir_args.get(1), Some(HirExpr::Literal(Literal::String(s))) if !s.is_empty()) {
+            if let Some(HirExpr::Literal(Literal::String(s))) = hir_args.get(1) {
+                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                return parse_quote! { #object_expr.get(#key_expr).and_then(|v| v.as_str()).unwrap_or(#lit).to_string() };
+            }
+            parse_quote! { #object_expr.get(#key_expr).and_then(|v| v.as_str()).unwrap_or(#default).to_string() }
+        } else {
+            parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(serde_json::json!(#default)) }
+        }
+    }
+
+    fn build_string_literal_default_expr(
+        &self,
+        object_expr: &syn::Expr,
+        hir_object: &HirExpr,
+        key_expr: &syn::Expr,
+        default: &syn::Expr,
+        hir_args: &[HirExpr],
+    ) -> syn::Expr {
+        // DEPYLER-0729: String literal default
+        let dict_value_is_string = self.dict_value_type_is_string(hir_object);
+        if let HirExpr::Literal(Literal::String(s)) = &hir_args[1] {
+            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+            if dict_value_is_string {
+                parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#lit.to_string()) }
+            } else {
+                parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#lit) }
+            }
+        } else {
+            parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#default) }
+        }
+    }
+
+    fn convert_dict_keys(
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+        method: &str,
+        is_json_value: bool,
+    ) -> Result<syn::Expr> {
+        if arg_exprs.is_empty() {
+            if is_json_value {
+                Ok(
+                    parse_quote! { #object_expr.as_object().expect("expected JSON object").keys().cloned().collect::<Vec<_>>() },
+                )
+            } else {
+                Ok(parse_quote! { #object_expr.keys().cloned().collect::<Vec<_>>() })
+            }
+        } else {
+            let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+            Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) })
+        }
+    }
+
+    fn convert_dict_values(
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+        is_json_value: bool,
+    ) -> Result<syn::Expr> {
+        if !arg_exprs.is_empty() {
+            bail!("values() takes no arguments");
+        }
+        if is_json_value {
+            Ok(
+                parse_quote! { #object_expr.as_object().expect("expected JSON object").values().cloned().collect::<Vec<_>>() },
+            )
+        } else {
+            Ok(parse_quote! { #object_expr.values().cloned().collect::<Vec<_>>() })
+        }
+    }
+
+    fn convert_dict_items(
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+        is_json_value: bool,
+    ) -> Result<syn::Expr> {
+        if !arg_exprs.is_empty() {
+            bail!("items() takes no arguments");
+        }
+        if is_json_value {
+            Ok(
+                parse_quote! { #object_expr.as_object().expect("expected JSON object").iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() },
+            )
+        } else {
+            Ok(
+                parse_quote! { #object_expr.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() },
+            )
+        }
+    }
+
+    fn convert_dict_update(object_expr: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+        if arg_exprs.len() != 1 {
+            bail!("update() requires exactly one argument");
+        }
+        let arg = &arg_exprs[0];
+        Ok(parse_quote! {
+            for (k, v) in (#arg).iter() {
+                #object_expr.insert(k.clone(), v.clone());
+            }
+        })
+    }
+
+    fn convert_dict_setdefault(
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        if arg_exprs.len() != 2 {
+            bail!("setdefault() requires exactly 2 arguments (key, default)");
+        }
+        let key = &arg_exprs[0];
+        let default = &arg_exprs[1];
+        Ok(parse_quote! {
+            #object_expr.entry(#key).or_insert(#default).clone()
+        })
+    }
+
+    fn convert_dict_popitem(object_expr: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+        if !arg_exprs.is_empty() {
+            bail!("popitem() takes no arguments");
+        }
+        Ok(parse_quote! {
+            {
+                let key = #object_expr.keys().next().cloned()
+                    .expect("KeyError: popitem(): dictionary is empty");
+                let value = #object_expr.remove(&key)
+                    .expect("KeyError: key disappeared");
+                (key, value)
+            }
+        })
+    }
+
+    fn convert_dict_pop(object_expr: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+        if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+            bail!("pop() requires 1 or 2 arguments (key, optional default)");
+        }
+        let key = &arg_exprs[0];
+        if arg_exprs.len() == 2 {
+            let default = &arg_exprs[1];
+            Ok(parse_quote! {
+                #object_expr.remove(#key).unwrap_or(#default)
+            })
+        } else {
+            Ok(parse_quote! {
+                #object_expr.remove(#key).expect("KeyError: key not found")
+            })
+        }
+    }
+
+    fn convert_dict_clear(object_expr: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+        if !arg_exprs.is_empty() {
+            bail!("clear() takes no arguments");
+        }
+        Ok(parse_quote! { #object_expr.clear() })
+    }
+
+    fn convert_dict_copy(object_expr: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+        if !arg_exprs.is_empty() {
+            bail!("copy() takes no arguments");
+        }
+        Ok(parse_quote! { #object_expr.clone() })
     }
 
     /// DEPYLER-0564: Check if object is dict value access that returns serde_json::Value

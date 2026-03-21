@@ -226,6 +226,10 @@ benchmarks/rust/*.exe
 .pmat/workspace.idx/
 .pmat/deps-cache.json
 .pmat/context.db
+.pmat/context.db-wal
+.pmat/context.db-shm
+.pmat/context.db.tmp-wal
+.pmat/context.db.tmp-shm
 .pmat/coverage-cache.json
 .pmat-work.toml
 .pmat-work/

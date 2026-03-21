@@ -257,16 +257,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     pub(crate) fn convert_fstring(&mut self, parts: &[FStringPart]) -> Result<syn::Expr> {
-        // Handle empty f-strings
         if parts.is_empty() {
             return Ok(parse_quote! { "".to_string() });
         }
 
-        // Check if it's just a plain string (no expressions)
         let has_expressions = parts.iter().any(|p| matches!(p, FStringPart::Expr(_)));
 
         if !has_expressions {
-            // Just literal parts - concatenate them
             let mut result = String::new();
             for part in parts {
                 if let FStringPart::Literal(s) = part {
@@ -276,7 +273,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #result.to_string() });
         }
 
-        // Build format string template and collect arguments
         let mut template = String::new();
         let mut args = Vec::new();
 
@@ -286,195 +282,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     template.push_str(s);
                 }
                 FStringPart::Expr(expr) => {
-                    // DEPYLER-0438/0441/0446: Smart formatting based on expression type
-                    // - Collections (Vec, HashMap, HashSet): Use {:?} debug formatting
-                    // - Scalars (String, i32, f64, bool): Use {} Display formatting
-                    // - Option types: Unwrap with .unwrap_or_default() or display "None"
-                    // This matches Python semantics where lists/dicts have their own repr
                     let arg_expr = expr.to_rust_expr(self.ctx)?;
-
-                    // DEPYLER-0446: Check if this is an argparse Option<T> field (should be wrapped to String)
-                    let is_argparse_option = match expr.as_ref() {
-                        HirExpr::Attribute { value, attr } => {
-                            if let HirExpr::Var(obj_name) = value.as_ref() {
-                                let is_args_var = self.ctx.argparser_tracker.parsers.values().any(
-                                    |parser_info| {
-                                        parser_info
-                                            .args_var
-                                            .as_ref()
-                                            .is_some_and(|args_var| args_var == obj_name)
-                                    },
-                                );
-
-                                if is_args_var {
-                                    // Check if this argument is optional (Option<T> type, not boolean)
-                                    self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                                        parser_info.arguments.iter().any(|arg| {
-                                            let field_name = arg.rust_field_name();
-                                            if field_name != *attr {
-                                                return false;
-                                            }
-
-                                            // Argument is NOT an Option if it has action="store_true" or "store_false"
-                                            if matches!(
-                                                arg.action.as_deref(),
-                                                Some("store_true") | Some("store_false")
-                                            ) {
-                                                return false;
-                                            }
-
-                                            // Argument is an Option<T> if: not required AND no default value AND not positional
-                                            !arg.is_positional
-                                                && !arg.required.unwrap_or(false)
-                                                && arg.default.is_none()
-                                        })
-                                    })
-                                } else {
-                                    false
-                                }
-                            } else {
-                                false
-                            }
-                        }
-                        _ => false,
-                    };
-
-                    // DEPYLER-0497: Determine if expression needs {:?} Debug formatting
-                    // Required for: collections, Result, Option, Vec, and any non-Display type
-                    let needs_debug_fmt = match expr.as_ref() {
-                        // Case 1: Simple variable (e.g., targets)
-                        HirExpr::Var(var_name) => {
-                            if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                                // Known type: check if it needs Debug formatting
-                                // DEPYLER-0712: Added Tuple - tuples don't implement Display
-                                matches!(
-                                    var_type,
-                                    Type::List(_)
-                                        | Type::Dict(_, _)
-                                        | Type::Set(_)
-                                        | Type::Tuple(_)     // DEPYLER-0712: Tuples need {:?}
-                                        | Type::Optional(_) // DEPYLER-0497: Options need {:?}
-                                )
-                            } else {
-                                // Unknown type defaults to {:?} because Debug is more universally
-                                // implemented than Display, preventing E0277 for Option/Result/Vec
-                                true
-                            }
-                        }
-                        // DEPYLER-0497: Function calls that return Result<T> OR Option<T> need {:?}
-                        HirExpr::Call { func, .. } => {
-                            self.ctx.result_returning_functions.contains(func)
-                                || self.ctx.option_returning_functions.contains(func)
-                        }
-                        // DEPYLER-0519: Method calls that return Vec types need {:?}
-                        HirExpr::MethodCall { method, .. } => {
-                            let vec_returning_methods = [
-                                "groups",
-                                "split",
-                                "split_whitespace",
-                                "splitlines",
-                                "findall",
-                                "keys",
-                                "values",
-                                "items",
-                            ];
-                            vec_returning_methods.contains(&method.as_str())
-                        }
-                        // Case 2: Attribute access (e.g., args.targets)
-                        HirExpr::Attribute { value, attr } => {
-                            // Check if this is accessing a field from argparse Args struct
-                            if let HirExpr::Var(obj_name) = value.as_ref() {
-                                // Check if obj_name is the args variable from ArgumentParser
-                                let is_args_var = self.ctx.argparser_tracker.parsers.values().any(
-                                    |parser_info| {
-                                        parser_info
-                                            .args_var
-                                            .as_ref()
-                                            .is_some_and(|args_var| args_var == obj_name)
-                                    },
-                                );
-
-                                if is_args_var {
-                                    // Look up the field type in argparse arguments
-                                    self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                                        parser_info.arguments.iter().any(|arg| {
-                                            // Match field name (normalized from Python argument name)
-                                            let field_name = arg.rust_field_name();
-                                            if field_name == *attr {
-                                                // Check if this field is a collection type
-                                                // Either explicit type annotation OR inferred from nargs
-                                                let is_vec_from_nargs = matches!(
-                                                    arg.nargs.as_deref(),
-                                                    Some("+") | Some("*")
-                                                );
-                                                let is_collection_type =
-                                                    if let Some(ref arg_type) = arg.arg_type {
-                                                        matches!(
-                                                            arg_type,
-                                                            Type::List(_)
-                                                                | Type::Dict(_, _)
-                                                                | Type::Set(_)
-                                                        )
-                                                    } else {
-                                                        false
-                                                    };
-                                                is_vec_from_nargs || is_collection_type
-                                            } else {
-                                                false
-                                            }
-                                        })
-                                    })
-                                } else {
-                                    false
-                                }
-                            } else {
-                                false
-                            }
-                        }
-                        _ => false,
-                    };
-
-                    // DEPYLER-0446: Wrap argparse Option types to handle Display trait
-                    // Only wrap argparse Optional fields, not regular Option variables
-                    // DEPYLER-0930: Check if expression is a PathBuf type that needs .display()
-                    // PathBuf doesn't implement Display, so we need to call .display() to format it
-                    let is_pathbuf = match expr.as_ref() {
-                        HirExpr::Var(var_name) => self
-                            .ctx
-                            .var_types
-                            .get(var_name)
-                            .map(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
-                            .unwrap_or(false),
-                        HirExpr::MethodCall { method, .. } => {
-                            // Methods that return PathBuf
-                            matches!(
-                                method.as_str(),
-                                "parent" | "with_name" | "with_suffix" | "with_stem" | "join"
-                            )
-                        }
-                        HirExpr::Attribute { value, attr } => {
-                            // path.parent returns PathBuf
-                            if matches!(attr.as_str(), "parent") {
-                                if let HirExpr::Var(var_name) = value.as_ref() {
-                                    self.ctx
-                                        .var_types
-                                        .get(var_name)
-                                        .map(|t| {
-                                            matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path")
-                                        })
-                                        .unwrap_or(false)
-                                } else {
-                                    false
-                                }
-                            } else {
-                                false
-                            }
-                        }
-                        _ => false,
-                    };
+                    let is_argparse_option = self.fstring_is_argparse_option(expr);
+                    let needs_debug_fmt = self.fstring_needs_debug_fmt(expr);
+                    let is_pathbuf = self.fstring_is_pathbuf(expr);
 
                     let final_arg = if is_argparse_option {
-                        // Argparse Option<T> should display as value or "None" string
                         parse_quote! {
                             {
                                 match &#arg_expr {
@@ -484,23 +297,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             }
                         }
                     } else if is_pathbuf {
-                        // DEPYLER-0930: PathBuf needs .display() to implement Display
                         parse_quote! { #arg_expr.display() }
                     } else {
                         arg_expr
                     };
 
-                    // DEPYLER-0497: Use {:?} for non-Display types (Result, Vec, collections, Option)
-                    // Use {} for Display types (primitives, String, wrapped argparse Options)
-                    // DEPYLER-0930: PathBuf with .display() can use {} (Display trait)
                     if is_argparse_option || is_pathbuf {
-                        // Argparse Option was wrapped to String, PathBuf has .display(), use {}
                         template.push_str("{}");
                     } else if needs_debug_fmt {
-                        // Non-Display types (Vec, Result, Option, collections) need {:?}
                         template.push_str("{:?}");
                     } else {
-                        // Regular Display types (i32, String, etc.)
                         template.push_str("{}");
                     }
 
@@ -509,13 +315,149 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
-        // Generate format!() macro call
         if args.is_empty() {
-            // No arguments (shouldn't happen but be safe)
             Ok(parse_quote! { #template.to_string() })
         } else {
-            // Build the format! call with template and arguments
             Ok(parse_quote! { format!(#template, #(#args),*) })
+        }
+    }
+
+    fn fstring_is_argparse_option(&self, expr: &HirExpr) -> bool {
+        let (value, attr) = match expr {
+            HirExpr::Attribute { value, attr } => (value, attr),
+            _ => return false,
+        };
+        let obj_name = match value.as_ref() {
+            HirExpr::Var(name) => name,
+            _ => return false,
+        };
+        if !self.is_argparse_args_var(obj_name) {
+            return false;
+        }
+        self.is_argparse_optional_field(attr)
+    }
+
+    fn is_argparse_args_var(&self, obj_name: &str) -> bool {
+        self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
+            parser_info.args_var.as_ref().is_some_and(|args_var| args_var == obj_name)
+        })
+    }
+
+    fn is_argparse_optional_field(&self, attr: &str) -> bool {
+        self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
+            parser_info.arguments.iter().any(|arg| {
+                let field_name = arg.rust_field_name();
+                if field_name != *attr {
+                    return false;
+                }
+                if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+                    return false;
+                }
+                !arg.is_positional && !arg.required.unwrap_or(false) && arg.default.is_none()
+            })
+        })
+    }
+
+    fn fstring_needs_debug_fmt(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Var(var_name) => self.fstring_var_needs_debug(var_name),
+            HirExpr::Call { func, .. } => {
+                self.ctx.result_returning_functions.contains(func)
+                    || self.ctx.option_returning_functions.contains(func)
+            }
+            HirExpr::MethodCall { method, .. } => Self::is_vec_returning_method(method),
+            HirExpr::Attribute { value, attr } => self.fstring_attr_needs_debug(value, attr),
+            _ => false,
+        }
+    }
+
+    fn fstring_var_needs_debug(&self, var_name: &str) -> bool {
+        if let Some(var_type) = self.ctx.var_types.get(var_name) {
+            matches!(
+                var_type,
+                Type::List(_)
+                    | Type::Dict(_, _)
+                    | Type::Set(_)
+                    | Type::Tuple(_)
+                    | Type::Optional(_)
+            )
+        } else {
+            true
+        }
+    }
+
+    fn is_vec_returning_method(method: &str) -> bool {
+        matches!(
+            method,
+            "groups"
+                | "split"
+                | "split_whitespace"
+                | "splitlines"
+                | "findall"
+                | "keys"
+                | "values"
+                | "items"
+        )
+    }
+
+    fn fstring_attr_needs_debug(&self, value: &HirExpr, attr: &str) -> bool {
+        let obj_name = match value {
+            HirExpr::Var(name) => name,
+            _ => return false,
+        };
+        if !self.is_argparse_args_var(obj_name) {
+            return false;
+        }
+        self.is_argparse_collection_field(attr)
+    }
+
+    fn is_argparse_collection_field(&self, attr: &str) -> bool {
+        self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
+            parser_info.arguments.iter().any(|arg| {
+                let field_name = arg.rust_field_name();
+                if field_name != *attr {
+                    return false;
+                }
+                let is_vec_from_nargs = matches!(arg.nargs.as_deref(), Some("+") | Some("*"));
+                let is_collection_type = if let Some(ref arg_type) = arg.arg_type {
+                    matches!(arg_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                } else {
+                    false
+                };
+                is_vec_from_nargs || is_collection_type
+            })
+        })
+    }
+
+    fn fstring_is_pathbuf(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Var(var_name) => self.is_pathbuf_var(var_name),
+            HirExpr::MethodCall { method, .. } => Self::is_pathbuf_returning_method(method),
+            HirExpr::Attribute { value, attr } => self.is_pathbuf_attribute(value, attr),
+            _ => false,
+        }
+    }
+
+    fn is_pathbuf_var(&self, var_name: &str) -> bool {
+        self.ctx
+            .var_types
+            .get(var_name)
+            .map(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
+            .unwrap_or(false)
+    }
+
+    fn is_pathbuf_returning_method(method: &str) -> bool {
+        matches!(method, "parent" | "with_name" | "with_suffix" | "with_stem" | "join")
+    }
+
+    fn is_pathbuf_attribute(&self, value: &HirExpr, attr: &str) -> bool {
+        if attr != "parent" {
+            return false;
+        }
+        if let HirExpr::Var(var_name) = value {
+            self.is_pathbuf_var(var_name)
+        } else {
+            false
         }
     }
 
