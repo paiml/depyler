@@ -6,7 +6,7 @@
 use crate::borrowing_context::{BorrowingContext, BorrowingStrategy};
 use crate::param_type_inference::infer_param_type_from_body;
 use crate::type_mapper::RustType;
-use depyler_hir::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Type};
+use depyler_hir::hir::{AssignTarget, HirComprehension, HirExpr, HirFunction, HirStmt, Type};
 use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
 
@@ -436,32 +436,14 @@ impl LifetimeInference {
                 }
             }
             HirExpr::Attribute { value, .. } => {
-                if let HirExpr::Var(id) = &**value {
-                    if id == param {
-                        usage.is_read_only = true;
-                        usage.has_nested_borrows = true;
-                    }
-                }
-                self.analyze_expr_for_param(param, value, usage, in_loop, in_return);
+                self.analyze_attr_for_param(param, value, usage, in_loop, in_return);
             }
             HirExpr::Index { base, index } => {
                 self.analyze_expr_for_param(param, base, usage, in_loop, false);
                 self.analyze_expr_for_param(param, index, usage, in_loop, false);
             }
             HirExpr::Call { func: _, args, .. } => {
-                // Check if parameter is passed to a function (potential move)
-                for arg in args {
-                    if let HirExpr::Var(id) = arg {
-                        if id == param {
-                            // Conservative: assume moved unless we know the function borrows
-                            usage.is_moved = true;
-                        }
-                    }
-                }
-                // Note: func is a Symbol, not an expression in HirExpr
-                for arg in args {
-                    self.analyze_expr_for_param(param, arg, usage, in_loop, false);
-                }
+                self.analyze_call_for_param(param, args, usage, in_loop);
             }
             HirExpr::List(elements) | HirExpr::Tuple(elements) => {
                 for elem in elements {
@@ -481,7 +463,7 @@ impl LifetimeInference {
             HirExpr::Unary { operand, .. } => {
                 self.analyze_expr_for_param(param, operand, usage, in_loop, false);
             }
-            HirExpr::Literal(_) => {}
+            HirExpr::Literal(_) | HirExpr::FString { .. } => {}
             HirExpr::MethodCall { object, args, .. } => {
                 self.analyze_expr_for_param(param, object, usage, in_loop, in_return);
                 for arg in args {
@@ -489,45 +471,18 @@ impl LifetimeInference {
                 }
             }
             HirExpr::Slice { base, start, stop, step } => {
-                self.analyze_expr_for_param(param, base, usage, in_loop, in_return);
-                if let Some(s) = start {
-                    self.analyze_expr_for_param(param, s, usage, in_loop, in_return);
-                }
-                if let Some(s) = stop {
-                    self.analyze_expr_for_param(param, s, usage, in_loop, in_return);
-                }
-                if let Some(s) = step {
-                    self.analyze_expr_for_param(param, s, usage, in_loop, in_return);
-                }
+                self.analyze_slice_for_param(
+                    param, base, start, stop, step, usage, in_loop, in_return,
+                );
             }
             HirExpr::Borrow { expr, .. } => {
                 self.analyze_expr_for_param(param, expr, usage, in_loop, in_return);
             }
-            HirExpr::ListComp { element, generators } => {
-                // DEPYLER-0504: Support multiple generators
-                // List comprehensions create a new scope, so the target variable
-                // shadows any outer variable with the same name
-                for gen in generators {
-                    // Check if any generator target shadows our parameter
-                    let target_shadows = gen.target == param
-                        || gen.target.contains(&format!("({param})"))
-                        || gen.target.contains(&format!("{param},"))
-                        || gen.target.contains(&format!(", {param}"));
-
-                    if !target_shadows {
-                        // Only analyze if the comprehension target doesn't shadow our parameter
-                        self.analyze_expr_for_param(param, &gen.iter, usage, true, false);
-                        for cond in &gen.conditions {
-                            self.analyze_expr_for_param(param, cond, usage, true, false);
-                        }
-                    }
-                }
-                // Analyze element expression (after all generators)
-                self.analyze_expr_for_param(param, element, usage, true, in_return);
+            HirExpr::ListComp { element, generators }
+            | HirExpr::SetComp { element, generators } => {
+                self.analyze_comp_for_param(param, element, generators, usage, in_return);
             }
             HirExpr::Lambda { params: _, body } => {
-                // Lambda functions can capture parameters by reference
-                // Analyze the body for parameter usage
                 self.analyze_expr_for_param(param, body, usage, in_loop, in_return);
             }
             HirExpr::Set(elements) | HirExpr::FrozenSet(elements) => {
@@ -535,90 +490,32 @@ impl LifetimeInference {
                     self.analyze_expr_for_param(param, elem, usage, in_loop, in_return);
                 }
             }
-            HirExpr::SetComp { element, generators } => {
-                // DEPYLER-0504: Support multiple generators
-                // Set comprehensions create a new scope, so the target variable
-                // shadows any outer variable with the same name
-                for gen in generators {
-                    // Check if any generator target shadows our parameter
-                    let target_shadows = gen.target == param
-                        || gen.target.contains(&format!("({param})"))
-                        || gen.target.contains(&format!("{param},"))
-                        || gen.target.contains(&format!(", {param}"));
-
-                    if !target_shadows {
-                        // Only analyze if the comprehension target doesn't shadow our parameter
-                        self.analyze_expr_for_param(param, &gen.iter, usage, true, false);
-                        for cond in &gen.conditions {
-                            self.analyze_expr_for_param(param, cond, usage, true, false);
-                        }
-                    }
-                }
-                // Analyze element expression (after all generators)
-                self.analyze_expr_for_param(param, element, usage, true, in_return);
-            }
             HirExpr::DictComp { key, value, generators } => {
-                // DEPYLER-0504: Support multiple generators
-                // Dict comprehensions create a new scope, so the target variable
-                // shadows any outer variable with the same name
-                for gen in generators {
-                    // Check if any generator target shadows our parameter
-                    let target_shadows = gen.target == param
-                        || gen.target.contains(&format!("({param})"))
-                        || gen.target.contains(&format!("{param},"))
-                        || gen.target.contains(&format!(", {param}"));
-
-                    if !target_shadows {
-                        // Only analyze if the comprehension target doesn't shadow our parameter
-                        self.analyze_expr_for_param(param, &gen.iter, usage, true, false);
-                        for cond in &gen.conditions {
-                            self.analyze_expr_for_param(param, cond, usage, true, false);
-                        }
-                    }
-                }
-                // Analyze key and value expressions (after all generators)
-                self.analyze_expr_for_param(param, key, usage, true, in_return);
-                self.analyze_expr_for_param(param, value, usage, true, in_return);
+                self.analyze_dict_comp_for_param(param, key, value, generators, usage, in_return);
             }
             HirExpr::Await { value } => {
-                // Await expressions propagate parameter usage
                 self.analyze_expr_for_param(param, value, usage, in_loop, in_return);
             }
             HirExpr::Yield { value } => {
-                // Yield expressions pass values to iterator
                 if let Some(v) = value {
                     self.analyze_expr_for_param(param, v, usage, in_loop, in_return);
                 }
             }
-            HirExpr::FString { .. } => {
-                // FString support not yet implemented for lifetime analysis
-            }
             HirExpr::IfExpr { test, body, orelse } => {
-                // Analyze all branches of the ternary expression
                 self.analyze_expr_for_param(param, test, usage, in_loop, in_return);
                 self.analyze_expr_for_param(param, body, usage, in_loop, in_return);
                 self.analyze_expr_for_param(param, orelse, usage, in_loop, in_return);
             }
             HirExpr::SortByKey { iterable, key_body, .. } => {
-                // Analyze the iterable and key lambda body
                 self.analyze_expr_for_param(param, iterable, usage, in_loop, in_return);
                 self.analyze_expr_for_param(param, key_body, usage, in_loop, in_return);
             }
             HirExpr::GeneratorExp { element, generators } => {
-                // Analyze element and all generator components
-                self.analyze_expr_for_param(param, element, usage, in_loop, in_return);
-                for gen in generators {
-                    self.analyze_expr_for_param(param, &gen.iter, usage, in_loop, in_return);
-                    for cond in &gen.conditions {
-                        self.analyze_expr_for_param(param, cond, usage, in_loop, in_return);
-                    }
-                }
+                self.analyze_gen_for_param(param, element, generators, usage, in_loop, in_return);
             }
-            // DEPYLER-0188: Walrus operator - analyze the value expression
             HirExpr::NamedExpr { value, .. } => {
                 self.analyze_expr_for_param(param, value, usage, in_loop, in_return);
             }
-            // DEPYLER-0188: Dynamic call - analyze callee and arguments
             HirExpr::DynamicCall { callee, args, .. } => {
                 self.analyze_expr_for_param(param, callee, usage, in_loop, in_return);
                 for arg in args {
@@ -626,6 +523,143 @@ impl LifetimeInference {
                 }
             }
         }
+    }
+
+    /// Analyze attribute access for parameter usage
+    #[allow(clippy::only_used_in_recursion)]
+    fn analyze_attr_for_param(
+        &self,
+        param: &str,
+        value: &HirExpr,
+        usage: &mut ParamUsage,
+        in_loop: bool,
+        in_return: bool,
+    ) {
+        if let HirExpr::Var(id) = value {
+            if id == param {
+                usage.is_read_only = true;
+                usage.has_nested_borrows = true;
+            }
+        }
+        self.analyze_expr_for_param(param, value, usage, in_loop, in_return);
+    }
+
+    /// Analyze function call arguments for parameter moves
+    #[allow(clippy::only_used_in_recursion)]
+    fn analyze_call_for_param(
+        &self,
+        param: &str,
+        args: &[HirExpr],
+        usage: &mut ParamUsage,
+        in_loop: bool,
+    ) {
+        for arg in args {
+            if let HirExpr::Var(id) = arg {
+                if id == param {
+                    usage.is_moved = true;
+                }
+            }
+        }
+        for arg in args {
+            self.analyze_expr_for_param(param, arg, usage, in_loop, false);
+        }
+    }
+
+    /// Analyze slice expression for parameter usage
+    #[allow(clippy::only_used_in_recursion)]
+    fn analyze_slice_for_param(
+        &self,
+        param: &str,
+        base: &HirExpr,
+        start: &Option<Box<HirExpr>>,
+        stop: &Option<Box<HirExpr>>,
+        step: &Option<Box<HirExpr>>,
+        usage: &mut ParamUsage,
+        in_loop: bool,
+        in_return: bool,
+    ) {
+        self.analyze_expr_for_param(param, base, usage, in_loop, in_return);
+        if let Some(s) = start {
+            self.analyze_expr_for_param(param, s, usage, in_loop, in_return);
+        }
+        if let Some(s) = stop {
+            self.analyze_expr_for_param(param, s, usage, in_loop, in_return);
+        }
+        if let Some(s) = step {
+            self.analyze_expr_for_param(param, s, usage, in_loop, in_return);
+        }
+    }
+
+    /// DEPYLER-0504: Analyze list/set comprehension for parameter usage with shadowing
+    #[allow(clippy::only_used_in_recursion)]
+    fn analyze_comp_for_param(
+        &self,
+        param: &str,
+        element: &HirExpr,
+        generators: &[HirComprehension],
+        usage: &mut ParamUsage,
+        in_return: bool,
+    ) {
+        for gen in generators {
+            if !Self::target_shadows_param(&gen.target, param) {
+                self.analyze_expr_for_param(param, &gen.iter, usage, true, false);
+                for cond in &gen.conditions {
+                    self.analyze_expr_for_param(param, cond, usage, true, false);
+                }
+            }
+        }
+        self.analyze_expr_for_param(param, element, usage, true, in_return);
+    }
+
+    /// DEPYLER-0504: Analyze dict comprehension for parameter usage with shadowing
+    #[allow(clippy::only_used_in_recursion)]
+    fn analyze_dict_comp_for_param(
+        &self,
+        param: &str,
+        key: &HirExpr,
+        value: &HirExpr,
+        generators: &[HirComprehension],
+        usage: &mut ParamUsage,
+        in_return: bool,
+    ) {
+        for gen in generators {
+            if !Self::target_shadows_param(&gen.target, param) {
+                self.analyze_expr_for_param(param, &gen.iter, usage, true, false);
+                for cond in &gen.conditions {
+                    self.analyze_expr_for_param(param, cond, usage, true, false);
+                }
+            }
+        }
+        self.analyze_expr_for_param(param, key, usage, true, in_return);
+        self.analyze_expr_for_param(param, value, usage, true, in_return);
+    }
+
+    /// Analyze generator expression for parameter usage
+    #[allow(clippy::only_used_in_recursion)]
+    fn analyze_gen_for_param(
+        &self,
+        param: &str,
+        element: &HirExpr,
+        generators: &[HirComprehension],
+        usage: &mut ParamUsage,
+        in_loop: bool,
+        in_return: bool,
+    ) {
+        self.analyze_expr_for_param(param, element, usage, in_loop, in_return);
+        for gen in generators {
+            self.analyze_expr_for_param(param, &gen.iter, usage, in_loop, in_return);
+            for cond in &gen.conditions {
+                self.analyze_expr_for_param(param, cond, usage, in_loop, in_return);
+            }
+        }
+    }
+
+    /// Check if a comprehension target variable shadows the given parameter
+    fn target_shadows_param(target: &str, param: &str) -> bool {
+        target == param
+            || target.contains(&format!("({param})"))
+            || target.contains(&format!("{param},"))
+            || target.contains(&format!(", {param}"))
     }
 
     /// Infer parameter lifetimes based on usage analysis

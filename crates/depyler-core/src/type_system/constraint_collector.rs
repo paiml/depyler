@@ -262,189 +262,12 @@ impl ConstraintCollector {
     /// Collect constraints from an expression, returning its type variable
     fn collect_expr(&mut self, expr: &HirExpr) -> VarId {
         match expr {
-            HirExpr::Literal(lit) => {
-                let var = self.fresh_var();
-                let ty = match lit {
-                    Literal::Int(_) => Type::Int,
-                    Literal::Float(_) => Type::Float,
-                    Literal::String(_) => Type::String,
-                    Literal::Bytes(_) => Type::String, // Bytes map to String for Rust
-                    Literal::Bool(_) => Type::Bool,
-                    Literal::None => Type::None,
-                };
-                self.constraints.push(Constraint::Instance(var, ty));
-                var
-            }
-
+            HirExpr::Literal(lit) => self.collect_literal_expr(lit),
             HirExpr::Var(name) => self.get_or_create_var(name),
-
-            HirExpr::Binary { op, left, right } => {
-                let left_var = self.collect_expr(left);
-                let right_var = self.collect_expr(right);
-                let result_var = self.fresh_var();
-
-                match op {
-                    // Arithmetic ops: operands and result are numeric
-                    BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::FloorDiv => {
-                        // Constrain left = right (same numeric type)
-                        self.constraints.push(Constraint::Equality(
-                            Type::UnificationVar(left_var),
-                            Type::UnificationVar(right_var),
-                        ));
-                        // Result has same type as operands
-                        self.constraints.push(Constraint::Equality(
-                            Type::UnificationVar(result_var),
-                            Type::UnificationVar(left_var),
-                        ));
-                    }
-
-                    // Comparison ops: result is Bool
-                    BinOp::Eq
-                    | BinOp::NotEq
-                    | BinOp::Lt
-                    | BinOp::LtEq
-                    | BinOp::Gt
-                    | BinOp::GtEq
-                    | BinOp::In
-                    | BinOp::NotIn => {
-                        self.constraints
-                            .push(Constraint::Instance(result_var, Type::Bool));
-                    }
-
-                    // Boolean ops: all Bool
-                    BinOp::And | BinOp::Or => {
-                        self.constraints
-                            .push(Constraint::Instance(left_var, Type::Bool));
-                        self.constraints
-                            .push(Constraint::Instance(right_var, Type::Bool));
-                        self.constraints
-                            .push(Constraint::Instance(result_var, Type::Bool));
-                    }
-
-                    // Modulo: numeric
-                    BinOp::Mod => {
-                        self.constraints.push(Constraint::Equality(
-                            Type::UnificationVar(left_var),
-                            Type::UnificationVar(right_var),
-                        ));
-                        self.constraints.push(Constraint::Equality(
-                            Type::UnificationVar(result_var),
-                            Type::UnificationVar(left_var),
-                        ));
-                    }
-
-                    // Power: result is Float (Python semantics)
-                    BinOp::Pow => {
-                        self.constraints
-                            .push(Constraint::Instance(result_var, Type::Float));
-                    }
-
-                    // Bitwise ops: Int
-                    BinOp::BitAnd
-                    | BinOp::BitOr
-                    | BinOp::BitXor
-                    | BinOp::LShift
-                    | BinOp::RShift => {
-                        self.constraints
-                            .push(Constraint::Instance(left_var, Type::Int));
-                        self.constraints
-                            .push(Constraint::Instance(right_var, Type::Int));
-                        self.constraints
-                            .push(Constraint::Instance(result_var, Type::Int));
-                    }
-                }
-
-                result_var
-            }
-
-            HirExpr::Call { func, args, .. } => {
-                let result_var = self.fresh_var();
-
-                // Clone signature data to avoid borrow conflict
-                let sig_data = self.function_signatures.get(func.as_str()).cloned();
-
-                // If we know this function's signature, constrain args
-                if let Some((param_vars, ret_var)) = sig_data {
-                    // Constrain each argument to its parameter type
-                    for (arg, param_var) in args.iter().zip(param_vars.iter()) {
-                        let arg_var = self.collect_expr(arg);
-                        self.constraints.push(Constraint::Equality(
-                            Type::UnificationVar(arg_var),
-                            Type::UnificationVar(*param_var),
-                        ));
-                    }
-
-                    // Result has function's return type
-                    self.constraints.push(Constraint::Equality(
-                        Type::UnificationVar(result_var),
-                        Type::UnificationVar(ret_var),
-                    ));
-                } else {
-                    // Unknown function - just collect arg constraints
-                    for arg in args {
-                        let _ = self.collect_expr(arg);
-                    }
-                }
-
-                result_var
-            }
-
-            HirExpr::List(elements) => {
-                let result_var = self.fresh_var();
-
-                if !elements.is_empty() {
-                    // All elements should have the same type
-                    let first_var = self.collect_expr(&elements[0]);
-                    for elem in elements.iter().skip(1) {
-                        let elem_var = self.collect_expr(elem);
-                        self.constraints.push(Constraint::Equality(
-                            Type::UnificationVar(elem_var),
-                            Type::UnificationVar(first_var),
-                        ));
-                    }
-                    // Result is List<element_type>
-                    self.constraints.push(Constraint::Instance(
-                        result_var,
-                        Type::List(Box::new(Type::UnificationVar(first_var))),
-                    ));
-                }
-
-                result_var
-            }
-
-            HirExpr::Dict(pairs) => {
-                let result_var = self.fresh_var();
-
-                if !pairs.is_empty() {
-                    let (first_key, first_val) = &pairs[0];
-                    let key_var = self.collect_expr(first_key);
-                    let val_var = self.collect_expr(first_val);
-
-                    for (k, v) in pairs.iter().skip(1) {
-                        let k_var = self.collect_expr(k);
-                        let v_var = self.collect_expr(v);
-                        self.constraints.push(Constraint::Equality(
-                            Type::UnificationVar(k_var),
-                            Type::UnificationVar(key_var),
-                        ));
-                        self.constraints.push(Constraint::Equality(
-                            Type::UnificationVar(v_var),
-                            Type::UnificationVar(val_var),
-                        ));
-                    }
-
-                    self.constraints.push(Constraint::Instance(
-                        result_var,
-                        Type::Dict(
-                            Box::new(Type::UnificationVar(key_var)),
-                            Box::new(Type::UnificationVar(val_var)),
-                        ),
-                    ));
-                }
-
-                result_var
-            }
-
+            HirExpr::Binary { op, left, right } => self.collect_binary_expr(op, left, right),
+            HirExpr::Call { func, args, .. } => self.collect_call_expr(func, args),
+            HirExpr::List(elements) => self.collect_list_expr(elements),
+            HirExpr::Dict(pairs) => self.collect_dict_expr(pairs),
             HirExpr::Tuple(elements) => {
                 let result_var = self.fresh_var();
                 let elem_types: Vec<Type> = elements
@@ -455,167 +278,296 @@ impl ConstraintCollector {
                     .push(Constraint::Instance(result_var, Type::Tuple(elem_types)));
                 result_var
             }
-
             HirExpr::Index { base, index } => {
                 let _base_var = self.collect_expr(base);
                 let index_var = self.collect_expr(index);
                 let result_var = self.fresh_var();
-
-                // Index is typically Int for lists
                 self.constraints
                     .push(Constraint::Instance(index_var, Type::Int));
-
                 result_var
             }
-
-            // DEPYLER-1173: Usage-based type inference from method calls
-            // If a method is called on an object, we can infer the object's type
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                ..
-            } => {
-                let obj_var = self.collect_expr(object);
-                let result_var = self.fresh_var();
-
-                for arg in args {
-                    let _ = self.collect_expr(arg);
-                }
-
-                // Infer object type from method name
-                match method.as_str() {
-                    // String methods → object must be String
-                    "split" | "rsplit" | "splitlines" | "upper" | "lower" | "strip" | "lstrip"
-                    | "rstrip" | "capitalize" | "title" | "swapcase" | "startswith"
-                    | "endswith" | "find" | "rfind" | "index" | "rindex" | "count" | "replace"
-                    | "join" | "encode" | "zfill" | "center" | "ljust" | "rjust" | "isalpha"
-                    | "isdigit" | "isalnum" | "isspace" | "isupper" | "islower" | "istitle"
-                    | "format" => {
-                        self.constraints
-                            .push(Constraint::Instance(obj_var, Type::String));
-                    }
-
-                    // List methods → object must be List
-                    "append" | "extend" | "insert" | "pop" | "remove" | "clear" | "sort"
-                    | "reverse" => {
-                        // For list methods, we know it's a list but not the element type
-                        // Create a fresh var for element type
-                        let elem_var = self.fresh_var();
-                        self.constraints.push(Constraint::Instance(
-                            obj_var,
-                            Type::List(Box::new(Type::UnificationVar(elem_var))),
-                        ));
-                    }
-
-                    // Dict methods → object must be Dict
-                    "keys" | "values" | "items" | "get" | "setdefault" | "update" | "popitem" => {
-                        let key_var = self.fresh_var();
-                        let val_var = self.fresh_var();
-                        self.constraints.push(Constraint::Instance(
-                            obj_var,
-                            Type::Dict(
-                                Box::new(Type::UnificationVar(key_var)),
-                                Box::new(Type::UnificationVar(val_var)),
-                            ),
-                        ));
-                    }
-
-                    // Set methods → object must be Set
-                    "add"
-                    | "discard"
-                    | "union"
-                    | "intersection"
-                    | "difference"
-                    | "symmetric_difference"
-                    | "issubset"
-                    | "issuperset" => {
-                        let elem_var = self.fresh_var();
-                        self.constraints.push(Constraint::Instance(
-                            obj_var,
-                            Type::Set(Box::new(Type::UnificationVar(elem_var))),
-                        ));
-                    }
-
-                    _ => {}
-                }
-
-                result_var
+            HirExpr::MethodCall { object, method, args, .. } => {
+                self.collect_method_call_expr(object, method, args)
             }
-
             HirExpr::Attribute { value, .. } => {
                 let _ = self.collect_expr(value);
                 self.fresh_var()
             }
-
-            HirExpr::Unary { operand, .. } => {
-                // Unary ops preserve type
-                self.collect_expr(operand)
-            }
-
+            HirExpr::Unary { operand, .. } => self.collect_expr(operand),
             HirExpr::IfExpr { test, body, orelse } => {
                 let cond_var = self.collect_expr(test);
                 let then_var = self.collect_expr(body);
                 let else_var = self.collect_expr(orelse);
-
                 self.constraints
                     .push(Constraint::Instance(cond_var, Type::Bool));
-                // Both branches must have same type
                 self.constraints.push(Constraint::Equality(
                     Type::UnificationVar(then_var),
                     Type::UnificationVar(else_var),
                 ));
-
                 then_var
             }
-
-            // DEPYLER-1173: Usage-based type inference from slice operations
-            // If s[1:4] is used, s must be either String or List
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => {
-                let base_var = self.collect_expr(base);
-                let result_var = self.fresh_var();
-
-                // Collect start/stop/step if present (they should be Int)
-                if let Some(start_expr) = start {
-                    let start_var = self.collect_expr(start_expr);
-                    self.constraints
-                        .push(Constraint::Instance(start_var, Type::Int));
-                }
-                if let Some(stop_expr) = stop {
-                    let stop_var = self.collect_expr(stop_expr);
-                    self.constraints
-                        .push(Constraint::Instance(stop_var, Type::Int));
-                }
-                if let Some(step_expr) = step {
-                    let step_var = self.collect_expr(step_expr);
-                    self.constraints
-                        .push(Constraint::Instance(step_var, Type::Int));
-                }
-
-                // DEPYLER-1173: Key insight - slicing is most commonly on String in Python
-                // When we see s[1:4] without additional context, assume String
-                // This can be refined later with bidirectional inference
-                //
-                // Future enhancement: Check if base is already constrained to List
-                // and propagate that. For now, String is the safe default for
-                // single-shot compilation (most slicing is on strings).
-                self.constraints
-                    .push(Constraint::Instance(base_var, Type::String));
-
-                // Result of slicing a String is a String
-                self.constraints
-                    .push(Constraint::Instance(result_var, Type::String));
-
-                result_var
+            HirExpr::Slice { base, start, stop, step } => {
+                self.collect_slice_expr(base, start, stop, step)
             }
-
             _ => self.fresh_var(),
         }
+    }
+
+    /// Collect constraints from a literal expression
+    fn collect_literal_expr(&mut self, lit: &Literal) -> VarId {
+        let var = self.fresh_var();
+        let ty = match lit {
+            Literal::Int(_) => Type::Int,
+            Literal::Float(_) => Type::Float,
+            Literal::String(_) => Type::String,
+            Literal::Bytes(_) => Type::String,
+            Literal::Bool(_) => Type::Bool,
+            Literal::None => Type::None,
+        };
+        self.constraints.push(Constraint::Instance(var, ty));
+        var
+    }
+
+    /// Collect constraints from a binary expression
+    fn collect_binary_expr(&mut self, op: &BinOp, left: &HirExpr, right: &HirExpr) -> VarId {
+        let left_var = self.collect_expr(left);
+        let right_var = self.collect_expr(right);
+        let result_var = self.fresh_var();
+
+        match op {
+            BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::FloorDiv => {
+                self.constraints.push(Constraint::Equality(
+                    Type::UnificationVar(left_var),
+                    Type::UnificationVar(right_var),
+                ));
+                self.constraints.push(Constraint::Equality(
+                    Type::UnificationVar(result_var),
+                    Type::UnificationVar(left_var),
+                ));
+            }
+            BinOp::Eq
+            | BinOp::NotEq
+            | BinOp::Lt
+            | BinOp::LtEq
+            | BinOp::Gt
+            | BinOp::GtEq
+            | BinOp::In
+            | BinOp::NotIn => {
+                self.constraints
+                    .push(Constraint::Instance(result_var, Type::Bool));
+            }
+            BinOp::And | BinOp::Or => {
+                self.constraints
+                    .push(Constraint::Instance(left_var, Type::Bool));
+                self.constraints
+                    .push(Constraint::Instance(right_var, Type::Bool));
+                self.constraints
+                    .push(Constraint::Instance(result_var, Type::Bool));
+            }
+            BinOp::Mod => {
+                self.constraints.push(Constraint::Equality(
+                    Type::UnificationVar(left_var),
+                    Type::UnificationVar(right_var),
+                ));
+                self.constraints.push(Constraint::Equality(
+                    Type::UnificationVar(result_var),
+                    Type::UnificationVar(left_var),
+                ));
+            }
+            BinOp::Pow => {
+                self.constraints
+                    .push(Constraint::Instance(result_var, Type::Float));
+            }
+            BinOp::BitAnd
+            | BinOp::BitOr
+            | BinOp::BitXor
+            | BinOp::LShift
+            | BinOp::RShift => {
+                self.constraints
+                    .push(Constraint::Instance(left_var, Type::Int));
+                self.constraints
+                    .push(Constraint::Instance(right_var, Type::Int));
+                self.constraints
+                    .push(Constraint::Instance(result_var, Type::Int));
+            }
+        }
+
+        result_var
+    }
+
+    /// Collect constraints from a function call expression
+    fn collect_call_expr(&mut self, func: &str, args: &[HirExpr]) -> VarId {
+        let result_var = self.fresh_var();
+
+        let sig_data = self.function_signatures.get(func).cloned();
+
+        if let Some((param_vars, ret_var)) = sig_data {
+            for (arg, param_var) in args.iter().zip(param_vars.iter()) {
+                let arg_var = self.collect_expr(arg);
+                self.constraints.push(Constraint::Equality(
+                    Type::UnificationVar(arg_var),
+                    Type::UnificationVar(*param_var),
+                ));
+            }
+            self.constraints.push(Constraint::Equality(
+                Type::UnificationVar(result_var),
+                Type::UnificationVar(ret_var),
+            ));
+        } else {
+            for arg in args {
+                let _ = self.collect_expr(arg);
+            }
+        }
+
+        result_var
+    }
+
+    /// Collect constraints from a list expression
+    fn collect_list_expr(&mut self, elements: &[HirExpr]) -> VarId {
+        let result_var = self.fresh_var();
+
+        if !elements.is_empty() {
+            let first_var = self.collect_expr(&elements[0]);
+            for elem in elements.iter().skip(1) {
+                let elem_var = self.collect_expr(elem);
+                self.constraints.push(Constraint::Equality(
+                    Type::UnificationVar(elem_var),
+                    Type::UnificationVar(first_var),
+                ));
+            }
+            self.constraints.push(Constraint::Instance(
+                result_var,
+                Type::List(Box::new(Type::UnificationVar(first_var))),
+            ));
+        }
+
+        result_var
+    }
+
+    /// Collect constraints from a dict expression
+    fn collect_dict_expr(&mut self, pairs: &[(HirExpr, HirExpr)]) -> VarId {
+        let result_var = self.fresh_var();
+
+        if !pairs.is_empty() {
+            let (first_key, first_val) = &pairs[0];
+            let key_var = self.collect_expr(first_key);
+            let val_var = self.collect_expr(first_val);
+
+            for (k, v) in pairs.iter().skip(1) {
+                let k_var = self.collect_expr(k);
+                let v_var = self.collect_expr(v);
+                self.constraints.push(Constraint::Equality(
+                    Type::UnificationVar(k_var),
+                    Type::UnificationVar(key_var),
+                ));
+                self.constraints.push(Constraint::Equality(
+                    Type::UnificationVar(v_var),
+                    Type::UnificationVar(val_var),
+                ));
+            }
+
+            self.constraints.push(Constraint::Instance(
+                result_var,
+                Type::Dict(
+                    Box::new(Type::UnificationVar(key_var)),
+                    Box::new(Type::UnificationVar(val_var)),
+                ),
+            ));
+        }
+
+        result_var
+    }
+
+    /// DEPYLER-1173: Collect constraints from a method call expression
+    fn collect_method_call_expr(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> VarId {
+        let obj_var = self.collect_expr(object);
+        let result_var = self.fresh_var();
+
+        for arg in args {
+            let _ = self.collect_expr(arg);
+        }
+
+        match method {
+            "split" | "rsplit" | "splitlines" | "upper" | "lower" | "strip" | "lstrip"
+            | "rstrip" | "capitalize" | "title" | "swapcase" | "startswith" | "endswith"
+            | "find" | "rfind" | "index" | "rindex" | "count" | "replace" | "join" | "encode"
+            | "zfill" | "center" | "ljust" | "rjust" | "isalpha" | "isdigit" | "isalnum"
+            | "isspace" | "isupper" | "islower" | "istitle" | "format" => {
+                self.constraints
+                    .push(Constraint::Instance(obj_var, Type::String));
+            }
+            "append" | "extend" | "insert" | "pop" | "remove" | "clear" | "sort"
+            | "reverse" => {
+                let elem_var = self.fresh_var();
+                self.constraints.push(Constraint::Instance(
+                    obj_var,
+                    Type::List(Box::new(Type::UnificationVar(elem_var))),
+                ));
+            }
+            "keys" | "values" | "items" | "get" | "setdefault" | "update" | "popitem" => {
+                let key_var = self.fresh_var();
+                let val_var = self.fresh_var();
+                self.constraints.push(Constraint::Instance(
+                    obj_var,
+                    Type::Dict(
+                        Box::new(Type::UnificationVar(key_var)),
+                        Box::new(Type::UnificationVar(val_var)),
+                    ),
+                ));
+            }
+            "add" | "discard" | "union" | "intersection" | "difference"
+            | "symmetric_difference" | "issubset" | "issuperset" => {
+                let elem_var = self.fresh_var();
+                self.constraints.push(Constraint::Instance(
+                    obj_var,
+                    Type::Set(Box::new(Type::UnificationVar(elem_var))),
+                ));
+            }
+            _ => {}
+        }
+
+        result_var
+    }
+
+    /// DEPYLER-1173: Collect constraints from a slice expression
+    fn collect_slice_expr(
+        &mut self,
+        base: &HirExpr,
+        start: &Option<Box<HirExpr>>,
+        stop: &Option<Box<HirExpr>>,
+        step: &Option<Box<HirExpr>>,
+    ) -> VarId {
+        let base_var = self.collect_expr(base);
+        let result_var = self.fresh_var();
+
+        if let Some(start_expr) = start {
+            let start_var = self.collect_expr(start_expr);
+            self.constraints
+                .push(Constraint::Instance(start_var, Type::Int));
+        }
+        if let Some(stop_expr) = stop {
+            let stop_var = self.collect_expr(stop_expr);
+            self.constraints
+                .push(Constraint::Instance(stop_var, Type::Int));
+        }
+        if let Some(step_expr) = step {
+            let step_var = self.collect_expr(step_expr);
+            self.constraints
+                .push(Constraint::Instance(step_var, Type::Int));
+        }
+
+        // DEPYLER-1173: Slicing is most commonly on String in Python
+        self.constraints
+            .push(Constraint::Instance(base_var, Type::String));
+        self.constraints
+            .push(Constraint::Instance(result_var, Type::String));
+
+        result_var
     }
 
     /// Get collected constraints

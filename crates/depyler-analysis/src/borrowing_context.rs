@@ -350,77 +350,15 @@ impl BorrowingContext {
     /// Analyze an expression for parameter usage
     fn analyze_expression(&mut self, expr: &HirExpr, borrow_depth: usize) {
         match expr {
-            HirExpr::Var(name) => {
-                let in_loop = self.is_in_loop();
-                let in_conditional = self.is_in_conditional();
-                if let Some(usage) = self.param_usage.get_mut(name) {
-                    usage.is_read = true;
-                    usage.usage_sites.push(UsageSite {
-                        usage_type: UsageType::Read,
-                        in_loop,
-                        in_conditional,
-                        borrow_depth,
-                    });
-                    if in_loop {
-                        usage.used_in_loop = true;
-                    }
-                }
-            }
+            HirExpr::Var(name) => self.analyze_var_expr(name, borrow_depth),
             HirExpr::Attribute { value, attr } => {
-                if let HirExpr::Var(name) = &**value {
-                    let in_loop = self.is_in_loop();
-                    let in_conditional = self.is_in_conditional();
-                    if let Some(usage) = self.param_usage.get_mut(name) {
-                        usage.field_accesses.insert(attr.clone());
-                        usage.usage_sites.push(UsageSite {
-                            usage_type: UsageType::FieldAccess(attr.clone()),
-                            in_loop,
-                            in_conditional,
-                            borrow_depth: borrow_depth + 1,
-                        });
-                    }
-                }
-                self.analyze_expression(value, borrow_depth + 1);
+                self.analyze_attribute_expr(value, attr, borrow_depth);
             }
             HirExpr::Call { func, args, .. } => {
-                // Analyze function calls to determine if parameters are moved
-                let in_loop = self.is_in_loop();
-                let in_conditional = self.is_in_conditional();
-                for (i, arg) in args.iter().enumerate() {
-                    if let HirExpr::Var(name) = arg {
-                        let takes_ownership = self.function_takes_ownership(func, i);
-                        if let Some(usage) = self.param_usage.get_mut(name) {
-                            // Conservative: assume ownership transfer unless we know better
-                            if takes_ownership {
-                                usage.is_moved = true;
-                                self.moved_vars.insert(name.clone());
-                            }
-                            usage.usage_sites.push(UsageSite {
-                                usage_type: UsageType::FunctionArg { takes_ownership },
-                                in_loop,
-                                in_conditional,
-                                borrow_depth,
-                            });
-                        }
-                    }
-                    self.analyze_expression(arg, borrow_depth);
-                }
+                self.analyze_call_expr(func, args, borrow_depth);
             }
             HirExpr::Index { base, index } => {
-                if let HirExpr::Var(name) = &**base {
-                    let in_loop = self.is_in_loop();
-                    let in_conditional = self.is_in_conditional();
-                    if let Some(usage) = self.param_usage.get_mut(name) {
-                        usage.usage_sites.push(UsageSite {
-                            usage_type: UsageType::IndexAccess,
-                            in_loop,
-                            in_conditional,
-                            borrow_depth: borrow_depth + 1,
-                        });
-                    }
-                }
-                self.analyze_expression(base, borrow_depth + 1);
-                self.analyze_expression(index, borrow_depth);
+                self.analyze_index_expr(base, index, borrow_depth);
             }
             HirExpr::Binary { left, right, .. } => {
                 self.analyze_expression(left, borrow_depth);
@@ -441,14 +379,7 @@ impl BorrowingContext {
                 }
             }
             HirExpr::Borrow { expr, mutable } => {
-                if let HirExpr::Var(name) = &**expr {
-                    if *mutable {
-                        self.mut_borrowed_vars.insert(name.clone());
-                    } else {
-                        self.immut_borrowed_vars.insert(name.clone());
-                    }
-                }
-                self.analyze_expression(expr, borrow_depth + 1);
+                self.analyze_borrow_expr(expr, *mutable, borrow_depth);
             }
             HirExpr::MethodCall { object, args, .. } => {
                 self.analyze_expression(object, borrow_depth);
@@ -457,44 +388,17 @@ impl BorrowingContext {
                 }
             }
             HirExpr::Slice { base, start, stop, step } => {
-                self.analyze_expression(base, borrow_depth);
-                if let Some(s) = start {
-                    self.analyze_expression(s, borrow_depth);
-                }
-                if let Some(s) = stop {
-                    self.analyze_expression(s, borrow_depth);
-                }
-                if let Some(s) = step {
-                    self.analyze_expression(s, borrow_depth);
-                }
+                self.analyze_slice_expr(base, start, stop, step, borrow_depth);
             }
-            HirExpr::Literal(_) => {}
-            HirExpr::ListComp { element, generators } => {
-                // List comprehensions create a new scope
-                self.context_stack.push(AnalysisContext::Loop);
-
-                // Analyze all generators
-                for gen in generators {
-                    // Analyze the iterator
-                    self.analyze_expression(&gen.iter, borrow_depth);
-
-                    // Analyze all conditions
-                    for cond in &gen.conditions {
-                        self.analyze_expression(cond, borrow_depth);
-                    }
-                }
-
-                // Analyze the element expression
-                self.analyze_expression(element, borrow_depth);
-
-                self.context_stack.pop();
+            HirExpr::Literal(_) | HirExpr::FString { .. } => {}
+            HirExpr::ListComp { element, generators }
+            | HirExpr::SetComp { element, generators } => {
+                self.analyze_comprehension_expr(element, generators, borrow_depth);
             }
-            HirExpr::FString { .. } => {
-                // FString support not yet implemented for borrowing analysis
+            HirExpr::DictComp { key, value, generators } => {
+                self.analyze_dict_comp_expr(key, value, generators, borrow_depth);
             }
             HirExpr::Lambda { params: _, body } => {
-                // Lambda functions capture variables by reference
-                // For now, treat lambda bodies like any other expression
                 self.analyze_expression(body, borrow_depth);
             }
             HirExpr::Set(elements) | HirExpr::FrozenSet(elements) => {
@@ -502,88 +406,199 @@ impl BorrowingContext {
                     self.analyze_expression(elem, borrow_depth);
                 }
             }
-            HirExpr::SetComp { element, generators } => {
-                // Set comprehensions create a new scope
-                self.context_stack.push(AnalysisContext::Loop);
-
-                // Analyze all generators
-                for gen in generators {
-                    // Analyze the iterator
-                    self.analyze_expression(&gen.iter, borrow_depth);
-
-                    // Analyze all conditions
-                    for cond in &gen.conditions {
-                        self.analyze_expression(cond, borrow_depth);
-                    }
-                }
-
-                // Analyze the element expression
-                self.analyze_expression(element, borrow_depth);
-
-                self.context_stack.pop();
-            }
-            HirExpr::DictComp { key, value, generators } => {
-                // Dict comprehensions create a new scope
-                self.context_stack.push(AnalysisContext::Loop);
-
-                // Analyze all generators
-                for gen in generators {
-                    // Analyze the iterator
-                    self.analyze_expression(&gen.iter, borrow_depth);
-
-                    // Analyze all conditions
-                    for cond in &gen.conditions {
-                        self.analyze_expression(cond, borrow_depth);
-                    }
-                }
-
-                // Analyze the key and value expressions
-                self.analyze_expression(key, borrow_depth);
-                self.analyze_expression(value, borrow_depth);
-
-                self.context_stack.pop();
-            }
             HirExpr::Await { value } => {
-                // Await expressions don't change parameter usage patterns
                 self.analyze_expression(value, borrow_depth);
             }
             HirExpr::Yield { value } => {
-                // Yield expressions pass values to the iterator
                 if let Some(v) = value {
                     self.analyze_expression(v, borrow_depth);
                 }
             }
             HirExpr::IfExpr { test, body, orelse } => {
-                // Analyze all three parts of the ternary expression
                 self.analyze_expression(test, borrow_depth);
                 self.analyze_expression(body, borrow_depth);
                 self.analyze_expression(orelse, borrow_depth);
             }
             HirExpr::SortByKey { iterable, key_body, .. } => {
-                // Analyze the iterable and the key lambda body
                 self.analyze_expression(iterable, borrow_depth);
                 self.analyze_expression(key_body, borrow_depth);
             }
             HirExpr::GeneratorExp { element, generators } => {
-                // Analyze element expression and all generator iterables
-                self.analyze_expression(element, borrow_depth);
-                for gen in generators {
-                    self.analyze_expression(&gen.iter, borrow_depth);
-                    for cond in &gen.conditions {
-                        self.analyze_expression(cond, borrow_depth);
-                    }
-                }
+                self.analyze_generator_expr(element, generators, borrow_depth);
             }
-            // DEPYLER-0188: Walrus operator - analyze the value expression
             HirExpr::NamedExpr { value, .. } => {
                 self.analyze_expression(value, borrow_depth);
             }
-            // DEPYLER-0188: Dynamic call - analyze callee and arguments
             HirExpr::DynamicCall { callee, args, .. } => {
                 self.analyze_expression(callee, borrow_depth);
                 for arg in args {
                     self.analyze_expression(arg, borrow_depth);
                 }
+            }
+        }
+    }
+
+    /// Analyze a variable reference for parameter usage
+    fn analyze_var_expr(&mut self, name: &str, borrow_depth: usize) {
+        let in_loop = self.is_in_loop();
+        let in_conditional = self.is_in_conditional();
+        if let Some(usage) = self.param_usage.get_mut(name) {
+            usage.is_read = true;
+            usage.usage_sites.push(UsageSite {
+                usage_type: UsageType::Read,
+                in_loop,
+                in_conditional,
+                borrow_depth,
+            });
+            if in_loop {
+                usage.used_in_loop = true;
+            }
+        }
+    }
+
+    /// Analyze an attribute access expression
+    fn analyze_attribute_expr(&mut self, value: &HirExpr, attr: &str, borrow_depth: usize) {
+        if let HirExpr::Var(name) = value {
+            let in_loop = self.is_in_loop();
+            let in_conditional = self.is_in_conditional();
+            if let Some(usage) = self.param_usage.get_mut(name) {
+                usage.field_accesses.insert(attr.to_string());
+                usage.usage_sites.push(UsageSite {
+                    usage_type: UsageType::FieldAccess(attr.to_string()),
+                    in_loop,
+                    in_conditional,
+                    borrow_depth: borrow_depth + 1,
+                });
+            }
+        }
+        self.analyze_expression(value, borrow_depth + 1);
+    }
+
+    /// Analyze a function call expression for ownership transfer
+    fn analyze_call_expr(&mut self, func: &str, args: &[HirExpr], borrow_depth: usize) {
+        let in_loop = self.is_in_loop();
+        let in_conditional = self.is_in_conditional();
+        for (i, arg) in args.iter().enumerate() {
+            if let HirExpr::Var(name) = arg {
+                let takes_ownership = self.function_takes_ownership(func, i);
+                if let Some(usage) = self.param_usage.get_mut(name) {
+                    if takes_ownership {
+                        usage.is_moved = true;
+                        self.moved_vars.insert(name.clone());
+                    }
+                    usage.usage_sites.push(UsageSite {
+                        usage_type: UsageType::FunctionArg { takes_ownership },
+                        in_loop,
+                        in_conditional,
+                        borrow_depth,
+                    });
+                }
+            }
+            self.analyze_expression(arg, borrow_depth);
+        }
+    }
+
+    /// Analyze an index access expression
+    fn analyze_index_expr(&mut self, base: &HirExpr, index: &HirExpr, borrow_depth: usize) {
+        if let HirExpr::Var(name) = base {
+            let in_loop = self.is_in_loop();
+            let in_conditional = self.is_in_conditional();
+            if let Some(usage) = self.param_usage.get_mut(name) {
+                usage.usage_sites.push(UsageSite {
+                    usage_type: UsageType::IndexAccess,
+                    in_loop,
+                    in_conditional,
+                    borrow_depth: borrow_depth + 1,
+                });
+            }
+        }
+        self.analyze_expression(base, borrow_depth + 1);
+        self.analyze_expression(index, borrow_depth);
+    }
+
+    /// Analyze a borrow expression
+    fn analyze_borrow_expr(&mut self, expr: &HirExpr, mutable: bool, borrow_depth: usize) {
+        if let HirExpr::Var(name) = expr {
+            if mutable {
+                self.mut_borrowed_vars.insert(name.clone());
+            } else {
+                self.immut_borrowed_vars.insert(name.clone());
+            }
+        }
+        self.analyze_expression(expr, borrow_depth + 1);
+    }
+
+    /// Analyze a slice expression
+    fn analyze_slice_expr(
+        &mut self,
+        base: &HirExpr,
+        start: &Option<Box<HirExpr>>,
+        stop: &Option<Box<HirExpr>>,
+        step: &Option<Box<HirExpr>>,
+        borrow_depth: usize,
+    ) {
+        self.analyze_expression(base, borrow_depth);
+        if let Some(s) = start {
+            self.analyze_expression(s, borrow_depth);
+        }
+        if let Some(s) = stop {
+            self.analyze_expression(s, borrow_depth);
+        }
+        if let Some(s) = step {
+            self.analyze_expression(s, borrow_depth);
+        }
+    }
+
+    /// Analyze a list/set comprehension expression
+    fn analyze_comprehension_expr(
+        &mut self,
+        element: &HirExpr,
+        generators: &[depyler_hir::hir::HirComprehension],
+        borrow_depth: usize,
+    ) {
+        self.context_stack.push(AnalysisContext::Loop);
+        for gen in generators {
+            self.analyze_expression(&gen.iter, borrow_depth);
+            for cond in &gen.conditions {
+                self.analyze_expression(cond, borrow_depth);
+            }
+        }
+        self.analyze_expression(element, borrow_depth);
+        self.context_stack.pop();
+    }
+
+    /// Analyze a dict comprehension expression
+    fn analyze_dict_comp_expr(
+        &mut self,
+        key: &HirExpr,
+        value: &HirExpr,
+        generators: &[depyler_hir::hir::HirComprehension],
+        borrow_depth: usize,
+    ) {
+        self.context_stack.push(AnalysisContext::Loop);
+        for gen in generators {
+            self.analyze_expression(&gen.iter, borrow_depth);
+            for cond in &gen.conditions {
+                self.analyze_expression(cond, borrow_depth);
+            }
+        }
+        self.analyze_expression(key, borrow_depth);
+        self.analyze_expression(value, borrow_depth);
+        self.context_stack.pop();
+    }
+
+    /// Analyze a generator expression
+    fn analyze_generator_expr(
+        &mut self,
+        element: &HirExpr,
+        generators: &[depyler_hir::hir::HirComprehension],
+        borrow_depth: usize,
+    ) {
+        self.analyze_expression(element, borrow_depth);
+        for gen in generators {
+            self.analyze_expression(&gen.iter, borrow_depth);
+            for cond in &gen.conditions {
+                self.analyze_expression(cond, borrow_depth);
             }
         }
     }
