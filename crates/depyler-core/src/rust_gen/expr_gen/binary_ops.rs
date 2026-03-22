@@ -93,121 +93,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq | BinOp::Eq | BinOp::NotEq
         );
 
-        // DEPYLER-1109: Universal PyOps Dispatch (NASA Mode)
-        // Delegate arithmetic/indexing to PyOps traits to handle type coercion (i32+f64, etc.)
-        // Note: Wrap left_expr in parens to handle cast expressions (a as f64).method() is invalid
+        // CB-200 Final: NASA PyOps dispatch for arithmetic operators
         if self.ctx.type_mapper.nasa_mode && !is_comparison {
-            // DEPYLER-1163: Check if return type expects int for division
-            // py_div always returns f64, so we need to cast when int is expected
-            let return_expects_int = self
-                .ctx
-                .current_return_type
-                .as_ref()
-                .map(crate::rust_gen::func_gen::return_type_expects_int)
-                .unwrap_or(false);
-
-            // DEPYLER-E0282-FIX: Add i32 suffix to integer literals to resolve
-            // type inference ambiguity with PyOps traits that have multiple impls
-            let left_pyops = if let HirExpr::Literal(Literal::Int(n)) = left {
-                // Only add suffix for small integers that fit in i32
-                if *n >= i32::MIN as i64 && *n <= i32::MAX as i64 {
-                    let lit_str = format!("{}i32", n);
-                    let lit = syn::LitInt::new(&lit_str, proc_macro2::Span::call_site());
-                    parse_quote! { #lit }
-                } else {
-                    left_expr.clone()
-                }
-            } else {
-                left_expr.clone()
-            };
-            let right_pyops = if let HirExpr::Literal(Literal::Int(n)) = right {
-                if *n >= i32::MIN as i64 && *n <= i32::MAX as i64 {
-                    let lit_str = format!("{}i32", n);
-                    let lit = syn::LitInt::new(&lit_str, proc_macro2::Span::call_site());
-                    parse_quote! { #lit }
-                } else {
-                    right_expr.clone()
-                }
-            } else {
-                right_expr.clone()
-            };
-
-            // DEPYLER-E0282-FIX: When left operand is also a binary arithmetic expression,
-            // add explicit type cast to help Rust infer intermediate types in chains.
-            // Pattern: ((a).py_add(b)).py_add(c) fails type inference
-            // Fix: ((a).py_add(b) as i32).py_add(c) provides type anchor for intermediate result
-            //
-            // DEPYLER-STRING-CONCAT-FIX: Skip cast for string concatenation
-            // String + String = String, casting to i32 is wrong
-            let left_is_string = self.expr_is_string_type(left);
-            let right_is_string = self.expr_is_string_type(right);
-            // DEPYLER-99MODE-S9: Detect char iteration variables - char doesn't implement PyAdd
-            let left_is_char_iter = if let HirExpr::Var(name) = left {
-                self.ctx.char_iter_vars.contains(name.as_str())
-            } else {
-                false
-            };
-            let right_is_char_iter = if let HirExpr::Var(name) = right {
-                self.ctx.char_iter_vars.contains(name.as_str())
-            } else {
-                false
-            };
-            let is_string_concat =
-                left_is_string || right_is_string || left_is_char_iter || right_is_char_iter;
-
-            let left_is_chain = if let HirExpr::Binary { op: inner_op, .. } = left {
-                matches!(inner_op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod)
-            } else {
-                false
-            };
-            // Add type cast when we detect a chain to help Rust infer intermediate types
-            // DEPYLER-STRING-CONCAT-FIX: Skip cast for string operations
-            let left_typed: syn::Expr = if left_is_chain && !is_string_concat {
-                let return_expects_float = self
-                    .ctx
-                    .current_return_type
-                    .as_ref()
-                    .map(crate::rust_gen::func_gen::return_type_expects_float)
-                    .unwrap_or(false);
-                // DEPYLER-99MODE-S9: Also check if either operand is float-typed.
-                // For functions returning bool/int, float operands still need f64 cast.
-                let operand_is_float =
-                    self.expr_is_float_type(left) || self.expr_is_float_type(right);
-                if return_expects_float || operand_is_float {
-                    parse_quote! { (#left_pyops as f64) }
-                } else {
-                    parse_quote! { (#left_pyops as i32) }
-                }
-            } else {
-                left_pyops
-            };
-
-            // DEPYLER-99MODE-S9: Skip py_sub for set types - use .difference() instead
-            // Set subtraction must be handled separately since py_sub takes ownership
-            // but set difference needs references for cloned collection semantics
-            let is_set_sub =
-                matches!(op, BinOp::Sub) && (self.is_set_expr(left) || self.is_set_expr(right));
-
-            match op {
-                // DEPYLER-99MODE-S9: Skip py_add for string/char concat - fall through to regular path
-                BinOp::Add if !is_string_concat => {
-                    return Ok(parse_quote! { (#left_typed).py_add(#right_pyops) });
-                }
-                // DEPYLER-99MODE-S9: Let set subtraction fall through to set-specific handler
-                BinOp::Sub if !is_set_sub => {
-                    return Ok(parse_quote! { (#left_typed).py_sub(#right_pyops) });
-                }
-                BinOp::Mul => return Ok(parse_quote! { (#left_typed).py_mul(#right_pyops) }),
-                BinOp::Div => {
-                    // DEPYLER-1163: Cast py_div result to i32 when return type expects int
-                    if return_expects_int {
-                        return Ok(parse_quote! { ((#left_typed).py_div(#right_pyops) as i32) });
-                    } else {
-                        return Ok(parse_quote! { (#left_typed).py_div(#right_pyops) });
-                    }
-                }
-                BinOp::Mod => return Ok(parse_quote! { (#left_typed).py_mod(#right_pyops) }),
-                _ => {}
+            if let Some(result) = self.try_nasa_pyops_dispatch(op, left, right, &left_expr, &right_expr)? {
+                return Ok(result);
             }
         }
 
@@ -302,33 +191,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             BinOp::Sub if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
                 Ok(parse_quote! { #left_expr.sub(&#right_expr).expect("arithmetic overflow") })
             }
-            BinOp::Sub => {
-                // Check if we're subtracting from a .len() call to prevent underflow
-                if self.is_len_call(left) {
-                    // Use saturating_sub to prevent underflow when subtracting from array length
-                    // Wrap left_expr in parens because it contains a cast: (arr.len() as i32).saturating_sub(x)
-                    // Without parens, Rust parses "as i32.saturating_sub" incorrectly
-                    Ok(parse_quote! { (#left_expr).saturating_sub(#right_expr) })
-                } else {
-                    // DEPYLER-0758: Dereference borrowed params in arithmetic operations
-                    // Fixes E0369: cannot subtract NaiveDate from &NaiveDate
-                    let left_deref = self.deref_if_borrowed_param(left, left_expr);
-                    let right_deref = self.deref_if_borrowed_param(right, right_expr);
-
-                    // DEPYLER-0582: Coerce int to float if operating with float
-                    let left_coerced = self.coerce_int_to_float_if_needed(left_deref, left, right);
-                    let right_coerced =
-                        self.coerce_int_to_float_if_needed(right_deref, right, left);
-
-                    // DEPYLER-1109: Universal PyOps Dispatch for subtraction
-                    if self.ctx.type_mapper.nasa_mode {
-                        return Ok(parse_quote! { #left_coerced.py_sub(#right_coerced) });
-                    }
-
-                    let rust_op = convert_binop(op)?;
-                    Ok(parse_quote! { #left_coerced #rust_op #right_coerced })
-                }
-            }
+            // CB-200 Final: Subtraction operator delegated to extracted helper
+            BinOp::Sub => self.convert_sub_op(left, right, left_expr, right_expr, op),
             // DEPYLER-REFACTOR-001 Phase 2.8: Delegate to extracted helper
             BinOp::Mul => self.convert_mul_op(left, right, left_expr, right_expr, op),
             // DEPYLER-0575: Vector-scalar division for trueno
@@ -343,279 +207,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             BinOp::Div if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
                 Ok(parse_quote! { #left_expr.div(&#right_expr).expect("division failed") })
             }
-            BinOp::Div => {
-                // DEPYLER-0188: Check if this is pathlib Path division (path / "segment")
-                // Python: Path(__file__).parent / "file.py"
-                // Rust: PathBuf::from(file!()).parent().unwrap().join("file.py")
-                if self.is_path_expr(left) {
-                    // Convert division to .join() for path concatenation
-                    return Ok(parse_quote! { #left_expr.join(#right_expr) });
-                }
-
-                // DEPYLER-1109: Universal PyOps Dispatch for division
-                if self.ctx.type_mapper.nasa_mode {
-                    return Ok(parse_quote! { #left_expr.py_div(#right_expr) });
-                }
-
-                // DEPYLER-0658: Check if either operand is a float
-                // Rust can't divide i32 by f64 or vice versa - need to cast both to f64
-                let left_is_float = self.expr_returns_float(left);
-                let right_is_float = self.expr_returns_float(right);
-                let has_float_operand = left_is_float || right_is_float;
-
-                // v3.16.0 Phase 2: Python's `/` always returns float
-                // Rust's `/` does integer division when both operands are integers
-                // Check if we need to cast to float based on return type context
-                let needs_float_division = self
-                    .ctx
-                    .current_return_type
-                    .as_ref()
-                    .map(return_type_expects_float)
-                    .unwrap_or(false);
-
-                if needs_float_division || has_float_operand {
-                    // Cast both operands to f64 for Python float division semantics
-                    // or for mixed int/float operations
-                    // DEPYLER-0802: Double-wrap operands to ensure correct operator precedence
-                    // Without inner parens: (n - 1 as f64) parses as (n - (1 as f64)) due to `as` precedence
-                    // With inner parens: ((n - 1) as f64) correctly casts the entire expression
-                    Ok(parse_quote! { ((#left_expr) as f64) / ((#right_expr) as f64) })
-                } else {
-                    // Regular division (int/int → int, float/float → float)
-                    let rust_op = convert_binop(op)?;
-                    // DEPYLER-0582: Wrap operands in parens if they have lower precedence
-                    let left_wrapped = precedence::parenthesize_if_lower_precedence(left_expr, op);
-                    let right_wrapped =
-                        precedence::parenthesize_if_lower_precedence(right_expr, op);
-                    Ok(syn::Expr::Binary(syn::ExprBinary {
-                        attrs: vec![],
-                        left: Box::new(left_wrapped),
-                        op: rust_op,
-                        right: Box::new(right_wrapped),
-                    }))
-                }
-            }
+            // CB-200 Final: Division operator delegated to extracted helper
+            BinOp::Div => self.convert_div_op(left, right, left_expr, right_expr, op),
             // DEPYLER-REFACTOR-001 Phase 2.8: Delegate to extracted helper
             BinOp::Pow => self.convert_pow_op(left, right, left_expr, right_expr),
-            // DEPYLER-0422: Logical operators need Python truthiness conversion
-            // Python: `if a and b:` where a, b are strings/lists/etc.
-            // Rust: `if (!a.is_empty()) && (!b.is_empty())`
+            // CB-200 Final: Logical operators delegated to extracted helper
             BinOp::And | BinOp::Or => {
-                // DEPYLER-0633: For Option or default pattern, use unwrap_or instead of ||
-                // Python: path = env.get("KEY") or "default"
-                // Rust: path = env.get("KEY").unwrap_or("default")
-                if matches!(op, BinOp::Or) && expr_analysis::looks_like_option_expr(left) {
-                    // The right side is the default value - convert to unwrap_or
-                    return Ok(parse_quote! { #left_expr.unwrap_or(#right_expr.to_string()) });
-                }
-
-                // DEPYLER-0786: Python `or` returns first truthy value, not a boolean
-                // For strings: `value or default` → `if value.is_empty() { default } else { value }`
-                // This preserves the string type instead of returning bool
-                if matches!(op, BinOp::Or) {
-                    let left_is_string = self.expr_is_string_type(left);
-                    let right_is_string = self.expr_is_string_type(right)
-                        || matches!(right, HirExpr::Literal(Literal::String(_)));
-
-                    // DEPYLER-0786: If right is a string literal, assume left is also string
-                    // This handles cases where function parameters aren't tracked in var_types
-                    // Example: `email or ""` where email: &str is a function parameter
-                    let infer_left_from_right =
-                        matches!(right, HirExpr::Literal(Literal::String(_)));
-
-                    if (left_is_string || infer_left_from_right) && right_is_string {
-                        // Generate: if left.is_empty() { right } else { left }
-                        // Need to clone left_expr since we use it twice
-                        return Ok(
-                            parse_quote! { if #left_expr.is_empty() { #right_expr.to_string() } else { #left_expr.to_string() } },
-                        );
-                    }
-                }
-
-                // DEPYLER-1127: Python `or`/`and` are VALUE-RETURNING, not boolean operators
-                // Python: x or y → returns x if truthy, else y (not True/False!)
-                // Python: x and y → returns x if falsy, else y (not True/False!)
-                // This is fundamentally different from Rust's || and && which return bool.
-                //
-                // Pattern: `wait = get_time() or 0.1` should return the time or 0.1, not bool
-                // Pattern: `result = data and process(data)` should return data or process result
-                //
-                // We detect non-boolean operands and generate value-returning if-else:
-                // x or y → { let _v = x; if _v.is_true() { _v } else { y } }
-                // x and y → { let _v = x; if !_v.is_true() { _v } else { y } }
-                let left_is_bool_expr = self.expr_is_boolean_expr(left);
-                let right_is_bool_expr = self.expr_is_boolean_expr(right);
-
-                // DEPYLER-99MODE-S9: When either operand is a declared bool variable,
-                // skip the value-returning DepylerValue path and use standard && / ||.
-                // Python `result = result and val` with result: bool should produce
-                // bool, not DepylerValue. Without this, the DepylerValue wrapping
-                // overwrites the bool type in var_types, causing .is_empty() on bools.
-                let either_is_bool_var = {
-                    let l = if let HirExpr::Var(name) = left {
-                        matches!(self.ctx.var_types.get(name.as_str()), Some(Type::Bool))
-                    } else {
-                        false
-                    };
-                    let r = if let HirExpr::Var(name) = right {
-                        matches!(self.ctx.var_types.get(name.as_str()), Some(Type::Bool))
-                    } else {
-                        false
-                    };
-                    l || r
-                };
-
-                // If BOTH operands are boolean expressions, use standard && / ||
-                // If EITHER operand is a declared bool variable, also use standard && / ||
-                // Otherwise, generate value-returning pattern
-                if (!left_is_bool_expr || !right_is_bool_expr) && !either_is_bool_var {
-                    // Check if either operand is DepylerValue (needs special handling)
-                    let left_is_depyler = self.expr_is_depyler_value(left);
-                    let right_is_depyler = self.expr_is_depyler_value(right);
-                    let right_is_int_literal = matches!(right, HirExpr::Literal(Literal::Int(_)));
-                    let right_is_float_literal =
-                        matches!(right, HirExpr::Literal(Literal::Float(_)));
-
-                    // When either side is DepylerValue, wrap the other side too
-                    if left_is_depyler || right_is_depyler {
-                        // Wrap right-hand side if it's a literal and left is DepylerValue
-                        let right_wrapped: syn::Expr = if left_is_depyler && !right_is_depyler {
-                            if right_is_int_literal {
-                                parse_quote! { DepylerValue::Int(#right_expr as i64) }
-                            } else if right_is_float_literal {
-                                parse_quote! { DepylerValue::Float(#right_expr as f64) }
-                            } else {
-                                // Try .into() conversion for other types
-                                parse_quote! { DepylerValue::from(#right_expr) }
-                            }
-                        } else {
-                            right_expr.clone()
-                        };
-
-                        // Wrap left-hand side if right is DepylerValue and left is not
-                        let left_wrapped: syn::Expr = if right_is_depyler && !left_is_depyler {
-                            let left_is_int = matches!(left, HirExpr::Literal(Literal::Int(_)));
-                            let left_is_float = matches!(left, HirExpr::Literal(Literal::Float(_)));
-                            if left_is_int {
-                                parse_quote! { DepylerValue::Int(#left_expr as i64) }
-                            } else if left_is_float {
-                                parse_quote! { DepylerValue::Float(#left_expr as f64) }
-                            } else {
-                                parse_quote! { DepylerValue::from(#left_expr) }
-                            }
-                        } else {
-                            left_expr.clone()
-                        };
-
-                        // Generate value-returning pattern with PyTruthy
-                        return match op {
-                            BinOp::Or => Ok(parse_quote! {
-                                {
-                                    let _or_lhs = #left_wrapped;
-                                    if _or_lhs.is_true() { _or_lhs } else { #right_wrapped }
-                                }
-                            }),
-                            BinOp::And => Ok(parse_quote! {
-                                {
-                                    let _and_lhs = #left_wrapped;
-                                    if !_and_lhs.is_true() { _and_lhs } else { #right_wrapped }
-                                }
-                            }),
-                            _ => unreachable!(),
-                        };
-                    }
-
-                    // For non-DepylerValue, non-boolean expressions:
-                    // Generate value-returning pattern only for numeric defaults
-                    // DEPYLER-1127: If left could be DepylerValue (e.g., from dict.get chain),
-                    // we need to wrap the literal in DepylerValue to ensure type match.
-                    // Detection of dict chains: .get(), .cloned(), .unwrap_or() patterns
-                    let left_might_be_depyler = self.expr_might_be_depyler_value(left);
-
-                    if right_is_int_literal || right_is_float_literal {
-                        // If left might be DepylerValue, wrap the literal
-                        let right_safe: syn::Expr = if left_might_be_depyler {
-                            if right_is_int_literal {
-                                parse_quote! { DepylerValue::Int(#right_expr as i64) }
-                            } else {
-                                parse_quote! { DepylerValue::Float(#right_expr as f64) }
-                            }
-                        } else {
-                            right_expr.clone()
-                        };
-
-                        return match op {
-                            BinOp::Or => Ok(parse_quote! {
-                                {
-                                    let _or_lhs = #left_expr;
-                                    if _or_lhs.is_true() { _or_lhs } else { #right_safe }
-                                }
-                            }),
-                            BinOp::And => Ok(parse_quote! {
-                                {
-                                    let _and_lhs = #left_expr;
-                                    if !_and_lhs.is_true() { _and_lhs } else { #right_safe }
-                                }
-                            }),
-                            _ => unreachable!(),
-                        };
-                    }
-                }
-
-                // Fall through: Apply truthiness conversion to both operands for bool context
-                let left_converted = Self::apply_truthiness_conversion(left, left_expr, self.ctx);
-                let right_converted =
-                    Self::apply_truthiness_conversion(right, right_expr, self.ctx);
-
-                // Generate the logical operator
-                match op {
-                    BinOp::And => Ok(parse_quote! { (#left_converted) && (#right_converted) }),
-                    BinOp::Or => Ok(parse_quote! { (#left_converted) || (#right_converted) }),
-                    _ => unreachable!(),
-                }
+                self.convert_logical_op(op, left, right, left_expr, right_expr)
             }
-            _ => {
-                // DEPYLER-1109: Universal PyOps Dispatch for modulo
-                // In NASA mode, use PyOps trait methods for ALL arithmetic operations
-                if matches!(op, BinOp::Mod) && self.ctx.type_mapper.nasa_mode {
-                    return Ok(parse_quote! { #left_expr.py_mod(#right_expr) });
-                }
-
-                let rust_op = convert_binop(op)?;
-                // DEPYLER-0339: Construct syn::ExprBinary directly instead of using parse_quote!
-                // parse_quote! doesn't properly handle interpolated syn::BinOp values
-
-                // DEPYLER-1051: Coerce int to float for comparison operators
-                // Python allows comparing float with int: `x == 0` where x is float
-                // Rust requires same types: `x == 0.0`
-                let is_comparison = matches!(
-                    op,
-                    BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
-                );
-                let (left_coerced, right_coerced) = if is_comparison {
-                    (
-                        self.coerce_int_to_float_if_needed(left_expr, left, right),
-                        self.coerce_int_to_float_if_needed(right_expr, right, left),
-                    )
-                } else {
-                    (left_expr, right_expr)
-                };
-
-                // DEPYLER-0576: Parenthesize right side when it's a unary negation
-                // Prevents "<-" tokenization issue: x < -20.0 becomes x<- 20.0 without parens
-                let right_expr_final = if matches!(right, HirExpr::Unary { op: UnaryOp::Neg, .. }) {
-                    parse_quote! { (#right_coerced) }
-                } else {
-                    right_coerced
-                };
-
-                Ok(syn::Expr::Binary(syn::ExprBinary {
-                    attrs: vec![],
-                    left: Box::new(left_coerced),
-                    op: rust_op,
-                    right: Box::new(right_expr_final),
-                }))
-            }
+            // CB-200 Final: Default operator handling delegated to extracted helper
+            _ => self.convert_default_op(op, left, right, left_expr, right_expr),
         }
     }
 
@@ -988,6 +589,436 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 stmts: vec![syn::Stmt::Expr(expr, None)],
             },
         })
+    }
+
+    // ========================================================================
+    // CB-200 Final: Helpers extracted from convert_binary
+    // ========================================================================
+
+    /// CB-200 Final: NASA PyOps dispatch for arithmetic operators
+    fn try_nasa_pyops_dispatch(
+        &mut self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Result<Option<syn::Expr>> {
+        let return_expects_int = self
+            .ctx
+            .current_return_type
+            .as_ref()
+            .map(crate::rust_gen::func_gen::return_type_expects_int)
+            .unwrap_or(false);
+
+        let left_pyops = Self::pyops_suffix_int_literal(left, left_expr);
+        let right_pyops = Self::pyops_suffix_int_literal(right, right_expr);
+
+        let is_string_concat = self.is_string_or_char_concat(left, right);
+        let left_typed = self.pyops_chain_type_cast(left, right, &left_pyops, is_string_concat);
+
+        let is_set_sub =
+            matches!(op, BinOp::Sub) && (self.is_set_expr(left) || self.is_set_expr(right));
+
+        match op {
+            BinOp::Add if !is_string_concat => {
+                Ok(Some(parse_quote! { (#left_typed).py_add(#right_pyops) }))
+            }
+            BinOp::Sub if !is_set_sub => {
+                Ok(Some(parse_quote! { (#left_typed).py_sub(#right_pyops) }))
+            }
+            BinOp::Mul => Ok(Some(parse_quote! { (#left_typed).py_mul(#right_pyops) })),
+            BinOp::Div => {
+                if return_expects_int {
+                    Ok(Some(parse_quote! { ((#left_typed).py_div(#right_pyops) as i32) }))
+                } else {
+                    Ok(Some(parse_quote! { (#left_typed).py_div(#right_pyops) }))
+                }
+            }
+            BinOp::Mod => Ok(Some(parse_quote! { (#left_typed).py_mod(#right_pyops) })),
+            _ => Ok(None),
+        }
+    }
+
+    /// CB-200 Final: Add i32 suffix to integer literals for PyOps type inference
+    fn pyops_suffix_int_literal(hir: &HirExpr, expr: &syn::Expr) -> syn::Expr {
+        if let HirExpr::Literal(Literal::Int(n)) = hir {
+            if *n >= i32::MIN as i64 && *n <= i32::MAX as i64 {
+                let lit_str = format!("{}i32", n);
+                let lit = syn::LitInt::new(&lit_str, proc_macro2::Span::call_site());
+                return parse_quote! { #lit };
+            }
+        }
+        expr.clone()
+    }
+
+    /// CB-200 Final: Check if operands involve string/char concatenation
+    fn is_string_or_char_concat(&self, left: &HirExpr, right: &HirExpr) -> bool {
+        let left_is_string = self.expr_is_string_type(left);
+        let right_is_string = self.expr_is_string_type(right);
+        let left_is_char_iter = if let HirExpr::Var(name) = left {
+            self.ctx.char_iter_vars.contains(name.as_str())
+        } else {
+            false
+        };
+        let right_is_char_iter = if let HirExpr::Var(name) = right {
+            self.ctx.char_iter_vars.contains(name.as_str())
+        } else {
+            false
+        };
+        left_is_string || right_is_string || left_is_char_iter || right_is_char_iter
+    }
+
+    /// CB-200 Final: Add type cast for chained PyOps expressions
+    fn pyops_chain_type_cast(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_pyops: &syn::Expr,
+        is_string_concat: bool,
+    ) -> syn::Expr {
+        let left_is_chain = if let HirExpr::Binary { op: inner_op, .. } = left {
+            matches!(inner_op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod)
+        } else {
+            false
+        };
+        if left_is_chain && !is_string_concat {
+            let return_expects_float = self
+                .ctx
+                .current_return_type
+                .as_ref()
+                .map(crate::rust_gen::func_gen::return_type_expects_float)
+                .unwrap_or(false);
+            let operand_is_float =
+                self.expr_is_float_type(left) || self.expr_is_float_type(right);
+            if return_expects_float || operand_is_float {
+                parse_quote! { (#left_pyops as f64) }
+            } else {
+                parse_quote! { (#left_pyops as i32) }
+            }
+        } else {
+            left_pyops.clone()
+        }
+    }
+
+    /// CB-200 Final: Subtraction operator handler
+    fn convert_sub_op(
+        &mut self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+        op: BinOp,
+    ) -> Result<syn::Expr> {
+        if self.is_len_call(left) {
+            return Ok(parse_quote! { (#left_expr).saturating_sub(#right_expr) });
+        }
+        let left_deref = self.deref_if_borrowed_param(left, left_expr);
+        let right_deref = self.deref_if_borrowed_param(right, right_expr);
+        let left_coerced = self.coerce_int_to_float_if_needed(left_deref, left, right);
+        let right_coerced = self.coerce_int_to_float_if_needed(right_deref, right, left);
+
+        if self.ctx.type_mapper.nasa_mode {
+            return Ok(parse_quote! { #left_coerced.py_sub(#right_coerced) });
+        }
+
+        let rust_op = convert_binop(op)?;
+        Ok(parse_quote! { #left_coerced #rust_op #right_coerced })
+    }
+
+    /// CB-200 Final: Division operator handler
+    fn convert_div_op(
+        &mut self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+        op: BinOp,
+    ) -> Result<syn::Expr> {
+        if self.is_path_expr(left) {
+            return Ok(parse_quote! { #left_expr.join(#right_expr) });
+        }
+        if self.ctx.type_mapper.nasa_mode {
+            return Ok(parse_quote! { #left_expr.py_div(#right_expr) });
+        }
+
+        let left_is_float = self.expr_returns_float(left);
+        let right_is_float = self.expr_returns_float(right);
+        let has_float_operand = left_is_float || right_is_float;
+        let needs_float_division = self
+            .ctx
+            .current_return_type
+            .as_ref()
+            .map(return_type_expects_float)
+            .unwrap_or(false);
+
+        if needs_float_division || has_float_operand {
+            Ok(parse_quote! { ((#left_expr) as f64) / ((#right_expr) as f64) })
+        } else {
+            let rust_op = convert_binop(op)?;
+            let left_wrapped = precedence::parenthesize_if_lower_precedence(left_expr, op);
+            let right_wrapped = precedence::parenthesize_if_lower_precedence(right_expr, op);
+            Ok(syn::Expr::Binary(syn::ExprBinary {
+                attrs: vec![],
+                left: Box::new(left_wrapped),
+                op: rust_op,
+                right: Box::new(right_wrapped),
+            }))
+        }
+    }
+
+    /// CB-200 Final: Logical And/Or operator handler
+    fn convert_logical_op(
+        &mut self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+    ) -> Result<syn::Expr> {
+        // Option or default pattern
+        if matches!(op, BinOp::Or) && expr_analysis::looks_like_option_expr(left) {
+            return Ok(parse_quote! { #left_expr.unwrap_or(#right_expr.to_string()) });
+        }
+
+        // String or pattern
+        if let Some(result) = self.try_string_or_pattern(op, left, right, &left_expr, &right_expr) {
+            return Ok(result);
+        }
+
+        // Value-returning pattern for non-boolean operands
+        if let Some(result) = self.try_value_returning_logical(op, left, right, &left_expr, &right_expr)? {
+            return Ok(result);
+        }
+
+        // Fall through: standard boolean && / ||
+        let left_converted = Self::apply_truthiness_conversion(left, left_expr, self.ctx);
+        let right_converted = Self::apply_truthiness_conversion(right, right_expr, self.ctx);
+        match op {
+            BinOp::And => Ok(parse_quote! { (#left_converted) && (#right_converted) }),
+            BinOp::Or => Ok(parse_quote! { (#left_converted) || (#right_converted) }),
+            _ => unreachable!(),
+        }
+    }
+
+    /// CB-200 Final: Try string or pattern (value or default)
+    fn try_string_or_pattern(
+        &self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Option<syn::Expr> {
+        if !matches!(op, BinOp::Or) {
+            return None;
+        }
+        let left_is_string = self.expr_is_string_type(left);
+        let right_is_string = self.expr_is_string_type(right)
+            || matches!(right, HirExpr::Literal(Literal::String(_)));
+        let infer_left_from_right = matches!(right, HirExpr::Literal(Literal::String(_)));
+
+        if (left_is_string || infer_left_from_right) && right_is_string {
+            Some(parse_quote! { if #left_expr.is_empty() { #right_expr.to_string() } else { #left_expr.to_string() } })
+        } else {
+            None
+        }
+    }
+
+    /// CB-200 Final: Try value-returning logical operators for non-boolean operands
+    fn try_value_returning_logical(
+        &self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Result<Option<syn::Expr>> {
+        let left_is_bool_expr = self.expr_is_boolean_expr(left);
+        let right_is_bool_expr = self.expr_is_boolean_expr(right);
+        let either_is_bool_var = self.either_is_bool_var(left, right);
+
+        if (left_is_bool_expr && right_is_bool_expr) || either_is_bool_var {
+            return Ok(None);
+        }
+
+        // DepylerValue operands
+        if let Some(result) = self.try_depyler_value_logical(op, left, right, left_expr, right_expr)? {
+            return Ok(Some(result));
+        }
+
+        // Numeric literal defaults
+        if let Some(result) = self.try_numeric_default_logical(op, left, right, left_expr, right_expr)? {
+            return Ok(Some(result));
+        }
+
+        Ok(None)
+    }
+
+    /// CB-200 Final: Check if either operand is a declared bool variable
+    fn either_is_bool_var(&self, left: &HirExpr, right: &HirExpr) -> bool {
+        let l = if let HirExpr::Var(name) = left {
+            matches!(self.ctx.var_types.get(name.as_str()), Some(Type::Bool))
+        } else {
+            false
+        };
+        let r = if let HirExpr::Var(name) = right {
+            matches!(self.ctx.var_types.get(name.as_str()), Some(Type::Bool))
+        } else {
+            false
+        };
+        l || r
+    }
+
+    /// CB-200 Final: Handle DepylerValue operands in logical expressions
+    fn try_depyler_value_logical(
+        &self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Result<Option<syn::Expr>> {
+        let left_is_depyler = self.expr_is_depyler_value(left);
+        let right_is_depyler = self.expr_is_depyler_value(right);
+
+        if !left_is_depyler && !right_is_depyler {
+            return Ok(None);
+        }
+
+        let right_wrapped = self.wrap_for_depyler_value(right, right_expr, left_is_depyler, right_is_depyler);
+        let left_wrapped = self.wrap_for_depyler_value_left(left, left_expr, left_is_depyler, right_is_depyler);
+
+        match op {
+            BinOp::Or => Ok(Some(parse_quote! {
+                { let _or_lhs = #left_wrapped; if _or_lhs.is_true() { _or_lhs } else { #right_wrapped } }
+            })),
+            BinOp::And => Ok(Some(parse_quote! {
+                { let _and_lhs = #left_wrapped; if !_and_lhs.is_true() { _and_lhs } else { #right_wrapped } }
+            })),
+            _ => unreachable!(),
+        }
+    }
+
+    /// CB-200 Final: Wrap right operand for DepylerValue logical expression
+    fn wrap_for_depyler_value(
+        &self,
+        right: &HirExpr,
+        right_expr: &syn::Expr,
+        left_is_depyler: bool,
+        right_is_depyler: bool,
+    ) -> syn::Expr {
+        if left_is_depyler && !right_is_depyler {
+            if matches!(right, HirExpr::Literal(Literal::Int(_))) {
+                parse_quote! { DepylerValue::Int(#right_expr as i64) }
+            } else if matches!(right, HirExpr::Literal(Literal::Float(_))) {
+                parse_quote! { DepylerValue::Float(#right_expr as f64) }
+            } else {
+                parse_quote! { DepylerValue::from(#right_expr) }
+            }
+        } else {
+            right_expr.clone()
+        }
+    }
+
+    /// CB-200 Final: Wrap left operand for DepylerValue logical expression
+    fn wrap_for_depyler_value_left(
+        &self,
+        left: &HirExpr,
+        left_expr: &syn::Expr,
+        left_is_depyler: bool,
+        right_is_depyler: bool,
+    ) -> syn::Expr {
+        if right_is_depyler && !left_is_depyler {
+            if matches!(left, HirExpr::Literal(Literal::Int(_))) {
+                parse_quote! { DepylerValue::Int(#left_expr as i64) }
+            } else if matches!(left, HirExpr::Literal(Literal::Float(_))) {
+                parse_quote! { DepylerValue::Float(#left_expr as f64) }
+            } else {
+                parse_quote! { DepylerValue::from(#left_expr) }
+            }
+        } else {
+            left_expr.clone()
+        }
+    }
+
+    /// CB-200 Final: Handle numeric literal defaults in logical expressions
+    fn try_numeric_default_logical(
+        &self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Result<Option<syn::Expr>> {
+        let right_is_int_literal = matches!(right, HirExpr::Literal(Literal::Int(_)));
+        let right_is_float_literal = matches!(right, HirExpr::Literal(Literal::Float(_)));
+
+        if !right_is_int_literal && !right_is_float_literal {
+            return Ok(None);
+        }
+
+        let left_might_be_depyler = self.expr_might_be_depyler_value(left);
+        let right_safe: syn::Expr = if left_might_be_depyler {
+            if right_is_int_literal {
+                parse_quote! { DepylerValue::Int(#right_expr as i64) }
+            } else {
+                parse_quote! { DepylerValue::Float(#right_expr as f64) }
+            }
+        } else {
+            right_expr.clone()
+        };
+
+        match op {
+            BinOp::Or => Ok(Some(parse_quote! {
+                { let _or_lhs = #left_expr; if _or_lhs.is_true() { _or_lhs } else { #right_safe } }
+            })),
+            BinOp::And => Ok(Some(parse_quote! {
+                { let _and_lhs = #left_expr; if !_and_lhs.is_true() { _and_lhs } else { #right_safe } }
+            })),
+            _ => unreachable!(),
+        }
+    }
+
+    /// CB-200 Final: Default operator handling (comparisons, bitwise, modulo fallback)
+    fn convert_default_op(
+        &mut self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+    ) -> Result<syn::Expr> {
+        if matches!(op, BinOp::Mod) && self.ctx.type_mapper.nasa_mode {
+            return Ok(parse_quote! { #left_expr.py_mod(#right_expr) });
+        }
+
+        let rust_op = convert_binop(op)?;
+        let is_comparison = matches!(
+            op,
+            BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
+        );
+        let (left_coerced, right_coerced) = if is_comparison {
+            (
+                self.coerce_int_to_float_if_needed(left_expr, left, right),
+                self.coerce_int_to_float_if_needed(right_expr, right, left),
+            )
+        } else {
+            (left_expr, right_expr)
+        };
+
+        let right_expr_final = if matches!(right, HirExpr::Unary { op: UnaryOp::Neg, .. }) {
+            parse_quote! { (#right_coerced) }
+        } else {
+            right_coerced
+        };
+
+        Ok(syn::Expr::Binary(syn::ExprBinary {
+            attrs: vec![],
+            left: Box::new(left_coerced),
+            op: rust_op,
+            right: Box::new(right_expr_final),
+        }))
     }
 
     /// DEPYLER-REFACTOR-001 Phase 2.7: Extracted multiplication operator helper

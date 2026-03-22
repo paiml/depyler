@@ -84,66 +84,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(result);
         }
 
-        // DEPYLER-0558: Handle hasher methods (hexdigest, update) for incremental hashing
-        // DEPYLER-1002: Use finalize_reset() for Box<dyn DynDigest> compatibility
-        if method == "hexdigest" {
-            self.ctx.needs_hex = true;
-            self.ctx.needs_digest = true;
-            let object_expr = object.to_rust_expr(self.ctx)?;
-            // hexdigest() on hasher → hex::encode(hasher.finalize_reset())
-            // finalize_reset() works with Box<dyn DynDigest>
-            return Ok(parse_quote! {
-                {
-                    use digest::DynDigest;
-                    hex::encode(#object_expr.finalize_reset())
-                }
-            });
+        // CB-200 Final: Hasher/Counter method dispatch
+        if let Some(result) = self.try_convert_hasher_method(object, method, args)? {
+            return Ok(result);
         }
-
-        // DEPYLER-0750: Handle Counter.most_common(n)
-        // counter.most_common(n) → sort HashMap by value descending, take n
-        if method == "most_common" {
-            let object_expr = object.to_rust_expr(self.ctx)?;
-            let arg_exprs: Vec<syn::Expr> =
-                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
-
-            if let Some(n_arg) = arg_exprs.first() {
-                // With n argument: take top n
-                return Ok(parse_quote! {
-                    {
-                        let mut entries: Vec<_> = #object_expr.iter().map(|(k, v)| (k.clone(), *v)).collect();
-                        entries.sort_by(|a, b| b.1.cmp(&a.1));
-                        entries.into_iter().take(#n_arg as usize).collect::<Vec<_>>()
-                    }
-                });
-            } else {
-                // No argument: return all sorted
-                return Ok(parse_quote! {
-                    {
-                        let mut entries: Vec<_> = #object_expr.iter().map(|(k, v)| (k.clone(), *v)).collect();
-                        entries.sort_by(|a, b| b.1.cmp(&a.1));
-                        entries
-                    }
-                });
-            }
+        if let Some(result) = self.try_convert_most_common(object, method, args)? {
+            return Ok(result);
         }
-
-        // DEPYLER-0728: hasher.update() handler should NOT intercept dict/set.update()
-        // Only apply to hash objects (Sha256, Md5, etc.), not collections
-        if method == "update"
-            && !args.is_empty()
-            && !self.is_dict_expr(object)
-            && !self.is_set_expr(object)
-        {
-            let object_expr = object.to_rust_expr(self.ctx)?;
-            let arg_exprs: Vec<syn::Expr> =
-                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
-            let data = &arg_exprs[0];
-            // DEPYLER-0558: hasher.update(data) needs borrow for DynDigest trait
-            // DynDigest::update takes &[u8], so always add borrow
-            return Ok(parse_quote! {
-                #object_expr.update(&#data)
-            });
+        if let Some(result) = self.try_convert_hasher_update(object, method, args)? {
+            return Ok(result);
         }
 
         // CB-200 Batch 15: String/pathlib/datetime method dispatch extracted to helpers
@@ -157,27 +106,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(result);
         }
 
-        // DEPYLER-0416: Check if this is a static method call on a class (e.g., Point.origin())
-        // Convert to ClassName::method(args)
-        // DEPYLER-0458 FIX: Exclude CONST_NAMES (all uppercase) from static method conversion
-        // Constants like DEFAULT_CONFIG should use instance methods (.clone()) not static (::copy())
-        if let HirExpr::Var(class_name) = object {
-            let is_const = class_name.chars().all(|c| c.is_uppercase() || c == '_');
-            let starts_uppercase =
-                class_name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
-
-            if starts_uppercase && !is_const {
-                // DEPYLER-0900: Rename class if it shadows stdlib type (e.g., Box -> PyBox)
-                // This is likely a static method call - convert to ClassName::method(args)
-                let safe_name = crate::direct_rules::safe_class_name(class_name);
-                let class_ident = syn::Ident::new(&safe_name, proc_macro2::Span::call_site());
-                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| arg.to_rust_expr(self.ctx))
-                    .collect::<Result<Vec<_>>>()?;
-                return Ok(parse_quote! { #class_ident::#method_ident(#(#arg_exprs),*) });
-            }
+        // CB-200 Final: Static method call dispatch
+        if let Some(result) = self.try_convert_static_method(object, method, args)? {
+            return Ok(result);
         }
 
         // Try classmethod handling first
@@ -191,108 +122,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(result);
         }
 
-        // DEPYLER-0200: Handle .decode() on base64 encode calls
-        // base64.b64encode() in Rust returns String, not bytes - no decode needed
-        if method == "decode" {
-            if let HirExpr::MethodCall { object: inner_obj, method: inner_method, .. } = object {
-                if let HirExpr::Var(module) = inner_obj.as_ref() {
-                    if module == "base64"
-                        && (inner_method.contains("b64encode")
-                            || inner_method.contains("urlsafe_b64encode"))
-                    {
-                        // base64::encode() returns String - just return the object expression
-                        return object.to_rust_expr(self.ctx);
-                    }
-                }
-            }
+        // CB-200 Final: Handle .decode() on base64 encode calls
+        if let Some(result) = self.try_convert_base64_decode(object, method)? {
+            return Ok(result);
         }
 
-        // DEPYLER-1115: Handle external module function calls with Rust path syntax
-        // When calling module functions like requests.get(url), use requests::get(url)
-        // This enables phantom binding generation to provide type-safe stubs
-        // GH-204: Extended to properly use module mappings for stdlib modules like logging
-        if let HirExpr::Var(module_name) = object {
-            // GH-204: Handle collections module constructor patterns FIRST
-            // Route collections.Counter, collections.deque, collections.defaultdict
-            // to proper builtin converter functions instead of generic module::function()
-            // This MUST be checked before the generic module mapping handling below
-            if module_name == "collections" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| arg.to_rust_expr(self.ctx))
-                    .collect::<Result<Vec<_>>>()?;
-
-                match method {
-                    "Counter" => {
-                        return crate::rust_gen::collection_constructors::convert_counter_builtin(
-                            self.ctx, &arg_exprs,
-                        );
-                    }
-                    "deque" => {
-                        return crate::rust_gen::collection_constructors::convert_deque_builtin(
-                            self.ctx, &arg_exprs,
-                        );
-                    }
-                    "defaultdict" => {
-                        return crate::rust_gen::collection_constructors::convert_defaultdict_builtin(
-                            self.ctx,
-                            &arg_exprs,
-                        );
-                    }
-                    _ => {} // Fall through to generic handling for other collections methods
-                }
-            }
-
-            // Check if this is an imported module (not a local variable)
-            // Use all_imported_modules which includes external unmapped modules like requests
-            if self.ctx.all_imported_modules.contains(module_name) {
-                // GH-204: Check if this module has a mapping with a Rust equivalent
-                if let Some(mapping) = self.ctx.imported_modules.get(module_name) {
-                    // Get the rust path and item mapping
-                    let rust_path = &mapping.rust_path;
-                    let rust_method = mapping.item_map.get(method);
-
-                    // GH-204: If we have a mapped method and non-empty rust_path
-                    if let Some(rust_name) = rust_method {
-                        // Check if this is a macro call (ends with !)
-                        if rust_name.ends_with('!') {
-                            // Macro call - generate macro_name!(args)
-                            let macro_name_str = rust_name.trim_end_matches('!');
-                            let macro_ident =
-                                syn::Ident::new(macro_name_str, proc_macro2::Span::call_site());
-
-                            let arg_exprs: Vec<syn::Expr> = args
-                                .iter()
-                                .map(|arg| arg.to_rust_expr(self.ctx))
-                                .collect::<Result<Vec<_>>>()?;
-
-                            return Ok(parse_quote! { #macro_ident!(#(#arg_exprs),*) });
-                        } else if !rust_path.is_empty() {
-                            // Regular function call with full path
-                            let full_path: syn::Path =
-                                syn::parse_str(&format!("{}::{}", rust_path, rust_name))?;
-
-                            let arg_exprs: Vec<syn::Expr> = args
-                                .iter()
-                                .map(|arg| arg.to_rust_expr(self.ctx))
-                                .collect::<Result<Vec<_>>>()?;
-
-                            return Ok(parse_quote! { #full_path(#(#arg_exprs),*) });
-                        }
-                    }
-                }
-
-                // Fallback: Generate module::function() syntax for unmapped modules
-                let module_ident = crate::rust_gen::keywords::safe_ident(module_name);
-                let method_ident = crate::rust_gen::keywords::safe_ident(method);
-
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| arg.to_rust_expr(self.ctx))
-                    .collect::<Result<Vec<_>>>()?;
-
-                return Ok(parse_quote! { #module_ident::#method_ident(#(#arg_exprs),*) });
-            }
+        // CB-200 Final: External module method dispatch
+        if let Some(result) = self.try_convert_external_module_method(object, method, args)? {
+            return Ok(result);
         }
 
         // DEPYLER-1064: Handle method calls on DepylerValue variables
@@ -359,6 +196,228 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Some methods like sort(key=func) need to preserve keyword argument names
         // For other methods, they can merge kwargs as positional if needed
         self.convert_instance_method(object, &object_expr, method, &arg_exprs, args, kwargs)
+    }
+
+    // ========================================================================
+    // CB-200 Final: Helpers extracted from convert_method_call
+    // ========================================================================
+
+    /// CB-200 Final: Handle hexdigest() on hasher objects
+    fn try_convert_hasher_method(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        _args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if method != "hexdigest" {
+            return Ok(None);
+        }
+        self.ctx.needs_hex = true;
+        self.ctx.needs_digest = true;
+        let object_expr = object.to_rust_expr(self.ctx)?;
+        Ok(Some(parse_quote! {
+            { use digest::DynDigest; hex::encode(#object_expr.finalize_reset()) }
+        }))
+    }
+
+    /// CB-200 Final: Handle Counter.most_common(n)
+    fn try_convert_most_common(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if method != "most_common" {
+            return Ok(None);
+        }
+        let object_expr = object.to_rust_expr(self.ctx)?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
+
+        if let Some(n_arg) = arg_exprs.first() {
+            Ok(Some(parse_quote! {
+                {
+                    let mut entries: Vec<_> = #object_expr.iter().map(|(k, v)| (k.clone(), *v)).collect();
+                    entries.sort_by(|a, b| b.1.cmp(&a.1));
+                    entries.into_iter().take(#n_arg as usize).collect::<Vec<_>>()
+                }
+            }))
+        } else {
+            Ok(Some(parse_quote! {
+                {
+                    let mut entries: Vec<_> = #object_expr.iter().map(|(k, v)| (k.clone(), *v)).collect();
+                    entries.sort_by(|a, b| b.1.cmp(&a.1));
+                    entries
+                }
+            }))
+        }
+    }
+
+    /// CB-200 Final: Handle hasher.update() (not dict/set.update())
+    fn try_convert_hasher_update(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if method != "update" || args.is_empty() || self.is_dict_expr(object) || self.is_set_expr(object) {
+            return Ok(None);
+        }
+        let object_expr = object.to_rust_expr(self.ctx)?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
+        let data = &arg_exprs[0];
+        Ok(Some(parse_quote! { #object_expr.update(&#data) }))
+    }
+
+    /// CB-200 Final: Handle static method calls (ClassName.method())
+    fn try_convert_static_method(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let class_name = if let HirExpr::Var(name) = object { name } else { return Ok(None) };
+        let is_const = class_name.chars().all(|c| c.is_uppercase() || c == '_');
+        let starts_uppercase = class_name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
+
+        if !starts_uppercase || is_const {
+            return Ok(None);
+        }
+
+        let safe_name = crate::direct_rules::safe_class_name(class_name);
+        let class_ident = syn::Ident::new(&safe_name, proc_macro2::Span::call_site());
+        let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Some(parse_quote! { #class_ident::#method_ident(#(#arg_exprs),*) }))
+    }
+
+    /// CB-200 Final: Handle .decode() on base64 encode calls
+    fn try_convert_base64_decode(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+    ) -> Result<Option<syn::Expr>> {
+        if method != "decode" {
+            return Ok(None);
+        }
+        if let HirExpr::MethodCall { object: inner_obj, method: inner_method, .. } = object {
+            if let HirExpr::Var(module) = inner_obj.as_ref() {
+                if module == "base64"
+                    && (inner_method.contains("b64encode")
+                        || inner_method.contains("urlsafe_b64encode"))
+                {
+                    return Ok(Some(object.to_rust_expr(self.ctx)?));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// CB-200 Final: Handle external module method calls
+    fn try_convert_external_module_method(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let module_name = if let HirExpr::Var(name) = object { name } else { return Ok(None) };
+
+        // Collections module constructors
+        if let Some(result) = self.try_collections_constructor(module_name, method, args)? {
+            return Ok(Some(result));
+        }
+
+        // Imported module method dispatch
+        if self.ctx.all_imported_modules.contains(module_name) {
+            return self.try_imported_module_method(module_name, method, args);
+        }
+
+        Ok(None)
+    }
+
+    /// CB-200 Final: Handle collections.Counter/deque/defaultdict constructors
+    fn try_collections_constructor(
+        &mut self,
+        module_name: &str,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if module_name != "collections" {
+            return Ok(None);
+        }
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        match method {
+            "Counter" => Ok(Some(crate::rust_gen::collection_constructors::convert_counter_builtin(self.ctx, &arg_exprs)?)),
+            "deque" => Ok(Some(crate::rust_gen::collection_constructors::convert_deque_builtin(self.ctx, &arg_exprs)?)),
+            "defaultdict" => Ok(Some(crate::rust_gen::collection_constructors::convert_defaultdict_builtin(self.ctx, &arg_exprs)?)),
+            _ => Ok(None),
+        }
+    }
+
+    /// CB-200 Final: Handle imported module method calls with Rust path mapping
+    fn try_imported_module_method(
+        &mut self,
+        module_name: &str,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if let Some(mapping) = self.ctx.imported_modules.get(module_name) {
+            if let Some(result) = self.try_mapped_module_method(mapping, method, args)? {
+                return Ok(Some(result));
+            }
+        }
+
+        // Fallback: module::function() syntax
+        let module_ident = crate::rust_gen::keywords::safe_ident(module_name);
+        let method_ident = crate::rust_gen::keywords::safe_ident(method);
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Some(parse_quote! { #module_ident::#method_ident(#(#arg_exprs),*) }))
+    }
+
+    /// CB-200 Final: Handle mapped module method (macro or function call)
+    fn try_mapped_module_method(
+        &mut self,
+        mapping: &crate::module_mapper::ModuleMapping,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let rust_path = &mapping.rust_path;
+        let rust_name = match mapping.item_map.get(method) {
+            Some(name) => name,
+            None => return Ok(None),
+        };
+
+        if rust_name.ends_with('!') {
+            let macro_name_str = rust_name.trim_end_matches('!');
+            let macro_ident = syn::Ident::new(macro_name_str, proc_macro2::Span::call_site());
+            let arg_exprs: Vec<syn::Expr> = args
+                .iter()
+                .map(|arg| arg.to_rust_expr(self.ctx))
+                .collect::<Result<Vec<_>>>()?;
+            return Ok(Some(parse_quote! { #macro_ident!(#(#arg_exprs),*) }));
+        }
+
+        if !rust_path.is_empty() {
+            let full_path: syn::Path = syn::parse_str(&format!("{}::{}", rust_path, rust_name))?;
+            let arg_exprs: Vec<syn::Expr> = args
+                .iter()
+                .map(|arg| arg.to_rust_expr(self.ctx))
+                .collect::<Result<Vec<_>>>()?;
+            return Ok(Some(parse_quote! { #full_path(#(#arg_exprs),*) }));
+        }
+
+        Ok(None)
     }
 
     /// CB-200 Batch 15: Check if object is a known stdlib module

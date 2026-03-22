@@ -152,71 +152,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         self.should_borrow_arg(func, param_idx, hir_arg)
                     };
 
-                    // DEPYLER-0515: Let Rust's type inference determine integer types
-                    // from function signatures, rather than blindly casting to i64.
-
-                    // DEPYLER-0568: Handle PathBuf → String conversion for function arguments
-                    // When passing a PathBuf to a function that expects String
-                    if let HirExpr::Var(var_name) = hir_arg {
-                        // DEPYLER-0666: Check if variable was already unwrapped via if-let
-                        // If so, don't add .as_ref().unwrap() - the value is already concrete
-                        let is_unwrapped = self.ctx.option_unwrap_map.contains_key(var_name);
-
-                        if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                            // PathBuf → String conversion
-                            if matches!(var_type, Type::Custom(ref s) if s == "PathBuf" || s == "Path") {
-                                // Check if this is a String-expecting function (heuristic)
-                                // Function params with names like file_path, path, etc. often want String
-                                return parse_quote! { #arg_expr.display().to_string() };
-                            }
-                            // Option<String> → &str conversion when function expects &str
-                            // DEPYLER-0666: Skip if already unwrapped
-                            if !is_unwrapped && matches!(var_type, Type::Optional(ref inner) if matches!(inner.as_ref(), Type::String)) {
-                                // Unwrap the Option and pass reference
-                                return parse_quote! { #arg_expr.as_ref().expect("value is None") };
-                            }
-                        } else {
-                            // DEPYLER-0568: Name-based heuristic for PathBuf when not in var_types
-                            // Variables named "path" are typically PathBuf from pathlib.Path()
-                            let name = var_name.as_str();
-                            if name == "path" || name.ends_with("_path") {
-                                return parse_quote! { #arg_expr.display().to_string() };
-                            }
-                        }
-                    }
-
-                    // DEPYLER-0818: Handle &str → String conversion
-                    // When an &str param (fn_str_params) is passed to a function expecting String,
-                    // we need to add .to_string() to convert the reference to owned.
-                    if let HirExpr::Var(var_name) = hir_arg {
-                        if self.ctx.fn_str_params.contains(var_name) && !should_borrow {
-                            // Variable is &str param but callee doesn't expect borrow (wants String)
-                            // Check if callee expects a borrow - if not, convert to String
-                            let callee_expects_borrow = self.ctx
-                                .function_param_borrows
-                                .get(func)
-                                .and_then(|borrows| borrows.get(param_idx))
-                                .copied()
-                                .unwrap_or(false);
-
-                            // DEPYLER-99MODE-S9: Also check function_param_types as fallback
-                            // When callee hasn't been processed yet (forward reference),
-                            // function_param_borrows won't have the entry. But if the
-                            // callee's param type is String (which maps to &str), it expects borrow.
-                            // Only use this fallback when borrows are unknown (no entry at all).
-                            let borrows_unknown = !self.ctx.function_param_borrows.contains_key(func);
-                            let callee_param_is_str = borrows_unknown
-                                && self.ctx
-                                    .function_param_types
-                                    .get(func)
-                                    .and_then(|types| types.get(param_idx))
-                                    .map(|ty| matches!(ty, Type::String))
-                                    .unwrap_or(false);
-
-                            if !callee_expects_borrow && !callee_param_is_str {
-                                return parse_quote! { #arg_expr.to_string() };
-                            }
-                        }
+                    // CB-200 Final: Type-based argument conversion (PathBuf, Option, &str)
+                    if let Some(converted) = self.try_arg_type_conversion(func, param_idx, hir_arg, &arg_expr, should_borrow) {
+                        return converted;
                     }
 
                     // CB-200 Batch 15: Borrow/wrap application extracted to helper
@@ -228,75 +166,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
                 .collect();
 
-            // DEPYLER-0621: Complete missing arguments with default values
-            // When Python calls `f()` but `def f(x=None)`, we need to generate `f(None)` in Rust
-            // Look up registered defaults and append any missing arguments
-            let mut completed_args = borrowed_args;
-            if let Some(defaults) = self.ctx.function_param_defaults.get(func) {
-                let num_provided = completed_args.len();
-                let num_params = defaults.len();
-
-                if num_provided < num_params {
-                    // Need to fill in missing arguments from defaults
-                    for i in num_provided..num_params {
-                        if let Some(Some(default_expr)) = defaults.get(i) {
-                            // Handle common default values directly without calling to_rust_expr
-                            // (to_rust_expr requires &mut ctx which we don't have in &self)
-                            use crate::hir::{HirExpr, Literal};
-                            // DEPYLER-0629: Check if parameter needs borrowing
-                            // If the parameter type is &Option<T>, we need &None instead of None
-                            // DEPYLER-TYPE-001: Default to true for string params (Type::String → &str)
-                            let param_needs_borrow = self
-                                .ctx
-                                .function_param_borrows
-                                .get(func)
-                                .and_then(|borrows| borrows.get(i).copied())
-                                .unwrap_or(true);
-
-                            let default_syn: syn::Expr = match default_expr {
-                                HirExpr::Literal(Literal::None) => {
-                                    if param_needs_borrow {
-                                        parse_quote! { &None }
-                                    } else {
-                                        parse_quote! { None }
-                                    }
-                                }
-                                HirExpr::Literal(Literal::Int(n)) => {
-                                    // DEPYLER-0806: Use i32 suffix for default args
-                                    // Python int maps to Rust i32 for function params
-                                    // Using i64 causes E0308 when param expects i32
-                                    let n_i32 = *n as i32;
-                                    parse_quote! { #n_i32 }
-                                }
-                                HirExpr::Literal(Literal::Float(f)) => {
-                                    let f = *f;
-                                    parse_quote! { #f }
-                                }
-                                HirExpr::Literal(Literal::Bool(b)) => {
-                                    let b = *b;
-                                    parse_quote! { #b }
-                                }
-                                HirExpr::Literal(Literal::String(s)) => {
-                                    // DEPYLER-1092: Check if param expects &str
-                                    // If so, use "..." directly (string literal IS &str)
-                                    // without .to_string(), avoiding E0308
-                                    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                                    if param_needs_borrow {
-                                        // String literal "..." is already &str
-                                        parse_quote! { #lit }
-                                    } else {
-                                        parse_quote! { #lit.to_string() }
-                                    }
-                                }
-                                // For complex defaults, skip - function definition should handle
-                                _ => continue,
-                            };
-                            completed_args.push(default_syn);
-                        }
-                    }
-                }
-            }
-            let borrowed_args = completed_args;
+            // CB-200 Final: Complete missing arguments with default values
+            let borrowed_args = self.complete_default_args(func, borrowed_args);
 
             // DEPYLER-0648: Handle vararg functions - wrap arguments in slice
             // Python: run_cli("--help") where def run_cli(*args)
@@ -477,6 +348,155 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         None
+    }
+
+    // ========================================================================
+    // CB-200 Final: Helpers extracted from convert_generic_call
+    // ========================================================================
+
+    /// CB-200 Final: Type-based argument conversion (PathBuf, Option, &str)
+    fn try_arg_type_conversion(
+        &self,
+        func: &str,
+        param_idx: usize,
+        hir_arg: &HirExpr,
+        arg_expr: &syn::Expr,
+        should_borrow: bool,
+    ) -> Option<syn::Expr> {
+        if let Some(converted) = self.try_pathbuf_or_option_conversion(hir_arg, arg_expr) {
+            return Some(converted);
+        }
+        self.try_str_to_string_conversion(func, param_idx, hir_arg, arg_expr, should_borrow)
+    }
+
+    /// CB-200 Final: Convert PathBuf → String or Option<String> → &str
+    fn try_pathbuf_or_option_conversion(
+        &self,
+        hir_arg: &HirExpr,
+        arg_expr: &syn::Expr,
+    ) -> Option<syn::Expr> {
+        let var_name = if let HirExpr::Var(name) = hir_arg { name } else { return None };
+        let is_unwrapped = self.ctx.option_unwrap_map.contains_key(var_name);
+
+        if let Some(var_type) = self.ctx.var_types.get(var_name) {
+            if matches!(var_type, Type::Custom(ref s) if s == "PathBuf" || s == "Path") {
+                return Some(parse_quote! { #arg_expr.display().to_string() });
+            }
+            if !is_unwrapped
+                && matches!(var_type, Type::Optional(ref inner) if matches!(inner.as_ref(), Type::String))
+            {
+                return Some(parse_quote! { #arg_expr.as_ref().expect("value is None") });
+            }
+        } else {
+            let name = var_name.as_str();
+            if name == "path" || name.ends_with("_path") {
+                return Some(parse_quote! { #arg_expr.display().to_string() });
+            }
+        }
+        None
+    }
+
+    /// CB-200 Final: Convert &str → String when callee expects owned String
+    fn try_str_to_string_conversion(
+        &self,
+        func: &str,
+        param_idx: usize,
+        hir_arg: &HirExpr,
+        arg_expr: &syn::Expr,
+        should_borrow: bool,
+    ) -> Option<syn::Expr> {
+        let var_name = if let HirExpr::Var(name) = hir_arg { name } else { return None };
+        if !self.ctx.fn_str_params.contains(var_name) || should_borrow {
+            return None;
+        }
+        let callee_expects_borrow = self.ctx
+            .function_param_borrows
+            .get(func)
+            .and_then(|borrows| borrows.get(param_idx))
+            .copied()
+            .unwrap_or(false);
+        let borrows_unknown = !self.ctx.function_param_borrows.contains_key(func);
+        let callee_param_is_str = borrows_unknown
+            && self.ctx
+                .function_param_types
+                .get(func)
+                .and_then(|types| types.get(param_idx))
+                .map(|ty| matches!(ty, Type::String))
+                .unwrap_or(false);
+
+        if !callee_expects_borrow && !callee_param_is_str {
+            Some(parse_quote! { #arg_expr.to_string() })
+        } else {
+            None
+        }
+    }
+
+    /// CB-200 Final: Complete missing arguments with default values
+    fn complete_default_args(&self, func: &str, mut args: Vec<syn::Expr>) -> Vec<syn::Expr> {
+        let defaults = match self.ctx.function_param_defaults.get(func) {
+            Some(d) => d,
+            None => return args,
+        };
+        let num_provided = args.len();
+        let num_params = defaults.len();
+        if num_provided >= num_params {
+            return args;
+        }
+        for i in num_provided..num_params {
+            if let Some(Some(default_expr)) = defaults.get(i) {
+                let param_needs_borrow = self
+                    .ctx
+                    .function_param_borrows
+                    .get(func)
+                    .and_then(|borrows| borrows.get(i).copied())
+                    .unwrap_or(true);
+
+                if let Some(default_syn) =
+                    Self::convert_default_literal(default_expr, param_needs_borrow)
+                {
+                    args.push(default_syn);
+                }
+            }
+        }
+        args
+    }
+
+    /// CB-200 Final: Convert a default literal expression to syn::Expr
+    fn convert_default_literal(
+        default_expr: &HirExpr,
+        param_needs_borrow: bool,
+    ) -> Option<syn::Expr> {
+        use crate::hir::{HirExpr, Literal};
+        match default_expr {
+            HirExpr::Literal(Literal::None) => {
+                if param_needs_borrow {
+                    Some(parse_quote! { &None })
+                } else {
+                    Some(parse_quote! { None })
+                }
+            }
+            HirExpr::Literal(Literal::Int(n)) => {
+                let n_i32 = *n as i32;
+                Some(parse_quote! { #n_i32 })
+            }
+            HirExpr::Literal(Literal::Float(f)) => {
+                let f = *f;
+                Some(parse_quote! { #f })
+            }
+            HirExpr::Literal(Literal::Bool(b)) => {
+                let b = *b;
+                Some(parse_quote! { #b })
+            }
+            HirExpr::Literal(Literal::String(s)) => {
+                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                if param_needs_borrow {
+                    Some(parse_quote! { #lit })
+                } else {
+                    Some(parse_quote! { #lit.to_string() })
+                }
+            }
+            _ => None,
+        }
     }
 
     // CB-200 Batch 15: Helpers extracted from convert_generic_call
