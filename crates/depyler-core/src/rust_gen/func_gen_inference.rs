@@ -839,42 +839,230 @@ fn postprocess_argparser(
     }
 }
 
+/// CB-200 Batch 10: Infer and refine parameter types from body usage.
+fn infer_and_refine_params(
+    func: &HirFunction,
+    ctx: &mut CodeGenContext,
+) -> Vec<crate::hir::HirParam> {
+    let mut inferred_params = func.params.clone();
+    for param in &mut inferred_params {
+        if matches!(param.ty, Type::Unknown) {
+            if let Some(inferred_ty) = infer_param_type_from_body(&param.name, &func.body) {
+                param.ty = inferred_ty.clone();
+                ctx.var_types.insert(param.name.clone(), inferred_ty);
+            }
+        } else if let Type::Optional(inner) = &param.ty {
+            if matches!(inner.as_ref(), Type::Unknown) {
+                if let Some(inferred_ty) = infer_param_type_from_body(&param.name, &func.body) {
+                    let new_ty = Type::Optional(Box::new(inferred_ty));
+                    param.ty = new_ty.clone();
+                    ctx.var_types.insert(param.name.clone(), new_ty);
+                }
+            }
+        }
+    }
+    for param in &mut inferred_params {
+        if crate::container_element_inference::has_unknown_inner_type(&param.ty) {
+            if let Some(refined) =
+                crate::container_element_inference::infer_container_element_type(
+                    &param.name,
+                    &param.ty,
+                    &func.body,
+                )
+            {
+                param.ty = refined.clone();
+                ctx.var_types.insert(param.name.clone(), refined);
+            }
+        }
+    }
+    inferred_params
+}
+
+/// CB-200 Batch 10: Track parameter borrowing, mutability, optionality, and special patterns.
+fn track_param_metadata(
+    func: &HirFunction,
+    lifetime_result: &crate::lifetime_analysis::LifetimeResult,
+    ctx: &mut CodeGenContext,
+) {
+    // Borrow tracking
+    let param_borrows: Vec<bool> = func
+        .params
+        .iter()
+        .map(|p| {
+            lifetime_result
+                .param_lifetimes
+                .get(&p.name)
+                .map(|inf| inf.should_borrow)
+                .unwrap_or(false)
+        })
+        .collect();
+    ctx.ref_params.clear();
+    for (p, &is_borrowed) in func.params.iter().zip(param_borrows.iter()) {
+        if is_borrowed {
+            ctx.ref_params.insert(p.name.clone());
+        }
+    }
+    ctx.function_param_borrows.insert(func.name.clone(), param_borrows.clone());
+
+    // Mutability tracking
+    let param_muts: Vec<bool> = func
+        .params
+        .iter()
+        .map(|p| {
+            let is_mutated = ctx.mutable_vars.contains(&p.name);
+            let should_borrow = lifetime_result
+                .param_lifetimes
+                .get(&p.name)
+                .map(|inf| inf.should_borrow)
+                .unwrap_or(false);
+            is_mutated && should_borrow
+        })
+        .collect();
+    ctx.mut_ref_params.clear();
+    for (p, &needs_mut) in func.params.iter().zip(param_muts.iter()) {
+        if needs_mut {
+            ctx.mut_ref_params.insert(p.name.clone());
+        }
+    }
+    ctx.function_param_muts.insert(func.name.clone(), param_muts);
+
+    // Optionality tracking
+    let param_optionals: Vec<bool> = func
+        .params
+        .iter()
+        .map(|p| {
+            let type_is_optional = matches!(p.ty, Type::Optional(_));
+            let default_is_none = matches!(p.default, Some(HirExpr::Literal(Literal::None)));
+            type_is_optional || default_is_none
+        })
+        .collect();
+    ctx.function_param_optionals.insert(func.name.clone(), param_optionals);
+
+    // Vararg tracking
+    if func.params.iter().any(|p| p.is_vararg) {
+        ctx.vararg_functions.insert(func.name.clone());
+    }
+
+    // Option dict/option param tracking
+    for param in &func.params {
+        let is_dict = matches!(&param.ty, Type::Dict { .. })
+            || matches!(&param.ty, Type::Custom(name) if name == "dict");
+        let has_none_default = matches!(&param.default, Some(HirExpr::Literal(Literal::None)));
+        let is_optional_dict = matches!(
+            &param.ty,
+            Type::Optional(inner) if matches!(inner.as_ref(), Type::Dict { .. })
+        );
+        if (is_dict && has_none_default) || is_optional_dict {
+            ctx.mut_option_dict_params.insert(param.name.clone());
+        }
+        let is_optional = matches!(&param.ty, Type::Optional(_))
+            || matches!(&param.ty, Type::Union(types) if types.iter().any(|t| matches!(t, Type::None)));
+        let inferred_needs_mut = lifetime_result
+            .param_lifetimes
+            .get(&param.name)
+            .map(|ip| ip.needs_mut)
+            .unwrap_or(false);
+        if (is_optional || has_none_default) && inferred_needs_mut {
+            ctx.mut_option_params.insert(param.name.clone());
+        }
+    }
+}
+
+/// CB-200 Batch 10: Post-process function body (empty-body, unit-return, closure boxing, argparser).
+fn postprocess_function_body(
+    func: &HirFunction,
+    body_stmts: &mut Vec<proc_macro2::TokenStream>,
+    rust_ret_type: &crate::type_mapper::RustType,
+    can_fail: bool,
+    subcommand_info: Option<(String, Vec<String>)>,
+    ctx: &mut CodeGenContext,
+) {
+    // Handle empty body with non-unit return
+    {
+        use quote::quote;
+        let body_is_empty = body_stmts.iter().all(|stmt| stmt.is_empty());
+        let is_non_unit_return = !matches!(rust_ret_type, crate::type_mapper::RustType::Unit);
+        if body_is_empty && is_non_unit_return {
+            body_stmts.push(quote! { unimplemented!() });
+        }
+    }
+
+    // Discard trailing expression for unit return
+    if matches!(rust_ret_type, crate::type_mapper::RustType::Unit) {
+        if let Some(last) = body_stmts.last_mut() {
+            let last_str = last.to_string();
+            if !last_str.is_empty()
+                && !last_str.trim_end().ends_with(';')
+                && !last_str.trim_end().ends_with('}')
+            {
+                use quote::quote;
+                let tokens = std::mem::take(last);
+                *last = quote! { let _ = #tokens; };
+            }
+        }
+    }
+
+    // Wrap returned closure in Box::new()
+    if let Some((nested_name, _, _)) = detect_returns_nested_function(func, ctx) {
+        if let Some(last_stmt) = body_stmts.last_mut() {
+            use quote::quote;
+            let nested_ident = syn::Ident::new(&nested_name, proc_macro2::Span::call_site());
+            let last_stmt_str = last_stmt.to_string();
+            if last_stmt_str.trim() == nested_name {
+                *last_stmt = quote! { Box::new(#nested_ident) };
+            }
+        }
+    }
+
+    ctx.current_subcommand_fields = None;
+    postprocess_argparser(ctx, body_stmts);
+
+    // Wrap with subcommand pattern matching
+    if let Some((variant_name, fields)) = subcommand_info {
+        if !ctx.in_cmd_handler {
+            if let Some(args_param) = func.params.first() {
+                let args_param_name = args_param.name.as_ref();
+                *body_stmts =
+                    crate::rust_gen::argparse_transform::wrap_body_with_subcommand_pattern(
+                        std::mem::take(body_stmts),
+                        &variant_name,
+                        &fields,
+                        args_param_name,
+                    );
+            }
+        }
+    }
+
+    // Add Ok(()) for Result-returning functions
+    if can_fail {
+        let needs_ok = func.body.last().is_none_or(|stmt| !stmt_always_returns(stmt));
+        if needs_ok && matches!(func.ret_type, Type::None | Type::Unknown) {
+            body_stmts.push(parse_quote! { Ok(()) });
+        }
+    }
+}
+
 impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
-        // DEPYLER-0717: Clear var_types at the start of each function to prevent type leaking
-        // Without this, parameter types from one function can leak to the next function
-        // when they share the same parameter name (e.g., both have `items` parameter)
         ctx.var_types.clear();
         ctx.type_substitutions.clear();
-        // DEPYLER-1150: Clear slice params from previous function
         ctx.slice_params.clear();
 
-        // DEPYLER-0306 FIX: Use raw identifiers for function names that are Rust keywords
         let name = if is_rust_keyword(&self.name) {
             syn::Ident::new_raw(&self.name, proc_macro2::Span::call_site())
         } else {
             syn::Ident::new(&self.name, proc_macro2::Span::call_site())
         };
 
-        // DEPYLER-0269: Track function return type for Display trait selection
-        // Store function return type in ctx for later lookup when processing assignments
-        // This enables tracking `result = merge(&a, &b)` where merge returns list[int]
         ctx.function_return_types.insert(self.name.clone(), self.ret_type.clone());
 
-        // DEPYLER-0621: Track parameter defaults for call-site argument completion
-        // When a function like `def f(x=None)` is called as `f()`, we need to supply `None`
         let param_defaults: Vec<Option<crate::hir::HirExpr>> =
             self.params.iter().map(|p| p.default.clone()).collect();
         ctx.function_param_defaults.insert(self.name.clone(), param_defaults);
 
-        // Perform generic type inference
+        // Generic type inference and substitutions
         let mut generic_registry = crate::generic_inference::TypeVarRegistry::new();
-
-        // DEPYLER-0716: Infer type substitutions (e.g., T -> String when comparing to strings)
         let type_substitutions = generic_registry.infer_type_substitutions(self)?;
-
-        // DEPYLER-0716: Apply substitutions to parameter types in var_types
-        // This ensures List(Unknown) becomes List(String) when elements are compared to strings
         if !type_substitutions.is_empty() {
             for param in &self.params {
                 let substituted_ty = crate::generic_inference::TypeVarRegistry::apply_substitutions(
@@ -885,191 +1073,33 @@ impl RustCodeGen for HirFunction {
                     ctx.var_types.insert(param.name.clone(), substituted_ty);
                 }
             }
-            // DEPYLER-0716: Store substitutions in context for return type processing
             ctx.type_substitutions = type_substitutions;
         }
 
-        // DEPYLER-0524: Infer parameter types from usage in function body
-        // This updates var_types so parameters with Unknown type can be inferred from usage
-        // DEPYLER-0737: Also handle Optional(Unknown) for params with default=None
-        // IMPORTANT: Must run BEFORE generic inference so that inferred concrete types
-        // prevent unnecessary generic parameters from being generated
-        let mut inferred_params = self.params.clone();
-        for param in &mut inferred_params {
-            if matches!(param.ty, Type::Unknown) {
-                if let Some(inferred_ty) = infer_param_type_from_body(&param.name, &self.body) {
-                    param.ty = inferred_ty.clone();
-                    ctx.var_types.insert(param.name.clone(), inferred_ty);
-                }
-            } else if let Type::Optional(inner) = &param.ty {
-                // DEPYLER-0737: If param is Optional(Unknown), infer inner type and wrap in Optional
-                if matches!(inner.as_ref(), Type::Unknown) {
-                    if let Some(inferred_ty) = infer_param_type_from_body(&param.name, &self.body) {
-                        let new_ty = Type::Optional(Box::new(inferred_ty));
-                        param.ty = new_ty.clone();
-                        ctx.var_types.insert(param.name.clone(), new_ty);
-                    }
-                }
-            }
-        }
-
-        // Refine container element types for params like `numbers: list` → Vec<i32>
-        // This handles List(Unknown), Dict(_, Unknown), Set(Unknown) etc.
-        for param in &mut inferred_params {
-            if crate::container_element_inference::has_unknown_inner_type(&param.ty) {
-                if let Some(refined) =
-                    crate::container_element_inference::infer_container_element_type(
-                        &param.name,
-                        &param.ty,
-                        &self.body,
-                    )
-                {
-                    param.ty = refined.clone();
-                    ctx.var_types.insert(param.name.clone(), refined);
-                }
-            }
-        }
-
-        // Create a modified version of self with inferred params for generic inference
+        // Infer and refine parameter types
+        let inferred_params = infer_and_refine_params(self, ctx);
         let inferred_self = HirFunction { params: inferred_params, ..self.clone() };
         let type_params = generic_registry.infer_function_generics(&inferred_self)?;
 
-        // Perform lifetime analysis with automatic elision (DEPYLER-0275)
+        // Lifetime analysis
         let mut lifetime_inference = LifetimeInference::new();
         let lifetime_result = lifetime_inference
             .apply_elision_rules(self, ctx.type_mapper)
             .unwrap_or_else(|| lifetime_inference.analyze_function(self, ctx.type_mapper));
 
-        // Generate combined generic parameters (lifetimes + type params)
         let generic_params = codegen_generic_params(&type_params, &lifetime_result.lifetime_params);
-
-        // Generate lifetime bounds
         let where_clause = codegen_where_clause(&lifetime_result.lifetime_bounds);
 
-        // DEPYLER-0738: Analyze variable mutability BEFORE parameter generation
-        // This detects reassignments (x = 1; x = 2) and method mutations (.insert(), .push())
-        // Must run before codegen_function_params so param_muts can access ctx.mutable_vars
         crate::rust_gen::analyze_mutable_vars(&self.body, ctx, &self.params);
-
-        // Convert parameters using lifetime analysis results
         let params = codegen_function_params(self, &lifetime_result, ctx)?;
 
-        // DEPYLER-0270: Extract parameter borrowing information for auto-borrow decisions
-        // Check which parameters are references (borrowed) vs owned
-        let param_borrows: Vec<bool> = self
-            .params
-            .iter()
-            .map(|p| {
-                lifetime_result
-                    .param_lifetimes
-                    .get(&p.name)
-                    .map(|inf| inf.should_borrow)
-                    .unwrap_or(false)
-            })
-            .collect();
+        // Track all parameter metadata (borrows, muts, optionals, etc.)
+        track_param_metadata(self, &lifetime_result, ctx);
 
-        // DEPYLER-0758: Populate ref_params with borrowed parameter names for current function
-        // Used in convert_binary to dereference reference params in arithmetic operations
-        ctx.ref_params.clear();
-        for (p, &is_borrowed) in self.params.iter().zip(param_borrows.iter()) {
-            if is_borrowed {
-                ctx.ref_params.insert(p.name.clone());
-            }
-        }
-
-        ctx.function_param_borrows.insert(self.name.clone(), param_borrows);
-
-        // DEPYLER-0574: Extract parameter mutability information for &mut decisions
-        // Check which borrowed parameters need &mut (mutable borrow)
-        let param_muts: Vec<bool> = self
-            .params
-            .iter()
-            .map(|p| {
-                let is_mutated = ctx.mutable_vars.contains(&p.name);
-                let should_borrow = lifetime_result
-                    .param_lifetimes
-                    .get(&p.name)
-                    .map(|inf| inf.should_borrow)
-                    .unwrap_or(false);
-                // needs_mut = mutated in body AND borrowed (not owned)
-                is_mutated && should_borrow
-            })
-            .collect();
-
-        // DEPYLER-1217: Track parameters that are mutable references (&mut T)
-        // Used at call sites to avoid double &mut when passing these params to functions
-        ctx.mut_ref_params.clear();
-        for (p, &needs_mut) in self.params.iter().zip(param_muts.iter()) {
-            if needs_mut {
-                ctx.mut_ref_params.insert(p.name.clone());
-            }
-        }
-
-        ctx.function_param_muts.insert(self.name.clone(), param_muts);
-
-        // DEPYLER-0779: Extract parameter optionality for Some() wrapping at call sites
-        // A parameter is optional if: (a) type is Optional(T), OR (b) default is None
-        let param_optionals: Vec<bool> = self
-            .params
-            .iter()
-            .map(|p| {
-                // Check if type is Optional(T)
-                let type_is_optional = matches!(p.ty, Type::Optional(_));
-                // Check if default value is None
-                let default_is_none = matches!(p.default, Some(HirExpr::Literal(Literal::None)));
-                type_is_optional || default_is_none
-            })
-            .collect();
-        ctx.function_param_optionals.insert(self.name.clone(), param_optionals);
-
-        // DEPYLER-0648: Track if function has vararg parameter (*args in Python)
-        // These become &[T] in Rust, so call sites need to wrap args in &[...]
-        if self.params.iter().any(|p| p.is_vararg) {
-            ctx.vararg_functions.insert(self.name.clone());
-        }
-
-        // DEPYLER-0964: Track parameters that are &mut Option<HashMap<K, V>>
-        // These occur when param type is Dict[K,V] with default None
-        // Inside the function body, we need special handling:
-        // - Assignment: `memo = {}` → `*memo = Some(HashMap::new())`
-        // - Method calls: `memo.get(k)` → `memo.as_ref().unwrap().get(&k)`
-        // - Subscript: `memo[k] = v` → `memo.as_mut().unwrap().insert(k, v)`
-        for param in &self.params {
-            let is_dict = matches!(&param.ty, Type::Dict { .. })
-                || matches!(&param.ty, Type::Custom(name) if name == "dict");
-            let has_none_default = matches!(&param.default, Some(HirExpr::Literal(Literal::None)));
-            // Also check for Optional(Dict) type
-            let is_optional_dict = matches!(
-                &param.ty,
-                Type::Optional(inner) if matches!(inner.as_ref(), Type::Dict { .. })
-            );
-            if (is_dict && has_none_default) || is_optional_dict {
-                ctx.mut_option_dict_params.insert(param.name.clone());
-            }
-
-            // DEPYLER-1126: Track ALL parameters that are &mut Option<T> (any T)
-            // When param type is Optional<T> (or T | None) and the param is mutated,
-            // it becomes &mut Option<T>. Assignments need dereferencing: *param = value
-            let is_optional = matches!(&param.ty, Type::Optional(_))
-                || matches!(&param.ty, Type::Union(types) if types.iter().any(|t| matches!(t, Type::None)));
-            // Check if parameter is in the "needs_mut" set from lifetime analysis
-            let inferred_needs_mut = lifetime_result
-                .param_lifetimes
-                .get(&param.name)
-                .map(|ip| ip.needs_mut)
-                .unwrap_or(false);
-
-            // DEPYLER-99MODE-E0308: Track Option params that are mutated
-            if (is_optional || has_none_default) && inferred_needs_mut {
-                ctx.mut_option_params.insert(param.name.clone());
-            }
-        }
-
-        // Generate return type with Result wrapper and lifetime handling
+        // Return type generation
         let (return_type, rust_ret_type, can_fail, error_type) =
             codegen_return_type(self, &lifetime_result, ctx)?;
 
-        // DEPYLER-0839/1075: Fix E0700 "hidden type captures lifetime" for impl Fn/Iterator returns
         let (generic_params, return_type, params) = fixup_impl_trait_lifetimes(
             &rust_ret_type,
             &type_params,
@@ -1081,8 +1111,7 @@ impl RustCodeGen for HirFunction {
             &self.name,
         );
 
-        // DEPYLER-0425: Analyze subcommand field access BEFORE generating body
-        // This sets ctx.current_subcommand_fields so expression generation can rewrite args.field → field
+        // Subcommand and argparser setup
         let subcommand_info = if ctx.argparser_tracker.has_subcommands() {
             crate::rust_gen::argparse_transform::analyze_subcommand_field_access(
                 self,
@@ -1091,23 +1120,13 @@ impl RustCodeGen for HirFunction {
         } else {
             None
         };
-
-        // Set context for expression generation
         if let Some((_, ref fields)) = subcommand_info {
             ctx.current_subcommand_fields = Some(fields.iter().cloned().collect());
         }
-
-        // DEPYLER-0456 #1: Pre-register all add_parser() calls before body codegen
-        // This ensures expression statement subcommands (no variable assignment) are included
-        // in Commands enum generation. Must run BEFORE codegen_function_body() below.
         crate::rust_gen::argparse_transform::preregister_subcommands_from_hir(
             self,
             &mut ctx.argparser_tracker,
         );
-
-        // DEPYLER-0108: Pre-populate Option fields for substitution BEFORE body codegen
-        // This must happen before codegen_function_body() so that convert_method_call
-        // can substitute args.<field>.is_some() with has_<field>
         if ctx.argparser_tracker.has_parsers() {
             if let Some(parser_info) = ctx.argparser_tracker.get_first_parser() {
                 for arg in &parser_info.arguments {
@@ -1118,144 +1137,37 @@ impl RustCodeGen for HirFunction {
             }
         }
 
-        // DEPYLER-0617: Set flag if we're generating main() function
-        // This affects return statement handling (integer returns → process::exit)
+        // Generate body
         let was_main = ctx.is_main_function;
         ctx.is_main_function = self.name == "main";
 
-        // DEPYLER-1182: Preload PARAMETER types into var_types FIRST
-        // Parameters have explicit type annotations from the function signature, which are
-        // more reliable than HM-inferred types. Load these first so that
-        // preload_hir_type_annotations won't overwrite them with incorrect inferences.
         for param in &self.params {
             if !matches!(param.ty, Type::Unknown) {
                 ctx.var_types.insert(param.name.clone(), param.ty.clone());
             }
         }
-
-        // DEPYLER-1181: Preload HIR type annotations into var_types BEFORE body codegen
-        // This ensures that types inferred by the constraint solver (DEPYLER-1173) and
-        // propagated to HIR (DEPYLER-1180) are available during expression generation.
-        // Without this, the code generator ignores inferred types (the "Deaf Mapper" problem).
-        // NOTE: Runs AFTER parameter preload so that HM-inferred types don't overwrite
-        // correct parameter types (DEPYLER-99MODE-S9).
         preload_hir_type_annotations(&self.body, ctx);
 
-        // Process function body with proper scoping (expressions will now be rewritten if needed)
         let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
-
-        // DEPYLER-0838: If function body is effectively empty (only pass statements) AND
-        // return type is not unit, add unimplemented!() to satisfy the return type.
-        // This handles Python's @abstractmethod pattern where body is just `pass`.
-        {
-            use quote::quote;
-            let body_is_empty = body_stmts.iter().all(|stmt| stmt.is_empty());
-            let is_non_unit_return = !matches!(rust_ret_type, crate::type_mapper::RustType::Unit);
-            if body_is_empty && is_non_unit_return {
-                body_stmts.push(quote! { unimplemented!() });
-            }
-        }
-
-        // DEPYLER-0694: If function returns unit type (no return annotation in Python),
-        // ensure trailing expressions don't accidentally return a value.
-        // Add semicolon to discard the expression's value when not returning.
-        // DEPYLER-0702: Use `let _ = expr;` instead of `expr;` to avoid unused-must-use warnings
-        if matches!(rust_ret_type, crate::type_mapper::RustType::Unit) {
-            if let Some(last) = body_stmts.last_mut() {
-                let last_str = last.to_string();
-                // If statement doesn't end with semicolon or closing brace, it's an expression
-                // that would return a value - we need to discard it for Unit return types
-                // DEPYLER-0711: Skip empty tokens (e.g., from `pass` statement)
-                if !last_str.is_empty()
-                    && !last_str.trim_end().ends_with(';')
-                    && !last_str.trim_end().ends_with('}')
-                {
-                    use quote::quote;
-                    let tokens = std::mem::take(last);
-                    // Use `let _ = expr;` to discard the value without triggering
-                    // "unused arithmetic operation" or similar warnings
-                    *last = quote! { let _ = #tokens; };
-                }
-            }
-        }
-
-        // DEPYLER-0617: Restore flag after body generation
         ctx.is_main_function = was_main;
 
-        // GH-70: Wrap returned closure in Box::new() if function returns Box<dyn Fn>
-        if let Some((nested_name, _, _)) = detect_returns_nested_function(self, ctx) {
-            // Find last statement and wrap if it's returning the nested function
-            if let Some(last_stmt) = body_stmts.last_mut() {
-                use quote::quote;
-                let nested_ident = syn::Ident::new(&nested_name, proc_macro2::Span::call_site());
-                // Check if last statement is just the variable name (implicit return)
-                let last_stmt_str = last_stmt.to_string();
-                if last_stmt_str.trim() == nested_name {
-                    // Replace with Box::new(name)
-                    *last_stmt = quote! { Box::new(#nested_ident) };
-                }
-            }
-        }
+        // Post-process body
+        postprocess_function_body(
+            self,
+            &mut body_stmts,
+            &rust_ret_type,
+            can_fail,
+            subcommand_info,
+            ctx,
+        );
 
-        // Clear the subcommand fields context after body generation
-        ctx.current_subcommand_fields = None;
-
-        // DEPYLER-0363/0424: Generate Args struct, Commands enum, inject precompute stmts
-        postprocess_argparser(ctx, &mut body_stmts);
-
-        // DEPYLER-0425: Wrap handler functions with subcommand pattern matching
-        // If this function accesses subcommand-specific fields, wrap body in pattern matching
-        // DEPYLER-0914: Skip wrapping when in_cmd_handler is true - fields are already parameters
-        // In cmd_* handlers, expr_gen transforms args.field → field, so we don't need
-        // the if let pattern to extract fields from args.command
-        if let Some((variant_name, fields)) = subcommand_info {
-            if !ctx.in_cmd_handler {
-                // Get args parameter name (first parameter)
-                if let Some(args_param) = self.params.first() {
-                    let args_param_name = args_param.name.as_ref();
-                    // Wrap body statements in pattern matching to extract fields from enum variant
-                    body_stmts =
-                        crate::rust_gen::argparse_transform::wrap_body_with_subcommand_pattern(
-                            body_stmts,
-                            &variant_name,
-                            &fields,
-                            args_param_name,
-                        );
-                }
-            }
-        }
-
-        // DEPYLER-0270: Add Ok(()) for functions with Result<(), E> return type
-        // When Python function has `-> None` but uses fallible operations (e.g., indexing),
-        // the Rust return type becomes `Result<(), IndexError>` and needs Ok(()) at the end
-        // Only add Ok(()) if the function doesn't already end with a return statement
-        //
-        // DEPYLER-0450: Extended to handle all Result return types, not just Type::None
-        // This fixes functions with side effects that use error handling (raise/try/except)
-        // Also handles Type::Unknown (functions without type annotations that don't explicitly return)
-        //
-        // DEPYLER-0455 #6: Check if last statement always returns (including try-except)
-        // Validator functions with try-except that return in all branches should not get Ok(())
-        // Use stmt_always_returns() instead of simple Return check to handle exhaustive returns
-        if can_fail {
-            let needs_ok = self.body.last().is_none_or(|stmt| !stmt_always_returns(stmt));
-            if needs_ok {
-                // For functions returning unit type (or Unknown which defaults to unit), add Ok(())
-                // For functions returning values with explicit returns, they already have Ok() wrapping
-                if matches!(self.ret_type, Type::None | Type::Unknown) {
-                    body_stmts.push(parse_quote! { Ok(()) });
-                }
-            }
-        }
-
-        // Add documentation and custom attributes
+        // Generate function attributes and tokens
         let attrs = codegen_function_attrs(
             &self.docstring,
             &self.properties,
             &self.annotations.custom_attributes,
         );
 
-        // Check if function is a generator (contains yield)
         let func_tokens = if self.properties.is_generator {
             codegen_generator_function(
                 self,
@@ -1268,11 +1180,8 @@ impl RustCodeGen for HirFunction {
                 ctx,
             )?
         } else if self.properties.is_async {
-            // DEPYLER-1024: In NASA mode, convert async to sync (no tokio dependency)
             let nasa_mode = ctx.type_mapper.nasa_mode;
             if nasa_mode {
-                // NASA mode: Convert async functions to regular sync functions
-                // This allows single-shot compilation without tokio
                 quote! {
                     #(#attrs)*
                     pub fn #name #generic_params(#(#params),*) #return_type #where_clause {
@@ -1280,7 +1189,6 @@ impl RustCodeGen for HirFunction {
                     }
                 }
             } else if self.name == "main" {
-                // DEPYLER-0748: If this is async main(), add #[tokio::main] attribute
                 ctx.needs_tokio = true;
                 quote! {
                     #(#attrs)*

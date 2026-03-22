@@ -2955,18 +2955,148 @@ fn generate_csv_result_loop(
 
 /// Generate code for For loop statement
 #[inline]
+/// CB-200 Batch 10: Apply variable-based iteration strategy (chars, keys, iter, etc.).
+fn apply_var_iteration_strategy(
+    var_name: &str,
+    target: &AssignTarget,
+    iter_expr: syn::Expr,
+    ctx: &mut CodeGenContext,
+) -> syn::Expr {
+    let is_string_type = ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::String));
+    let has_known_non_string_type = ctx.var_types.get(var_name).is_some_and(|t| {
+        matches!(
+            t,
+            Type::List(_)
+                | Type::Dict(_, _)
+                | Type::Set(_)
+                | Type::Int
+                | Type::Float
+                | Type::Bool
+                | Type::Tuple(_)
+        )
+    });
+    let is_string_name = if has_known_non_string_type {
+        false
+    } else {
+        let n = var_name;
+        (n == "s"
+            || n == "string"
+            || n == "text"
+            || n == "word"
+            || n == "line"
+            || n == "char"
+            || n == "character")
+            || (n.starts_with("str") && !n.starts_with("strings"))
+            || (n.starts_with("word") && !n.starts_with("words"))
+            || (n.starts_with("text") && !n.starts_with("texts"))
+            || (n.ends_with("_str") && !n.ends_with("_strs"))
+            || (n.ends_with("_string") && !n.ends_with("_strings"))
+            || (n.ends_with("_word") && !n.ends_with("_words"))
+            || (n.ends_with("_text") && !n.ends_with("_texts"))
+    };
+    let is_json_value = ctx.var_types.get(var_name).is_some_and(|t| {
+        matches!(t, Type::Custom(name) if name == "Value" || name == "serde_json::Value" || name.contains("json"))
+    });
+
+    if is_string_type || is_string_name {
+        if let AssignTarget::Symbol(loop_var_name) = target {
+            ctx.char_iter_vars.insert(loop_var_name.clone());
+        }
+        parse_quote! { #iter_expr.chars() }
+    } else if is_json_value {
+        parse_quote! { #iter_expr.as_array().expect("JSON value is not an array").iter().cloned() }
+    } else if ctx.iterator_vars.contains(var_name) {
+        iter_expr
+    } else {
+        let is_dict_type =
+            ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::Dict(_, _)));
+        if is_dict_type {
+            parse_quote! { #iter_expr.keys().cloned() }
+        } else {
+            let is_vector_type = ctx.var_types.get(var_name).is_some_and(|t| match t {
+                Type::Custom(name) => name.starts_with("Vector<") || name == "Vector",
+                _ => false,
+            });
+            if is_vector_type {
+                parse_quote! { #iter_expr.as_slice().iter().cloned() }
+            } else {
+                parse_quote! { #iter_expr.iter().cloned() }
+            }
+        }
+    }
+}
+
+/// CB-200 Batch 10: Detect if iteration is over a JSON Value (HIR-level check).
+fn detect_json_value_iteration(iter: &HirExpr, ctx: &CodeGenContext) -> bool {
+    match iter {
+        HirExpr::Index { base, .. } => match base.as_ref() {
+            HirExpr::Var(var_name) => {
+                if let Some(t) = ctx.var_types.get(var_name) {
+                    is_dict_with_value_type(t)
+                } else {
+                    ctx.needs_serde_json
+                }
+            }
+            HirExpr::Dict { .. } => true,
+            _ => false,
+        },
+        HirExpr::MethodCall { object, method, .. } => {
+            let is_value_chain = method == "cloned"
+                || method == "unwrap_or_default"
+                || method == "unwrap_or"
+                || method == "unwrap";
+            if is_value_chain {
+                is_json_value_method_chain_or_fallback(object.as_ref(), ctx)
+            } else if method == "get" {
+                if let HirExpr::Var(var_name) = object.as_ref() {
+                    if let Some(t) = ctx.var_types.get(var_name) {
+                        is_dict_with_value_type(t)
+                    } else {
+                        ctx.needs_serde_json
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+/// CB-200 Batch 10: Apply CSV iteration pattern if applicable. Returns csv_yields_results flag.
+fn apply_csv_iteration(
+    iter_expr: &mut syn::Expr,
+    ctx: &mut CodeGenContext,
+) -> bool {
+    let mut csv_yields_results = false;
+    if let Some(pattern) = ctx.stdlib_mappings.get_iteration_pattern("csv", "DictReader") {
+        if let crate::stdlib_mappings::RustPattern::IterationPattern {
+            yields_results, ..
+        } = pattern
+        {
+            csv_yields_results = *yields_results;
+        }
+        let rust_code =
+            pattern.generate_rust_code(&iter_expr.to_token_stream().to_string(), &[]);
+        if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
+            ctx.needs_csv = true;
+            *iter_expr = expr;
+        }
+    }
+    csv_yields_results
+}
+
 pub(crate) fn codegen_for_stmt(
     target: &AssignTarget,
     iter: &HirExpr,
     body: &[HirStmt],
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
-    // DEPYLER-0791: Save and restore is_final_statement for loop body
-    // Return statements inside loops are always early exits, never final expressions
     let saved_is_final = ctx.is_final_statement;
     ctx.is_final_statement = false;
 
-    // CITL: Trace for loop iteration strategy
     trace_decision!(
         category = DecisionCategory::BorrowStrategy,
         name = "for_loop_iter",
@@ -2975,27 +3105,18 @@ pub(crate) fn codegen_for_stmt(
         confidence = 0.88
     );
 
-    // DEPYLER-REFACTOR: Use extracted helper functions for loop variable tracking
     track_range_loop_var(target, iter, ctx);
     track_collection_loop_var(target, iter, body, ctx);
     track_char_counter_iter(target, iter, ctx);
 
-    // DEPYLER-REFACTOR: Use extracted helper for target pattern generation
     let target_pattern: syn::Pat = generate_for_target_pattern(target, body)?;
 
-    // GH-207: Handle dict.items() in for loop context specially
-    // Python: for k, v in dict.items() → Rust: for (k, v) in dict.iter().map(|(k, v)| (k.clone(), v.clone()))
-    // The standard convert_dict_method returns .iter().map(...).collect() which is wrong for iteration
-    // DEPYLER-0303-PHASE2: Clone both k and v to provide owned values (Python semantics)
+    // GH-207: Handle dict method calls (items/keys/values) specially for iteration
     let mut iter_expr = if let HirExpr::MethodCall { object, method, .. } = iter {
         if method == "items" {
-            // Generate object.iter().map(|(k, v)| (k.clone(), v.clone())) for iteration
-            // This clones both k and v to match Python semantics where loop vars are values, not refs
             let obj_expr = object.to_rust_expr(ctx)?;
             parse_quote! { #obj_expr.iter().map(|(k, v)| (k.clone(), v.clone())) }
         } else if method == "keys" {
-            // dict.keys() yields &K references in Rust; mark loop var as borrowed ref
-            // so downstream codegen (get, contains_key) can use the reference directly
             if let AssignTarget::Symbol(name) = target {
                 ctx.fn_str_params.insert(name.clone());
             }
@@ -3011,15 +3132,12 @@ pub(crate) fn codegen_for_stmt(
         iter.to_rust_expr(ctx)?
     };
 
-    // DEPYLER-1082: Handle iteration over iterator-typed generator state vars
-    // Box<dyn Iterator> doesn't implement IntoIterator, so we need while-let loop
+    // DEPYLER-1082: Handle generator iterator state vars
     if ctx.in_generator {
         if let HirExpr::Var(var_name) = iter {
             if ctx.generator_iterator_state_vars.contains(var_name) {
-                // Generate: while let Some(x) = self.var_name.next() { body }
                 let var_ident = safe_ident(var_name);
                 ctx.enter_scope();
-                // Declare loop variable
                 if let AssignTarget::Symbol(name) = target {
                     ctx.declare_var(name);
                 }
@@ -3027,7 +3145,6 @@ pub(crate) fn codegen_for_stmt(
                     body.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
                 ctx.exit_scope();
                 ctx.is_final_statement = saved_is_final;
-
                 return Ok(quote! {
                     while let Some(#target_pattern) = self.#var_ident.next() {
                         #(#body_stmts)*
@@ -3037,159 +3154,31 @@ pub(crate) fn codegen_for_stmt(
         }
     }
 
-    // DEPYLER-REFACTOR: Use extracted helper functions for iteration detection
     let is_stdin_iter = is_stdin_iteration(iter);
     let is_file_iter = is_file_iteration(iter);
     let is_csv_reader = is_csv_reader_iteration(iter);
 
-    // DEPYLER-REFACTOR: Apply iteration transformations via helpers
     if is_stdin_iter {
         iter_expr = apply_stdin_iteration(iter_expr);
     } else if is_file_iter {
         iter_expr = apply_file_iteration(iter_expr, ctx);
     }
 
-    // Track if CSV pattern yields Results (need to unwrap in loop)
     let mut csv_yields_results = false;
-
     if !is_stdin_iter && !is_file_iter && is_csv_reader {
-        // Try to apply CSV iteration mapping from stdlib_mappings
-        // This transforms: for row in reader
-        // Into: for result in reader.deserialize::<HashMap<String, String>>()
-        if let Some(pattern) = ctx.stdlib_mappings.get_iteration_pattern("csv", "DictReader") {
-            // Check if pattern yields Results
-            if let crate::stdlib_mappings::RustPattern::IterationPattern {
-                yields_results, ..
-            } = pattern
-            {
-                csv_yields_results = *yields_results;
-            }
-
-            let rust_code =
-                pattern.generate_rust_code(&iter_expr.to_token_stream().to_string(), &[]);
-            if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
-                // Set needs_csv flag
-                ctx.needs_csv = true;
-                // Wrap in iteration that handles Results
-                iter_expr = expr;
-            }
-        }
+        csv_yields_results = apply_csv_iteration(&mut iter_expr, ctx);
     }
 
-    // Check if we're iterating over a borrowed collection
-    // If iter is a simple variable that refers to a borrowed collection (e.g., &Vec<T>),
-    // we need to add .iter() to properly iterate over it
-    // Skip this for stdin/file/csv iterators which are already properly wrapped
+    // Apply collection/string/json iteration strategy for variable iterators
     if !is_stdin_iter && !is_file_iter && !is_csv_reader {
         if let HirExpr::Var(var_name) = iter {
-            // DEPYLER-0419: First check type information from context
-            // This is more reliable than name heuristics
-            let is_string_type =
-                ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::String));
-
-            // DEPYLER-0300/0302: Fall back to name-based heuristics if type not available
-            // DEPYLER-99MODE-S9: Only use name heuristic when var_types has NO concrete type
-            // If var_types says s=List(Int), don't override with string heuristic
-            let has_known_non_string_type = ctx.var_types.get(var_name).is_some_and(|t| {
-                matches!(
-                    t,
-                    Type::List(_)
-                        | Type::Dict(_, _)
-                        | Type::Set(_)
-                        | Type::Int
-                        | Type::Float
-                        | Type::Bool
-                        | Type::Tuple(_)
-                )
-            });
-            let is_string_name = if has_known_non_string_type {
-                false
-            } else {
-                let n = var_name.as_str();
-                (n == "s"
-                    || n == "string"
-                    || n == "text"
-                    || n == "word"
-                    || n == "line"
-                    || n == "char"
-                    || n == "character")
-                    || (n.starts_with("str") && !n.starts_with("strings"))
-                    || (n.starts_with("word") && !n.starts_with("words"))
-                    || (n.starts_with("text") && !n.starts_with("texts"))
-                    || (n.ends_with("_str") && !n.ends_with("_strs"))
-                    || (n.ends_with("_string") && !n.ends_with("_strings"))
-                    || (n.ends_with("_word") && !n.ends_with("_words"))
-                    || (n.ends_with("_text") && !n.ends_with("_texts"))
-            };
-
-            // DEPYLER-0606: Check if iterating over serde_json::Value
-            // JSON values are represented as Custom("Value") or dict values from heterogeneous dicts
-            let is_json_value = ctx.var_types.get(var_name).is_some_and(|t| {
-                matches!(t, Type::Custom(name) if name == "Value" || name == "serde_json::Value" || name.contains("json"))
-            });
-
-            if is_string_type || is_string_name {
-                // For strings, use .chars() to iterate over characters
-                iter_expr = parse_quote! { #iter_expr.chars() };
-
-                // DEPYLER-0795: Track loop variables that iterate over string.chars()
-                // The loop variable is a `char` type in Rust, which affects ord() codegen.
-                // Note: We track ALL char iter vars here. If the var is later converted to String
-                // (via needs_char_to_string), it's still a char when passed to ord().
-                if let AssignTarget::Symbol(loop_var_name) = target {
-                    ctx.char_iter_vars.insert(loop_var_name.clone());
-                }
-            } else if is_json_value {
-                // DEPYLER-0606: serde_json::Value needs .as_array().unwrap() before iteration
-                // This handles: for item in json_value (where json_value is a JSON array)
-                iter_expr = parse_quote! { #iter_expr.as_array().expect("JSON value is not an array").iter().cloned() };
-            } else if ctx.iterator_vars.contains(var_name) {
-                // DEPYLER-0520: Variable is already an iterator (from .filter().map() etc.)
-                // Don't add .iter().cloned() - iterators don't have .iter() method
-                // Just iterate directly
-            } else {
-                // DEPYLER-0710: Check if iterating over a Dict type
-                // Python's `for key in dict` iterates over keys only
-                // HashMap's .iter() returns (&K, &V) tuples which don't work with .cloned()
-                // Use .keys().cloned() to get an iterator over cloned keys
-                let is_dict_type =
-                    ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::Dict(_, _)));
-
-                if is_dict_type {
-                    // DEPYLER-0710: For dicts, iterate over keys only (Python semantics)
-                    iter_expr = parse_quote! { #iter_expr.keys().cloned() };
-                } else {
-                    // DEPYLER-0836: Check if iterating over a trueno::Vector type
-                    // Vector<T> doesn't have .iter() method, it uses .as_slice().iter()
-                    let is_vector_type = ctx.var_types.get(var_name).is_some_and(|t| match t {
-                        Type::Custom(name) => name.starts_with("Vector<") || name == "Vector",
-                        _ => false,
-                    });
-
-                    if is_vector_type {
-                        // DEPYLER-0836: trueno::Vector<T>.as_slice().iter().cloned()
-                        iter_expr = parse_quote! { #iter_expr.as_slice().iter().cloned() };
-                    } else {
-                        // For collections, use .iter().cloned()
-                        // DEPYLER-0265: Use .iter().cloned() to automatically clone items
-                        // This handles both Copy types (int, float, bool) and Clone types (String, Vec, etc.)
-                        // For Copy types, .cloned() is optimized to a simple bit-copy by the compiler.
-                        // For Clone types, it calls .clone() which is correct for Rust.
-                        // This matches Python semantics where loop variables are values, not references.
-                        iter_expr = parse_quote! { #iter_expr.iter().cloned() };
-                    }
-                }
-            }
+            iter_expr = apply_var_iteration_strategy(var_name, target, iter_expr, ctx);
         }
 
         // DEPYLER-1189: Handle dict index expression iteration
-        // Python: for key in dict[index] - iterates over keys of the nested dict
-        // Rust: HashMap iteration gives (K, V) tuples, need .keys() for Python semantics
         if let HirExpr::Index { base, .. } = iter {
-            // Check if the base is a dict-of-dicts
             if let HirExpr::Var(base_name) = base.as_ref() {
                 if let Some(Type::Dict(_, value_type)) = ctx.var_types.get(base_name) {
-                    // If the value type is also a Dict, iteration should be over keys
                     if matches!(value_type.as_ref(), Type::Dict(_, _)) {
                         iter_expr = parse_quote! { #iter_expr.keys().cloned() };
                     }
@@ -3197,28 +3186,15 @@ pub(crate) fn codegen_for_stmt(
             }
         }
 
-        // DEPYLER-1045: Handle string method calls that return String
-        // When iterating over text.lower(), text.upper(), text.strip(), etc.,
-        // we need to add .chars() because these methods return String which is not an iterator
+        // DEPYLER-1045: Handle string method calls returning String → need .chars()
         if let HirExpr::MethodCall { method, .. } = iter {
-            // List of Python string methods that return strings (need .chars() for iteration)
             let is_string_returning_method = matches!(
                 method.as_str(),
-                "lower"
-                    | "upper"
-                    | "strip"
-                    | "lstrip"
-                    | "rstrip"
-                    | "capitalize"
-                    | "title"
-                    | "swapcase"
-                    | "casefold"
-                    | "replace"
+                "lower" | "upper" | "strip" | "lstrip" | "rstrip"
+                    | "capitalize" | "title" | "swapcase" | "casefold" | "replace"
             );
             if is_string_returning_method {
                 iter_expr = parse_quote! { #iter_expr.chars() };
-
-                // Track the loop variable as char iterator
                 if let AssignTarget::Symbol(loop_var_name) = target {
                     ctx.char_iter_vars.insert(loop_var_name.clone());
                 }
@@ -3226,70 +3202,14 @@ pub(crate) fn codegen_for_stmt(
         }
     }
 
-    // DEPYLER-0607: Handle JSON Value iteration for dict index and method chains
-    // Patterns: data["items"], data.get("items").cloned().unwrap_or_default()
-    // serde_json::Value doesn't implement IntoIterator, need .as_array().unwrap().iter()
+    // DEPYLER-0607: Handle JSON Value iteration
     if !is_stdin_iter && !is_file_iter && !is_csv_reader {
-        // First check HIR-level patterns
-        let is_json_value_iteration = match iter {
-            // Case 1: dict["key"] - Index into HashMap<String, serde_json::Value>
-            HirExpr::Index { base, .. } => {
-                match base.as_ref() {
-                    HirExpr::Var(var_name) => {
-                        // Check if base is a HashMap with Value values (including Unknown → Value)
-                        if let Some(t) = ctx.var_types.get(var_name) {
-                            is_dict_with_value_type(t)
-                        } else {
-                            // DEPYLER-0607: For untracked local variables, check if serde_json is in use
-                            // If so, dict literals with heterogeneous values use serde_json::Value
-                            // This handles: data = {"key": [1,2,3]}; for item in data["key"]
-                            ctx.needs_serde_json
-                        }
-                    }
-                    HirExpr::Dict { .. } => true, // Dict literal - definitely has Value type
-                    _ => false,
-                }
-            }
-            // Case 2: dict.get("key")... method chain returning Value
-            HirExpr::MethodCall { object, method, .. } => {
-                // Check for common patterns: .cloned(), .unwrap_or_default(), .unwrap_or()
-                // that might be chained after dict.get()
-                let is_value_chain = method == "cloned"
-                    || method == "unwrap_or_default"
-                    || method == "unwrap_or"
-                    || method == "unwrap";
-
-                if is_value_chain {
-                    // Check if there's a get() call somewhere in the chain on a dict with Value
-                    is_json_value_method_chain_or_fallback(object.as_ref(), ctx)
-                } else if method == "get" {
-                    // Direct dict.get() call
-                    if let HirExpr::Var(var_name) = object.as_ref() {
-                        if let Some(t) = ctx.var_types.get(var_name) {
-                            is_dict_with_value_type(t)
-                        } else {
-                            // DEPYLER-0607: Fallback for untracked local dicts
-                            ctx.needs_serde_json
-                        }
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            }
-            _ => false,
-        };
-
-        // DEPYLER-0607: Also detect from generated Rust code patterns
-        // This catches cases where dict index was converted to .get().cloned().unwrap_or_default()
+        let is_json_value_iteration = detect_json_value_iteration(iter, ctx);
         let iter_expr_str = quote!(#iter_expr).to_string();
         let has_value_pattern = iter_expr_str.contains("unwrap_or_default")
             || iter_expr_str.contains("unwrap_or (")
             || (iter_expr_str.contains(".get") && iter_expr_str.contains(".cloned"));
-
         if is_json_value_iteration || (has_value_pattern && ctx.needs_serde_json) {
-            // DEPYLER-0607: Wrap JSON Value with .as_array().unwrap_or(&vec![]).iter().cloned()
             iter_expr = parse_quote! {
                 #iter_expr.as_array().unwrap_or(&vec![]).iter().cloned()
             };
@@ -3298,7 +3218,6 @@ pub(crate) fn codegen_for_stmt(
 
     ctx.enter_scope();
 
-    // DEPYLER-REFACTOR: Use extracted helpers for element type extraction and var declaration
     let element_type = extract_iterator_element_type(iter, ctx);
     declare_loop_vars_with_types(target, element_type, ctx);
     let body_stmts: Vec<_> =
@@ -3306,7 +3225,6 @@ pub(crate) fn codegen_for_stmt(
     ctx.exit_scope();
     ctx.is_final_statement = saved_is_final;
 
-    // DEPYLER-REFACTOR: Use extracted helper functions for loop generation
     let needs_enumerate_cast = needs_enumerate_index_cast(iter, target);
     let needs_char_to_string = needs_char_to_string_conversion(target, iter, body, ctx);
 
@@ -5638,6 +5556,430 @@ fn build_nested_type_chain(ctx: &CodeGenContext, root_var: &str, depth: usize) -
     chain
 }
 
+/// CB-200 Batch 10: Check if a variable name heuristically looks like a string key (not numeric).
+/// Returns true if the name matches common string-key patterns (key, k, name, id, etc.)
+#[inline]
+fn is_string_key_name_heuristic(name_str: &str) -> bool {
+    name_str == "key"
+        || name_str == "k"
+        || name_str == "name"
+        || name_str == "id"
+        || name_str == "word"
+        || name_str == "text"
+        || name_str == "char"
+        || name_str == "character"
+        || name_str == "c"
+        || name_str.ends_with("_key")
+        || name_str.ends_with("_name")
+}
+
+/// CB-200 Batch 10: Infer whether index is numeric using index expression heuristics.
+/// Checks var_types first, then falls back to name heuristic.
+#[inline]
+fn infer_numeric_from_index_heuristic(index: &HirExpr, ctx: &CodeGenContext) -> bool {
+    match index {
+        HirExpr::Var(name) => {
+            if let Some(idx_type) = ctx.var_types.get(name) {
+                matches!(idx_type, Type::Int | Type::Float | Type::Bool)
+            } else {
+                !is_string_key_name_heuristic(name.as_str())
+            }
+        }
+        HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+        _ => false,
+    }
+}
+
+/// CB-200 Batch 10: Resolve is_numeric_index for a base variable with known type.
+#[inline]
+fn resolve_numeric_index_for_typed_base(
+    base_type: &Type,
+    index: &HirExpr,
+    ctx: &CodeGenContext,
+) -> bool {
+    match base_type {
+        Type::List(_) => true,
+        Type::Dict(_, _) => false,
+        _ => infer_numeric_from_index_heuristic(index, ctx),
+    }
+}
+
+/// CB-200 Batch 10: Resolve is_numeric_index for a nested subscript base (non-variable).
+#[inline]
+fn resolve_numeric_index_for_nested_base(
+    base: &HirExpr,
+    index: &HirExpr,
+    ctx: &CodeGenContext,
+) -> bool {
+    let root_name = find_root_var_in_chain(base);
+    if let Some(ref name) = root_name {
+        if let Some(root_type) = ctx.var_types.get(name) {
+            let mut current = root_type.clone();
+            let depth = {
+                let mut d = 0;
+                let mut tmp = base;
+                while let HirExpr::Index { base: inner, .. } = tmp {
+                    d += 1;
+                    tmp = inner;
+                }
+                d
+            };
+            for _ in 0..depth {
+                match current {
+                    Type::List(elem) => current = *elem,
+                    Type::Dict(_, val) => current = *val,
+                    _ => break,
+                }
+            }
+            matches!(current, Type::List(_))
+        } else {
+            matches!(
+                index,
+                HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_))
+            )
+        }
+    } else {
+        match index {
+            HirExpr::Var(name) => !is_string_key_name_heuristic(name.as_str()),
+            HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+            _ => false,
+        }
+    }
+}
+
+/// CB-200 Batch 10: Full is_numeric_index resolution combining all strategies.
+#[inline]
+fn resolve_is_numeric_index(
+    base: &HirExpr,
+    index: &HirExpr,
+    ctx: &CodeGenContext,
+) -> bool {
+    if let HirExpr::Var(base_name) = base {
+        if let Some(base_type) = ctx.var_types.get(base_name) {
+            resolve_numeric_index_for_typed_base(base_type, index, ctx)
+        } else {
+            infer_numeric_from_index_heuristic(index, ctx)
+        }
+    } else {
+        resolve_numeric_index_for_nested_base(base, index, ctx)
+    }
+}
+
+/// CB-200 Batch 10: Check JSON name heuristic for serde_json detection.
+#[inline]
+fn check_json_name_heuristic(name_str: &str) -> (bool, bool) {
+    let is_value_name = name_str == "config"
+        || name_str == "data"
+        || name_str == "value"
+        || name_str == "current"
+        || name_str == "obj"
+        || name_str == "json";
+    let is_dict_value_name = name_str == "info"
+        || name_str == "result"
+        || name_str == "stats"
+        || name_str == "metadata"
+        || name_str == "output"
+        || name_str == "response";
+    (is_value_name, is_dict_value_name)
+}
+
+/// CB-200 Batch 10: Detect serde_json context for subscript assignment.
+/// Returns (needs_as_object_mut, needs_json_value_wrap).
+#[inline]
+fn detect_json_assign_context(
+    base: &HirExpr,
+    is_numeric_index: bool,
+    ctx: &CodeGenContext,
+) -> (bool, bool) {
+    if ctx.type_mapper.nasa_mode {
+        return (false, false);
+    }
+    if let HirExpr::Var(base_name) = base {
+        if !is_numeric_index {
+            if let Some(base_type) = ctx.var_types.get(base_name) {
+                match base_type {
+                    Type::Custom(s) if s == "serde_json::Value" || s == "Value" => (true, false),
+                    Type::Dict(_, val_type) => {
+                        let val_is_json = match val_type.as_ref() {
+                            Type::Unknown => true,
+                            Type::Custom(s) => s == "serde_json::Value" || s == "Value",
+                            _ => false,
+                        };
+                        (val_is_json, val_is_json)
+                    }
+                    Type::Unknown => check_json_name_heuristic(base_name.as_str()),
+                    _ => check_json_name_heuristic(base_name.as_str()),
+                }
+            } else {
+                check_json_name_heuristic(base_name.as_str())
+            }
+        } else {
+            (false, false)
+        }
+    } else {
+        (false, false)
+    }
+}
+
+/// CB-200 Batch 10: Convert dict value (string literal / interned const → .to_string()).
+#[inline]
+fn convert_dict_value_to_string(
+    value_expr: syn::Expr,
+    is_numeric_index: bool,
+) -> syn::Expr {
+    if !is_numeric_index {
+        let is_string_literal =
+            matches!(&value_expr, syn::Expr::Lit(lit) if matches!(&lit.lit, syn::Lit::Str(_)));
+        let is_interned_const = matches!(&value_expr, syn::Expr::Path(p) if {
+            p.path.segments.len() == 1
+                && p.path.segments[0].ident.to_string().starts_with("STR_")
+        });
+        if is_string_literal || is_interned_const {
+            parse_quote! { #value_expr.to_string() }
+        } else {
+            value_expr
+        }
+    } else {
+        value_expr
+    }
+}
+
+/// CB-200 Batch 10: Wrap value in serde_json when assigning to JSON dicts.
+#[inline]
+fn wrap_value_for_json(
+    value_expr: syn::Expr,
+    needs_as_object_mut: bool,
+    needs_json_value_wrap: bool,
+    ctx: &mut CodeGenContext,
+) -> syn::Expr {
+    if (needs_as_object_mut || needs_json_value_wrap) && !ctx.type_mapper.nasa_mode {
+        let value_str = quote! { #value_expr }.to_string();
+        if value_str.contains("serde_json :: json !") || value_str.contains("serde_json :: Value") {
+            value_expr
+        } else if value_str.contains("HashMap") || value_str.contains("let mut map") {
+            ctx.needs_serde_json = true;
+            parse_quote! { serde_json::to_value(#value_expr).expect("serde_json serialization failed") }
+        } else {
+            ctx.needs_serde_json = true;
+            parse_quote! { serde_json::json!(#value_expr) }
+        }
+    } else {
+        value_expr
+    }
+}
+
+/// CB-200 Batch 10: Wrap value in DepylerValue for NASA mode heterogeneous dicts.
+#[inline]
+fn wrap_value_for_depyler(
+    final_value_expr: syn::Expr,
+    hir_value: &HirExpr,
+    base: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> syn::Expr {
+    if !ctx.type_mapper.nasa_mode {
+        return final_value_expr;
+    }
+    let return_needs = if let Some(Type::Dict(_, val_type)) = &ctx.current_return_type {
+        matches!(val_type.as_ref(), Type::Unknown)
+    } else {
+        false
+    };
+    let var_needs = if let HirExpr::Var(base_name) = base {
+        if let Some(Type::Dict(_, val_type)) = ctx.var_types.get(base_name) {
+            matches!(val_type.as_ref(), Type::Unknown)
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+    if !return_needs && !var_needs {
+        return final_value_expr;
+    }
+    ctx.needs_depyler_value_enum = true;
+    match hir_value {
+        HirExpr::Literal(crate::hir::Literal::Int(_)) => {
+            parse_quote! { DepylerValue::Int(#final_value_expr as i64) }
+        }
+        HirExpr::Literal(crate::hir::Literal::Float(_)) => {
+            parse_quote! { DepylerValue::Float(#final_value_expr) }
+        }
+        HirExpr::Literal(crate::hir::Literal::String(_)) => {
+            parse_quote! { DepylerValue::Str(#final_value_expr.to_string()) }
+        }
+        HirExpr::Literal(crate::hir::Literal::Bool(_)) => {
+            parse_quote! { DepylerValue::Bool(#final_value_expr) }
+        }
+        HirExpr::Literal(crate::hir::Literal::None) => {
+            parse_quote! { DepylerValue::None }
+        }
+        HirExpr::List(_) => {
+            parse_quote! { DepylerValue::List(#final_value_expr) }
+        }
+        HirExpr::Dict(_) => {
+            parse_quote! {
+                DepylerValue::Dict(
+                    #final_value_expr.into_iter()
+                        .map(|(k, v)| (DepylerValue::Str(k), v))
+                        .collect()
+                )
+            }
+        }
+        _ => {
+            let value_str = quote! { #final_value_expr }.to_string();
+            if value_str.contains("DepylerValue::") {
+                final_value_expr
+            } else {
+                parse_quote! { DepylerValue::from(#final_value_expr) }
+            }
+        }
+    }
+}
+
+/// CB-200 Batch 10: Resolve the target dict type for key conversion.
+#[inline]
+fn resolve_target_dict_type(base: &HirExpr, ctx: &CodeGenContext) -> Option<Type> {
+    if let HirExpr::Var(base_name) = base {
+        ctx.var_types.get(base_name).cloned()
+    } else {
+        find_root_var_in_chain(base).and_then(|root_name| {
+            let root_type = ctx.var_types.get(&root_name)?.clone();
+            let mut current = root_type;
+            let mut tmp = base;
+            while let HirExpr::Index { base: inner, .. } = tmp {
+                match current {
+                    Type::List(elem) => current = *elem,
+                    Type::Dict(_, val) => current = *val,
+                    _ => break,
+                }
+                tmp = inner;
+            }
+            Some(current)
+        })
+    }
+}
+
+/// CB-200 Batch 10: Convert the index key for dict assignment (to_string, DepylerValue, etc.).
+#[inline]
+fn convert_index_key_for_dict(
+    final_index: syn::Expr,
+    index: &HirExpr,
+    is_numeric_index: bool,
+    target_dict_type: &Option<Type>,
+    ctx: &mut CodeGenContext,
+) -> syn::Expr {
+    let dict_has_float_keys = target_dict_type.as_ref().is_some_and(
+        |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Float)),
+    );
+    let dict_has_tuple_keys = target_dict_type.as_ref().is_some_and(
+        |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Tuple(_))),
+    );
+    let dict_has_int_keys = target_dict_type.as_ref().is_some_and(
+        |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Int)),
+    );
+
+    if dict_has_float_keys {
+        ctx.needs_depyler_value_enum = true;
+        if matches!(index, HirExpr::Literal(crate::hir::Literal::Float(_))) {
+            parse_quote! { DepylerValue::Float(#final_index) }
+        } else if matches!(index, HirExpr::Literal(crate::hir::Literal::Int(_))) {
+            parse_quote! { DepylerValue::Float(#final_index as f64) }
+        } else {
+            parse_quote! { DepylerValue::from(#final_index) }
+        }
+    } else if dict_has_tuple_keys {
+        final_index
+    } else if !is_numeric_index && !dict_has_int_keys {
+        let idx_str = quote! { #final_index }.to_string();
+        if idx_str.contains("to_string") {
+            final_index
+        } else if idx_str.starts_with('"') {
+            parse_quote! { #final_index.to_string() }
+        } else {
+            parse_quote! { #final_index.to_string() }
+        }
+    } else {
+        final_index
+    }
+}
+
+/// CB-200 Batch 10: Generate the final insert/index-assign statement for simple (non-nested) case.
+#[inline]
+fn generate_simple_index_assign(
+    base_expr: &syn::Expr,
+    final_index: &syn::Expr,
+    final_value_expr: &syn::Expr,
+    is_numeric_index: bool,
+    needs_as_object_mut: bool,
+    index: &HirExpr,
+) -> proc_macro2::TokenStream {
+    if is_numeric_index {
+        quote! { #base_expr[(#final_index) as usize] = #final_value_expr; }
+    } else if needs_as_object_mut {
+        quote! { #base_expr.as_object_mut().expect("JSON value is not an object").insert((#final_index).clone(), #final_value_expr); }
+    } else {
+        let needs_clone = matches!(index, HirExpr::Var(_));
+        if needs_clone {
+            quote! { #base_expr.insert(#final_index.clone(), #final_value_expr); }
+        } else {
+            quote! { #base_expr.insert(#final_index, #final_value_expr); }
+        }
+    }
+}
+
+/// CB-200 Batch 10: Generate nested index assignment with type-aware per-level access.
+#[inline]
+fn generate_nested_index_assign(
+    base: &HirExpr,
+    base_expr: &syn::Expr,
+    indices: &[syn::Expr],
+    final_index: &syn::Expr,
+    final_value_expr: &syn::Expr,
+    is_numeric_index: bool,
+    needs_as_object_mut: bool,
+    index: &HirExpr,
+    ctx: &CodeGenContext,
+) -> proc_macro2::TokenStream {
+    let root_var_name = find_root_var_in_chain(base);
+    let type_chain = if let Some(ref name) = root_var_name {
+        build_nested_type_chain(ctx, name, indices.len() + 1)
+    } else {
+        vec![]
+    };
+
+    let mut chain = quote! { #base_expr };
+    for (i, idx) in indices.iter().enumerate() {
+        let level_is_list = type_chain.get(i).copied().unwrap_or(is_numeric_index);
+        if level_is_list {
+            chain = quote! { #chain[#idx as usize] };
+        } else {
+            let idx_str = quote! { #idx }.to_string();
+            let first_char = idx_str.trim_start().chars().next();
+            let is_str_lit = first_char == Some('"');
+            let is_already_ref = is_str_lit || ctx.fn_str_params.contains(idx_str.trim());
+            chain = if is_already_ref {
+                quote! { #chain.get_mut(#idx).expect("key not found in dict") }
+            } else {
+                quote! { #chain.get_mut(&#idx).expect("key not found in dict") }
+            };
+        }
+    }
+
+    let final_is_list = type_chain.get(indices.len()).copied().unwrap_or(is_numeric_index);
+    if final_is_list {
+        quote! { #chain[(#final_index) as usize] = #final_value_expr; }
+    } else if needs_as_object_mut {
+        quote! { #chain.as_object_mut().expect("JSON value is not an object").insert((#final_index).clone(), #final_value_expr); }
+    } else {
+        let needs_clone = matches!(index, HirExpr::Var(_));
+        if needs_clone {
+            quote! { #chain.insert(#final_index.clone(), #final_value_expr); }
+        } else {
+            quote! { #chain.insert(#final_index, #final_value_expr); }
+        }
+    }
+}
+
 /// Generate code for index (dictionary/list subscript) assignment
 /// DEPYLER-1203: Added hir_value parameter for type-based DepylerValue wrapping
 #[inline]
@@ -5649,14 +5991,10 @@ pub(crate) fn codegen_assign_index(
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
     // DEPYLER-0964: Handle subscript assignment to &mut Option<HashMap<K, V>> parameters
-    // When a parameter is Dict[K,V] with default None, it becomes &mut Option<HashMap>
-    // Subscript assignment needs to unwrap the Option first:
-    // - memo[k] = v → memo.as_mut().unwrap().insert(k, v)
     if let HirExpr::Var(base_name) = base {
         if ctx.mut_option_dict_params.contains(base_name) {
             let base_ident = safe_ident(base_name);
             let key_expr = index.to_rust_expr(ctx)?;
-            // Clone key if it's a variable to avoid move issues
             let needs_clone = matches!(index, HirExpr::Var(_));
             if needs_clone {
                 return Ok(quote! {
@@ -5671,485 +6009,51 @@ pub(crate) fn codegen_assign_index(
     }
 
     let final_index = index.to_rust_expr(ctx)?;
-
-    // DEPYLER-0304: Type-aware subscript assignment detection
-    // Check base variable type to determine if this is Vec or HashMap
-    // Vec.insert() requires usize index, HashMap.insert() takes key of any type
-    let is_numeric_index = if let HirExpr::Var(base_name) = base {
-        // Check if we have type information for this variable
-        if let Some(base_type) = ctx.var_types.get(base_name) {
-            // Type-based detection (most reliable)
-            match base_type {
-                Type::List(_) => true,     // List/Vec → numeric index
-                Type::Dict(_, _) => false, // Dict/HashMap → key (not numeric)
-                _ => {
-                    // Fall back to index heuristic for other types
-                    // DEPYLER-99MODE-S9: Check index var_types FIRST before name heuristic
-                    match index {
-                        HirExpr::Var(name) => {
-                            if let Some(idx_type) = ctx.var_types.get(name) {
-                                // Concrete type known: use it
-                                matches!(idx_type, Type::Int | Type::Float | Type::Bool)
-                            } else {
-                                let name_str = name.as_str();
-                                // Heuristic only when type unknown
-                                !(name_str == "key"
-                                    || name_str == "k"
-                                    || name_str == "name"
-                                    || name_str == "id"
-                                    || name_str == "word"
-                                    || name_str == "text"
-                                    || name_str == "char"
-                                    || name_str == "character"
-                                    || name_str == "c"
-                                    || name_str.ends_with("_key")
-                                    || name_str.ends_with("_name"))
-                            }
-                        }
-                        HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => {
-                            true
-                        }
-                        _ => false,
-                    }
-                }
-            }
-        } else {
-            // No type info for base - check index type then heuristic
-            // DEPYLER-99MODE-S9: Check index var_types FIRST
-            match index {
-                HirExpr::Var(name) => {
-                    if let Some(idx_type) = ctx.var_types.get(name) {
-                        matches!(idx_type, Type::Int | Type::Float | Type::Bool)
-                    } else {
-                        let name_str = name.as_str();
-                        !(name_str == "key"
-                            || name_str == "k"
-                            || name_str == "name"
-                            || name_str == "id"
-                            || name_str == "word"
-                            || name_str == "text"
-                            || name_str == "char"
-                            || name_str == "character"
-                            || name_str == "c"
-                            || name_str.ends_with("_key")
-                            || name_str.ends_with("_name"))
-                    }
-                }
-                HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
-                _ => false,
-            }
-        }
-    } else {
-        // DEPYLER-99MODE-S9: Base is not a simple variable (likely nested subscript)
-        // Try to resolve root variable type chain for reliable detection
-        let root_name = find_root_var_in_chain(base);
-        if let Some(ref name) = root_name {
-            if let Some(root_type) = ctx.var_types.get(name) {
-                // Walk the type chain to find what type the outermost index accesses
-                let mut current = root_type.clone();
-                let depth = {
-                    let mut d = 0;
-                    let mut tmp = base;
-                    while let HirExpr::Index { base: inner, .. } = tmp {
-                        d += 1;
-                        tmp = inner;
-                    }
-                    d
-                };
-                // Walk `depth` levels into the type to find the type at the final level
-                for _ in 0..depth {
-                    match current {
-                        Type::List(elem) => {
-                            current = *elem;
-                        }
-                        Type::Dict(_, val) => {
-                            current = *val;
-                        }
-                        _ => break,
-                    }
-                }
-                // Now `current` is the type at the level being indexed by `index`
-                let resolved = matches!(current, Type::List(_));
-                // Return early with resolved type
-                resolved
-            } else {
-                // No type info — fall through to heuristic
-                matches!(
-                    index,
-                    HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_))
-                )
-            }
-        } else {
-            // DEPYLER-0449: Check if index looks like a string key before assuming numeric
-            match index {
-                HirExpr::Var(name) => {
-                    let name_str = name.as_str();
-                    // String-like variable names → NOT numeric
-                    if name_str == "key"
-                        || name_str == "k"
-                        || name_str == "name"
-                        || name_str == "id"
-                        || name_str == "word"
-                        || name_str == "text"
-                        || name_str == "char"
-                        || name_str == "character"
-                        || name_str == "c"
-                        || name_str.ends_with("_key")
-                        || name_str.ends_with("_name")
-                    {
-                        false
-                    } else {
-                        // Default: assume numeric for other variables
-                        true
-                    }
-                }
-                HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
-                _ => false,
-            }
-        } // close: else (no root_name)
-    };
-
-    // Extract the base and all intermediate indices
+    let is_numeric_index = resolve_is_numeric_index(base, index, ctx);
     let (base_expr, indices) = extract_nested_indices_tokens(base, ctx)?;
 
-    // DEPYLER-0403/DEPYLER-1027: Convert string literals to String for Dict values
-    // In NASA mode (single-shot compile), always use HashMap<String, String> for dicts
-    // so string literal values ALWAYS need .to_string() for type consistency
-    let value_expr = if !is_numeric_index {
-        // Check if value_expr is a string literal
-        let is_string_literal =
-            matches!(&value_expr, syn::Expr::Lit(lit) if matches!(&lit.lit, syn::Lit::Str(_)));
+    // Convert value for dict string types
+    let value_expr = convert_dict_value_to_string(value_expr, is_numeric_index);
 
-        // DEPYLER-99MODE-S9: Check if value_expr is an interned string constant (STR_*)
-        // These are &'static str and need .to_string() for HashMap<String, String>
-        let is_interned_const = matches!(&value_expr, syn::Expr::Path(p) if {
-            p.path.segments.len() == 1
-                && p.path.segments[0].ident.to_string().starts_with("STR_")
-        });
-
-        // DEPYLER-1027: Convert string literals/interned constants to String for dicts
-        if is_string_literal || is_interned_const {
-            parse_quote! { #value_expr.to_string() }
-        } else {
-            value_expr
-        }
-    } else {
-        value_expr
-    };
-
-    // DEPYLER-0449: Detect if base is serde_json::Value (needs .as_object_mut())
-    // DEPYLER-0560: Also detect if base is HashMap<String, serde_json::Value>
-    // DEPYLER-1017: Skip serde_json logic in NASA mode
-    let (needs_as_object_mut, needs_json_value_wrap) = if ctx.type_mapper.nasa_mode {
-        (false, false)
-    } else if let HirExpr::Var(base_name) = base {
-        if !is_numeric_index {
-            // DEPYLER-0449: Helper function to check if name looks like JSON value
-            let check_json_name_heuristic = |name_str: &str| {
-                let is_value_name = name_str == "config"
-                    || name_str == "data"
-                    || name_str == "value"
-                    || name_str == "current"
-                    || name_str == "obj"
-                    || name_str == "json";
-                // DEPYLER-0560: Also check common dict names that may have Value type
-                let is_dict_value_name = name_str == "info"
-                    || name_str == "result"
-                    || name_str == "stats"
-                    || name_str == "metadata"
-                    || name_str == "output"
-                    || name_str == "response";
-                (is_value_name, is_dict_value_name)
-            };
-
-            // Check actual type from var_types
-            if let Some(base_type) = ctx.var_types.get(base_name) {
-                match base_type {
-                    // Pure serde_json::Value - needs .as_object_mut()
-                    Type::Custom(s) if s == "serde_json::Value" || s == "Value" => (true, false),
-                    // HashMap<String, serde_json::Value> - needs json!() wrap on values
-                    // DEPYLER-0449: Dict with serde_json::Value values is actually a
-                    // serde_json::Value JSON object, so we need .as_object_mut()
-                    Type::Dict(_, val_type) => {
-                        let val_is_json = match val_type.as_ref() {
-                            Type::Unknown => true,
-                            Type::Custom(s) => s == "serde_json::Value" || s == "Value",
-                            _ => false,
-                        };
-                        // When dict has Value values, it's a serde_json::Value JSON object
-                        (val_is_json, val_is_json)
-                    }
-                    // DEPYLER-0449: Unknown type - fall back to name heuristic
-                    Type::Unknown => check_json_name_heuristic(base_name.as_str()),
-                    // Any other type - also try heuristic for common JSON var names
-                    _ => check_json_name_heuristic(base_name.as_str()),
-                }
-            } else {
-                // Fallback heuristic: check variable name patterns
-                check_json_name_heuristic(base_name.as_str())
-            }
-        } else {
-            (false, false)
-        }
-    } else {
-        (false, false)
-    };
-
-    // DEPYLER-0472: Wrap value in serde_json::Value when assigning to Value dicts
-    // DEPYLER-0560: Also wrap when dict value type is serde_json::Value
-    // DEPYLER-1017: Skip serde_json in NASA mode
-    // Check if value needs wrapping (not already json!() or Value variant)
-    let final_value_expr = if (needs_as_object_mut || needs_json_value_wrap)
-        && !ctx.type_mapper.nasa_mode
-    {
-        // Check if value_expr is already a json!() or Value expression
-        let value_str = quote! { #value_expr }.to_string();
-        if value_str.contains("serde_json :: json !") || value_str.contains("serde_json :: Value") {
-            // Already wrapped, use as-is
-            value_expr
-        } else if value_str.contains("HashMap") || value_str.contains("let mut map") {
-            // DEPYLER-0669: HashMap block expressions can't go in json!() macro
-            // Use serde_json::to_value() for proper conversion
-            ctx.needs_serde_json = true;
-            parse_quote! { serde_json::to_value(#value_expr).expect("serde_json serialization failed") }
-        } else {
-            // Need to wrap in serde_json::json!() for HashMap<String, Value>
-            // Use json!() instead of to_value() for consistency with dict literals
-            ctx.needs_serde_json = true;
-            parse_quote! { serde_json::json!(#value_expr) }
-        }
-    } else {
-        value_expr
-    };
-
-    // DEPYLER-1050: In NASA mode, wrap values in DepylerValue when function returns HashMap<String, DepylerValue>
-    // This handles subscript assignments like `d["key"] = "value"` where d is returned as heterogeneous dict
-    let final_value_expr = if ctx.type_mapper.nasa_mode {
-        // Check if function return type requires DepylerValue
-        let return_needs_depyler_value =
-            if let Some(Type::Dict(_, val_type)) = &ctx.current_return_type {
-                matches!(val_type.as_ref(), Type::Unknown)
-            } else {
-                false
-            };
-
-        // Check if target variable requires DepylerValue
-        let var_needs_depyler_value = if let HirExpr::Var(base_name) = base {
-            if let Some(Type::Dict(_, val_type)) = ctx.var_types.get(base_name) {
-                matches!(val_type.as_ref(), Type::Unknown)
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-
-        if return_needs_depyler_value || var_needs_depyler_value {
-            ctx.needs_depyler_value_enum = true;
-            // DEPYLER-1203: Type-based DepylerValue wrapping (matches DEPYLER-1201 pattern)
-            // Use HirExpr type instead of string inspection for correct wrapping
-            match hir_value {
-                HirExpr::Literal(crate::hir::Literal::Int(_)) => {
-                    parse_quote! { DepylerValue::Int(#final_value_expr as i64) }
-                }
-                HirExpr::Literal(crate::hir::Literal::Float(_)) => {
-                    parse_quote! { DepylerValue::Float(#final_value_expr) }
-                }
-                HirExpr::Literal(crate::hir::Literal::String(_)) => {
-                    parse_quote! { DepylerValue::Str(#final_value_expr.to_string()) }
-                }
-                HirExpr::Literal(crate::hir::Literal::Bool(_)) => {
-                    parse_quote! { DepylerValue::Bool(#final_value_expr) }
-                }
-                HirExpr::Literal(crate::hir::Literal::None) => {
-                    parse_quote! { DepylerValue::None }
-                }
-                HirExpr::List(_) => {
-                    // Nested list: wrap in DepylerValue::List
-                    parse_quote! { DepylerValue::List(#final_value_expr) }
-                }
-                HirExpr::Dict(_) => {
-                    // Nested dict: wrap in DepylerValue::Dict
-                    // DEPYLER-1314: Convert HashMap<String, DepylerValue> to HashMap<DepylerValue, DepylerValue>
-                    parse_quote! {
-                        DepylerValue::Dict(
-                            #final_value_expr.into_iter()
-                                .map(|(k, v)| (DepylerValue::Str(k), v))
-                                .collect()
-                        )
-                    }
-                }
-                _ => {
-                    // Check if already wrapped (for complex expressions)
-                    let value_str = quote! { #final_value_expr }.to_string();
-                    if value_str.contains("DepylerValue::") {
-                        final_value_expr
-                    } else {
-                        // For variables and complex expressions, use From trait
-                        parse_quote! { DepylerValue::from(#final_value_expr) }
-                    }
-                }
-            }
-        } else {
-            final_value_expr
-        }
-    } else {
-        final_value_expr
-    };
-
-    // DEPYLER-0567/DEPYLER-1027/DEPYLER-1029: Convert keys based on dict's key type
-    // In NASA mode, only convert to String if the dict's key type is String
-    // If dict has int keys (e.g., Dict[int, str]), keep keys as integers
-    // DEPYLER-99MODE-S9: For nested subscripts, resolve the target dict type from the chain
-    let target_dict_type = if let HirExpr::Var(base_name) = base {
-        ctx.var_types.get(base_name).cloned()
-    } else {
-        // For nested subscripts, walk the type chain to find the type being indexed
-        find_root_var_in_chain(base).and_then(|root_name| {
-            let root_type = ctx.var_types.get(&root_name)?.clone();
-            let mut current = root_type;
-            let mut tmp = base;
-            while let HirExpr::Index { base: inner, .. } = tmp {
-                match current {
-                    Type::List(elem) => {
-                        current = *elem;
-                    }
-                    Type::Dict(_, val) => {
-                        current = *val;
-                    }
-                    _ => break,
-                }
-                tmp = inner;
-            }
-            Some(current)
-        })
-    };
-    let dict_has_int_keys = target_dict_type.as_ref().is_some_and(
-        |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Int)),
+    // Detect and wrap for serde_json
+    let (needs_as_object_mut, needs_json_value_wrap) =
+        detect_json_assign_context(base, is_numeric_index, ctx);
+    let final_value_expr = wrap_value_for_json(
+        value_expr,
+        needs_as_object_mut,
+        needs_json_value_wrap,
+        ctx,
     );
 
-    // DEPYLER-1073: Check if dict has float keys (uses DepylerValue)
-    let dict_has_float_keys = target_dict_type.as_ref().is_some_and(
-        |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Float)),
-    );
+    // Wrap for DepylerValue in NASA mode
+    let final_value_expr = wrap_value_for_depyler(final_value_expr, hir_value, base, ctx);
 
-    // DEPYLER-TUPLE-KEY-FIX: Check if dict has tuple keys
-    let dict_has_tuple_keys = target_dict_type.as_ref().is_some_and(
-        |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Tuple(_))),
-    );
-
-    let final_index = if dict_has_float_keys {
-        // DEPYLER-1073: Float keys use DepylerValue for Hash/Eq support
-        ctx.needs_depyler_value_enum = true;
-        // Wrap float literal in DepylerValue::Float()
-        if matches!(index, HirExpr::Literal(crate::hir::Literal::Float(_))) {
-            parse_quote! { DepylerValue::Float(#final_index) }
-        } else if matches!(index, HirExpr::Literal(crate::hir::Literal::Int(_))) {
-            // Int literal used as float key - convert to float
-            parse_quote! { DepylerValue::Float(#final_index as f64) }
-        } else {
-            // Variable - use From trait
-            parse_quote! { DepylerValue::from(#final_index) }
-        }
-    } else if dict_has_tuple_keys {
-        // DEPYLER-TUPLE-KEY-FIX: Tuple key dicts don't need .to_string() conversion
-        // Python: d[(0,0)] = "origin" → Rust: d.insert((0, 0), "origin".to_string())
-        // Tuples are used directly as HashMap keys
-        final_index
-    } else if !is_numeric_index && !dict_has_int_keys {
-        // For string-keyed dicts, convert keys to String
-        let idx_str = quote! { #final_index }.to_string();
-        // Check if already has .to_string() - handle spaces from quote! macro
-        // quote! produces ". to_string ( )" with spaces, not ".to_string()"
-        if idx_str.contains("to_string") {
-            final_index
-        } else if idx_str.starts_with('"') {
-            // String literal like "key" → "key".to_string()
-            parse_quote! { #final_index.to_string() }
-        } else {
-            // DEPYLER-1027: Non-string keys (integers, variables) also need .to_string()
-            // for HashMap<String, ...> in NASA single-shot compile mode
-            // Examples: d[42] = "v" → d.insert(42.to_string(), ...)
-            //           d[n] = "v" → d.insert(n.to_string(), ...)
-            parse_quote! { #final_index.to_string() }
-        }
-    } else {
-        final_index
-    };
+    // Convert index key for dict assignment
+    let target_dict_type = resolve_target_dict_type(base, ctx);
+    let final_index =
+        convert_index_key_for_dict(final_index, index, is_numeric_index, &target_dict_type, ctx);
 
     if indices.is_empty() {
-        // Simple assignment: d[k] = v OR list[i] = x
-        if is_numeric_index {
-            // DEPYLER-1169: List index assignment uses index operator, NOT insert()
-            // Python: list[i] = x → replaces element at index i
-            // Rust: vec[i] = x → replaces element at index i
-            // WRONG: vec.insert(i, x) → inserts NEW element, shifts others (causes bugs!)
-            Ok(quote! { #base_expr[(#final_index) as usize] = #final_value_expr; })
-        } else if needs_as_object_mut {
-            // DEPYLER-0449: serde_json::Value needs .as_object_mut() for insert
-            // DEPYLER-0473: Clone key to avoid move-after-use errors
-            Ok(
-                quote! { #base_expr.as_object_mut().expect("JSON value is not an object").insert((#final_index).clone(), #final_value_expr); },
-            )
-        } else {
-            // HashMap.insert(key, value)
-            // DEPYLER-0661: Clone variable keys to avoid move-after-use errors
-            // When key is a variable like `word_lower`, it may be used elsewhere
-            // (e.g., words.push(word_lower)) so we clone to prevent move
-            let needs_clone = matches!(index, HirExpr::Var(_));
-            if needs_clone {
-                Ok(quote! { #base_expr.insert(#final_index.clone(), #final_value_expr); })
-            } else {
-                Ok(quote! { #base_expr.insert(#final_index, #final_value_expr); })
-            }
-        }
+        Ok(generate_simple_index_assign(
+            &base_expr,
+            &final_index,
+            &final_value_expr,
+            is_numeric_index,
+            needs_as_object_mut,
+            index,
+        ))
     } else {
-        // DEPYLER-99MODE-S9: Per-level type-aware nested indexing
-        // Walk the base variable's type chain to determine dict vs list at each level
-        // E.g., Dict[int, List[int]]: level 0 = dict (get_mut), level 1 = list (as usize)
-        let root_var_name = find_root_var_in_chain(base);
-        let type_chain = if let Some(ref name) = root_var_name {
-            build_nested_type_chain(ctx, name, indices.len() + 1)
-        } else {
-            vec![]
-        };
-
-        let mut chain = quote! { #base_expr };
-        for (i, idx) in indices.iter().enumerate() {
-            let level_is_list = type_chain.get(i).copied().unwrap_or(is_numeric_index);
-            if level_is_list {
-                chain = quote! { #chain[#idx as usize] };
-            } else {
-                // Dict access uses get_mut with reference key
-                let idx_str = quote! { #idx }.to_string();
-                let first_char = idx_str.trim_start().chars().next();
-                let is_str_lit = first_char == Some('"');
-                // DEPYLER-99MODE-S9: Check if variable is already a &str param
-                // to avoid double-borrow (&(&str) → &&str) which causes E0277
-                let is_already_ref = is_str_lit || ctx.fn_str_params.contains(idx_str.trim());
-                chain = if is_already_ref {
-                    quote! { #chain.get_mut(#idx).expect("key not found in dict") }
-                } else {
-                    quote! { #chain.get_mut(&#idx).expect("key not found in dict") }
-                };
-            }
-        }
-
-        let final_is_list = type_chain.get(indices.len()).copied().unwrap_or(is_numeric_index);
-        if final_is_list {
-            Ok(quote! { #chain[(#final_index) as usize] = #final_value_expr; })
-        } else if needs_as_object_mut {
-            Ok(
-                quote! { #chain.as_object_mut().expect("JSON value is not an object").insert((#final_index).clone(), #final_value_expr); },
-            )
-        } else {
-            let needs_clone = matches!(index, HirExpr::Var(_));
-            if needs_clone {
-                Ok(quote! { #chain.insert(#final_index.clone(), #final_value_expr); })
-            } else {
-                Ok(quote! { #chain.insert(#final_index, #final_value_expr); })
-            }
-        }
+        Ok(generate_nested_index_assign(
+            base,
+            &base_expr,
+            &indices,
+            &final_index,
+            &final_value_expr,
+            is_numeric_index,
+            needs_as_object_mut,
+            index,
+            ctx,
+        ))
     }
 }
 

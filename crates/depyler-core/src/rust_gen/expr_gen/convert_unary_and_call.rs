@@ -145,6 +145,213 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// CB-200 Batch 10: Convert args for user-defined class constructors.
+    fn convert_class_constructor_args(
+        &mut self,
+        args: &[HirExpr],
+        class_has_vec_f64_field: bool,
+    ) -> Result<Vec<syn::Expr>> {
+        args.iter()
+            .map(|arg| {
+                if class_has_vec_f64_field {
+                    if let HirExpr::List(elems) = arg {
+                        return self.convert_list_with_float_coercion(elems);
+                    }
+                }
+                if let HirExpr::Literal(Literal::String(s)) = arg {
+                    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                    return Ok(parse_quote! { #lit.to_string() });
+                }
+                arg.to_rust_expr(self.ctx)
+            })
+            .collect::<Result<Vec<_>>>()
+    }
+
+    /// CB-200 Batch 10: Check if a parameter type needs DepylerValue wrapping.
+    fn param_needs_depyler_value(param_type: &Type) -> bool {
+        match param_type {
+            Type::Dict(_, val_type) => {
+                matches!(val_type.as_ref(), Type::Unknown)
+                    || matches!(val_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any")
+            }
+            Type::List(elem_type) => {
+                matches!(elem_type.as_ref(), Type::Unknown)
+                    || matches!(elem_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any")
+            }
+            Type::Custom(name) if name == "dict" || name == "Dict" => true,
+            Type::Custom(name) if name == "list" || name == "List" => true,
+            _ => false,
+        }
+    }
+
+    /// CB-200 Batch 10: Convert args for non-class function calls with type context.
+    fn convert_regular_call_args(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Result<Vec<syn::Expr>> {
+        let mut converted_args = Vec::with_capacity(args.len());
+        for (param_idx, arg) in args.iter().enumerate() {
+            let prev_assign_type = if matches!(arg, HirExpr::Dict(_) | HirExpr::List(_)) {
+                if let Some(param_types) = self.ctx.function_param_types.get(func) {
+                    if let Some(param_type) = param_types.get(param_idx) {
+                        if Self::param_needs_depyler_value(param_type) {
+                            let old = self.ctx.current_assign_type.clone();
+                            self.ctx.current_assign_type = Some(param_type.clone());
+                            Some(old)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            let expr = arg.to_rust_expr(self.ctx)?;
+
+            if let Some(old_type) = prev_assign_type {
+                self.ctx.current_assign_type = old_type;
+            }
+
+            if let HirExpr::Var(var_name) = arg {
+                let is_const = var_name.chars().all(|c| c.is_uppercase() || c == '_');
+                if is_const {
+                    let is_scalar_const = self
+                        .ctx
+                        .module_constant_types
+                        .get(var_name)
+                        .map(|ty| matches!(ty, Type::Int | Type::Float | Type::Bool))
+                        .unwrap_or(false);
+                    if !is_scalar_const {
+                        converted_args.push(parse_quote! { &#expr });
+                        continue;
+                    }
+                }
+            }
+            converted_args.push(expr);
+        }
+        Ok(converted_args)
+    }
+
+    /// CB-200 Batch 10: Convert kwargs for user-defined class constructors.
+    fn convert_class_kwargs(
+        &mut self,
+        kwargs: &[(String, HirExpr)],
+    ) -> Result<Vec<syn::Expr>> {
+        kwargs
+            .iter()
+            .map(|(name, value)| {
+                if let Some(Type::List(elem_type)) = self.ctx.class_field_types.get(name) {
+                    if matches!(elem_type.as_ref(), Type::Float) {
+                        if let HirExpr::List(elems) = value {
+                            return self.convert_list_with_float_coercion(elems);
+                        }
+                    }
+                }
+                let expr = value.to_rust_expr(self.ctx)?;
+                if matches!(value, HirExpr::Literal(Literal::String(_))) {
+                    Ok(parse_quote! { #expr.to_string() })
+                } else {
+                    Ok(expr)
+                }
+            })
+            .collect::<Result<Vec<_>>>()
+    }
+
+    /// CB-200 Batch 10: Dispatch to type-cast builtins (int, float, str, bool).
+    fn try_dispatch_type_cast_builtin(
+        &mut self,
+        func: &str,
+        all_hir_args: &[HirExpr],
+        arg_exprs: &[syn::Expr],
+    ) -> Option<Result<syn::Expr>> {
+        match func {
+            "int" => Some(self.convert_int_cast(all_hir_args, arg_exprs)),
+            "float" => Some(self.convert_float_cast(all_hir_args, arg_exprs)),
+            "str" => Some(self.convert_str_conversion(all_hir_args, arg_exprs)),
+            "bool" => Some(self.convert_bool_cast(all_hir_args, arg_exprs)),
+            _ => None,
+        }
+    }
+
+    /// CB-200 Batch 10: Dispatch to collection constructor builtins.
+    fn try_dispatch_collection_builtin(
+        &mut self,
+        func: &str,
+        is_user_class: bool,
+        all_hir_args: &[HirExpr],
+        arg_exprs: &[syn::Expr],
+    ) -> Option<Result<syn::Expr>> {
+        match func {
+            "set" => Some(self.convert_set_constructor(arg_exprs)),
+            "frozenset" => Some(self.convert_frozenset_constructor(arg_exprs)),
+            "Counter" if !is_user_class => Some(self.convert_counter_builtin(all_hir_args, arg_exprs)),
+            "defaultdict" if !is_user_class => Some(self.convert_defaultdict_builtin(arg_exprs)),
+            "dict" if !is_user_class => Some(self.convert_dict_builtin(arg_exprs)),
+            "deque" if !is_user_class => Some(self.convert_deque_builtin(arg_exprs)),
+            "list" if !is_user_class => Some(self.convert_list_builtin(all_hir_args, arg_exprs)),
+            "bytes" if !is_user_class => Some(self.convert_bytes_builtin(all_hir_args, arg_exprs)),
+            "bytearray" if !is_user_class => Some(self.convert_bytearray_builtin(all_hir_args, arg_exprs)),
+            "tuple" if !is_user_class => Some(self.convert_tuple_builtin(all_hir_args, arg_exprs)),
+            _ => None,
+        }
+    }
+
+    /// CB-200 Batch 10: Dispatch to pure stdlib builtin functions (no context needed).
+    fn try_dispatch_pure_stdlib_builtin(
+        func: &str,
+        arg_exprs: &[syn::Expr],
+    ) -> Option<Result<syn::Expr>> {
+        match func {
+            "all" => Some(stdlib_method_gen::builtin_functions::convert_all_builtin(arg_exprs)),
+            "any" => Some(stdlib_method_gen::builtin_functions::convert_any_builtin(arg_exprs)),
+            "divmod" => Some(stdlib_method_gen::builtin_functions::convert_divmod_builtin(arg_exprs)),
+            "enumerate" => Some(stdlib_method_gen::builtin_functions::convert_enumerate_builtin(arg_exprs)),
+            "zip" => Some(stdlib_method_gen::builtin_functions::convert_zip_builtin(arg_exprs)),
+            "reversed" => Some(stdlib_method_gen::builtin_functions::convert_reversed_builtin(arg_exprs)),
+            "sorted" => Some(stdlib_method_gen::builtin_functions::convert_sorted_builtin(arg_exprs)),
+            "sum" => Some(stdlib_method_gen::builtin_functions::convert_sum_builtin(arg_exprs)),
+            "round" => Some(stdlib_method_gen::builtin_functions::convert_round_builtin(arg_exprs)),
+            "abs" => Some(stdlib_method_gen::builtin_functions::convert_abs_builtin(arg_exprs)),
+            "min" => Some(stdlib_method_gen::builtin_functions::convert_min_builtin(arg_exprs)),
+            "max" => Some(stdlib_method_gen::builtin_functions::convert_max_builtin(arg_exprs)),
+            "pow" => Some(stdlib_method_gen::builtin_functions::convert_pow_builtin(arg_exprs)),
+            "hex" => Some(stdlib_method_gen::builtin_functions::convert_hex_builtin(arg_exprs)),
+            "bin" => Some(stdlib_method_gen::builtin_functions::convert_bin_builtin(arg_exprs)),
+            "oct" => Some(stdlib_method_gen::builtin_functions::convert_oct_builtin(arg_exprs)),
+            "chr" => Some(stdlib_method_gen::builtin_functions::convert_chr_builtin(arg_exprs)),
+            "hash" => Some(stdlib_method_gen::builtin_functions::convert_hash_builtin(arg_exprs)),
+            "repr" => Some(stdlib_method_gen::builtin_functions::convert_repr_builtin(arg_exprs)),
+            "next" => Some(stdlib_method_gen::builtin_functions::convert_next_builtin(arg_exprs)),
+            "iter" => Some(stdlib_method_gen::builtin_functions::convert_iter_builtin(arg_exprs)),
+            "type" => Some(stdlib_method_gen::builtin_functions::convert_type_builtin(arg_exprs)),
+            "isinstance" => Some(Ok(parse_quote! { true })),
+            "input" => Some(stdlib_method_gen::builtin_functions::convert_input_builtin(arg_exprs)),
+            "hasattr" => Some(stdlib_method_gen::builtin_functions::convert_hasattr_builtin(arg_exprs)),
+            "setattr" => Some(stdlib_method_gen::builtin_functions::convert_setattr_builtin(arg_exprs)),
+            "callable" => Some(stdlib_method_gen::builtin_functions::convert_callable_builtin(arg_exprs)),
+            "id" => Some(stdlib_method_gen::builtin_functions::convert_id_builtin(arg_exprs)),
+            "ascii" => Some(stdlib_method_gen::builtin_functions::convert_ascii_builtin(arg_exprs)),
+            "vars" => Some(stdlib_method_gen::builtin_functions::convert_vars_builtin(arg_exprs)),
+            "dir" => Some(stdlib_method_gen::builtin_functions::convert_dir_builtin(arg_exprs)),
+            "globals" => Some(stdlib_method_gen::builtin_functions::convert_globals_builtin(arg_exprs)),
+            "locals" => Some(stdlib_method_gen::builtin_functions::convert_locals_builtin(arg_exprs)),
+            "delattr" => Some(stdlib_method_gen::builtin_functions::convert_delattr_builtin(arg_exprs)),
+            "staticmethod" => Some(stdlib_method_gen::builtin_functions::convert_staticmethod_builtin(arg_exprs)),
+            "classmethod" => Some(stdlib_method_gen::builtin_functions::convert_classmethod_builtin(arg_exprs)),
+            "property" => Some(stdlib_method_gen::builtin_functions::convert_property_builtin(arg_exprs)),
+            "breakpoint" => Some(stdlib_method_gen::builtin_functions::convert_breakpoint_builtin(arg_exprs)),
+            "exit" => Some(stdlib_method_gen::builtin_functions::convert_exit_builtin(arg_exprs)),
+            "quit" => Some(stdlib_method_gen::builtin_functions::convert_quit_builtin(arg_exprs)),
+            _ => None,
+        }
+    }
+
     pub(crate) fn convert_call(
         &mut self,
         func: &str,
@@ -182,285 +389,83 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if let Some(result) = self.try_convert_call_bool_builtin(func, args)? {
             return Ok(result);
         }
-
-        // DEPYLER-REFACTOR-001 Phase 2.12: Delegate numeric type constructors to helper
-        // Handles: Decimal, Fraction
         if let Some(result) = self.try_convert_numeric_type_call(func, args) {
             return result;
         }
-
-        // DEPYLER-REFACTOR-001 Phase 2.11: Delegate stdlib type constructors to helper
-        // Handles: Path, datetime, date, time, timedelta
         if let Some(result) = self.try_convert_stdlib_type_call(func, args) {
             return result;
         }
-
-        // DEPYLER-REFACTOR-001 Phase 2.13: Delegate iterator utility calls to helper
-        // Handles enumerate, zip, isinstance
         if let Some(result) = self.try_convert_iterator_util_call(func, args) {
             return result;
         }
 
-        // DEPYLER-0230: Check if func is a user-defined class before treating as builtin
         let is_user_class = self.ctx.class_names.contains(func);
-
-        // DEPYLER-0234: For user-defined class constructors, convert string literals to String
-        // This fixes "expected String, found &str" errors when calling constructors
-        // DEPYLER-1144: Also coerce list literals when class has Vec<f64> field
-        // DEPYLER-1207: Pattern matching correction - use **elem to dereference Box
         let class_has_vec_f64_field = self
             .ctx
             .class_field_types
             .values()
             .any(|t| matches!(t, Type::List(elem) if matches!(**elem, Type::Float)));
+
+        // Convert positional args
         let arg_exprs: Vec<syn::Expr> = if is_user_class {
-            args.iter()
-                .map(|arg| {
-                    // DEPYLER-1144: For list literals when class expects Vec<f64>, coerce integers
-                    if class_has_vec_f64_field {
-                        if let HirExpr::List(elems) = arg {
-                            return self.convert_list_with_float_coercion(elems);
-                        }
-                    }
-                    // DEPYLER-CLASS-STR-FIX: Add .to_string() for string literals in class constructors
-                    // Python dataclass fields with `name: str` are owned Strings in Rust.
-                    // String literals need .to_string() to convert &str to String.
-                    if let HirExpr::Literal(Literal::String(s)) = arg {
-                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                        return Ok(parse_quote! { #lit.to_string() });
-                    }
-                    arg.to_rust_expr(self.ctx)
-                })
-                .collect::<Result<Vec<_>>>()?
+            self.convert_class_constructor_args(args, class_has_vec_f64_field)?
         } else {
-            // DEPYLER-1215/DEPYLER-1218: Convert args with type context for dict and list literals
-            // When a dict/list literal is passed to a function expecting Dict/List with Unknown/Any,
-            // we need to set current_assign_type to trigger DepylerValue wrapping
-            let mut converted_args = Vec::with_capacity(args.len());
-            for (param_idx, arg) in args.iter().enumerate() {
-                // DEPYLER-1215/DEPYLER-1218: Check if param expects Dict/List with Unknown/Any value type
-                let prev_assign_type = if matches!(arg, HirExpr::Dict(_) | HirExpr::List(_)) {
-                    if let Some(param_types) = self.ctx.function_param_types.get(func) {
-                        if let Some(param_type) = param_types.get(param_idx) {
-                            // Check if param is Dict[_, Any/Unknown] or List[Any/Unknown] or bare dict/list
-                            let needs_depyler_value = match param_type {
-                                Type::Dict(_, val_type) => {
-                                    matches!(val_type.as_ref(), Type::Unknown)
-                                        || matches!(val_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any")
-                                }
-                                // DEPYLER-1218: List with Unknown/DepylerValue element type
-                                Type::List(elem_type) => {
-                                    matches!(elem_type.as_ref(), Type::Unknown)
-                                        || matches!(elem_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any")
-                                }
-                                Type::Custom(name) if name == "dict" || name == "Dict" => true,
-                                Type::Custom(name) if name == "list" || name == "List" => true,
-                                _ => false,
-                            };
-                            if needs_depyler_value {
-                                let old = self.ctx.current_assign_type.clone();
-                                self.ctx.current_assign_type = Some(param_type.clone());
-                                Some(old)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-
-                let expr = arg.to_rust_expr(self.ctx)?;
-
-                // Restore previous assign type if we changed it
-                if let Some(old_type) = prev_assign_type {
-                    self.ctx.current_assign_type = old_type;
-                }
-
-                // DEPYLER-0458: Add & prefix for Lazy const variables (e.g., DEFAULT_CONFIG)
-                // When passing a const (all uppercase) to a function, it's likely a Lazy<T>
-                // that needs to be borrowed (&) so Deref converts it to &T
-                // DEPYLER-99MODE-S9: Skip scalar constants (Int, Float, Bool) - these are
-                // simple `const` values, not Lazy<T>, and don't need borrowing
-                if let HirExpr::Var(var_name) = arg {
-                    let is_const = var_name.chars().all(|c| c.is_uppercase() || c == '_');
-                    if is_const {
-                        let is_scalar_const = self
-                            .ctx
-                            .module_constant_types
-                            .get(var_name)
-                            .map(|ty| matches!(ty, Type::Int | Type::Float | Type::Bool))
-                            .unwrap_or(false);
-                        if !is_scalar_const {
-                            converted_args.push(parse_quote! { &#expr });
-                            continue;
-                        }
-                    }
-                }
-                converted_args.push(expr);
-            }
-            converted_args
+            self.convert_regular_call_args(func, args)?
         };
 
-        // DEPYLER-0364: Convert kwargs to positional arguments
-        // Python: greet(name="Alice", greeting="Hello") → Rust: greet("Alice", "Hello")
-        // For now, we append kwargs as additional positional arguments. This works for
-        // common cases where functions accept positional or keyword arguments in order.
-        // DEPYLER-0477: Future work - look up function signatures to determine
-        // the correct parameter order and merge positional + kwargs properly
+        // Convert kwargs
         let kwarg_exprs: Vec<syn::Expr> = if is_user_class {
-            // For user-defined classes, convert string literals to String
-            // This prevents "expected String, found &str" errors in constructors
-            // DEPYLER-1144: Also coerce list literals to match field types (e.g., [0] → vec![0.0] for Vec<f64>)
-            kwargs
-                .iter()
-                .map(|(name, value)| {
-                    // DEPYLER-1144: Check if field expects Vec<f64> and value is list of integers
-                    if let Some(Type::List(elem_type)) = self.ctx.class_field_types.get(name) {
-                        if matches!(elem_type.as_ref(), Type::Float) {
-                            if let HirExpr::List(elems) = value {
-                                // Convert list with integer coercion to f64
-                                return self.convert_list_with_float_coercion(elems);
-                            }
-                        }
-                    }
-                    let expr = value.to_rust_expr(self.ctx)?;
-                    if matches!(value, HirExpr::Literal(Literal::String(_))) {
-                        Ok(parse_quote! { #expr.to_string() })
-                    } else {
-                        Ok(expr)
-                    }
-                })
-                .collect::<Result<Vec<_>>>()?
+            self.convert_class_kwargs(kwargs)?
         } else {
-            // For built-in functions and regular calls, use standard conversion
             kwargs
                 .iter()
                 .map(|(_name, value)| value.to_rust_expr(self.ctx))
                 .collect::<Result<Vec<_>>>()?
         };
 
-        // Merge positional args and kwargs (both HIR and converted Rust exprs)
-        // This creates a single argument list that will be passed to the function
+        // Merge args and kwargs
         let mut all_args = arg_exprs.clone();
         all_args.extend(kwarg_exprs);
-
         let mut all_hir_args: Vec<HirExpr> = args.to_vec();
         for (_name, value) in kwargs {
             all_hir_args.push(value.clone());
         }
 
-        // DEPYLER-REFACTOR-001 Phase 2.17: Delegate print call to helper
         if let Some(result) = self.try_convert_print_call(func, args, &arg_exprs, kwargs) {
             return result;
         }
 
-        match func {
-            // Python built-in type conversions → Rust casting
-            "int" => self.convert_int_cast(&all_hir_args, &arg_exprs),
-            "float" => self.convert_float_cast(&all_hir_args, &arg_exprs),
-            "str" => self.convert_str_conversion(&all_hir_args, &arg_exprs),
-            "bool" => self.convert_bool_cast(&all_hir_args, &arg_exprs),
-            // Other built-in functions
-            // DEPYLER-0659: Handle len() on serde_json::Value
-            "len" => self.convert_len_call_with_type(&all_hir_args, &arg_exprs),
-            "range" => self.convert_range_call(&arg_exprs),
-            "zeros" | "ones" | "full" => {
-                self.convert_array_init_call(func, &all_hir_args, &arg_exprs)
-            }
-            "set" => self.convert_set_constructor(&arg_exprs),
-            "frozenset" => self.convert_frozenset_constructor(&arg_exprs),
-            // DEPYLER-0171, 0172, 0173, 0174: Collection conversion builtins
-            // DEPYLER-0230: Only treat as builtin if not a user-defined class
-            // DEPYLER-0751: Pass HIR args to detect string type for .chars()
-            "Counter" if !is_user_class => self.convert_counter_builtin(&all_hir_args, &arg_exprs),
-            "defaultdict" if !is_user_class => self.convert_defaultdict_builtin(&arg_exprs),
-            "dict" if !is_user_class => self.convert_dict_builtin(&arg_exprs),
-            "deque" if !is_user_class => self.convert_deque_builtin(&arg_exprs),
-            "list" if !is_user_class => self.convert_list_builtin(&all_hir_args, &arg_exprs),
-            // DEPYLER-0935: bytes() builtin - convert to Vec<u8>
-            "bytes" if !is_user_class => self.convert_bytes_builtin(&all_hir_args, &arg_exprs),
-            // DEPYLER-0936: bytearray() builtin - convert to Vec<u8>
-            "bytearray" if !is_user_class => {
-                self.convert_bytearray_builtin(&all_hir_args, &arg_exprs)
-            }
-            // DEPYLER-0937: tuple() builtin - convert iterable to collected tuple-like Vec
-            "tuple" if !is_user_class => self.convert_tuple_builtin(&all_hir_args, &arg_exprs),
-            // DEPYLER-STDLIB-BUILTINS: Pure builtin functions delegated to extracted module
-            // DEPYLER-COVERAGE-95: Extracted to stdlib_method_gen::builtin_functions for testability
-            "all" => stdlib_method_gen::builtin_functions::convert_all_builtin(&arg_exprs),
-            "any" => stdlib_method_gen::builtin_functions::convert_any_builtin(&arg_exprs),
-            "divmod" => stdlib_method_gen::builtin_functions::convert_divmod_builtin(&arg_exprs),
-            "enumerate" => {
-                stdlib_method_gen::builtin_functions::convert_enumerate_builtin(&arg_exprs)
-            }
-            "zip" => stdlib_method_gen::builtin_functions::convert_zip_builtin(&arg_exprs),
-            "reversed" => {
-                stdlib_method_gen::builtin_functions::convert_reversed_builtin(&arg_exprs)
-            }
-            "sorted" => stdlib_method_gen::builtin_functions::convert_sorted_builtin(&arg_exprs),
-            "filter" => self.convert_filter_builtin(&all_hir_args, &arg_exprs),
-            "sum" => stdlib_method_gen::builtin_functions::convert_sum_builtin(&arg_exprs),
-            // DEPYLER-STDLIB-BUILTINS: Final batch for 50% milestone
-            "round" => stdlib_method_gen::builtin_functions::convert_round_builtin(&arg_exprs),
-            "abs" => stdlib_method_gen::builtin_functions::convert_abs_builtin(&arg_exprs),
-            "min" => stdlib_method_gen::builtin_functions::convert_min_builtin(&arg_exprs),
-            "max" => stdlib_method_gen::builtin_functions::convert_max_builtin(&arg_exprs),
-            "pow" => stdlib_method_gen::builtin_functions::convert_pow_builtin(&arg_exprs),
-            "hex" => stdlib_method_gen::builtin_functions::convert_hex_builtin(&arg_exprs),
-            "bin" => stdlib_method_gen::builtin_functions::convert_bin_builtin(&arg_exprs),
-            "oct" => stdlib_method_gen::builtin_functions::convert_oct_builtin(&arg_exprs),
-            // DEPYLER-0579: format(value, spec) builtin - needs HIR for literal extraction
-            "format" => self.convert_format_builtin(&arg_exprs, &all_hir_args),
-            "chr" => stdlib_method_gen::builtin_functions::convert_chr_builtin(&arg_exprs),
-            // ord() needs context for char_iter_vars check
-            "ord" => self.convert_ord_builtin(&arg_exprs, &all_hir_args),
-            "hash" => stdlib_method_gen::builtin_functions::convert_hash_builtin(&arg_exprs),
-            "repr" => stdlib_method_gen::builtin_functions::convert_repr_builtin(&arg_exprs),
-            // DEPYLER-0387: File I/O builtin - needs context for needs_io_* flags
-            "open" => self.convert_open_builtin(&all_hir_args, &arg_exprs),
-            // DEPYLER-STDLIB-50: next(), getattr(), iter(), type()
-            "next" => stdlib_method_gen::builtin_functions::convert_next_builtin(&arg_exprs),
-            "getattr" => self.convert_getattr_builtin(&arg_exprs),
-            "iter" => stdlib_method_gen::builtin_functions::convert_iter_builtin(&arg_exprs),
-            "type" => stdlib_method_gen::builtin_functions::convert_type_builtin(&arg_exprs),
-            // DEPYLER-0844: isinstance(x, T) → true (Rust's type system guarantees correctness)
-            "isinstance" => Ok(parse_quote! { true }),
-            // DEPYLER-1205: E0425 Vocabulary Expansion - input(), hasattr()
-            "input" => stdlib_method_gen::builtin_functions::convert_input_builtin(&arg_exprs),
-            "hasattr" => stdlib_method_gen::builtin_functions::convert_hasattr_builtin(&arg_exprs),
-            "setattr" => stdlib_method_gen::builtin_functions::convert_setattr_builtin(&arg_exprs),
-            // GH-204: Additional E0425 Vocabulary Expansion
-            "callable" => {
-                stdlib_method_gen::builtin_functions::convert_callable_builtin(&arg_exprs)
-            }
-            "id" => stdlib_method_gen::builtin_functions::convert_id_builtin(&arg_exprs),
-            "ascii" => stdlib_method_gen::builtin_functions::convert_ascii_builtin(&arg_exprs),
-            "vars" => stdlib_method_gen::builtin_functions::convert_vars_builtin(&arg_exprs),
-            "dir" => stdlib_method_gen::builtin_functions::convert_dir_builtin(&arg_exprs),
-            "globals" => stdlib_method_gen::builtin_functions::convert_globals_builtin(&arg_exprs),
-            "locals" => stdlib_method_gen::builtin_functions::convert_locals_builtin(&arg_exprs),
-            "delattr" => stdlib_method_gen::builtin_functions::convert_delattr_builtin(&arg_exprs),
-            "staticmethod" => {
-                stdlib_method_gen::builtin_functions::convert_staticmethod_builtin(&arg_exprs)
-            }
-            "classmethod" => {
-                stdlib_method_gen::builtin_functions::convert_classmethod_builtin(&arg_exprs)
-            }
-            "property" => {
-                stdlib_method_gen::builtin_functions::convert_property_builtin(&arg_exprs)
-            }
-            "breakpoint" => {
-                stdlib_method_gen::builtin_functions::convert_breakpoint_builtin(&arg_exprs)
-            }
-            "exit" => stdlib_method_gen::builtin_functions::convert_exit_builtin(&arg_exprs),
-            "quit" => stdlib_method_gen::builtin_functions::convert_quit_builtin(&arg_exprs),
-            _ => self.convert_generic_call(func, &all_hir_args, &all_args),
+        // Dispatch: type casts
+        if let Some(result) = self.try_dispatch_type_cast_builtin(func, &all_hir_args, &arg_exprs) {
+            return result;
         }
+
+        // Dispatch: special builtins needing context
+        match func {
+            "len" => return self.convert_len_call_with_type(&all_hir_args, &arg_exprs),
+            "range" => return self.convert_range_call(&arg_exprs),
+            "zeros" | "ones" | "full" => {
+                return self.convert_array_init_call(func, &all_hir_args, &arg_exprs);
+            }
+            "filter" => return self.convert_filter_builtin(&all_hir_args, &arg_exprs),
+            "format" => return self.convert_format_builtin(&arg_exprs, &all_hir_args),
+            "ord" => return self.convert_ord_builtin(&arg_exprs, &all_hir_args),
+            "open" => return self.convert_open_builtin(&all_hir_args, &arg_exprs),
+            "getattr" => return self.convert_getattr_builtin(&arg_exprs),
+            _ => {}
+        }
+
+        // Dispatch: collection constructors
+        if let Some(result) = self.try_dispatch_collection_builtin(func, is_user_class, &all_hir_args, &arg_exprs) {
+            return result;
+        }
+
+        // Dispatch: pure stdlib builtins
+        if let Some(result) = Self::try_dispatch_pure_stdlib_builtin(func, &arg_exprs) {
+            return result;
+        }
+
+        self.convert_generic_call(func, &all_hir_args, &all_args)
     }
 
     pub(crate) fn try_convert_map_with_zip(

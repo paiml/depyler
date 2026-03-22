@@ -2520,19 +2520,202 @@ fn propagate_return_type_impl(
 }
 
 /// Infer expression type with access to variable type environment
+/// CB-200 Batch 10: Infer type for Binary expressions with environment.
+fn infer_binary_type_with_env(
+    op: &BinOp,
+    left: &HirExpr,
+    right: &HirExpr,
+    var_types: &std::collections::HashMap<String, Type>,
+) -> Type {
+    if matches!(
+        op,
+        BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
+            | BinOp::In | BinOp::NotIn
+    ) {
+        return Type::Bool;
+    }
+    if matches!(op, BinOp::Mul) {
+        match (left, right) {
+            (HirExpr::List(elems), HirExpr::Literal(Literal::Int(n)))
+                if elems.len() == 1 && *n > 0 =>
+            {
+                let elem_type = infer_expr_type_with_env(&elems[0], var_types);
+                return Type::List(Box::new(elem_type));
+            }
+            (HirExpr::Literal(Literal::Int(n)), HirExpr::List(elems))
+                if elems.len() == 1 && *n > 0 =>
+            {
+                let elem_type = infer_expr_type_with_env(&elems[0], var_types);
+                return Type::List(Box::new(elem_type));
+            }
+            _ => {}
+        }
+    }
+    if matches!(op, BinOp::Pow) && is_negative_int_expr(right) {
+        return Type::Float;
+    }
+    let left_type = infer_expr_type_with_env(left, var_types);
+    let right_type = infer_expr_type_with_env(right, var_types);
+    if matches!(left_type, Type::Float) || matches!(right_type, Type::Float) {
+        Type::Float
+    } else if !matches!(left_type, Type::Unknown) {
+        left_type
+    } else {
+        right_type
+    }
+}
+
+/// CB-200 Batch 10: Infer type for module method calls (json, csv, subprocess, re/regex).
+fn infer_module_method_type(module_name: &str, method: &str) -> Option<Type> {
+    match (module_name, method) {
+        ("json", "load") | ("json", "loads") => {
+            Some(Type::Custom("serde_json::Value".to_string()))
+        }
+        ("json", "dump") => Some(Type::None),
+        ("json", "dumps") => Some(Type::String),
+        ("csv", "reader") => Some(Type::List(Box::new(Type::List(Box::new(Type::String))))),
+        ("csv", "DictReader") => Some(Type::List(Box::new(Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::String),
+        )))),
+        ("csv", "writer") | ("csv", "DictWriter") => Some(Type::Unknown),
+        ("subprocess", "run") => Some(Type::Custom("CompletedProcess".to_string())),
+        ("re", "findall") | ("regex", "findall") => {
+            Some(Type::List(Box::new(Type::String)))
+        }
+        ("re", "match") | ("re", "search") | ("regex", "match") | ("regex", "search") => {
+            Some(Type::Optional(Box::new(Type::Custom("Match".to_string()))))
+        }
+        ("re", "split") | ("regex", "split") => Some(Type::List(Box::new(Type::String))),
+        ("re", "sub") | ("regex", "sub") | ("re", "replace") | ("regex", "replace") => {
+            Some(Type::String)
+        }
+        _ => None,
+    }
+}
+
+/// CB-200 Batch 10: Infer return type for known instance method names.
+fn infer_instance_method_type(method: &str, object_type: Type) -> Type {
+    match method {
+        "copy" => object_type,
+        "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title"
+        | "capitalize" | "join" | "format" => Type::String,
+        "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isspace"
+        | "isupper" | "islower" => Type::Bool,
+        "find" | "rfind" | "index" | "rindex" | "count" => Type::Int,
+        "split" | "splitlines" => Type::List(Box::new(Type::String)),
+        "get" => {
+            if matches!(object_type, Type::Custom(ref s) if s == "serde_json::Value") {
+                return Type::Custom("serde_json::Value".to_string());
+            }
+            match object_type {
+                Type::Dict(_, val) => Type::Optional(val),
+                Type::List(elem) => *elem,
+                _ => Type::Unknown,
+            }
+        }
+        "pop" => match object_type {
+            Type::List(elem) => *elem,
+            Type::Dict(_, val) => *val,
+            _ => Type::Unknown,
+        },
+        "keys" => Type::List(Box::new(Type::Unknown)),
+        "values" => Type::List(Box::new(Type::Unknown)),
+        "items" => Type::List(Box::new(Type::Tuple(vec![Type::Unknown, Type::Unknown]))),
+        "findall" | "finditer" => Type::List(Box::new(Type::String)),
+        "groups" => Type::List(Box::new(Type::String)),
+        "isoformat" | "strftime" | "to_string" | "to_str" | "encode" | "decode"
+        | "hexdigest" | "digest" | "read" | "readline" => Type::String,
+        "readlines" => Type::List(Box::new(Type::String)),
+        "timestamp" => Type::Float,
+        "date" => Type::Custom("std::time::SystemTime".to_string()),
+        "time" => Type::Custom("std::time::SystemTime".to_string()),
+        "most_common" => Type::List(Box::new(Type::Tuple(vec![Type::String, Type::Int]))),
+        _ => Type::Unknown,
+    }
+}
+
+/// CB-200 Batch 10: Infer type for module attribute access (sys.argv, os.environ, etc.).
+fn infer_module_attribute_type(module_name: &str, attr: &str) -> Option<Type> {
+    match (module_name, attr) {
+        ("sys", "argv") => Some(Type::List(Box::new(Type::String))),
+        ("sys", "path") => Some(Type::List(Box::new(Type::String))),
+        ("sys", "version") => Some(Type::String),
+        ("sys", "version_info") => Some(Type::Tuple(vec![Type::Int, Type::Int, Type::Int])),
+        ("sys", "maxsize") => Some(Type::Int),
+        ("sys", "platform") => Some(Type::String),
+        ("os", "environ") => {
+            Some(Type::Dict(Box::new(Type::String), Box::new(Type::String)))
+        }
+        ("os", "name") => Some(Type::String),
+        ("os", "sep") | ("os", "pathsep") | ("os", "linesep") => Some(Type::String),
+        _ => None,
+    }
+}
+
+/// CB-200 Batch 10: Infer type for Attribute access with environment.
+fn infer_attribute_type_with_env(
+    value: &HirExpr,
+    attr: &str,
+    var_types: &std::collections::HashMap<String, Type>,
+) -> Type {
+    if let HirExpr::Var(module_name) = value {
+        if let Some(ty) = infer_module_attribute_type(module_name.as_str(), attr) {
+            return ty;
+        }
+    }
+    let base_type = infer_expr_type_with_env(value, var_types);
+    if let Type::Tuple(ref types) = base_type {
+        if types.len() == 3 {
+            return match attr {
+                "returncode" => Type::Int,
+                "stdout" => Type::String,
+                "stderr" => Type::String,
+                _ => Type::Unknown,
+            };
+        }
+    }
+    match attr {
+        "real" | "imag" => Type::Float,
+        "returncode" => Type::Int,
+        "stdout" | "stderr" => Type::String,
+        _ => Type::Unknown,
+    }
+}
+
+/// CB-200 Batch 10: Infer type for ListComp with environment (loop variable binding).
+fn infer_listcomp_type_with_env(
+    element: &HirExpr,
+    generators: &[crate::hir::Comprehension],
+    var_types: &std::collections::HashMap<String, Type>,
+) -> Type {
+    let mut extended_env = var_types.clone();
+    for gen in generators {
+        let iter_type = infer_expr_type_with_env(&gen.iter, &extended_env);
+        let elem_type = match &iter_type {
+            Type::Custom(s) if s == "serde_json::Value" || s.contains("Value") => {
+                Type::Custom("serde_json::Value".to_string())
+            }
+            Type::List(inner) => *inner.clone(),
+            Type::Dict(k, _) => *k.clone(),
+            Type::Set(inner) => *inner.clone(),
+            _ => Type::Unknown,
+        };
+        extended_env.insert(gen.target.clone(), elem_type);
+    }
+    let elem_type = infer_expr_type_with_env(element, &extended_env);
+    Type::List(Box::new(elem_type))
+}
+
 pub(crate) fn infer_expr_type_with_env(
     expr: &HirExpr,
     var_types: &std::collections::HashMap<String, Type>,
 ) -> Type {
     match expr {
-        // DEPYLER-0415: Look up variable types in the environment
         HirExpr::Var(name) => {
-            // First, try to find in environment
             if let Some(ty) = var_types.get(name) {
                 return ty.clone();
             }
-            // GH-70: Fallback heuristic for common string variable names
-            // (useful when variables come from tuple unpacking not tracked in environment)
             let name_str = name.as_str();
             if name_str == "timestamp"
                 || name_str == "message"
@@ -2547,59 +2730,8 @@ pub(crate) fn infer_expr_type_with_env(
                 Type::Unknown
             }
         }
-        // For other expressions, delegate to the simple version
-        // but recurse with environment for nested expressions
         HirExpr::Binary { op, left, right } => {
-            if matches!(
-                op,
-                BinOp::Eq
-                    | BinOp::NotEq
-                    | BinOp::Lt
-                    | BinOp::LtEq
-                    | BinOp::Gt
-                    | BinOp::GtEq
-                    | BinOp::In
-                    | BinOp::NotIn
-            ) {
-                return Type::Bool;
-            }
-
-            // DEPYLER-0420/1132: Detect list repeat patterns: [elem] * n or n * [elem]
-            // DEPYLER-1132: Always return List (Vec) since py_mul trait returns Vec<T>
-            if matches!(op, BinOp::Mul) {
-                match (left.as_ref(), right.as_ref()) {
-                    // Pattern: [elem] * n → Vec<T>
-                    (HirExpr::List(elems), HirExpr::Literal(Literal::Int(n)))
-                        if elems.len() == 1 && *n > 0 =>
-                    {
-                        let elem_type = infer_expr_type_with_env(&elems[0], var_types);
-                        return Type::List(Box::new(elem_type));
-                    }
-                    // Pattern: n * [elem] → Vec<T>
-                    (HirExpr::Literal(Literal::Int(n)), HirExpr::List(elems))
-                        if elems.len() == 1 && *n > 0 =>
-                    {
-                        let elem_type = infer_expr_type_with_env(&elems[0], var_types);
-                        return Type::List(Box::new(elem_type));
-                    }
-                    _ => {}
-                }
-            }
-
-            // DEPYLER-0808: Power with negative exponent always returns float
-            if matches!(op, BinOp::Pow) && is_negative_int_expr(right) {
-                return Type::Float;
-            }
-
-            let left_type = infer_expr_type_with_env(left, var_types);
-            let right_type = infer_expr_type_with_env(right, var_types);
-            if matches!(left_type, Type::Float) || matches!(right_type, Type::Float) {
-                Type::Float
-            } else if !matches!(left_type, Type::Unknown) {
-                left_type
-            } else {
-                right_type
-            }
+            infer_binary_type_with_env(op, left, right, var_types)
         }
         HirExpr::IfExpr { body, orelse, .. } => {
             let body_type = infer_expr_type_with_env(body, var_types);
@@ -2609,243 +2741,47 @@ pub(crate) fn infer_expr_type_with_env(
                 infer_expr_type_with_env(orelse, var_types)
             }
         }
-        // DEPYLER-0420: Handle tuples with environment for variable lookups
         HirExpr::Tuple(elems) => {
             let elem_types: Vec<Type> =
                 elems.iter().map(|e| infer_expr_type_with_env(e, var_types)).collect();
             Type::Tuple(elem_types)
         }
-        // DEPYLER-REARCH-001: Handle MethodCall with environment for variable type lookups
         HirExpr::MethodCall { object, method, .. } => {
-            // DEPYLER-REARCH-001: Check if this is a module method call (e.g., json.load(), csv.reader())
-            // These need special handling because the module itself doesn't have a type
             if let HirExpr::Var(module_name) = object.as_ref() {
-                match (module_name.as_str(), method.as_str()) {
-                    // json module methods
-                    // json.load/loads returns arbitrary JSON (dict, list, string, number, bool, null)
-                    // which maps to serde_json::Value, not HashMap
-                    ("json", "load") | ("json", "loads") => {
-                        return Type::Custom("serde_json::Value".to_string());
-                    }
-                    ("json", "dump") => return Type::None,
-                    ("json", "dumps") => return Type::String,
-                    // csv module methods
-                    ("csv", "reader") => {
-                        return Type::List(Box::new(Type::List(Box::new(Type::String))));
-                    }
-                    ("csv", "DictReader") => {
-                        return Type::List(Box::new(Type::Dict(
-                            Box::new(Type::String),
-                            Box::new(Type::String),
-                        )));
-                    }
-                    ("csv", "writer") | ("csv", "DictWriter") => return Type::Unknown,
-                    // DEPYLER-0646: subprocess.run() returns CompletedProcess struct
-                    // Updated from tuple to struct per DEPYLER-0627
-                    ("subprocess", "run") => {
-                        return Type::Custom("CompletedProcess".to_string());
-                    }
-                    // DEPYLER-0532: regex module methods
-                    ("re", "findall") | ("regex", "findall") => {
-                        return Type::List(Box::new(Type::String));
-                    }
-                    ("re", "match")
-                    | ("re", "search")
-                    | ("regex", "match")
-                    | ("regex", "search") => {
-                        return Type::Optional(Box::new(Type::Custom("Match".to_string())));
-                    }
-                    ("re", "split") | ("regex", "split") => {
-                        return Type::List(Box::new(Type::String));
-                    }
-                    ("re", "sub") | ("regex", "sub") | ("re", "replace") | ("regex", "replace") => {
-                        return Type::String;
-                    }
-                    _ => {} // Fall through to regular method handling
+                if let Some(ty) = infer_module_method_type(module_name.as_str(), method.as_str()) {
+                    return ty;
                 }
             }
-
-            // For non-module method calls, infer the object type using the environment
             let object_type = infer_expr_type_with_env(object, var_types);
-
-            match method.as_str() {
-                // .copy() returns same type as object
-                "copy" => object_type,
-                // String methods that return String
-                "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title"
-                | "capitalize" | "join" | "format" => Type::String,
-                // String methods that return bool
-                "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isspace"
-                | "isupper" | "islower" => Type::Bool,
-                // String methods that return int
-                "find" | "rfind" | "index" | "rindex" | "count" => Type::Int,
-                // String methods that return list
-                "split" | "splitlines" => Type::List(Box::new(Type::String)),
-                // List/Dict methods
-                "get" => {
-                    // DEPYLER-0463: Special handling for serde_json::Value.get()
-                    // Returns Option<&Value>, but for type inference we treat as Value
-                    if matches!(object_type, Type::Custom(ref s) if s == "serde_json::Value") {
-                        return Type::Custom("serde_json::Value".to_string());
-                    }
-                    // DEPYLER-0767: dict.get(key) returns Optional[T] in Python, not T
-                    // This enables proper truthiness conversion (if value: → if value.is_some())
-                    match object_type {
-                        Type::Dict(_, val) => Type::Optional(val),
-                        Type::List(elem) => *elem,
-                        _ => Type::Unknown,
-                    }
-                }
-                "pop" => match object_type {
-                    Type::List(elem) => *elem,
-                    Type::Dict(_, val) => *val,
-                    _ => Type::Unknown,
-                },
-                "keys" => Type::List(Box::new(Type::Unknown)),
-                "values" => Type::List(Box::new(Type::Unknown)),
-                "items" => Type::List(Box::new(Type::Tuple(vec![Type::Unknown, Type::Unknown]))),
-                // DEPYLER-0532: Regex methods that return lists
-                "findall" | "finditer" => Type::List(Box::new(Type::String)),
-                "groups" => Type::List(Box::new(Type::String)),
-                // DEPYLER-0555: Additional string-returning methods for return type inference
-                // DEPYLER-0565: Added hexdigest for hashlib
-                // DEPYLER-0620: Added file read methods that return String
-                // Note: upper/lower/strip/etc already covered above
-                "isoformat" | "strftime" | "to_string" | "to_str" | "encode" | "decode"
-                | "hexdigest" | "digest" | "read" | "readline" => Type::String,
-                // DEPYLER-0620: File readlines returns list of strings
-                "readlines" => Type::List(Box::new(Type::String)),
-                // datetime methods that return other types
-                "timestamp" => Type::Float,
-                // DEPYLER-0592/1025: Use std types (NASA mode default)
-                "date" => Type::Custom("std::time::SystemTime".to_string()),
-                "time" => Type::Custom("std::time::SystemTime".to_string()),
-                // DEPYLER-0750: Counter.most_common() returns list of (key, count) tuples
-                "most_common" => Type::List(Box::new(Type::Tuple(vec![Type::String, Type::Int]))),
-                _ => {
-                    // DEPYLER-1007: Check if this is a user-defined class method call
-                    // If object_type is Custom("ClassName"), look up (ClassName, method) in class_method_return_types
-                    // This enables return type inference for expressions like `p.distance_squared()`
-                    // Note: class_method_return_types needs to be passed via infer_expr_type_with_class_methods
-                    // For backward compatibility, this returns Unknown when no class info is available
-                    Type::Unknown
-                }
-            }
+            infer_instance_method_type(method.as_str(), object_type)
         }
-        // DEPYLER-0463: Handle Index with environment for serde_json::Value preservation
         HirExpr::Index { base, .. } => {
             let base_type = infer_expr_type_with_env(base, var_types);
-            // When indexing into serde_json::Value, result is also Value (could be any JSON type)
             if matches!(base_type, Type::Custom(ref s) if s == "serde_json::Value") {
                 return Type::Custom("serde_json::Value".to_string());
             }
-            // For other containers, extract element type
             match base_type {
                 Type::List(elem) => *elem,
                 Type::Dict(_, val) => *val,
                 Type::Tuple(elems) => elems.first().cloned().unwrap_or(Type::Unknown),
                 Type::String => Type::String,
-                _ => Type::Unknown, // Changed from Type::Int to Unknown (more conservative)
-            }
-        }
-        // GH-70: Handle Slice with environment-aware inference for string variables
-        HirExpr::Slice { base, .. } => {
-            // Use environment to resolve variables like "timestamp"
-            let base_type = infer_expr_type_with_env(base, var_types);
-            // String slicing returns String
-            if matches!(base_type, Type::String) {
-                Type::String
-            } else {
-                // For other types (lists, etc.), slicing returns same type
-                base_type
-            }
-        }
-        // DEPYLER-0517: Handle Attribute with environment-aware inference
-        // This is needed to resolve types like `result.returncode` where `result`
-        // is a subprocess.run() result stored in a variable
-        HirExpr::Attribute { value, attr } => {
-            // DEPYLER-0690: Handle module attribute access (sys.argv, sys.path, etc.)
-            // Check if value is a module name and attr is a known module attribute
-            if let HirExpr::Var(module_name) = value.as_ref() {
-                match (module_name.as_str(), attr.as_str()) {
-                    // sys module attributes
-                    ("sys", "argv") => return Type::List(Box::new(Type::String)),
-                    ("sys", "path") => return Type::List(Box::new(Type::String)),
-                    ("sys", "version") => return Type::String,
-                    ("sys", "version_info") => {
-                        return Type::Tuple(vec![Type::Int, Type::Int, Type::Int])
-                    }
-                    ("sys", "maxsize") => return Type::Int,
-                    ("sys", "platform") => return Type::String,
-                    // os module attributes
-                    ("os", "environ") => {
-                        return Type::Dict(Box::new(Type::String), Box::new(Type::String))
-                    }
-                    ("os", "name") => return Type::String,
-                    ("os", "sep") | ("os", "pathsep") | ("os", "linesep") => return Type::String,
-                    _ => {} // Fall through to existing handling
-                }
-            }
-
-            // Get the base type using the environment
-            let base_type = infer_expr_type_with_env(value, var_types);
-
-            // Handle subprocess.run() result tuple attributes (returncode, stdout, stderr)
-            // Type is now Tuple([Int, String, String]), attributes map to tuple indices
-            if let Type::Tuple(ref types) = base_type {
-                if types.len() == 3 {
-                    return match attr.as_str() {
-                        "returncode" => Type::Int, // .0
-                        "stdout" => Type::String,  // .1
-                        "stderr" => Type::String,  // .2
-                        _ => Type::Unknown,
-                    };
-                }
-            }
-
-            // Common attributes with known types
-            match attr.as_str() {
-                "real" | "imag" => Type::Float,
-                // DEPYLER-0517: Common subprocess result attributes (fallback)
-                "returncode" => Type::Int,
-                "stdout" | "stderr" => Type::String,
                 _ => Type::Unknown,
             }
         }
-        // DEPYLER-0609: Handle ListComp with JSON Value propagation for return type inference
-        HirExpr::ListComp { element, generators } => {
-            // Create extended environment with loop variable bindings
-            let mut extended_env = var_types.clone();
-
-            // Bind loop variables based on iterator type
-            for gen in generators {
-                let iter_type = infer_expr_type_with_env(&gen.iter, &extended_env);
-
-                // Determine the element type from the iterator
-                let elem_type = match &iter_type {
-                    // JSON Value iteration yields Value elements
-                    Type::Custom(s) if s == "serde_json::Value" || s.contains("Value") => {
-                        Type::Custom("serde_json::Value".to_string())
-                    }
-                    // List iteration yields element type
-                    Type::List(inner) => *inner.clone(),
-                    // Dict iteration yields keys
-                    Type::Dict(k, _) => *k.clone(),
-                    // Set iteration yields element type
-                    Type::Set(inner) => *inner.clone(),
-                    _ => Type::Unknown,
-                };
-
-                // Bind the target variable to the element type
-                // gen.target is a Symbol (String) representing the variable name
-                extended_env.insert(gen.target.clone(), elem_type);
+        HirExpr::Slice { base, .. } => {
+            let base_type = infer_expr_type_with_env(base, var_types);
+            if matches!(base_type, Type::String) {
+                Type::String
+            } else {
+                base_type
             }
-
-            // Infer element type with the extended environment
-            let elem_type = infer_expr_type_with_env(element, &extended_env);
-            Type::List(Box::new(elem_type))
         }
-        // For other cases, use the simple version
+        HirExpr::Attribute { value, attr } => {
+            infer_attribute_type_with_env(value, attr, var_types)
+        }
+        HirExpr::ListComp { element, generators } => {
+            infer_listcomp_type_with_env(element, generators, var_types)
+        }
         _ => infer_expr_type_simple(expr),
     }
 }
