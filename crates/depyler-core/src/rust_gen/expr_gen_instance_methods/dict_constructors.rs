@@ -162,324 +162,214 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         items: &[(HirExpr, HirExpr)],
         has_non_string_keys: bool,
     ) -> Result<syn::Expr> {
-            self.ctx.needs_hashmap = true;
-            self.ctx.needs_depyler_value_enum = true;
+        self.ctx.needs_hashmap = true;
+        self.ctx.needs_depyler_value_enum = true;
 
-            // DEPYLER-1047: Check if return/target type expects String keys
-            // Pattern: `fn f() -> HashMap<String, DepylerValue>` should use String keys
-            // NOT DepylerValue keys, even when values are DepylerValue
-            // NOTE: Bare `dict` return type parses as Dict(Unknown, Unknown) but generates
-            // HashMap<String, DepylerValue>, so Unknown key type also means String keys
-            // DEPYLER-1213: Also handle Type::Custom("dict") which is how bare dict annotations are stored
-            let return_expects_string_keys = match &self.ctx.current_return_type {
-                Some(Type::Dict(key_type, _)) => {
-                    matches!(key_type.as_ref(), Type::String | Type::Unknown)
+        let use_string_keys = self.should_use_string_keys(has_non_string_keys);
+
+        let mut insert_stmts = Vec::new();
+        for (key, value) in items {
+            let key_expr_raw = key.to_rust_expr(self.ctx)?;
+            let val_expr = self.convert_nested_depyler_value(value)?;
+            let key_expr = Self::wrap_depyler_key(key, &key_expr_raw, use_string_keys);
+            let wrapped_val = self.wrap_depyler_value(value, &val_expr)?;
+            insert_stmts.push(quote! { map.insert(#key_expr, #wrapped_val); });
+        }
+
+        if use_string_keys {
+            Ok(parse_quote! {
+                {
+                    let mut map: HashMap<String, DepylerValue> = HashMap::new();
+                    #(#insert_stmts)*
+                    map
                 }
-                // Bare `dict` annotation stored as Custom("dict") - treat as Dict[str, Any]
-                Some(Type::Custom(name)) if name == "dict" || name == "Dict" => true,
-                _ => false,
-            };
-            let target_expects_string_keys = match &self.ctx.current_assign_type {
-                Some(Type::Dict(key_type, _)) => {
-                    matches!(key_type.as_ref(), Type::String | Type::Unknown)
+            })
+        } else {
+            Ok(parse_quote! {
+                {
+                    let mut map: HashMap<DepylerValue, DepylerValue> = HashMap::new();
+                    #(#insert_stmts)*
+                    map
                 }
-                Some(Type::Custom(name)) if name == "dict" || name == "Dict" => true,
-                _ => false,
-            };
-            let use_string_keys =
-                (return_expects_string_keys || target_expects_string_keys) && !has_non_string_keys;
+            })
+        }
+    }
 
-            let mut insert_stmts = Vec::new();
-            for (key, value) in items {
-                let key_expr_raw = key.to_rust_expr(self.ctx)?;
+    // CB-200 Batch 13: Check if return/target type expects String keys
+    fn should_use_string_keys(&self, has_non_string_keys: bool) -> bool {
+        let return_expects = match &self.ctx.current_return_type {
+            Some(Type::Dict(key_type, _)) => matches!(key_type.as_ref(), Type::String | Type::Unknown),
+            Some(Type::Custom(name)) if name == "dict" || name == "Dict" => true,
+            _ => false,
+        };
+        let target_expects = match &self.ctx.current_assign_type {
+            Some(Type::Dict(key_type, _)) => matches!(key_type.as_ref(), Type::String | Type::Unknown),
+            Some(Type::Custom(name)) if name == "dict" || name == "Dict" => true,
+            _ => false,
+        };
+        (return_expects || target_expects) && !has_non_string_keys
+    }
 
-                // DEPYLER-1166: Propagate DepylerValue context for nested Dict/List values
-                // When converting a nested dict that will become a DepylerValue, set the context
-                // so the inner dict also uses DepylerValue wrapping for its values
-                let prev_assign_type = self.ctx.current_assign_type.clone();
-                if matches!(value, HirExpr::Dict(_) | HirExpr::List(_)) {
-                    // Set context to Dict with Unknown value type → triggers DepylerValue
-                    self.ctx.current_assign_type =
-                        Some(Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)));
+    // CB-200 Batch 13: Convert value with nested DepylerValue context propagation
+    fn convert_nested_depyler_value(&mut self, value: &HirExpr) -> Result<syn::Expr> {
+        let prev_assign_type = self.ctx.current_assign_type.clone();
+        if matches!(value, HirExpr::Dict(_) | HirExpr::List(_)) {
+            self.ctx.current_assign_type =
+                Some(Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)));
+        }
+        let val_expr = value.to_rust_expr(self.ctx)?;
+        self.ctx.current_assign_type = prev_assign_type;
+        Ok(val_expr)
+    }
+
+    // CB-200 Batch 13: Wrap key expression for DepylerValue dict
+    fn wrap_depyler_key(key: &HirExpr, key_expr_raw: &syn::Expr, use_string_keys: bool) -> syn::Expr {
+        if use_string_keys {
+            match key {
+                HirExpr::Literal(Literal::String(_)) => parse_quote! { #key_expr_raw.to_string() },
+                _ => parse_quote! { format!("{}", #key_expr_raw) },
+            }
+        } else {
+            match key {
+                HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#key_expr_raw as i64) },
+                HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#key_expr_raw as f64) },
+                HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#key_expr_raw.to_string()) },
+                HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#key_expr_raw) },
+                _ => parse_quote! { DepylerValue::from(#key_expr_raw) },
+            }
+        }
+    }
+
+    // CB-200 Batch 13: Wrap value expression in DepylerValue variant
+    fn wrap_depyler_value(&self, value: &HirExpr, val_expr: &syn::Expr) -> Result<syn::Expr> {
+        Ok(match value {
+            HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#val_expr as i64) },
+            HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#val_expr as f64) },
+            HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#val_expr.to_string()) },
+            HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#val_expr) },
+            HirExpr::Literal(Literal::None) => parse_quote! { DepylerValue::None },
+            HirExpr::Var(name) => self.wrap_depyler_var_value(name, val_expr),
+            HirExpr::Attribute { value: attr_value, attr, .. } => {
+                self.wrap_depyler_attr_value(attr_value, attr, val_expr)?
+            }
+            HirExpr::Dict(_) => {
+                parse_quote! { DepylerValue::Dict(#val_expr.into_iter().map(|(k, v)| (DepylerValue::Str(k), v)).collect()) }
+            }
+            HirExpr::List(elts) => self.wrap_depyler_list_value(elts, val_expr)?,
+            _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
+        })
+    }
+
+    // CB-200 Batch 13: Wrap variable value in DepylerValue based on known type
+    fn wrap_depyler_var_value(&self, name: &str, val_expr: &syn::Expr) -> syn::Expr {
+        match self.ctx.var_types.get(name) {
+            Some(Type::Int) => parse_quote! { DepylerValue::Int(#val_expr as i64) },
+            Some(Type::Float) => parse_quote! { DepylerValue::Float(#val_expr as f64) },
+            Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#val_expr) },
+            Some(Type::String) => parse_quote! { DepylerValue::Str(#val_expr.to_string()) },
+            _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
+        }
+    }
+
+    // CB-200 Batch 13: Wrap attribute value in DepylerValue
+    fn wrap_depyler_attr_value(
+        &self,
+        attr_value: &HirExpr,
+        attr: &str,
+        val_expr: &syn::Expr,
+    ) -> Result<syn::Expr> {
+        let found_type: Option<&Type> = self.ctx.class_field_types.get(attr);
+        let mut inferred_type_str: Option<String> = None;
+
+        if found_type.is_none() {
+            if let HirExpr::Var(obj_name) = attr_value {
+                for parser_info in self.ctx.argparser_tracker.parsers.values() {
+                    if let Some(ref args_var) = parser_info.args_var {
+                        if args_var == obj_name {
+                            for arg in &parser_info.arguments {
+                                if arg.rust_field_name() == *attr {
+                                    inferred_type_str = Some(arg.rust_type());
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
                 }
-                let val_expr = value.to_rust_expr(self.ctx)?;
-                // Restore context
-                self.ctx.current_assign_type = prev_assign_type;
+            }
+        }
 
-                // DEPYLER-1047: Use String keys when return/target type expects String keys
-                // DEPYLER-1060: Wrap keys in DepylerValue to support non-string keys
-                // Point 14: {1: "a"} must use DepylerValue::Int(1), not String
-                let key_expr: syn::Expr = if use_string_keys {
-                    // Return type expects HashMap<String, _>, use String keys
-                    match key {
-                        HirExpr::Literal(Literal::String(_)) => {
-                            parse_quote! { #key_expr_raw.to_string() }
-                        }
-                        _ => {
-                            // For non-string keys in string-key context, convert to string
-                            parse_quote! { format!("{}", #key_expr_raw) }
-                        }
-                    }
-                } else {
-                    // Return type expects HashMap<DepylerValue, _>, use DepylerValue keys
-                    match key {
-                        HirExpr::Literal(Literal::Int(_)) => {
-                            parse_quote! { DepylerValue::Int(#key_expr_raw as i64) }
-                        }
-                        HirExpr::Literal(Literal::Float(_)) => {
-                            parse_quote! { DepylerValue::Float(#key_expr_raw as f64) }
-                        }
-                        HirExpr::Literal(Literal::String(_)) => {
-                            parse_quote! { DepylerValue::Str(#key_expr_raw.to_string()) }
-                        }
-                        HirExpr::Literal(Literal::Bool(_)) => {
-                            parse_quote! { DepylerValue::Bool(#key_expr_raw) }
-                        }
-                        HirExpr::Var(_) => {
-                            // For variables, use .into() to convert to DepylerValue
-                            parse_quote! { DepylerValue::from(#key_expr_raw) }
-                        }
-                        _ => {
-                            // For complex expressions, try .into()
-                            parse_quote! { DepylerValue::from(#key_expr_raw) }
-                        }
-                    }
-                };
+        if let Some(field_type) = found_type {
+            Ok(Self::wrap_depyler_by_explicit_type(field_type, val_expr))
+        } else if let Some(type_str) = inferred_type_str {
+            Ok(Self::wrap_depyler_by_inferred_type(&type_str, val_expr))
+        } else {
+            Ok(parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) })
+        }
+    }
 
-                // Wrap values in DepylerValue enum variants
-                let wrapped_val: syn::Expr = match value {
-                    HirExpr::Literal(Literal::Int(_)) => {
-                        parse_quote! { DepylerValue::Int(#val_expr as i64) }
-                    }
-                    HirExpr::Literal(Literal::Float(_)) => {
-                        parse_quote! { DepylerValue::Float(#val_expr as f64) }
-                    }
-                    HirExpr::Literal(Literal::String(_)) => {
-                        parse_quote! { DepylerValue::Str(#val_expr.to_string()) }
-                    }
-                    HirExpr::Literal(Literal::Bool(_)) => {
-                        parse_quote! { DepylerValue::Bool(#val_expr) }
-                    }
-                    HirExpr::Literal(Literal::None) => {
-                        parse_quote! { DepylerValue::None }
-                    }
-                    HirExpr::Var(name) => {
-                        let var_type = self.ctx.var_types.get(name);
-                        match var_type {
-                            Some(Type::Int) => parse_quote! { DepylerValue::Int(#val_expr as i64) },
-                            Some(Type::Float) => {
-                                parse_quote! { DepylerValue::Float(#val_expr as f64) }
-                            }
-                            Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#val_expr) },
-                            Some(Type::String) => {
-                                parse_quote! { DepylerValue::Str(#val_expr.to_string()) }
-                            }
-                            _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
-                        }
-                    }
-                    // DEPYLER-1040: Handle struct field access (e.g., args.debug, args.count)
-                    // DEPYLER-1143: Also check argparse field types for proper wrapping
-                    HirExpr::Attribute { value: attr_value, attr, .. } => {
-                        // First try class_field_types
-                        let found_type: Option<&Type> = self.ctx.class_field_types.get(attr);
-                        let mut inferred_type_str: Option<String> = None;
+    // CB-200 Batch 13: Wrap by explicit Type
+    fn wrap_depyler_by_explicit_type(field_type: &Type, val_expr: &syn::Expr) -> syn::Expr {
+        match field_type {
+            Type::Int => parse_quote! { DepylerValue::Int(#val_expr as i64) },
+            Type::Float => parse_quote! { DepylerValue::Float(#val_expr as f64) },
+            Type::Bool => parse_quote! { DepylerValue::Bool(#val_expr) },
+            Type::String => parse_quote! { DepylerValue::Str(#val_expr.to_string()) },
+            Type::Optional(inner) => match inner.as_ref() {
+                Type::Int => parse_quote! { match #val_expr { Some(v) => DepylerValue::Int(v as i64), None => DepylerValue::None } },
+                Type::String => parse_quote! { match #val_expr { Some(v) => DepylerValue::Str(v.to_string()), None => DepylerValue::None } },
+                _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
+            },
+            Type::List(_) => parse_quote! { DepylerValue::List(#val_expr.iter().map(|v| DepylerValue::Str(v.to_string())).collect()) },
+            _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
+        }
+    }
 
-                        // DEPYLER-1143: If not found, check argparse args.field access
-                        // IMPORTANT: Always use rust_type() for argparse fields, not arg_type
-                        // Because rust_type() includes Option<T> wrapping for optional arguments
-                        // while arg_type only has the inner Python type (e.g., Type::Int instead of Option<i32>)
-                        if found_type.is_none() {
-                            if let HirExpr::Var(obj_name) = attr_value.as_ref() {
-                                for parser_info in self.ctx.argparser_tracker.parsers.values() {
-                                    if let Some(ref args_var) = parser_info.args_var {
-                                        if args_var == obj_name {
-                                            for arg in &parser_info.arguments {
-                                                if arg.rust_field_name() == *attr {
-                                                    // Always use rust_type() which accounts for Option wrapping
-                                                    inferred_type_str = Some(arg.rust_type());
-                                                    break;
-                                                }
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
+    // CB-200 Batch 13: Wrap by inferred type string
+    fn wrap_depyler_by_inferred_type(type_str: &str, val_expr: &syn::Expr) -> syn::Expr {
+        match type_str {
+            "bool" => parse_quote! { DepylerValue::Bool(#val_expr) },
+            "i32" | "i64" | "isize" | "u8" | "u32" | "u64" => parse_quote! { DepylerValue::Int(#val_expr as i64) },
+            "f32" | "f64" => parse_quote! { DepylerValue::Float(#val_expr as f64) },
+            "String" => parse_quote! { DepylerValue::Str(#val_expr.to_string()) },
+            s if s.starts_with("Vec<") => parse_quote! { DepylerValue::List(#val_expr.iter().map(|v| DepylerValue::Str(v.to_string())).collect()) },
+            s if s.starts_with("Option<") && s.contains("String") => {
+                parse_quote! { match #val_expr { Some(v) => DepylerValue::Str(v.to_string()), None => DepylerValue::None } }
+            }
+            s if s.starts_with("Option<i") || s.starts_with("Option<u") => {
+                parse_quote! { match #val_expr { Some(v) => DepylerValue::Int(v as i64), None => DepylerValue::None } }
+            }
+            s if s.starts_with("Option<f") => {
+                parse_quote! { match #val_expr { Some(v) => DepylerValue::Float(v as f64), None => DepylerValue::None } }
+            }
+            s if s.starts_with("Option<") => {
+                parse_quote! { match #val_expr { Some(v) => DepylerValue::Str(format!("{:?}", v)), None => DepylerValue::None } }
+            }
+            _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
+        }
+    }
 
-                        if let Some(field_type) = found_type {
-                            match field_type {
-                                Type::Int => parse_quote! { DepylerValue::Int(#val_expr as i64) },
-                                Type::Float => {
-                                    parse_quote! { DepylerValue::Float(#val_expr as f64) }
-                                }
-                                Type::Bool => parse_quote! { DepylerValue::Bool(#val_expr) },
-                                Type::String => {
-                                    parse_quote! { DepylerValue::Str(#val_expr.to_string()) }
-                                }
-                                Type::Optional(inner) => match inner.as_ref() {
-                                    Type::Int => parse_quote! {
-                                        match #val_expr {
-                                            Some(v) => DepylerValue::Int(v as i64),
-                                            None => DepylerValue::None,
-                                        }
-                                    },
-                                    Type::String => parse_quote! {
-                                        match #val_expr {
-                                            Some(v) => DepylerValue::Str(v.to_string()),
-                                            None => DepylerValue::None,
-                                        }
-                                    },
-                                    _ => {
-                                        parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
-                                    }
-                                },
-                                Type::List(_) => parse_quote! {
-                                    DepylerValue::List(#val_expr.iter().map(|v| DepylerValue::Str(v.to_string())).collect())
-                                },
-                                _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
-                            }
-                        } else if let Some(type_str) = inferred_type_str {
-                            // DEPYLER-1143: Handle inferred types from argparse rust_type()
-                            match type_str.as_str() {
-                                "bool" => parse_quote! { DepylerValue::Bool(#val_expr) },
-                                "i32" | "i64" | "isize" => {
-                                    parse_quote! { DepylerValue::Int(#val_expr as i64) }
-                                }
-                                "u8" | "u32" | "u64" => {
-                                    parse_quote! { DepylerValue::Int(#val_expr as i64) }
-                                }
-                                "f32" | "f64" => {
-                                    parse_quote! { DepylerValue::Float(#val_expr as f64) }
-                                }
-                                "String" => {
-                                    parse_quote! { DepylerValue::Str(#val_expr.to_string()) }
-                                }
-                                s if s.starts_with("Vec<") => parse_quote! {
-                                    DepylerValue::List(#val_expr.iter().map(|v| DepylerValue::Str(v.to_string())).collect())
-                                },
-                                s if s.starts_with("Option<") && s.contains("String") => {
-                                    parse_quote! {
-                                        match #val_expr {
-                                            Some(v) => DepylerValue::Str(v.to_string()),
-                                            None => DepylerValue::None,
-                                        }
-                                    }
-                                }
-                                // DEPYLER-1143: Handle Option<i32/i64/f32/f64> with proper numeric wrapping
-                                s if s.starts_with("Option<i") || s.starts_with("Option<u") => {
-                                    parse_quote! {
-                                        match #val_expr {
-                                            Some(v) => DepylerValue::Int(v as i64),
-                                            None => DepylerValue::None,
-                                        }
-                                    }
-                                }
-                                s if s.starts_with("Option<f") => parse_quote! {
-                                    match #val_expr {
-                                        Some(v) => DepylerValue::Float(v as f64),
-                                        None => DepylerValue::None,
-                                    }
-                                },
-                                s if s.starts_with("Option<") => parse_quote! {
-                                    match #val_expr {
-                                        Some(v) => DepylerValue::Str(format!("{:?}", v)),
-                                        None => DepylerValue::None,
-                                    }
-                                },
-                                _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
-                            }
-                        } else {
-                            // DEPYLER-1040: Without explicit type info, use safe stringify
-                            // Name-based heuristics are unreliable because fields might be Option<T>
-                            // (e.g., args.count could be Option<i32>, not i32)
-                            // Using format!("{:?}") is safe for any type
-                            parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
-                        }
-                    }
-                    // DEPYLER-1166: Handle nested Dict values
-                    // Wrap inner HashMap<String, DepylerValue> as DepylerValue::Dict(HashMap<DepylerValue, DepylerValue>)
-                    // by converting String keys to DepylerValue::Str keys
+    // CB-200 Batch 13: Wrap list elements in DepylerValue
+    fn wrap_depyler_list_value(&self, elts: &[HirExpr], _val_expr: &syn::Expr) -> Result<syn::Expr> {
+        let wrapped_elements: Vec<syn::Expr> = elts
+            .iter()
+            .map(|elem| {
+                let elem_expr = elem.to_rust_expr(self.ctx)?;
+                Ok(match elem {
+                    HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#elem_expr as i64) },
+                    HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#elem_expr as f64) },
+                    HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#elem_expr.to_string()) },
+                    HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#elem_expr) },
+                    HirExpr::Literal(Literal::None) => parse_quote! { DepylerValue::None },
                     HirExpr::Dict(_) => {
-                        parse_quote! {
-                            DepylerValue::Dict(#val_expr.into_iter()
-                                .map(|(k, v)| (DepylerValue::Str(k), v))
-                                .collect())
-                        }
+                        parse_quote! { DepylerValue::Dict(#elem_expr.into_iter().map(|(k, v)| (DepylerValue::Str(k), v)).collect()) }
                     }
-                    // DEPYLER-1166: Handle nested List values
-                    // Elements must be wrapped in DepylerValue variants
-                    HirExpr::List(elts) => {
-                        // Convert each element to DepylerValue
-                        let wrapped_elements: Vec<syn::Expr> = elts
-                            .iter()
-                            .map(|elem| {
-                                let elem_expr = elem.to_rust_expr(self.ctx)?;
-                                Ok(match elem {
-                                    HirExpr::Literal(Literal::Int(_)) => {
-                                        parse_quote! { DepylerValue::Int(#elem_expr as i64) }
-                                    }
-                                    HirExpr::Literal(Literal::Float(_)) => {
-                                        parse_quote! { DepylerValue::Float(#elem_expr as f64) }
-                                    }
-                                    HirExpr::Literal(Literal::String(_)) => {
-                                        parse_quote! { DepylerValue::Str(#elem_expr.to_string()) }
-                                    }
-                                    HirExpr::Literal(Literal::Bool(_)) => {
-                                        parse_quote! { DepylerValue::Bool(#elem_expr) }
-                                    }
-                                    HirExpr::Literal(Literal::None) => {
-                                        parse_quote! { DepylerValue::None }
-                                    }
-                                    HirExpr::Dict(_) => {
-                                        // Nested dict - wrap as DepylerValue::Dict
-                                        parse_quote! {
-                                            DepylerValue::Dict(#elem_expr.into_iter()
-                                                .map(|(k, v)| (DepylerValue::Str(k), v))
-                                                .collect())
-                                        }
-                                    }
-                                    HirExpr::List(_) => {
-                                        // Nested list - already converted recursively
-                                        parse_quote! { DepylerValue::List(#elem_expr) }
-                                    }
-                                    _ => {
-                                        // For variables/complex expressions, use from()
-                                        parse_quote! { DepylerValue::from(#elem_expr) }
-                                    }
-                                })
-                            })
-                            .collect::<Result<Vec<_>>>()?;
-
-                        parse_quote! { DepylerValue::List(vec![#(#wrapped_elements),*]) }
-                    }
-                    // Fallback for other complex types
-                    _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
-                };
-
-                insert_stmts.push(quote! { map.insert(#key_expr, #wrapped_val); });
-            }
-
-            // DEPYLER-1159: Add explicit type annotations to HashMap to help type inference
-            // Without type annotations, empty or nested dicts can cause E0282 errors
-            // when the type can't be inferred from context (e.g., inside format! macro)
-            return if use_string_keys {
-                Ok(parse_quote! {
-                    {
-                        let mut map: HashMap<String, DepylerValue> = HashMap::new();
-                        #(#insert_stmts)*
-                        map
-                    }
+                    HirExpr::List(_) => parse_quote! { DepylerValue::List(#elem_expr) },
+                    _ => parse_quote! { DepylerValue::from(#elem_expr) },
                 })
-            } else {
-                Ok(parse_quote! {
-                    {
-                        let mut map: HashMap<DepylerValue, DepylerValue> = HashMap::new();
-                        #(#insert_stmts)*
-                        map
-                    }
-                })
-            }
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(parse_quote! { DepylerValue::List(vec![#(#wrapped_elements),*]) })
     }
 
     /// CB-200 Batch 12: Dict in json!() context

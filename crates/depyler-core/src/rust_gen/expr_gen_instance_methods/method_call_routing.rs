@@ -46,165 +46,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         );
 
         // DEPYLER-1205: Usage-Based Type Inference
-        // If a variable is Unknown/DepylerValue and calls a method that implies a type, infer it.
-        // This is "Inference by Usage" - we help the compiler by telling it what type the variable must be.
-        if let HirExpr::Var(var_name) = object {
-            let current_type = self.ctx.var_types.get(var_name).cloned();
-            let is_unknown = matches!(current_type, None | Some(Type::Unknown));
+        self.infer_type_from_method_usage(object, method, args);
 
-            if is_unknown {
-                // List-indicator methods
-                match method {
-                    // DEPYLER-1211: Recursive Type Propagation for append
-                    // If .append(arg) is called, infer the element type from arg
-                    "append" => {
-                        let element_type = if !args.is_empty() {
-                            self.infer_type_from_hir_expr(&args[0])
-                        } else {
-                            Type::Unknown
-                        };
-                        self.ctx
-                            .var_types
-                            .insert(var_name.clone(), Type::List(Box::new(element_type.clone())));
-                        tracing::debug!(
-                            "DEPYLER-1211: Inferred {} as List<{:?}> (via append())",
-                            var_name,
-                            element_type
-                        );
-                    }
-                    // DEPYLER-1211: For insert(idx, arg), infer element type from second arg
-                    "insert" => {
-                        let element_type = if args.len() >= 2 {
-                            self.infer_type_from_hir_expr(&args[1])
-                        } else {
-                            Type::Unknown
-                        };
-                        self.ctx
-                            .var_types
-                            .insert(var_name.clone(), Type::List(Box::new(element_type.clone())));
-                        tracing::debug!(
-                            "DEPYLER-1211: Inferred {} as List<{:?}> (via insert())",
-                            var_name,
-                            element_type
-                        );
-                    }
-                    // Other list methods - element type remains unknown
-                    "extend" | "pop" | "remove" | "sort" | "reverse" | "clear" | "copy"
-                    | "index" | "count" => {
-                        // This variable must be a list
-                        self.ctx
-                            .var_types
-                            .insert(var_name.clone(), Type::List(Box::new(Type::Unknown)));
-                        tracing::debug!(
-                            "DEPYLER-1205: Inferred {} as List (via {}())",
-                            var_name,
-                            method
-                        );
-                    }
-                    // String-indicator methods
-                    "lower" | "upper" | "strip" | "lstrip" | "rstrip" | "split" | "join"
-                    | "replace" | "startswith" | "endswith" | "find" | "rfind" | "isdigit"
-                    | "isalpha" | "isalnum" | "isupper" | "islower" | "title" | "capitalize"
-                    | "swapcase" | "center" | "ljust" | "rjust" | "zfill" | "encode" => {
-                        // This variable must be a string
-                        self.ctx.var_types.insert(var_name.clone(), Type::String);
-                        tracing::debug!(
-                            "DEPYLER-1205: Inferred {} as String (via {}())",
-                            var_name,
-                            method
-                        );
-                    }
-                    // Dict-indicator methods
-                    "keys" | "values" | "items" | "get" | "setdefault" | "update" | "popitem" => {
-                        // This variable must be a dict
-                        self.ctx.var_types.insert(
-                            var_name.clone(),
-                            Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
-                        );
-                        tracing::debug!(
-                            "DEPYLER-1205: Inferred {} as Dict (via {}())",
-                            var_name,
-                            method
-                        );
-                    }
-                    // Iterator-indicator methods (could be list, set, or dict)
-                    "iter" => {
-                        // Default to list for iter()
-                        self.ctx
-                            .var_types
-                            .insert(var_name.clone(), Type::List(Box::new(Type::Unknown)));
-                        tracing::debug!("DEPYLER-1205: Inferred {} as List (via iter())", var_name);
-                    }
-                    // Set-indicator methods
-                    "add"
-                    | "discard"
-                    | "difference"
-                    | "intersection"
-                    | "union"
-                    | "symmetric_difference"
-                    | "issubset"
-                    | "issuperset"
-                    | "isdisjoint" => {
-                        // This variable must be a set
-                        self.ctx
-                            .var_types
-                            .insert(var_name.clone(), Type::Set(Box::new(Type::Unknown)));
-                        tracing::debug!(
-                            "DEPYLER-1205: Inferred {} as Set (via {}())",
-                            var_name,
-                            method
-                        );
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        // DEPYLER-GH208: Handle method calls on &mut Option<T> parameters
+        // CB-200 Batch 13: Option/Dict method dispatch
         if let Some(result) = self.try_convert_mut_option_method(object, method, args)? {
             return Ok(result);
         }
-
-        // DEPYLER-0964: Handle method calls on &mut Option<HashMap<K, V>> parameters
         if let Some(result) = self.try_convert_mut_option_dict_method(object, method, args)? {
             return Ok(result);
         }
 
-        // DEPYLER-0108: Handle is_some/is_none on precomputed argparse Option fields
-        // This prevents borrow-after-move when Option field is passed to a function then checked
-        if (method == "is_some" || method == "is_none") && args.is_empty() {
-            if let HirExpr::Attribute { value, attr } = object {
-                if let HirExpr::Var(_) = value.as_ref() {
-                    // Check if this field has been precomputed
-                    if self.ctx.precomputed_option_fields.contains(attr) {
-                        let has_var_name = format!("has_{}", attr);
-                        let has_ident =
-                            syn::Ident::new(&has_var_name, proc_macro2::Span::call_site());
-                        if method == "is_some" {
-                            return Ok(parse_quote! { #has_ident });
-                        } else {
-                            return Ok(parse_quote! { !#has_ident });
-                        }
-                    }
-                }
-            }
-        }
-
-        // DEPYLER-99MODE-S9: Handle is_some/is_none on Result-returning function calls
-        // Pattern: `func_call(...) is not None` → HIR: MethodCall { object: Call(func), method: "is_some" }
-        // When the called function returns Result<Option<T>>, we need `?` to unwrap Result first:
-        //   func_call(...).is_some()  → func_call(...)?.is_some()
-        if (method == "is_some" || method == "is_none") && args.is_empty() {
-            if let HirExpr::Call { func, .. } = object {
-                if self.ctx.type_mapper.nasa_mode
-                    && self.ctx.result_returning_functions.contains(func)
-                    && self.ctx.current_function_can_fail
-                {
-                    let object_expr = object.to_rust_expr(self.ctx)?;
-                    let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
-                    return Ok(parse_quote! { #object_expr?.#method_ident() });
-                }
-            }
+        // CB-200 Batch 13: is_some/is_none on precomputed fields and Result-returning calls
+        if let Some(result) = self.try_convert_option_check(object, method, args)? {
+            return Ok(result);
         }
 
         // DEPYLER-0931: Handle subprocess.Child methods (.wait(), .kill(), etc.)
@@ -1146,5 +1000,97 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             _ => Ok(None),
         }
+    }
+
+    // CB-200 Batch 13: Usage-based type inference from method calls
+    fn infer_type_from_method_usage(&mut self, object: &HirExpr, method: &str, args: &[HirExpr]) {
+        let HirExpr::Var(var_name) = object else { return; };
+        let current_type = self.ctx.var_types.get(var_name).cloned();
+        if !matches!(current_type, None | Some(Type::Unknown)) {
+            return;
+        }
+        match method {
+            "append" => {
+                let element_type = if !args.is_empty() {
+                    self.infer_type_from_hir_expr(&args[0])
+                } else {
+                    Type::Unknown
+                };
+                self.ctx.var_types.insert(var_name.clone(), Type::List(Box::new(element_type.clone())));
+                tracing::debug!("DEPYLER-1211: Inferred {} as List<{:?}> (via append())", var_name, element_type);
+            }
+            "insert" => {
+                let element_type = if args.len() >= 2 {
+                    self.infer_type_from_hir_expr(&args[1])
+                } else {
+                    Type::Unknown
+                };
+                self.ctx.var_types.insert(var_name.clone(), Type::List(Box::new(element_type.clone())));
+                tracing::debug!("DEPYLER-1211: Inferred {} as List<{:?}> (via insert())", var_name, element_type);
+            }
+            "extend" | "pop" | "remove" | "sort" | "reverse" | "clear" | "copy" | "index" | "count" => {
+                self.ctx.var_types.insert(var_name.clone(), Type::List(Box::new(Type::Unknown)));
+                tracing::debug!("DEPYLER-1205: Inferred {} as List (via {}())", var_name, method);
+            }
+            "lower" | "upper" | "strip" | "lstrip" | "rstrip" | "split" | "join"
+            | "replace" | "startswith" | "endswith" | "find" | "rfind" | "isdigit"
+            | "isalpha" | "isalnum" | "isupper" | "islower" | "title" | "capitalize"
+            | "swapcase" | "center" | "ljust" | "rjust" | "zfill" | "encode" => {
+                self.ctx.var_types.insert(var_name.clone(), Type::String);
+                tracing::debug!("DEPYLER-1205: Inferred {} as String (via {}())", var_name, method);
+            }
+            "keys" | "values" | "items" | "get" | "setdefault" | "update" | "popitem" => {
+                self.ctx.var_types.insert(var_name.clone(), Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)));
+                tracing::debug!("DEPYLER-1205: Inferred {} as Dict (via {}())", var_name, method);
+            }
+            "iter" => {
+                self.ctx.var_types.insert(var_name.clone(), Type::List(Box::new(Type::Unknown)));
+                tracing::debug!("DEPYLER-1205: Inferred {} as List (via iter())", var_name);
+            }
+            "add" | "discard" | "difference" | "intersection" | "union"
+            | "symmetric_difference" | "issubset" | "issuperset" | "isdisjoint" => {
+                self.ctx.var_types.insert(var_name.clone(), Type::Set(Box::new(Type::Unknown)));
+                tracing::debug!("DEPYLER-1205: Inferred {} as Set (via {}())", var_name, method);
+            }
+            _ => {}
+        }
+    }
+
+    // CB-200 Batch 13: Handle is_some/is_none on precomputed fields and Result-returning calls
+    fn try_convert_option_check(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if !matches!(method, "is_some" | "is_none") || !args.is_empty() {
+            return Ok(None);
+        }
+        // Precomputed argparse Option fields
+        if let HirExpr::Attribute { value, attr } = object {
+            if let HirExpr::Var(_) = value.as_ref() {
+                if self.ctx.precomputed_option_fields.contains(attr) {
+                    let has_var_name = format!("has_{}", attr);
+                    let has_ident = syn::Ident::new(&has_var_name, proc_macro2::Span::call_site());
+                    return if method == "is_some" {
+                        Ok(Some(parse_quote! { #has_ident }))
+                    } else {
+                        Ok(Some(parse_quote! { !#has_ident }))
+                    };
+                }
+            }
+        }
+        // Result-returning function calls
+        if let HirExpr::Call { func, .. } = object {
+            if self.ctx.type_mapper.nasa_mode
+                && self.ctx.result_returning_functions.contains(func)
+                && self.ctx.current_function_can_fail
+            {
+                let object_expr = object.to_rust_expr(self.ctx)?;
+                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                return Ok(Some(parse_quote! { #object_expr?.#method_ident() }));
+            }
+        }
+        Ok(None)
     }
 }

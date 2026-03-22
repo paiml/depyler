@@ -1388,6 +1388,44 @@ pub fn preregister_subcommands_from_hir(
         }
     }
 
+    // CB-200 Batch 13: Walk children of non-method-call expressions
+    fn walk_expr_children(expr: &HirExpr, tracker: &mut ArgParserTracker) {
+        match expr {
+            HirExpr::Binary { left, right, .. } => {
+                walk_expr(left, tracker);
+                walk_expr(right, tracker);
+            }
+            HirExpr::Unary { operand, .. } => walk_expr(operand, tracker),
+            HirExpr::Call { args, kwargs, .. } => {
+                for arg in args { walk_expr(arg, tracker); }
+                for (_, val) in kwargs { walk_expr(val, tracker); }
+            }
+            HirExpr::MethodCall { object, args, kwargs, .. } => {
+                recurse_method_call(object, args, kwargs, tracker);
+            }
+            HirExpr::Attribute { value, .. } => walk_expr(value, tracker),
+            HirExpr::List(items)
+            | HirExpr::Tuple(items)
+            | HirExpr::Set(items)
+            | HirExpr::FrozenSet(items) => {
+                for item in items { walk_expr(item, tracker); }
+            }
+            HirExpr::Dict(items) => {
+                for (k, v) in items { walk_expr(k, tracker); walk_expr(v, tracker); }
+            }
+            HirExpr::Index { base, index } => {
+                walk_expr(base, tracker);
+                walk_expr(index, tracker);
+            }
+            HirExpr::IfExpr { test, body, orelse } => {
+                walk_expr(test, tracker);
+                walk_expr(body, tracker);
+                walk_expr(orelse, tracker);
+            }
+            _ => {} // Literals, vars, etc.
+        }
+    }
+
     // Recursive walker for expressions
     fn walk_expr(expr: &HirExpr, tracker: &mut ArgParserTracker) {
         match expr {
@@ -1399,52 +1437,7 @@ pub fn preregister_subcommands_from_hir(
                 handle_add_argument_expr(object, args, kwargs, tracker);
                 recurse_method_call(object, args, kwargs, tracker);
             }
-            // Recurse into all other expression types
-            HirExpr::Binary { left, right, .. } => {
-                walk_expr(left, tracker);
-                walk_expr(right, tracker);
-            }
-            HirExpr::Unary { operand, .. } => {
-                walk_expr(operand, tracker);
-            }
-            HirExpr::Call { args, kwargs, .. } => {
-                for arg in args {
-                    walk_expr(arg, tracker);
-                }
-                for (_, val) in kwargs {
-                    walk_expr(val, tracker);
-                }
-            }
-            HirExpr::MethodCall { object, args, kwargs, .. } => {
-                recurse_method_call(object, args, kwargs, tracker);
-            }
-            HirExpr::Attribute { value, .. } => {
-                walk_expr(value, tracker);
-            }
-            HirExpr::List(items)
-            | HirExpr::Tuple(items)
-            | HirExpr::Set(items)
-            | HirExpr::FrozenSet(items) => {
-                for item in items {
-                    walk_expr(item, tracker);
-                }
-            }
-            HirExpr::Dict(items) => {
-                for (k, v) in items {
-                    walk_expr(k, tracker);
-                    walk_expr(v, tracker);
-                }
-            }
-            HirExpr::Index { base, index } => {
-                walk_expr(base, tracker);
-                walk_expr(index, tracker);
-            }
-            HirExpr::IfExpr { test, body, orelse } => {
-                walk_expr(test, tracker);
-                walk_expr(body, tracker);
-                walk_expr(orelse, tracker);
-            }
-            _ => {} // Literals, vars, etc. - no recursion needed
+            other => walk_expr_children(other, tracker),
         }
     }
 
