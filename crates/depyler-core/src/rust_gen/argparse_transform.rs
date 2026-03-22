@@ -1556,121 +1556,122 @@ pub fn preregister_subcommands_from_hir(
         }
     }
 
+    // CB-200 Batch 11: Helper to handle ArgumentParser() call assignments
+    fn handle_argument_parser_call(
+        target: &crate::hir::AssignTarget,
+        kwargs: &[(String, HirExpr)],
+        tracker: &mut ArgParserTracker,
+    ) {
+        if let crate::hir::AssignTarget::Symbol(parser_var) = target {
+            let description = extract_kwarg_string_from_hir(kwargs, "description");
+            let epilog = extract_kwarg_string_from_hir(kwargs, "epilog");
+            let parser_info = ArgParserInfo {
+                parser_var: parser_var.clone(),
+                description,
+                epilog,
+                arguments: vec![],
+                args_var: None,
+            };
+            tracker.register_parser(parser_var.clone(), parser_info);
+        }
+    }
+
+    // CB-200 Batch 11: Helper to handle add_subparsers() assignments
+    fn handle_add_subparsers_assign(
+        target: &crate::hir::AssignTarget,
+        object: &HirExpr,
+        kwargs: &[(String, HirExpr)],
+        tracker: &mut ArgParserTracker,
+    ) {
+        if let HirExpr::Var(parser_var) = object {
+            if tracker.get_parser(parser_var).is_some() {
+                if let crate::hir::AssignTarget::Symbol(subparsers_var) = target {
+                    let dest_field = extract_kwarg_string_from_hir(kwargs, "dest")
+                        .unwrap_or_else(|| "command".to_string());
+                    let required = extract_kwarg_string_from_hir(kwargs, "required")
+                        .map(|s| s == "true" || s == "True")
+                        .unwrap_or(false);
+                    let help = extract_kwarg_string_from_hir(kwargs, "help");
+
+                    let subparser_info = SubparserInfo {
+                        parser_var: parser_var.clone(),
+                        dest_field,
+                        required,
+                        help,
+                    };
+                    tracker.register_subparsers(subparsers_var.clone(), subparser_info);
+                }
+            }
+        }
+    }
+
+    // CB-200 Batch 11: Helper to handle add_parser() assignments
+    fn handle_add_parser_assign(
+        target: &crate::hir::AssignTarget,
+        object: &HirExpr,
+        args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
+        tracker: &mut ArgParserTracker,
+    ) {
+        if let HirExpr::Var(subparsers_var) = object {
+            if tracker.get_subparsers(subparsers_var).is_some() {
+                if let crate::hir::AssignTarget::Symbol(parser_var_name) = target {
+                    if let Some(first_arg) = args.first() {
+                        let command_name = extract_string_from_hir(first_arg);
+                        let help = extract_kwarg_string_from_hir(kwargs, "help");
+                        let subcommand_info = SubcommandInfo {
+                            name: command_name.clone(),
+                            help,
+                            arguments: vec![],
+                            subparsers_var: subparsers_var.clone(),
+                        };
+                        tracker.register_subcommand(command_name.clone(), subcommand_info);
+                        tracker
+                            .subcommand_var_to_cmd
+                            .insert(parser_var_name.clone(), command_name);
+                    }
+                }
+            }
+        }
+    }
+
+    // CB-200 Batch 11: Helper to handle Assign statement in walk_stmt
+    fn handle_assign_stmt(
+        target: &crate::hir::AssignTarget,
+        value: &HirExpr,
+        tracker: &mut ArgParserTracker,
+    ) {
+        // Handle ArgumentParser() as Call
+        if let HirExpr::Call { func, kwargs, .. } = value {
+            if func == "ArgumentParser" {
+                handle_argument_parser_call(target, kwargs, tracker);
+            }
+        }
+
+        // Handle ArgumentParser() as MethodCall
+        if let HirExpr::MethodCall { method, kwargs, .. } = value {
+            if method == "ArgumentParser" {
+                handle_argument_parser_call(target, kwargs, tracker);
+            }
+        }
+
+        // Handle add_subparsers() and add_parser() assignments
+        if let HirExpr::MethodCall { object, method, args, kwargs } = value {
+            if method == "add_subparsers" {
+                handle_add_subparsers_assign(target, object, kwargs, tracker);
+            } else if method == "add_parser" {
+                handle_add_parser_assign(target, object, args, kwargs, tracker);
+            }
+        }
+        walk_expr(value, tracker);
+    }
+
     // Recursive walker for statements
     fn walk_stmt(stmt: &HirStmt, tracker: &mut ArgParserTracker) {
         match stmt {
             HirStmt::Expr(expr) => walk_expr(expr, tracker),
             HirStmt::Assign { target, value, type_annotation: _ } => {
-                // Special handling for ArgumentParser() assignments
-                // Pattern: parser = argparse.ArgumentParser(...)
-                // Can be either Call (ArgumentParser()) or MethodCall (argparse.ArgumentParser())
-                if let HirExpr::Call { func, kwargs, .. } = value {
-                    if func == "ArgumentParser" {
-                        if let crate::hir::AssignTarget::Symbol(parser_var) = target {
-                            // Register parser
-                            let description = extract_kwarg_string_from_hir(kwargs, "description");
-                            let epilog = extract_kwarg_string_from_hir(kwargs, "epilog");
-
-                            let parser_info = ArgParserInfo {
-                                parser_var: parser_var.clone(),
-                                description,
-                                epilog,
-                                arguments: vec![],
-                                args_var: None,
-                            };
-
-                            tracker.register_parser(parser_var.clone(), parser_info);
-                        }
-                    }
-                }
-
-                // DEPYLER-0822: Also handle argparse.ArgumentParser() as method call
-                // Pattern: parser = argparse.ArgumentParser(...)
-                if let HirExpr::MethodCall { method, kwargs, .. } = value {
-                    if method == "ArgumentParser" {
-                        if let crate::hir::AssignTarget::Symbol(parser_var) = target {
-                            let description = extract_kwarg_string_from_hir(kwargs, "description");
-                            let epilog = extract_kwarg_string_from_hir(kwargs, "epilog");
-
-                            let parser_info = ArgParserInfo {
-                                parser_var: parser_var.clone(),
-                                description,
-                                epilog,
-                                arguments: vec![],
-                                args_var: None,
-                            };
-
-                            tracker.register_parser(parser_var.clone(), parser_info);
-                        }
-                    }
-                }
-
-                // Special handling for add_subparsers() assignments
-                // Pattern: subparsers = parser.add_subparsers(...)
-                if let HirExpr::MethodCall { object, method, args, kwargs } = value {
-                    if method == "add_subparsers" {
-                        if let HirExpr::Var(parser_var) = object.as_ref() {
-                            if tracker.get_parser(parser_var).is_some() {
-                                if let crate::hir::AssignTarget::Symbol(subparsers_var) = target {
-                                    let dest_field = extract_kwarg_string_from_hir(kwargs, "dest")
-                                        .unwrap_or_else(|| "command".to_string());
-                                    let required =
-                                        extract_kwarg_string_from_hir(kwargs, "required")
-                                            .map(|s| s == "true" || s == "True")
-                                            .unwrap_or(false);
-                                    let help = extract_kwarg_string_from_hir(kwargs, "help");
-
-                                    let subparser_info = SubparserInfo {
-                                        parser_var: parser_var.clone(),
-                                        dest_field,
-                                        required,
-                                        help,
-                                    };
-
-                                    // Use actual variable name from assignment
-                                    tracker.register_subparsers(
-                                        subparsers_var.clone(),
-                                        subparser_info,
-                                    );
-                                }
-                            }
-                        }
-                    }
-                    // DEPYLER-0822: Handle add_parser() assignments
-                    // Pattern: top_parser = subparsers.add_parser("top", ...)
-                    // Register subcommand and map variable name to command name
-                    else if method == "add_parser" {
-                        if let HirExpr::Var(subparsers_var) = object.as_ref() {
-                            if tracker.get_subparsers(subparsers_var).is_some() {
-                                if let crate::hir::AssignTarget::Symbol(parser_var_name) = target {
-                                    if let Some(first_arg) = args.first() {
-                                        let command_name = extract_string_from_hir(first_arg);
-                                        let help = extract_kwarg_string_from_hir(kwargs, "help");
-
-                                        // Register subcommand with command name as key
-                                        let subcommand_info = SubcommandInfo {
-                                            name: command_name.clone(),
-                                            help,
-                                            arguments: vec![],
-                                            subparsers_var: subparsers_var.clone(),
-                                        };
-                                        tracker.register_subcommand(
-                                            command_name.clone(),
-                                            subcommand_info,
-                                        );
-
-                                        // Map variable name to command name for add_argument lookups
-                                        tracker
-                                            .subcommand_var_to_cmd
-                                            .insert(parser_var_name.clone(), command_name);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                // Also walk value for other method calls (e.g., nested add_parser() calls)
-                walk_expr(value, tracker);
+                handle_assign_stmt(target, value, tracker);
             }
             HirStmt::Return(Some(expr)) => walk_expr(expr, tracker),
             HirStmt::If { condition, then_body, else_body } => {

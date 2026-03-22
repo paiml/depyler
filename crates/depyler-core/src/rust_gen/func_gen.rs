@@ -2909,68 +2909,177 @@ pub(crate) fn collect_return_types_with_class_methods(
     }
 }
 
+/// CB-200 Batch 11: Helper for Binary expr simple type inference
+fn infer_binary_type_simple(op: &BinOp, left: &HirExpr, right: &HirExpr) -> Type {
+    // Comparison operators always return bool
+    if matches!(
+        op,
+        BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
+            | BinOp::In | BinOp::NotIn
+    ) {
+        return Type::Bool;
+    }
+
+    // DEPYLER-0420/1132: Detect list repeat patterns: [elem] * n or n * [elem]
+    if matches!(op, BinOp::Mul) {
+        match (left, right) {
+            (HirExpr::List(elems), HirExpr::Literal(Literal::Int(n)))
+                if elems.len() == 1 && *n > 0 =>
+            {
+                let elem_type = infer_expr_type_simple(&elems[0]);
+                return Type::List(Box::new(elem_type));
+            }
+            (HirExpr::Literal(Literal::Int(n)), HirExpr::List(elems))
+                if elems.len() == 1 && *n > 0 =>
+            {
+                let elem_type = infer_expr_type_simple(&elems[0]);
+                return Type::List(Box::new(elem_type));
+            }
+            _ => {}
+        }
+    }
+
+    // DEPYLER-0808: Power with negative exponent always returns float
+    if matches!(op, BinOp::Pow) && is_negative_int_expr(right) {
+        return Type::Float;
+    }
+
+    // For arithmetic, infer from operands
+    let left_type = infer_expr_type_simple(left);
+    let right_type = infer_expr_type_simple(right);
+    if matches!(left_type, Type::Float) || matches!(right_type, Type::Float) {
+        Type::Float
+    } else if !matches!(left_type, Type::Unknown) {
+        left_type
+    } else {
+        right_type
+    }
+}
+
+/// CB-200 Batch 11: Helper for Call expr simple type inference (known function return types)
+fn infer_call_type_simple(func: &str) -> Type {
+    match func {
+        "json.load" | "json.loads" => Type::Custom("serde_json::Value".to_string()),
+        "json.dump" => Type::None,
+        "json.dumps" => Type::String,
+        "csv.reader" => Type::List(Box::new(Type::List(Box::new(Type::String)))),
+        "csv.writer" => Type::Unknown,
+        "csv.DictReader" => {
+            Type::List(Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::String))))
+        }
+        "csv.DictWriter" => Type::Unknown,
+        "len" | "int" | "abs" | "ord" | "hash" => Type::Int,
+        "float" => Type::Float,
+        "str" | "repr" | "chr" | "input" => Type::String,
+        "bool" => Type::Bool,
+        "list" => Type::List(Box::new(Type::Unknown)),
+        "dict" => Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)),
+        "set" => Type::Set(Box::new(Type::Unknown)),
+        "tuple" => Type::Tuple(vec![]),
+        "range" => Type::List(Box::new(Type::Int)),
+        "sum" | "min" | "max" => Type::Int,
+        "zeros" | "ones" | "full" => Type::List(Box::new(Type::Int)),
+        "open" => Type::Custom("std::fs::File".to_string()),
+        "Path" | "PurePath" | "PurePosixPath" | "PureWindowsPath" => {
+            Type::Custom("PathBuf".to_string())
+        }
+        _ => Type::Unknown,
+    }
+}
+
+/// CB-200 Batch 11: Helper for MethodCall expr simple type inference
+fn infer_method_call_type_simple(object: &HirExpr, method: &str) -> Type {
+    // DEPYLER-0931: Check if this is subprocess module call
+    if let HirExpr::Var(obj_var) = object {
+        if obj_var == "subprocess" {
+            return match method {
+                "Popen" => Type::Custom("std::process::Child".to_string()),
+                "run" => Type::Custom("CompletedProcess".to_string()),
+                "call" | "check_call" => Type::Int,
+                "check_output" => Type::String,
+                _ => Type::Unknown,
+            };
+        }
+    }
+    // DEPYLER-0931: Check if object is a subprocess Child
+    if method == "wait" {
+        let obj_type = infer_expr_type_simple(object);
+        if matches!(&obj_type, Type::Custom(s) if s.contains("Child")) {
+            return Type::Int;
+        }
+    }
+    infer_method_return_type(object, method)
+}
+
+/// CB-200 Batch 11: Helper for known method return types
+fn infer_method_return_type(object: &HirExpr, method: &str) -> Type {
+    match method {
+        "copy" => infer_expr_type_simple(object),
+        "wait" => Type::Int,
+        "poll" => Type::Optional(Box::new(Type::Int)),
+        "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title"
+        | "capitalize" | "join" | "format" => Type::String,
+        "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isspace"
+        | "isupper" | "islower" => Type::Bool,
+        "find" | "rfind" | "index" | "rindex" | "count" => Type::Int,
+        "split" | "splitlines" => Type::List(Box::new(Type::String)),
+        "read" | "readline" => Type::String,
+        "readlines" => Type::List(Box::new(Type::String)),
+        "get" => match infer_expr_type_simple(object) {
+            Type::Dict(_, val) => *val,
+            Type::List(elem) => *elem,
+            _ => Type::Unknown,
+        },
+        "pop" => match infer_expr_type_simple(object) {
+            Type::List(elem) => *elem,
+            Type::Dict(_, val) => *val,
+            _ => Type::Unknown,
+        },
+        "keys" => Type::List(Box::new(Type::Unknown)),
+        "values" => Type::List(Box::new(Type::Unknown)),
+        "items" => Type::List(Box::new(Type::Tuple(vec![Type::Unknown, Type::Unknown]))),
+        "loads" | "load" => {
+            if let HirExpr::Var(obj_var) = object {
+                if obj_var == "json" {
+                    return Type::Custom("serde_json::Value".to_string());
+                }
+            }
+            Type::Unknown
+        }
+        _ => Type::Unknown,
+    }
+}
+
+/// CB-200 Batch 11: Helper for Attribute expr simple type inference
+fn infer_attribute_type_simple(value: &HirExpr, attr: &str) -> Type {
+    // DEPYLER-0517: Check if this is an attribute access on a subprocess result
+    if let HirExpr::MethodCall { object, method, .. } = value {
+        if let HirExpr::Var(module) = object.as_ref() {
+            if module == "subprocess" && method == "run" {
+                return match attr {
+                    "returncode" => Type::Int,
+                    "stdout" | "stderr" => Type::String,
+                    _ => Type::Unknown,
+                };
+            }
+        }
+    }
+    // Common attributes with known types
+    match attr {
+        "real" | "imag" => Type::Float,
+        "returncode" => Type::Int,
+        "stdout" | "stderr" => Type::String,
+        _ => Type::Unknown,
+    }
+}
+
 /// Simple expression type inference without context
 /// Handles common cases like literals, comparisons, and arithmetic
 /// DEPYLER-0600: Made pub(crate) for stmt_gen comprehension type tracking
 pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
     match expr {
         HirExpr::Literal(lit) => literal_to_type(lit),
-        HirExpr::Binary { op, left, right } => {
-            // Comparison operators always return bool
-            if matches!(
-                op,
-                BinOp::Eq
-                    | BinOp::NotEq
-                    | BinOp::Lt
-                    | BinOp::LtEq
-                    | BinOp::Gt
-                    | BinOp::GtEq
-                    | BinOp::In
-                    | BinOp::NotIn
-            ) {
-                return Type::Bool;
-            }
-
-            // DEPYLER-0420/1132: Detect list repeat patterns: [elem] * n or n * [elem]
-            // DEPYLER-1132: Always return List (Vec) since py_mul trait returns Vec<T>
-            if matches!(op, BinOp::Mul) {
-                match (left.as_ref(), right.as_ref()) {
-                    // Pattern: [elem] * n → Vec<T>
-                    (HirExpr::List(elems), HirExpr::Literal(Literal::Int(n)))
-                        if elems.len() == 1 && *n > 0 =>
-                    {
-                        let elem_type = infer_expr_type_simple(&elems[0]);
-                        return Type::List(Box::new(elem_type));
-                    }
-                    // Pattern: n * [elem] → Vec<T>
-                    (HirExpr::Literal(Literal::Int(n)), HirExpr::List(elems))
-                        if elems.len() == 1 && *n > 0 =>
-                    {
-                        let elem_type = infer_expr_type_simple(&elems[0]);
-                        return Type::List(Box::new(elem_type));
-                    }
-                    _ => {}
-                }
-            }
-
-            // DEPYLER-0808: Power with negative exponent always returns float
-            // In Python: 2 ** -1 = 0.5, even for int ** int with negative exp
-            if matches!(op, BinOp::Pow) && is_negative_int_expr(right) {
-                return Type::Float;
-            }
-
-            // For arithmetic, infer from operands
-            let left_type = infer_expr_type_simple(left);
-            let right_type = infer_expr_type_simple(right);
-            // Float takes precedence
-            if matches!(left_type, Type::Float) || matches!(right_type, Type::Float) {
-                Type::Float
-            } else if !matches!(left_type, Type::Unknown) {
-                left_type
-            } else {
-                right_type
-            }
-        }
+        HirExpr::Binary { op, left, right } => infer_binary_type_simple(op, left, right),
         HirExpr::Unary { op, operand } => {
             if matches!(op, UnaryOp::Not) {
                 Type::Bool
@@ -3001,202 +3110,37 @@ pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                 Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))
             } else {
                 let key_type = infer_expr_type_simple(&pairs[0].0);
-                // DEPYLER-1051: Check ALL value types for heterogeneous dicts
-                // If any value has a different type, use Unknown (→ DepylerValue)
                 let first_val_type = infer_expr_type_simple(&pairs[0].1);
                 let is_homogeneous = pairs.iter().skip(1).all(|(_, v)| {
                     let v_type = infer_expr_type_simple(v);
-                    // Unknown can coexist with any type (it will be inferred)
                     matches!(v_type, Type::Unknown) || v_type == first_val_type
                 });
-                let val_type = if is_homogeneous {
-                    first_val_type
-                } else {
-                    // Mixed types → DepylerValue (via Unknown mapping)
-                    Type::Unknown
-                };
+                let val_type = if is_homogeneous { first_val_type } else { Type::Unknown };
                 Type::Dict(Box::new(key_type), Box::new(val_type))
             }
         }
         HirExpr::IfExpr { body, orelse, .. } => {
-            // Try to infer from either branch
             let body_type = infer_expr_type_simple(body);
-            if !matches!(body_type, Type::Unknown) {
-                body_type
-            } else {
-                infer_expr_type_simple(orelse)
-            }
+            if !matches!(body_type, Type::Unknown) { body_type } else { infer_expr_type_simple(orelse) }
         }
-        // DEPYLER-0414: Add Index expression type inference
-        HirExpr::Index { base, .. } => {
-            // For arr[i], return element type of the container
-            match infer_expr_type_simple(base) {
-                Type::List(elem) => *elem,
-                Type::Tuple(elems) => elems.first().cloned().unwrap_or(Type::Unknown),
-                Type::Dict(_, val) => *val,
-                Type::String => Type::String, // string indexing returns char/string
-                _ => Type::Int,               // Default to Int for array-like indexing
-            }
-        }
-        // DEPYLER-0414: Add Slice expression type inference
-        HirExpr::Slice { base, .. } => {
-            // Slicing returns same container type
-            infer_expr_type_simple(base)
-        }
-        // DEPYLER-0414: Add FString type inference (always String)
+        HirExpr::Index { base, .. } => match infer_expr_type_simple(base) {
+            Type::List(elem) => *elem,
+            Type::Tuple(elems) => elems.first().cloned().unwrap_or(Type::Unknown),
+            Type::Dict(_, val) => *val,
+            Type::String => Type::String,
+            _ => Type::Int,
+        },
+        HirExpr::Slice { base, .. } => infer_expr_type_simple(base),
         HirExpr::FString { .. } => Type::String,
-        // DEPYLER-0414: Add Call expression type inference
-        HirExpr::Call { func, .. } => {
-            // DEPYLER-REARCH-001: Handle module function calls
-            // Check both qualified (json.load) and unqualified (load) names
-            match func.as_str() {
-                // json module functions (qualified names)
-                // DEPYLER-0609: json.load/loads returns serde_json::Value (not Dict)
-                // because JSON can be dict, array, string, number, bool, or null
-                "json.load" | "json.loads" => Type::Custom("serde_json::Value".to_string()),
-                "json.dump" => Type::None,
-                "json.dumps" => Type::String,
-                // csv module functions (qualified names)
-                "csv.reader" => Type::List(Box::new(Type::List(Box::new(Type::String)))),
-                "csv.writer" => Type::Unknown,
-                "csv.DictReader" => {
-                    Type::List(Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::String))))
-                }
-                "csv.DictWriter" => Type::Unknown,
-                // Common builtin functions with known return types
-                "len" | "int" | "abs" | "ord" | "hash" => Type::Int,
-                "float" => Type::Float,
-                "str" | "repr" | "chr" | "input" => Type::String,
-                "bool" => Type::Bool,
-                "list" => Type::List(Box::new(Type::Unknown)),
-                "dict" => Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)),
-                "set" => Type::Set(Box::new(Type::Unknown)),
-                "tuple" => Type::Tuple(vec![]),
-                "range" => Type::List(Box::new(Type::Int)),
-                "sum" | "min" | "max" => Type::Int, // Common numeric aggregations
-                "zeros" | "ones" | "full" => Type::List(Box::new(Type::Int)),
-                // DEPYLER-0623: open() returns a file handle (owned std::fs::File)
-                "open" => Type::Custom("std::fs::File".to_string()),
-                // DEPYLER-0942: pathlib.Path() and variants return PathBuf
-                "Path" | "PurePath" | "PurePosixPath" | "PureWindowsPath" => {
-                    Type::Custom("PathBuf".to_string())
-                }
-                _ => Type::Unknown,
-            }
-        }
-        // DEPYLER-0414: Add MethodCall expression type inference
-        HirExpr::MethodCall { object, method, .. } => {
-            // DEPYLER-0931: Check if this is subprocess module call
-            if let HirExpr::Var(obj_var) = object.as_ref() {
-                if obj_var == "subprocess" {
-                    return match method.as_str() {
-                        // subprocess.Popen() returns std::process::Child
-                        "Popen" => Type::Custom("std::process::Child".to_string()),
-                        // subprocess.run() returns CompletedProcess
-                        "run" => Type::Custom("CompletedProcess".to_string()),
-                        // subprocess.call() returns int (exit code)
-                        "call" | "check_call" => Type::Int,
-                        // subprocess.check_output() returns bytes/string
-                        "check_output" => Type::String,
-                        _ => Type::Unknown,
-                    };
-                }
-            }
-            // DEPYLER-0931: Check if object is a subprocess Child (from proc = subprocess.Popen(...))
-            // In Python: proc.wait() returns int (exit code)
-            // In Rust: Child::wait() returns io::Result<ExitStatus>, we extract code()
-            if method == "wait" {
-                // Check if object type is Child (it will be after assignment from Popen)
-                let obj_type = infer_expr_type_simple(object);
-                if matches!(&obj_type, Type::Custom(s) if s.contains("Child")) {
-                    return Type::Int;
-                }
-            }
-            match method.as_str() {
-                // DEPYLER-REARCH-001: .copy() returns same type as object
-                "copy" => infer_expr_type_simple(object),
-                // DEPYLER-0931: Process management methods
-                "wait" => Type::Int, // Child.wait() returns exit code
-                "poll" => Type::Optional(Box::new(Type::Int)), // Child.poll() returns Option<i32>
-                // String methods that return String
-                "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title"
-                | "capitalize" | "join" | "format" => Type::String,
-                // String methods that return bool
-                "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isspace"
-                | "isupper" | "islower" => Type::Bool,
-                // String methods that return int
-                "find" | "rfind" | "index" | "rindex" | "count" => Type::Int,
-                // String methods that return list
-                "split" | "splitlines" => Type::List(Box::new(Type::String)),
-                // DEPYLER-0620: File read methods
-                "read" | "readline" => Type::String,
-                "readlines" => Type::List(Box::new(Type::String)),
-                // List/Dict methods
-                "get" => {
-                    // dict.get() returns element type
-                    match infer_expr_type_simple(object) {
-                        Type::Dict(_, val) => *val,
-                        Type::List(elem) => *elem,
-                        _ => Type::Unknown,
-                    }
-                }
-                "pop" => match infer_expr_type_simple(object) {
-                    Type::List(elem) => *elem,
-                    Type::Dict(_, val) => *val,
-                    _ => Type::Unknown,
-                },
-                "keys" => Type::List(Box::new(Type::Unknown)),
-                "values" => Type::List(Box::new(Type::Unknown)),
-                "items" => Type::List(Box::new(Type::Tuple(vec![Type::Unknown, Type::Unknown]))),
-                // DEPYLER-0713: json.loads() and json.load() return serde_json::Value
-                // This is critical for type tracking: data = json.loads(s) → data is Value
-                "loads" | "load" => {
-                    // Check if this is json.loads() (object is Var("json"))
-                    if let HirExpr::Var(obj_var) = object.as_ref() {
-                        if obj_var == "json" {
-                            return Type::Custom("serde_json::Value".to_string());
-                        }
-                    }
-                    Type::Unknown
-                }
-                _ => Type::Unknown,
-            }
-        }
-        // DEPYLER-0414: Add ListComp type inference
+        HirExpr::Call { func, .. } => infer_call_type_simple(func),
+        HirExpr::MethodCall { object, method, .. } => infer_method_call_type_simple(object, method),
         HirExpr::ListComp { element, .. } => Type::List(Box::new(infer_expr_type_simple(element))),
-        // DEPYLER-0414: Add SetComp type inference
         HirExpr::SetComp { element, .. } => Type::Set(Box::new(infer_expr_type_simple(element))),
-        // DEPYLER-0414: Add DictComp type inference
         HirExpr::DictComp { key, value, .. } => Type::Dict(
             Box::new(infer_expr_type_simple(key)),
             Box::new(infer_expr_type_simple(value)),
         ),
-        // DEPYLER-0414: Add Attribute type inference
-        HirExpr::Attribute { value, attr } => {
-            // DEPYLER-0517: Check if this is an attribute access on a subprocess result
-            // Since we don't have var_types here, check if the base is a method call
-            // on the subprocess module
-            if let HirExpr::MethodCall { object, method, .. } = value.as_ref() {
-                if let HirExpr::Var(module) = object.as_ref() {
-                    if module == "subprocess" && method == "run" {
-                        return match attr.as_str() {
-                            "returncode" => Type::Int,
-                            "stdout" | "stderr" => Type::String,
-                            _ => Type::Unknown,
-                        };
-                    }
-                }
-            }
-
-            // Common attributes with known types
-            match attr.as_str() {
-                "real" | "imag" => Type::Float,
-                // DEPYLER-0517: Common subprocess result attributes (fallback)
-                "returncode" => Type::Int,
-                "stdout" | "stderr" => Type::String,
-                _ => Type::Unknown,
-            }
-        }
+        HirExpr::Attribute { value, attr } => infer_attribute_type_simple(value, attr),
         _ => Type::Unknown,
     }
 }
@@ -3340,285 +3284,363 @@ fn infer_param_type_from_body_local(param_name: &str, body: &[HirStmt]) -> Optio
     None
 }
 
+/// CB-200 Batch 11: Helper for Call expr type inference from usage
+#[cfg(test)]
+#[allow(dead_code)]
+fn infer_type_from_call_usage(
+    param_name: &str,
+    func: &str,
+    args: &[HirExpr],
+    kwargs: &[(String, HirExpr)],
+) -> Option<Type> {
+    // DEPYLER-0950: Pattern: param(args...) → param is Callable
+    if func == param_name {
+        let param_types: Vec<Type> = args.iter().map(|_| Type::Int).collect();
+        return Some(Type::Generic {
+            base: "Callable".to_string(),
+            params: vec![Type::Tuple(param_types), Type::Int],
+        });
+    }
+
+    // func is a Symbol (String), check if it's print/println
+    if func == "print" || func == "println" {
+        for arg in args {
+            if let HirExpr::Var(var_name) = arg {
+                if var_name == param_name {
+                    return Some(Type::String);
+                }
+            }
+        }
+    }
+
+    // DEPYLER-0518: Pattern: re.match(pattern, text), re.search(pattern, text), etc.
+    if func.starts_with("re.") || func == "re" {
+        for arg in args {
+            if let HirExpr::Var(var_name) = arg {
+                if var_name == param_name {
+                    return Some(Type::String);
+                }
+            }
+        }
+    }
+
+    // DEPYLER-0737: subprocess.run(..., cwd=param) → param is String (path-like)
+    if func == "subprocess.run" {
+        for (kwarg_name, kwarg_value) in kwargs {
+            if kwarg_name == "cwd" {
+                if let HirExpr::Var(var_name) = kwarg_value {
+                    if var_name == param_name {
+                        return Some(Type::String);
+                    }
+                }
+            }
+        }
+    }
+
+    // Recursively check arguments
+    for arg in args {
+        if let Some(ty) = infer_type_from_expr_usage(param_name, arg) {
+            return Some(ty);
+        }
+    }
+    // Also recursively check kwargs values
+    for (_, kwarg_value) in kwargs {
+        if let Some(ty) = infer_type_from_expr_usage(param_name, kwarg_value) {
+            return Some(ty);
+        }
+    }
+    None
+}
+
+/// CB-200 Batch 11: Helper to infer type from object method dispatch patterns
+#[cfg(test)]
+#[allow(dead_code)]
+fn infer_type_from_object_method(param_name: &str, object: &HirExpr, method: &str) -> Option<Type> {
+    // DEPYLER-0525: File I/O methods → File type
+    let file_object_methods = [
+        "write", "writelines", "read", "readline", "readlines",
+        "flush", "close", "seek", "tell", "truncate",
+    ];
+    if let HirExpr::Var(var_name) = object {
+        if var_name == param_name && file_object_methods.contains(&method) {
+            return Some(Type::Custom("File".to_string()));
+        }
+    }
+
+    // DEPYLER-0524: String methods → String type
+    let string_object_methods = [
+        "strip", "lstrip", "rstrip", "startswith", "endswith", "split", "splitlines",
+        "join", "upper", "lower", "title", "capitalize", "replace", "find", "rfind",
+        "index", "rindex", "count", "isalpha", "isdigit", "isalnum", "isspace",
+        "isupper", "islower", "encode", "format", "center", "ljust", "rjust", "zfill",
+        "partition", "rpartition", "expandtabs", "swapcase", "casefold",
+    ];
+    if let HirExpr::Var(var_name) = object {
+        if var_name == param_name && string_object_methods.contains(&method) {
+            return Some(Type::String);
+        }
+    }
+
+    // DEPYLER-0550: Dict methods → Dict type
+    let dict_object_methods = [
+        "get", "items", "keys", "values", "pop", "popitem",
+        "update", "setdefault", "clear", "copy",
+    ];
+    if let HirExpr::Var(var_name) = object {
+        if var_name == param_name && dict_object_methods.contains(&method) {
+            return Some(Type::Dict(Box::new(Type::String), Box::new(Type::String)));
+        }
+    }
+
+    None
+}
+
+/// CB-200 Batch 11: Helper to infer type from module method calls (regex, datetime, subprocess)
+#[cfg(test)]
+#[allow(dead_code)]
+fn infer_type_from_module_method(
+    param_name: &str,
+    object: &HirExpr,
+    method: &str,
+    args: &[HirExpr],
+    kwargs: &[(String, HirExpr)],
+) -> Option<Type> {
+    // DEPYLER-0518: Regex module method calls
+    if let HirExpr::Var(module_name) = object {
+        let regex_modules = ["re", "regex"];
+        let regex_methods = ["match", "search", "findall", "sub", "subn", "split", "compile"];
+
+        if regex_modules.contains(&module_name.as_str())
+            && regex_methods.contains(&method)
+        {
+            for arg in args.iter().take(2) {
+                if let HirExpr::Var(var_name) = arg {
+                    if var_name == param_name {
+                        return Some(Type::String);
+                    }
+                }
+            }
+        }
+
+        // DEPYLER-0554: datetime.datetime.fromtimestamp(param) → param is f64
+        if module_name == "datetime" && method == "fromtimestamp" {
+            if let Some(HirExpr::Var(var_name)) = args.first() {
+                if var_name == param_name {
+                    return Some(Type::Float);
+                }
+            }
+        }
+    }
+
+    // DEPYLER-0554: Handle datetime.datetime attribute access → fromtimestamp method
+    if let HirExpr::Attribute { value, attr } = object {
+        if let HirExpr::Var(module_name) = value.as_ref() {
+            if module_name == "datetime" && attr == "datetime" && method == "fromtimestamp" {
+                if let Some(HirExpr::Var(var_name)) = args.first() {
+                    if var_name == param_name {
+                        return Some(Type::Float);
+                    }
+                }
+            }
+        }
+    }
+
+    // DEPYLER-0737: subprocess.run(..., cwd=param) → param is String (path-like)
+    if let HirExpr::Var(module_name) = object {
+        if module_name == "subprocess" && method == "run" {
+            for (kwarg_name, kwarg_value) in kwargs {
+                if kwarg_name == "cwd" {
+                    if let HirExpr::Var(var_name) = kwarg_value {
+                        if var_name == param_name {
+                            return Some(Type::String);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// CB-200 Batch 11: Helper for MethodCall expr type inference from usage
+#[cfg(test)]
+#[allow(dead_code)]
+fn infer_type_from_method_call_usage(
+    param_name: &str,
+    object: &HirExpr,
+    method: &str,
+    args: &[HirExpr],
+    kwargs: &[(String, HirExpr)],
+) -> Option<Type> {
+    // Check object method dispatch (file, string, dict)
+    if let Some(ty) = infer_type_from_object_method(param_name, object, method) {
+        return Some(ty);
+    }
+
+    // Check module method calls (regex, datetime, subprocess)
+    if let Some(ty) = infer_type_from_module_method(param_name, object, method, args, kwargs) {
+        return Some(ty);
+    }
+
+    // Methods that expect string arguments (for method calls on objects)
+    let string_methods = [
+        "find", "search", "match", "sub", "replace", "replace_all",
+        "is_match", "captures", "find_iter", "split", "strip", "lstrip",
+        "rstrip", "startswith", "endswith", "contains", "encode", "decode",
+    ];
+    if string_methods.contains(&method) {
+        for arg in args {
+            if let HirExpr::Var(var_name) = arg {
+                if var_name == param_name {
+                    return Some(Type::String);
+                }
+            }
+        }
+    }
+
+    // Recursively check arguments
+    for arg in args {
+        if let Some(ty) = infer_type_from_expr_usage(param_name, arg) {
+            return Some(ty);
+        }
+    }
+    // Also recursively check kwargs values
+    for (_, kwarg_value) in kwargs {
+        if let Some(ty) = infer_type_from_expr_usage(param_name, kwarg_value) {
+            return Some(ty);
+        }
+    }
+    // Also check the object expression
+    infer_type_from_expr_usage(param_name, object)
+}
+
+/// CB-200 Batch 11: Helper for Binary expr type inference from usage
+#[cfg(test)]
+#[allow(dead_code)]
+fn infer_type_from_binary_usage(
+    param_name: &str,
+    op: &crate::hir::BinOp,
+    left: &HirExpr,
+    right: &HirExpr,
+) -> Option<Type> {
+    use crate::hir::BinOp;
+
+    // DEPYLER-0554: Pattern: param == "literal" or param != "literal" → param is String
+    if matches!(op, BinOp::Eq | BinOp::NotEq) {
+        if let HirExpr::Var(var_name) = left {
+            if var_name == param_name
+                && matches!(right, HirExpr::Literal(crate::hir::Literal::String(_)))
+            {
+                return Some(Type::String);
+            }
+        }
+        if let HirExpr::Var(var_name) = right {
+            if var_name == param_name
+                && matches!(left, HirExpr::Literal(crate::hir::Literal::String(_)))
+            {
+                return Some(Type::String);
+            }
+        }
+    }
+
+    // DEPYLER-0566: Pattern: param and/or something → param is Bool
+    if matches!(op, BinOp::And | BinOp::Or) {
+        if let HirExpr::Var(var_name) = left {
+            if var_name == param_name {
+                return Some(Type::Bool);
+            }
+        }
+        if let HirExpr::Var(var_name) = right {
+            if var_name == param_name {
+                return Some(Type::Bool);
+            }
+        }
+    }
+
+    // DEPYLER-0524/0554: Pattern: param in/not in [...] → param is String
+    if matches!(op, BinOp::In | BinOp::NotIn) {
+        if let HirExpr::Var(var_name) = left {
+            if var_name == param_name {
+                if let HirExpr::List(elements) = right {
+                    if elements.iter().all(|e| {
+                        matches!(e, HirExpr::Literal(crate::hir::Literal::String(_)))
+                    }) {
+                        return Some(Type::String);
+                    }
+                }
+                return Some(Type::String);
+            }
+        }
+    }
+
+    // Check if param is used in arithmetic on left side
+    if let HirExpr::Var(var_name) = left {
+        if var_name == param_name
+            && matches!(
+                op,
+                BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::FloorDiv | BinOp::Mod
+            )
+        {
+            return Some(Type::Int);
+        }
+    }
+    // Check if param is used in arithmetic on right side
+    if let HirExpr::Var(var_name) = right {
+        if var_name == param_name
+            && matches!(
+                op,
+                BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::FloorDiv | BinOp::Mod
+            )
+        {
+            return Some(Type::Int);
+        }
+    }
+    // Recursively check subexpressions
+    infer_type_from_expr_usage(param_name, left)
+        .or_else(|| infer_type_from_expr_usage(param_name, right))
+}
+
+/// CB-200 Batch 11: Helper for comprehension/generator type inference from usage
+#[cfg(test)]
+#[allow(dead_code)]
+fn infer_type_from_comprehension_usage(
+    param_name: &str,
+    element: &HirExpr,
+    generators: &[crate::hir::Comprehension],
+    check_iter: bool,
+) -> Option<Type> {
+    if let Some(ty) = infer_type_from_expr_usage(param_name, element) {
+        return Some(ty);
+    }
+    for gen in generators {
+        if check_iter {
+            if let HirExpr::Var(var_name) = &*gen.iter {
+                if var_name == param_name {
+                    return Some(Type::String);
+                }
+            }
+        }
+        for cond in &gen.conditions {
+            if let Some(ty) = infer_type_from_expr_usage(param_name, cond) {
+                return Some(ty);
+            }
+        }
+    }
+    None
+}
+
 /// GH-70: Helper to infer type from expression usage
 #[cfg(test)]
 #[allow(dead_code)]
 fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> {
     match expr {
-        // Pattern: print(param) or println(param) → param needs Display → String
         HirExpr::Call { func, args, kwargs } => {
-            // DEPYLER-0950: Pattern: param(args...) → param is Callable
-            // When a parameter is used as the callee of a function call, it's a callable
-            // Example: def apply(f, x): return f(x) → f is Callable[[int], int]
-            if func == param_name {
-                // Infer param types from args (default to Int for untyped)
-                // For now, use simple heuristic: count args and default to Int types
-                let param_types: Vec<Type> = args.iter().map(|_| Type::Int).collect();
-                // Return type defaults to Int (most common case)
-                // This could be refined with more context
-                return Some(Type::Generic {
-                    base: "Callable".to_string(),
-                    params: vec![Type::Tuple(param_types), Type::Int],
-                });
-            }
-
-            // func is a Symbol (String), check if it's print/println
-            if func == "print" || func == "println" {
-                // Check if our parameter is used as an argument
-                for arg in args {
-                    if let HirExpr::Var(var_name) = arg {
-                        if var_name == param_name {
-                            return Some(Type::String);
-                        }
-                    }
-                }
-            }
-
-            // DEPYLER-0518: Pattern: re.match(pattern, text), re.search(pattern, text), etc.
-            // Both pattern and text parameters should be strings
-            if func.starts_with("re.") || func == "re" {
-                for arg in args {
-                    if let HirExpr::Var(var_name) = arg {
-                        if var_name == param_name {
-                            return Some(Type::String);
-                        }
-                    }
-                }
-            }
-
-            // DEPYLER-0737: subprocess.run(..., cwd=param) → param is String (path-like)
-            // When a parameter is used as the cwd kwarg in subprocess.run, it's a path string
-            if func == "subprocess.run" {
-                for (kwarg_name, kwarg_value) in kwargs {
-                    if kwarg_name == "cwd" {
-                        if let HirExpr::Var(var_name) = kwarg_value {
-                            if var_name == param_name {
-                                return Some(Type::String);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Recursively check arguments
-            for arg in args {
-                if let Some(ty) = infer_type_from_expr_usage(param_name, arg) {
-                    return Some(ty);
-                }
-            }
-            // Also recursively check kwargs values
-            for (_, kwarg_value) in kwargs {
-                if let Some(ty) = infer_type_from_expr_usage(param_name, kwarg_value) {
-                    return Some(ty);
-                }
-            }
-            None
+            infer_type_from_call_usage(param_name, func, args, kwargs)
         }
-
-        // DEPYLER-0518: Pattern: method_call(param) where method expects string
-        // Example: regex::Regex::new(pattern), compiled.find(text), re.match(pattern, text)
         HirExpr::MethodCall { object, method, args, kwargs } => {
-            // DEPYLER-0525: If param IS the object and method is a file I/O method,
-            // then param must be a file-like object that implements Write or Read
-            // Example: f.write(msg), f.read(), f.readline(), f.flush()
-            let file_object_methods = [
-                "write",
-                "writelines",
-                "read",
-                "readline",
-                "readlines",
-                "flush",
-                "close",
-                "seek",
-                "tell",
-                "truncate",
-            ];
-            if let HirExpr::Var(var_name) = object.as_ref() {
-                if var_name == param_name && file_object_methods.contains(&method.as_str()) {
-                    // Return a custom type for file handles
-                    // This will be mapped to &mut impl Write in code generation
-                    return Some(Type::Custom("File".to_string()));
-                }
-            }
-
-            // DEPYLER-0524: If param IS the object and method is a string method,
-            // then param must be a string. Example: content.endswith("\n")
-            let string_object_methods = [
-                "strip",
-                "lstrip",
-                "rstrip",
-                "startswith",
-                "endswith",
-                "split",
-                "splitlines",
-                "join",
-                "upper",
-                "lower",
-                "title",
-                "capitalize",
-                "replace",
-                "find",
-                "rfind",
-                "index",
-                "rindex",
-                "count",
-                "isalpha",
-                "isdigit",
-                "isalnum",
-                "isspace",
-                "isupper",
-                "islower",
-                "encode",
-                "format",
-                "center",
-                "ljust",
-                "rjust",
-                "zfill",
-                "partition",
-                "rpartition",
-                "expandtabs",
-                "swapcase",
-                "casefold",
-            ];
-            if let HirExpr::Var(var_name) = object.as_ref() {
-                if var_name == param_name && string_object_methods.contains(&method.as_str()) {
-                    return Some(Type::String);
-                }
-            }
-
-            // DEPYLER-0550: If param IS the object and method is a dict method,
-            // then param must be a dict. Example: row.get(col), row.items()
-            // This is critical for csv filter predicates like: row.get(column) == value
-            let dict_object_methods = [
-                "get",
-                "items",
-                "keys",
-                "values",
-                "pop",
-                "popitem",
-                "update",
-                "setdefault",
-                "clear",
-                "copy",
-            ];
-            if let HirExpr::Var(var_name) = object.as_ref() {
-                if var_name == param_name && dict_object_methods.contains(&method.as_str()) {
-                    // Default to Dict<String, String> which is most common for CSV rows
-                    return Some(Type::Dict(Box::new(Type::String), Box::new(Type::String)));
-                }
-            }
-
-            // DEPYLER-0518: Check if this is a module method call like re.match(), re.search()
-            // These expect string arguments
-            if let HirExpr::Var(module_name) = object.as_ref() {
-                let regex_modules = ["re", "regex"];
-                let regex_methods =
-                    ["match", "search", "findall", "sub", "subn", "split", "compile"];
-
-                if regex_modules.contains(&module_name.as_str())
-                    && regex_methods.contains(&method.as_str())
-                {
-                    // First two args (pattern, text) are strings
-                    for arg in args.iter().take(2) {
-                        if let HirExpr::Var(var_name) = arg {
-                            if var_name == param_name {
-                                return Some(Type::String);
-                            }
-                        }
-                    }
-                }
-
-                // DEPYLER-0554: datetime.datetime.fromtimestamp(param) → param is f64
-                // datetime.datetime.now() doesn't have param, but fromtimestamp does
-                if module_name == "datetime" && method == "fromtimestamp" {
-                    if let Some(HirExpr::Var(var_name)) = args.first() {
-                        if var_name == param_name {
-                            return Some(Type::Float);
-                        }
-                    }
-                }
-            }
-
-            // DEPYLER-0554: Handle datetime.datetime attribute access → fromtimestamp method
-            // Pattern: datetime.datetime.fromtimestamp(timestamp) where datetime.datetime is the object
-            if let HirExpr::Attribute { value, attr } = object.as_ref() {
-                if let HirExpr::Var(module_name) = value.as_ref() {
-                    if module_name == "datetime" && attr == "datetime" && method == "fromtimestamp"
-                    {
-                        if let Some(HirExpr::Var(var_name)) = args.first() {
-                            if var_name == param_name {
-                                return Some(Type::Float);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // DEPYLER-0737: subprocess.run(..., cwd=param) → param is String (path-like)
-            // When a parameter is used as the cwd kwarg in subprocess.run, it's a path string
-            // This prevents incorrect generic inference (Option<T> → Option<String>)
-            if let HirExpr::Var(module_name) = object.as_ref() {
-                if module_name == "subprocess" && method == "run" {
-                    // Check kwargs for cwd parameter
-                    for (kwarg_name, kwarg_value) in kwargs {
-                        if kwarg_name == "cwd" {
-                            if let HirExpr::Var(var_name) = kwarg_value {
-                                if var_name == param_name {
-                                    return Some(Type::String);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Methods that expect string arguments (for method calls on objects)
-            let string_methods = [
-                "find",
-                "search",
-                "match",
-                "sub",
-                "replace",
-                "replace_all",
-                "is_match",
-                "captures",
-                "find_iter",
-                "split",
-                "strip",
-                "lstrip",
-                "rstrip",
-                "startswith",
-                "endswith",
-                "contains",
-                "encode",
-                "decode",
-            ];
-            if string_methods.contains(&method.as_str()) {
-                for arg in args {
-                    if let HirExpr::Var(var_name) = arg {
-                        if var_name == param_name {
-                            return Some(Type::String);
-                        }
-                    }
-                }
-            }
-
-            // Recursively check arguments
-            for arg in args {
-                if let Some(ty) = infer_type_from_expr_usage(param_name, arg) {
-                    return Some(ty);
-                }
-            }
-            // Also recursively check kwargs values
-            for (_, kwarg_value) in kwargs {
-                if let Some(ty) = infer_type_from_expr_usage(param_name, kwarg_value) {
-                    return Some(ty);
-                }
-            }
-            // Also check the object expression
-            infer_type_from_expr_usage(param_name, object)
+            infer_type_from_method_call_usage(param_name, object, method, args, kwargs)
         }
-        // Pattern: f-string with param → param needs Display → String
         HirExpr::FString { parts } => {
             for part in parts {
                 if let crate::hir::FStringPart::Expr(val_expr) = part {
@@ -3631,190 +3653,46 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             }
             None
         }
-        // Pattern: param[index] → param is indexable
-        // GH-70 + DEPYLER-0552: When a parameter is used with indexing:
-        // - param["key"] (string index) → Dict<String, Value> (dictionary access)
-        // - param[0] (integer index) → Vec<Int> (list access)
         HirExpr::Index { base, index } => {
             if let HirExpr::Var(var_name) = base.as_ref() {
                 if var_name == param_name {
-                    // DEPYLER-0552: Check if index is a string literal (dict access)
-                    // or an f-string (also dict access)
                     let is_string_key = matches!(
                         index.as_ref(),
                         HirExpr::Literal(crate::hir::Literal::String(_)) | HirExpr::FString { .. }
                     );
-                    // Also check for string variable patterns like info[key] where key is "path"
                     let is_likely_string_key = if let HirExpr::Var(idx_name) = index.as_ref() {
-                        // Common string key variable names
                         idx_name == "key" || idx_name == "k" || idx_name.ends_with("_key")
                     } else {
                         false
                     };
-
                     if is_string_key || is_likely_string_key {
-                        // Dict access: param["key"] → HashMap<String, serde_json::Value>
                         return Some(Type::Dict(
                             Box::new(Type::String),
                             Box::new(Type::Custom("serde_json::Value".to_string())),
                         ));
                     }
-                    // Default to Vec<i64> for integer indexing
                     return Some(Type::List(Box::new(Type::Int)));
                 }
             }
-            // Recursively check base expression
             infer_type_from_expr_usage(param_name, base)
         }
-        // Pattern: param[start:stop] → param is sliceable → String or Vec
         HirExpr::Slice { base, .. } => {
             if let HirExpr::Var(var_name) = base.as_ref() {
                 if var_name == param_name {
-                    // Slicing is common on strings, default to String
                     return Some(Type::String);
                 }
             }
             infer_type_from_expr_usage(param_name, base)
         }
-        // Pattern: param * N, param + N, etc. → param is numeric → Int
-        // GH-70: Binary operations with param suggest numeric type
         HirExpr::Binary { left, right, op, .. } => {
-            use crate::hir::BinOp;
-
-            // DEPYLER-0554: Pattern: param == "literal" or param != "literal" → param is String
-            // Example: if algorithm == "md5": → algorithm must be String/&str
-            if matches!(op, BinOp::Eq | BinOp::NotEq) {
-                // Check if param is compared to a string literal
-                if let HirExpr::Var(var_name) = left.as_ref() {
-                    if var_name == param_name
-                        && matches!(
-                            right.as_ref(),
-                            HirExpr::Literal(crate::hir::Literal::String(_))
-                        )
-                    {
-                        return Some(Type::String);
-                    }
-                }
-                // Also check the reverse: "literal" == param
-                if let HirExpr::Var(var_name) = right.as_ref() {
-                    if var_name == param_name
-                        && matches!(left.as_ref(), HirExpr::Literal(crate::hir::Literal::String(_)))
-                    {
-                        return Some(Type::String);
-                    }
-                }
-            }
-
-            // DEPYLER-0566: Pattern: param and something, param or something → param is Bool
-            // Example: if include_hash and "hash" in info: → include_hash must be bool
-            if matches!(op, BinOp::And | BinOp::Or) {
-                // Check if param is used directly as a boolean operand
-                if let HirExpr::Var(var_name) = left.as_ref() {
-                    if var_name == param_name {
-                        return Some(Type::Bool);
-                    }
-                }
-                if let HirExpr::Var(var_name) = right.as_ref() {
-                    if var_name == param_name {
-                        return Some(Type::Bool);
-                    }
-                }
-            }
-
-            // DEPYLER-0524: Pattern: param in string → param is String (substring check)
-            // Example: if pattern in line: → pattern must be String for .contains()
-            // DEPYLER-0554: Pattern: param in ["a", "b"] or param not in [...] → param is String
-            if matches!(op, BinOp::In | BinOp::NotIn) {
-                if let HirExpr::Var(var_name) = left.as_ref() {
-                    if var_name == param_name {
-                        // Check if right side is a list of strings
-                        if let HirExpr::List(elements) = right.as_ref() {
-                            if elements.iter().all(|e| {
-                                matches!(e, HirExpr::Literal(crate::hir::Literal::String(_)))
-                            }) {
-                                return Some(Type::String);
-                            }
-                        }
-                        // In Python, "x in y" where y is string → x is also string
-                        return Some(Type::String);
-                    }
-                }
-            }
-
-            // Check if param is used on left side
-            if let HirExpr::Var(var_name) = left.as_ref() {
-                if var_name == param_name {
-                    // For arithmetic ops, infer numeric type
-                    if matches!(
-                        op,
-                        BinOp::Add
-                            | BinOp::Sub
-                            | BinOp::Mul
-                            | BinOp::Div
-                            | BinOp::FloorDiv
-                            | BinOp::Mod
-                    ) {
-                        return Some(Type::Int);
-                    }
-                }
-            }
-            // Check if param is used on right side
-            if let HirExpr::Var(var_name) = right.as_ref() {
-                if var_name == param_name
-                    && matches!(
-                        op,
-                        BinOp::Add
-                            | BinOp::Sub
-                            | BinOp::Mul
-                            | BinOp::Div
-                            | BinOp::FloorDiv
-                            | BinOp::Mod
-                    )
-                {
-                    return Some(Type::Int);
-                }
-            }
-            // Recursively check subexpressions
-            infer_type_from_expr_usage(param_name, left)
-                .or_else(|| infer_type_from_expr_usage(param_name, right))
+            infer_type_from_binary_usage(param_name, op, left, right)
         }
-        // DEPYLER-0524: Unary expressions - check the operand
-        // Example: not content.endswith("\n") → check content.endswith("\n")
         HirExpr::Unary { operand, .. } => infer_type_from_expr_usage(param_name, operand),
-        // DEPYLER-0524: List comprehensions - check element and generators
         HirExpr::ListComp { element, generators } => {
-            // Check element expression
-            if let Some(ty) = infer_type_from_expr_usage(param_name, element) {
-                return Some(ty);
-            }
-            // Check generator conditions
-            for gen in generators {
-                if let HirExpr::Var(var_name) = &*gen.iter {
-                    if var_name == param_name {
-                        return Some(Type::String); // Iterating over param suggests it's iterable
-                    }
-                }
-                for cond in &gen.conditions {
-                    if let Some(ty) = infer_type_from_expr_usage(param_name, cond) {
-                        return Some(ty);
-                    }
-                }
-            }
-            None
+            infer_type_from_comprehension_usage(param_name, element, generators, true)
         }
-        // DEPYLER-0524: Generator expressions - same as list comprehensions
         HirExpr::GeneratorExp { element, generators } => {
-            if let Some(ty) = infer_type_from_expr_usage(param_name, element) {
-                return Some(ty);
-            }
-            for gen in generators {
-                for cond in &gen.conditions {
-                    if let Some(ty) = infer_type_from_expr_usage(param_name, cond) {
-                        return Some(ty);
-                    }
-                }
-            }
-            None
+            infer_type_from_comprehension_usage(param_name, element, generators, false)
         }
         _ => None,
     }
