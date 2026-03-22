@@ -141,218 +141,219 @@ pub(super) fn infer_lazy_constant_type(
     value: &HirExpr,
     ctx: &mut CodeGenContext,
 ) -> proc_macro2::TokenStream {
-    // DEPYLER-0188: Path expressions should be typed as PathBuf
     if is_path_constant_expr(value) {
         return quote! { std::path::PathBuf };
     }
 
-    // DEPYLER-0714: Function calls - look up return type
-    // For Unknown return types, fall through to serde_json::Value default
+    if let Some(ts) = infer_from_function_call(value, ctx) {
+        return ts;
+    }
+
+    if ctx.type_mapper.nasa_mode {
+        if let Some(ts) = infer_nasa_mode_type(value, ctx) {
+            return ts;
+        }
+    }
+
+    infer_default_lazy_type(ctx)
+}
+
+fn infer_from_function_call(
+    value: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Option<proc_macro2::TokenStream> {
     if let HirExpr::Call { func, .. } = value {
         if let Some(ret_type) = ctx.function_return_types.get(func) {
-            // Skip Unknown - fall through to default
             if !matches!(ret_type, crate::hir::Type::Unknown) {
                 if let Ok(syn_type) =
                     type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(ret_type))
                 {
-                    return quote! { #syn_type };
+                    return Some(quote! { #syn_type });
                 }
             }
         }
     }
+    None
+}
 
-    // DEPYLER-1016/1060: Handle Dict/List properly in NASA mode using DepylerValue
-    // DEPYLER-1060: Use DepylerValue for keys to support non-string keys like {1: "a"}
-    // DEPYLER-1128: For homogeneous lists, use concrete types instead of DepylerValue
-    if ctx.type_mapper.nasa_mode {
-        match value {
-            HirExpr::Dict(_) => {
-                ctx.needs_hashmap = true;
-                ctx.needs_depyler_value_enum = true;
-                return quote! { std::collections::HashMap<DepylerValue, DepylerValue> };
-            }
-            HirExpr::List(elems) => {
-                // DEPYLER-1128: Check if list is homogeneous - if so, use concrete type
-                if let Some(elem_type) = infer_homogeneous_list_type(elems) {
-                    return elem_type;
-                }
-                // Heterogeneous list - use DepylerValue
-                ctx.needs_depyler_value_enum = true;
-                return quote! { Vec<DepylerValue> };
-            }
-            HirExpr::Set(elems) => {
-                // DEPYLER-1128: Check if set is homogeneous - if so, use concrete type
-                if let Some(elem_type) = infer_homogeneous_set_type(elems) {
-                    ctx.needs_hashset = true;
-                    return elem_type;
-                }
-                ctx.needs_hashset = true;
-                ctx.needs_depyler_value_enum = true;
-                return quote! { std::collections::HashSet<DepylerValue> };
-            }
-            // DEPYLER-1148: Slice into collections - infer slice type from base
-            // A slice of a list is still a list: base[start:stop] where base is Vec<T> -> Vec<T>
-            // A slice of a string is still a string: base[start:stop] where base is String -> String
-            HirExpr::Slice { base, .. } => {
-                if let HirExpr::Var(base_name) = base.as_ref() {
-                    if let Some(base_type) = ctx.var_types.get(base_name) {
-                        match base_type {
-                            // List slice: return Vec<T> (same type as the list)
-                            Type::List(elem_type) => {
-                                if let Ok(syn_type) =
-                                    type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(elem_type))
-                                {
-                                    return quote! { Vec<#syn_type> };
-                                }
-                            }
-                            // String slice: return String
-                            Type::String => {
-                                return quote! { String };
-                            }
-                            _ => {}
-                        }
+fn infer_nasa_mode_type(
+    value: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Option<proc_macro2::TokenStream> {
+    match value {
+        HirExpr::Dict(_) => Some(infer_nasa_dict_type(ctx)),
+        HirExpr::List(elems) => Some(infer_nasa_list_type(elems, ctx)),
+        HirExpr::Set(elems) => Some(infer_nasa_set_type(elems, ctx)),
+        HirExpr::Slice { base, .. } => Some(infer_nasa_slice_type(base, ctx)),
+        HirExpr::Index { base, .. } => Some(infer_nasa_index_type(base, ctx)),
+        HirExpr::Tuple(elems) => infer_tuple_type(elems),
+        HirExpr::Binary { op, left, .. } => infer_binary_expr_type(op, left),
+        HirExpr::Unary { op, operand } => infer_unary_expr_type(op, operand),
+        HirExpr::ListComp { element, .. } => Some(infer_nasa_listcomp_type(element)),
+        HirExpr::SetComp { element, .. } => Some(infer_nasa_setcomp_type(element, ctx)),
+        HirExpr::DictComp { key, value, .. } => Some(infer_nasa_dictcomp_type(key, value, ctx)),
+        HirExpr::Attribute { value: attr_obj, attr } => infer_math_attr_type(attr_obj, attr),
+        HirExpr::MethodCall { method, .. } => infer_method_return_type(method),
+        HirExpr::Call { func, .. } => infer_call_return_type(func),
+        _ => None,
+    }
+}
+
+fn infer_nasa_dict_type(ctx: &mut CodeGenContext) -> proc_macro2::TokenStream {
+    ctx.needs_hashmap = true;
+    ctx.needs_depyler_value_enum = true;
+    quote! { std::collections::HashMap<DepylerValue, DepylerValue> }
+}
+
+fn infer_nasa_list_type(
+    elems: &[HirExpr],
+    ctx: &mut CodeGenContext,
+) -> proc_macro2::TokenStream {
+    if let Some(elem_type) = infer_homogeneous_list_type(elems) {
+        return elem_type;
+    }
+    ctx.needs_depyler_value_enum = true;
+    quote! { Vec<DepylerValue> }
+}
+
+fn infer_nasa_set_type(
+    elems: &[HirExpr],
+    ctx: &mut CodeGenContext,
+) -> proc_macro2::TokenStream {
+    if let Some(elem_type) = infer_homogeneous_set_type(elems) {
+        ctx.needs_hashset = true;
+        return elem_type;
+    }
+    ctx.needs_hashset = true;
+    ctx.needs_depyler_value_enum = true;
+    quote! { std::collections::HashSet<DepylerValue> }
+}
+
+fn infer_nasa_slice_type(
+    base: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> proc_macro2::TokenStream {
+    if let HirExpr::Var(base_name) = base {
+        if let Some(base_type) = ctx.var_types.get(base_name) {
+            match base_type {
+                Type::List(elem_type) => {
+                    if let Ok(syn_type) =
+                        type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(elem_type))
+                    {
+                        return quote! { Vec<#syn_type> };
                     }
                 }
-                // Default for unknown base types: use String (common case)
-                return quote! { String };
-            }
-            // DEPYLER-1060/DEPYLER-1145: Index into collections - infer element type
-            // DEPYLER-1145: For homogeneous lists, return the concrete element type, not DepylerValue
-            // This fixes: `list_index = list_example[0]` where list_example is Vec<i32>
-            // Previously returned DepylerValue causing "expected DepylerValue, found i32" errors
-            HirExpr::Index { base, .. } => {
-                // Check if base is a variable we can look up
-                if let HirExpr::Var(base_name) = base.as_ref() {
-                    // Check module-level constants for the base type
-                    if let Some(base_type) = ctx.var_types.get(base_name) {
-                        match base_type {
-                            // Homogeneous list: return element type
-                            Type::List(elem_type) => {
-                                if let Ok(syn_type) =
-                                    type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(elem_type))
-                                {
-                                    return quote! { #syn_type };
-                                }
-                            }
-                            // Dict: return value type (may be DepylerValue for heterogeneous dicts)
-                            Type::Dict(_, val_type) => {
-                                if let Ok(syn_type) =
-                                    type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(val_type))
-                                {
-                                    return quote! { #syn_type };
-                                }
-                            }
-                            // Tuple: return Unknown for now (tuple indexing is complex)
-                            Type::Tuple(_) => {
-                                // Fall through to default handling
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                // Default: use DepylerValue for unknown bases or dicts with unknown value types
-                ctx.needs_depyler_value_enum = true;
-                return quote! { DepylerValue };
-            }
-            // DEPYLER-1128: Handle tuple literals with proper tuple types
-            HirExpr::Tuple(elems) => {
-                if let Some(tuple_type) = infer_tuple_type(elems) {
-                    return tuple_type;
-                }
-                // Fall through to default if cannot infer
-            }
-            // DEPYLER-1128: Handle binary expressions - infer from operand types
-            HirExpr::Binary { op, left, .. } => {
-                if let Some(result_type) = infer_binary_expr_type(op, left) {
-                    return result_type;
-                }
-                // Fall through to default if cannot infer
-            }
-            // DEPYLER-1128: Handle unary expressions
-            HirExpr::Unary { op, operand } => {
-                if let Some(result_type) = infer_unary_expr_type(op, operand) {
-                    return result_type;
-                }
-            }
-            // DEPYLER-1149: Handle list comprehensions - infer element type from expression
-            // `[x*2 for x in range(10)]` produces Vec<i32> (integer arithmetic)
-            // `[str(x) for x in items]` produces Vec<String> (string conversion)
-            HirExpr::ListComp { element, .. } => {
-                if let Some(elem_type) = infer_comprehension_element_type(element) {
-                    return quote! { Vec<#elem_type> };
-                }
-                // Default to Vec<i32> for numeric comprehensions
-                return quote! { Vec<i32> };
-            }
-            // DEPYLER-1149: Handle set comprehensions
-            HirExpr::SetComp { element, .. } => {
-                ctx.needs_hashset = true;
-                if let Some(elem_type) = infer_comprehension_element_type(element) {
-                    return quote! { std::collections::HashSet<#elem_type> };
-                }
-                return quote! { std::collections::HashSet<i32> };
-            }
-            // DEPYLER-1149: Handle dict comprehensions
-            HirExpr::DictComp { key, value, .. } => {
-                ctx.needs_hashmap = true;
-                let key_type =
-                    infer_comprehension_element_type(key).unwrap_or_else(|| quote! { i32 });
-                let val_type =
-                    infer_comprehension_element_type(value).unwrap_or_else(|| quote! { i32 });
-                return quote! { std::collections::HashMap<#key_type, #val_type> };
-            }
-            // DEPYLER-1172: Handle math module constants (math.pi, math.e, etc.)
-            HirExpr::Attribute { value: attr_obj, attr } => {
-                if let HirExpr::Var(module_name) = attr_obj.as_ref() {
-                    if module_name == "math" {
-                        match attr.as_str() {
-                            "pi" | "e" | "tau" | "inf" | "nan" => {
-                                return quote! { f64 };
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-            // DEPYLER-1172: Handle math method calls like (16).sqrt(), math.sqrt(16)
-            HirExpr::MethodCall { method, .. } => {
-                match method.as_str() {
-                    // Float-returning math methods
-                    "sqrt" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "sinh" | "cosh"
-                    | "tanh" | "exp" | "log" | "log10" | "log2" | "floor" | "ceil" | "trunc"
-                    | "fract" | "abs" => {
-                        return quote! { f64 };
-                    }
-                    // String methods
-                    "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "join"
-                    | "format" | "to_string" | "to_uppercase" | "to_lowercase" | "trim" => {
-                        return quote! { String };
-                    }
-                    // Int methods
-                    "count" | "index" | "find" | "rfind" | "len" => {
-                        return quote! { i32 };
-                    }
-                    _ => {}
-                }
-            }
-            // DEPYLER-1172: Handle math function calls like math.sqrt(16)
-            HirExpr::Call { func, .. } => match func.as_str() {
-                "sqrt" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "sinh" | "cosh"
-                | "tanh" | "exp" | "log" | "log10" | "log2" | "floor" | "ceil" | "trunc"
-                | "fabs" => {
-                    return quote! { f64 };
-                }
-                "abs" | "len" | "ord" | "hash" => {
-                    return quote! { i32 };
+                Type::String => {
+                    return quote! { String };
                 }
                 _ => {}
-            },
-            _ => {}
+            }
         }
     }
+    quote! { String }
+}
 
-    // Default: use serde_json::Value for Lazy constants
-    // DEPYLER-1016: Use String in NASA mode
+fn infer_nasa_index_type(
+    base: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> proc_macro2::TokenStream {
+    if let HirExpr::Var(base_name) = base {
+        if let Some(base_type) = ctx.var_types.get(base_name) {
+            match base_type {
+                Type::List(elem_type) => {
+                    if let Ok(syn_type) =
+                        type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(elem_type))
+                    {
+                        return quote! { #syn_type };
+                    }
+                }
+                Type::Dict(_, val_type) => {
+                    if let Ok(syn_type) =
+                        type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(val_type))
+                    {
+                        return quote! { #syn_type };
+                    }
+                }
+                Type::Tuple(_) => {}
+                _ => {}
+            }
+        }
+    }
+    ctx.needs_depyler_value_enum = true;
+    quote! { DepylerValue }
+}
+
+fn infer_nasa_listcomp_type(element: &HirExpr) -> proc_macro2::TokenStream {
+    if let Some(elem_type) = infer_comprehension_element_type(element) {
+        return quote! { Vec<#elem_type> };
+    }
+    quote! { Vec<i32> }
+}
+
+fn infer_nasa_setcomp_type(
+    element: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> proc_macro2::TokenStream {
+    ctx.needs_hashset = true;
+    if let Some(elem_type) = infer_comprehension_element_type(element) {
+        return quote! { std::collections::HashSet<#elem_type> };
+    }
+    quote! { std::collections::HashSet<i32> }
+}
+
+fn infer_nasa_dictcomp_type(
+    key: &HirExpr,
+    value: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> proc_macro2::TokenStream {
+    ctx.needs_hashmap = true;
+    let key_type = infer_comprehension_element_type(key).unwrap_or_else(|| quote! { i32 });
+    let val_type = infer_comprehension_element_type(value).unwrap_or_else(|| quote! { i32 });
+    quote! { std::collections::HashMap<#key_type, #val_type> }
+}
+
+fn infer_math_attr_type(
+    attr_obj: &HirExpr,
+    attr: &str,
+) -> Option<proc_macro2::TokenStream> {
+    if let HirExpr::Var(module_name) = attr_obj {
+        if module_name == "math" {
+            match attr {
+                "pi" | "e" | "tau" | "inf" | "nan" => {
+                    return Some(quote! { f64 });
+                }
+                _ => {}
+            }
+        }
+    }
+    None
+}
+
+fn infer_method_return_type(method: &str) -> Option<proc_macro2::TokenStream> {
+    match method {
+        "sqrt" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "sinh" | "cosh" | "tanh"
+        | "exp" | "log" | "log10" | "log2" | "floor" | "ceil" | "trunc" | "fract" | "abs" => {
+            Some(quote! { f64 })
+        }
+        "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "join" | "format"
+        | "to_string" | "to_uppercase" | "to_lowercase" | "trim" => Some(quote! { String }),
+        "count" | "index" | "find" | "rfind" | "len" => Some(quote! { i32 }),
+        _ => None,
+    }
+}
+
+fn infer_call_return_type(func: &str) -> Option<proc_macro2::TokenStream> {
+    match func {
+        "sqrt" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "sinh" | "cosh" | "tanh"
+        | "exp" | "log" | "log10" | "log2" | "floor" | "ceil" | "trunc" | "fabs" => {
+            Some(quote! { f64 })
+        }
+        "abs" | "len" | "ord" | "hash" => Some(quote! { i32 }),
+        _ => None,
+    }
+}
+
+fn infer_default_lazy_type(ctx: &mut CodeGenContext) -> proc_macro2::TokenStream {
     if ctx.type_mapper.nasa_mode {
         quote! { String }
     } else {

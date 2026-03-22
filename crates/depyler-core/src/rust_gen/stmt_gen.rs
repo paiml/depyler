@@ -1433,131 +1433,125 @@ pub(crate) fn codegen_raise_stmt(
     exception: &Option<HirExpr>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
-    // For V1, we'll implement basic error handling
-    if let Some(exc) = exception {
-        // DEPYLER-0398: Handle argparse.ArgumentTypeError specially
-        // Pattern: raise argparse.ArgumentTypeError("message")
-        // Extract message and use directly in panic!/error
-        let exc_expr = match exc {
-            // Pattern 1: argparse.ArgumentTypeError(msg)
-            HirExpr::MethodCall { object, method, args, .. }
-                if matches!(object.as_ref(), HirExpr::Var(v) if v == "argparse")
-                    && method == "ArgumentTypeError"
-                    && !args.is_empty() =>
-            {
-                // Extract the message argument and use it directly
-                args[0].to_rust_expr(ctx)?
-            }
-            // Pattern 2: ArgumentTypeError(msg) - if imported
-            HirExpr::Call { func, args, .. } if func == "ArgumentTypeError" && !args.is_empty() => {
-                args[0].to_rust_expr(ctx)?
-            }
-            // Default: use exception as-is
-            _ => exc.to_rust_expr(ctx)?,
-        };
+    let exc = match exception {
+        Some(exc) => exc,
+        None => return Ok(quote! { return Err("Exception raised".into()); }),
+    };
 
-        // DEPYLER-0333: Extract exception type to check if it's handled
-        let exception_type = extract_exception_type(exc);
+    let exc_expr = extract_raise_message(exc, ctx)?;
+    let exception_type = extract_exception_type(exc);
+    set_exception_type_flag(&exception_type, ctx);
 
-        // DEPYLER-0438: Set error type flag for generation
-        // DEPYLER-0551: Added RuntimeError and FileNotFoundError
-        // GH-204: Added SyntaxError, TypeError, KeyError, IOError, AttributeError, StopIteration
-        match exception_type.as_str() {
-            "ValueError" => ctx.needs_valueerror = true,
-            "ArgumentTypeError" => ctx.needs_argumenttypeerror = true,
-            "ZeroDivisionError" => ctx.needs_zerodivisionerror = true,
-            "IndexError" => ctx.needs_indexerror = true,
-            "RuntimeError" => ctx.needs_runtimeerror = true,
-            "FileNotFoundError" => ctx.needs_filenotfounderror = true,
-            "SyntaxError" => ctx.needs_syntaxerror = true,
-            "TypeError" => ctx.needs_typeerror = true,
-            "KeyError" => ctx.needs_keyerror = true,
-            "IOError" => ctx.needs_ioerror = true,
-            "AttributeError" => ctx.needs_attributeerror = true,
-            "StopIteration" => ctx.needs_stopiteration = true,
-            _ => {}
+    if ctx.is_exception_handled(&exception_type) {
+        return Ok(quote! { panic!("{}", #exc_expr); });
+    }
+
+    if !ctx.current_function_can_fail {
+        return Ok(quote! { panic!("{}", #exc_expr); });
+    }
+
+    let needs_boxing =
+        matches!(ctx.current_error_type, Some(crate::rust_gen::context::ErrorType::DynBox));
+    let is_already_wrapped = matches!(
+        exc,
+        HirExpr::Call { func, .. } if func == &exception_type
+    );
+    let should_wrap = !is_already_wrapped && is_known_exception_type(&exception_type);
+
+    emit_return_err(&exception_type, &exc_expr, needs_boxing, should_wrap)
+}
+
+fn extract_raise_message(
+    exc: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Result<syn::Expr> {
+    match exc {
+        HirExpr::MethodCall { object, method, args, .. }
+            if matches!(object.as_ref(), HirExpr::Var(v) if v == "argparse")
+                && method == "ArgumentTypeError"
+                && !args.is_empty() =>
+        {
+            args[0].to_rust_expr(ctx)
         }
-
-        // DEPYLER-0333: Check if exception is caught by current try block
-        if ctx.is_exception_handled(&exception_type) {
-            // Exception is caught - for now use panic! (control flow jump is complex)
-            // NOTE: Implement proper exception control flow to jump to handler (tracked in DEPYLER-0424)
-            Ok(quote! { panic!("{}", #exc_expr); })
-        } else if ctx.current_function_can_fail {
-            // Exception propagates to caller - use return Err
-            // DEPYLER-0310: Check if we need to wrap with Box::new()
-            let needs_boxing =
-                matches!(ctx.current_error_type, Some(crate::rust_gen::context::ErrorType::DynBox));
-
-            if needs_boxing {
-                // DEPYLER-0438: Wrap exception in error type constructor if it's a known exception
-                // format!() returns String which doesn't implement std::error::Error
-                // Need to wrap in ValueError::new(), ArgumentTypeError::new(), etc.
-                // DEPYLER-0472-FIX: Don't double-wrap if exc is already a Call to the exception type
-                let is_already_wrapped = matches!(
-                    exc,
-                    HirExpr::Call { func, .. } if func == &exception_type
-                );
-
-                // DEPYLER-0551: Added RuntimeError and FileNotFoundError
-                // GH-204: Added ZeroDivisionError, SyntaxError, IOError, AttributeError, StopIteration
-                if !is_already_wrapped
-                    && (exception_type == "ValueError"
-                        || exception_type == "ArgumentTypeError"
-                        || exception_type == "TypeError"
-                        || exception_type == "KeyError"
-                        || exception_type == "IndexError"
-                        || exception_type == "RuntimeError"
-                        || exception_type == "FileNotFoundError"
-                        || exception_type == "ZeroDivisionError"
-                        || exception_type == "SyntaxError"
-                        || exception_type == "IOError"
-                        || exception_type == "AttributeError"
-                        || exception_type == "StopIteration")
-                {
-                    let exc_type = safe_ident(&exception_type);
-                    Ok(quote! { return Err(Box::new(#exc_type::new(#exc_expr))); })
-                } else {
-                    Ok(quote! { return Err(Box::new(#exc_expr)); })
-                }
-            } else {
-                // DEPYLER-0455: Also wrap exception in type constructor when not boxing
-                // Without this, `return Err(format!(...))` returns String instead of ExceptionType
-                // DEPYLER-0472-FIX: Don't double-wrap if exc is already a Call to the exception type
-                let is_already_wrapped = matches!(
-                    exc,
-                    HirExpr::Call { func, .. } if func == &exception_type
-                );
-
-                // DEPYLER-0551: Added RuntimeError and FileNotFoundError
-                // GH-204: Added ZeroDivisionError, SyntaxError, IOError, AttributeError, StopIteration
-                if !is_already_wrapped
-                    && (exception_type == "ValueError"
-                        || exception_type == "ArgumentTypeError"
-                        || exception_type == "TypeError"
-                        || exception_type == "KeyError"
-                        || exception_type == "IndexError"
-                        || exception_type == "RuntimeError"
-                        || exception_type == "FileNotFoundError"
-                        || exception_type == "ZeroDivisionError"
-                        || exception_type == "SyntaxError"
-                        || exception_type == "IOError"
-                        || exception_type == "AttributeError"
-                        || exception_type == "StopIteration")
-                {
-                    let exc_type = safe_ident(&exception_type);
-                    Ok(quote! { return Err(#exc_type::new(#exc_expr)); })
-                } else {
-                    Ok(quote! { return Err(#exc_expr); })
-                }
-            }
-        } else {
-            // Function doesn't return Result - use panic!
-            Ok(quote! { panic!("{}", #exc_expr); })
+        HirExpr::Call { func, args, .. } if func == "ArgumentTypeError" && !args.is_empty() => {
+            args[0].to_rust_expr(ctx)
         }
+        _ => exc.to_rust_expr(ctx),
+    }
+}
+
+fn set_exception_type_flag(exception_type: &str, ctx: &mut CodeGenContext) {
+    match exception_type {
+        "ValueError" => ctx.needs_valueerror = true,
+        "ArgumentTypeError" => ctx.needs_argumenttypeerror = true,
+        "ZeroDivisionError" => ctx.needs_zerodivisionerror = true,
+        "IndexError" => ctx.needs_indexerror = true,
+        "RuntimeError" => ctx.needs_runtimeerror = true,
+        "FileNotFoundError" => ctx.needs_filenotfounderror = true,
+        "SyntaxError" => ctx.needs_syntaxerror = true,
+        "TypeError" => ctx.needs_typeerror = true,
+        "KeyError" => ctx.needs_keyerror = true,
+        "IOError" => ctx.needs_ioerror = true,
+        "AttributeError" => ctx.needs_attributeerror = true,
+        "StopIteration" => ctx.needs_stopiteration = true,
+        _ => {}
+    }
+}
+
+fn is_known_exception_type(exception_type: &str) -> bool {
+    matches!(
+        exception_type,
+        "ValueError"
+            | "ArgumentTypeError"
+            | "TypeError"
+            | "KeyError"
+            | "IndexError"
+            | "RuntimeError"
+            | "FileNotFoundError"
+            | "ZeroDivisionError"
+            | "SyntaxError"
+            | "IOError"
+            | "AttributeError"
+            | "StopIteration"
+    )
+}
+
+fn emit_return_err(
+    exception_type: &str,
+    exc_expr: &syn::Expr,
+    needs_boxing: bool,
+    should_wrap: bool,
+) -> Result<proc_macro2::TokenStream> {
+    if needs_boxing {
+        emit_boxed_return_err(exception_type, exc_expr, should_wrap)
     } else {
-        // Re-raise or bare raise - use generic error
-        Ok(quote! { return Err("Exception raised".into()); })
+        emit_plain_return_err(exception_type, exc_expr, should_wrap)
+    }
+}
+
+fn emit_boxed_return_err(
+    exception_type: &str,
+    exc_expr: &syn::Expr,
+    should_wrap: bool,
+) -> Result<proc_macro2::TokenStream> {
+    if should_wrap {
+        let exc_type = safe_ident(exception_type);
+        Ok(quote! { return Err(Box::new(#exc_type::new(#exc_expr))); })
+    } else {
+        Ok(quote! { return Err(Box::new(#exc_expr)); })
+    }
+}
+
+fn emit_plain_return_err(
+    exception_type: &str,
+    exc_expr: &syn::Expr,
+    should_wrap: bool,
+) -> Result<proc_macro2::TokenStream> {
+    if should_wrap {
+        let exc_type = safe_ident(exception_type);
+        Ok(quote! { return Err(#exc_type::new(#exc_expr)); })
+    } else {
+        Ok(quote! { return Err(#exc_expr); })
     }
 }
 
@@ -2225,23 +2219,8 @@ pub(crate) fn codegen_if_stmt(
     use std::collections::HashSet;
 
     // DEPYLER-1400: Handle `if TYPE_CHECKING:` blocks
-    // TYPE_CHECKING is a typing module constant that is always False at runtime.
-    // These blocks are only for type checkers (mypy, pyright) and should be elided.
-    // This pattern is common in typed Python codebases for conditional imports.
-    if let HirExpr::Var(var_name) = condition {
-        if var_name == "TYPE_CHECKING" {
-            // Skip the entire if block - TYPE_CHECKING is always False at runtime
-            // The else branch (if any) would contain runtime code, but typically
-            // TYPE_CHECKING blocks don't have else branches
-            trace_decision!(
-                category = DecisionCategory::TypeMapping,
-                name = "type_checking_elision",
-                chosen = "skip_block",
-                alternatives = ["emit_false_const", "keep_as_is"],
-                confidence = 0.95
-            );
-            return Ok(proc_macro2::TokenStream::new());
-        }
+    if let Some(elided) = try_elide_type_checking(condition) {
+        return Ok(elided);
     }
 
     // CITL: Trace if statement pattern decision
@@ -2263,7 +2242,6 @@ pub(crate) fn codegen_if_stmt(
     }
 
     // DEPYLER-0627: Detect Option variable truthiness check and generate if-let pattern
-    // Pattern: `if option_var:` -> `if let Some(ref val) = option_var { ... }`
     if let HirExpr::Var(var_name) = condition {
         if let Some(var_type) = ctx.var_types.get(var_name) {
             if matches!(var_type, Type::Optional(_)) {
@@ -2273,155 +2251,21 @@ pub(crate) fn codegen_if_stmt(
     }
 
     // DEPYLER-0188: Extract walrus operator assignments from condition
-    // Python: if (n := len(text)) > 5: -> Rust: let n = text.len(); if n > 5 {
     let (walrus_assigns, simplified_condition) = extract_walrus_from_condition(condition);
+    let walrus_lets = codegen_walrus_lets(&walrus_assigns, ctx)?;
 
-    // Generate let statements for walrus operator assignments
-    let mut walrus_lets = Vec::new();
-    for (name, value_expr) in &walrus_assigns {
-        let var_ident = safe_ident(name);
-        let value_tokens = value_expr.to_rust_expr(ctx)?;
-        walrus_lets.push(quote! { let #var_ident = #value_tokens; });
-        // Register the variable in context so it's available in the if body
-        ctx.declare_var(name);
-    }
-
-    // DEPYLER-0844: isinstance(x, T) → true (Rust's type system guarantees correctness)
-    // Must intercept BEFORE to_rust_expr to avoid generating `isinstance(...)` call
-    let mut cond = if let HirExpr::Call { func, .. } = &simplified_condition {
-        if func == "isinstance" {
-            parse_quote! { true }
-        } else {
-            simplified_condition.to_rust_expr(ctx)?
-        }
-    } else {
-        simplified_condition.to_rust_expr(ctx)?
-    };
-
-    // DEPYLER-0308: Auto-unwrap Result<bool> in if conditions
-    // When a function returns Result<bool, E> (like is_even with modulo),
-    // we need to unwrap it for use in boolean context
-    // Check if the condition is a Call to a function that returns Result<bool>
-    if let HirExpr::Call { func, .. } = condition {
-        if ctx.result_bool_functions.contains(func) {
-            // This function returns Result<bool>, so unwrap it
-            // Use .unwrap_or(false) to handle potential errors gracefully
-            cond = parse_quote! { #cond.unwrap_or(false) };
-        }
-    }
-
-    // DEPYLER-99MODE-S9: Auto-unwrap Result-returning calls in truthiness contexts
-    // When `if func_call(...)` where func returns Result<Option<T>>,
-    // need `func_call()?` to unwrap Result before .is_some() is applied
-    if let HirExpr::Call { func, .. } = condition {
-        if ctx.type_mapper.nasa_mode
-            && ctx.result_returning_functions.contains(func)
-            && ctx.current_function_can_fail
-            && !ctx.result_bool_functions.contains(func)
-        {
-            cond = parse_quote! { #cond? };
-        }
-    }
+    let mut cond = prepare_if_condition(&simplified_condition, condition, ctx)?;
 
     // DEPYLER-0339: Apply Python truthiness conversion
-    // Convert non-boolean expressions to boolean (e.g., `if val` where val: String)
     cond = apply_truthiness_conversion(condition, cond, ctx);
 
-    // DEPYLER-0379: Variable hoisting - find variables assigned in BOTH branches
-    // DEPYLER-0476: Use toplevel extraction to avoid hoisting variables from nested for/while loops
-    // DEPYLER-0823: Also hoist None-placeholder variables assigned in any branch
-    let then_vars = extract_toplevel_assigned_symbols(then_body);
-    let mut hoisted_vars: HashSet<String> = if let Some(else_stmts) = else_body {
-        let else_vars = extract_toplevel_assigned_symbols(else_stmts);
-        then_vars.intersection(&else_vars).cloned().collect()
-    } else {
-        HashSet::new()
-    };
-
-    // DEPYLER-0823: Add None-placeholder variables that are assigned in any branch
-    // These variables had `var = None` skipped, but need to be declared before the if
-    // so they're accessible after it (e.g., `if cond: var = x; use(var)`)
-    for var_name in &then_vars {
-        if ctx.none_placeholder_vars.contains(var_name) {
-            hoisted_vars.insert(var_name.clone());
-        }
-    }
-    if let Some(else_stmts) = else_body {
-        let else_vars = extract_toplevel_assigned_symbols(else_stmts);
-        for var_name in &else_vars {
-            if ctx.none_placeholder_vars.contains(var_name) {
-                hoisted_vars.insert(var_name.clone());
-            }
-        }
-    }
+    // DEPYLER-0379 + DEPYLER-0823: Collect hoisted variables
+    let hoisted_vars = collect_hoisted_vars(then_body, else_body, ctx);
 
     // DEPYLER-0379: Generate hoisted variable declarations
-    // DEPYLER-0439: Skip variables already declared in parent scope (prevents shadowing)
-    let mut hoisted_decls = Vec::new();
-    for var_name in &hoisted_vars {
-        // DEPYLER-0439: Skip if variable is already declared in parent scope
-        let already_declared = ctx.is_declared(var_name);
-        if already_declared {
-            continue;
-        }
-
-        let var_ident = safe_ident(var_name); // DEPYLER-0023
-
-        // DEPYLER-0625: Check if variable needs Box<dyn Write> due to heterogeneous IO types
-        // (e.g., File in one branch, sys.stdout in another)
-        if let Some(else_stmts) = else_body {
-            if needs_boxed_dyn_write(var_name, then_body, else_stmts) {
-                // Generate Box<dyn Write> type for heterogeneous IO
-                hoisted_decls.push(quote! { let mut #var_ident: Box<dyn std::io::Write>; });
-                ctx.boxed_dyn_write_vars.insert(var_name.clone());
-                ctx.declare_var(var_name);
-                continue;
-            }
-        }
-
-        // Find the variable's type from the first assignment in either branch
-        let var_type = find_variable_type(var_name, then_body).or_else(|| {
-            if let Some(else_stmts) = else_body {
-                find_variable_type(var_name, else_stmts)
-            } else {
-                None
-            }
-        });
-
-        if let Some(ty) = var_type {
-            let rust_type = ctx.type_mapper.map_type(&ty);
-            let syn_type = rust_type_to_syn(&rust_type)?;
-            // DEPYLER-0823: For if-only (no else), initialize with Default to prevent E0381
-            // Rust requires initialization since the branch may not be taken
-            if else_body.is_none() {
-                hoisted_decls.push(quote! { let mut #var_ident: #syn_type = Default::default(); });
-            } else {
-                hoisted_decls.push(quote! { let mut #var_ident: #syn_type; });
-            }
-        } else {
-            // No type annotation - use type inference placeholder
-            // Rust will infer the type from the assignments in the branches
-            // DEPYLER-0823: For if-only (no else), we need a typed default
-            // Since we don't know the type, use String as common case for None placeholders
-            if else_body.is_none() && ctx.none_placeholder_vars.contains(var_name) {
-                hoisted_decls.push(quote! { let mut #var_ident: String = Default::default(); });
-            } else {
-                hoisted_decls.push(quote! { let mut #var_ident; });
-            }
-
-            // DEPYLER-0455 #2: Track hoisted variables needing String normalization
-            // When a variable is hoisted without type annotation, we need to normalize
-            // string literals to String to avoid &str vs String type mismatches
-            ctx.hoisted_inference_vars.insert(var_name.clone());
-        }
-
-        // Mark variable as declared so assignments use `var = value` not `let var = value`
-        ctx.declare_var(var_name);
-    }
+    let hoisted_decls = generate_hoisted_decls(&hoisted_vars, then_body, else_body, ctx)?;
 
     // DEPYLER-0935: Save and restore is_final_statement for if body
-    // Return statements inside if bodies are NOT final statements of the function
-    // because there may be code after the if statement
     let saved_is_final = ctx.is_final_statement;
     ctx.is_final_statement = false;
 
@@ -2458,24 +2302,193 @@ pub(crate) fn codegen_if_stmt(
     ctx.is_final_statement = saved_is_final;
 
     // DEPYLER-0455 #2: Clean up hoisted inference vars after if-statement
-    // Remove variables from tracking set since they're only relevant within this if-statement
     for var_name in &hoisted_vars {
         ctx.hoisted_inference_vars.remove(var_name);
     }
 
     // DEPYLER-1151: Detect None-check-early-exit pattern to narrow Option variables
-    // Pattern: `if x is None: return` or `if x.is_none() { return }` (no else branch)
-    // After this pattern, x is narrowed to the inner type (can safely unwrap)
     if else_body.is_none() {
         if let Some(var_name) = detect_none_check_variable(condition) {
             if is_early_exit_body(then_body) {
-                // Variable is narrowed after this if statement
                 ctx.narrowed_option_vars.insert(var_name);
             }
         }
     }
 
     result
+}
+
+fn try_elide_type_checking(condition: &HirExpr) -> Option<proc_macro2::TokenStream> {
+    if let HirExpr::Var(var_name) = condition {
+        if var_name == "TYPE_CHECKING" {
+            trace_decision!(
+                category = DecisionCategory::TypeMapping,
+                name = "type_checking_elision",
+                chosen = "skip_block",
+                alternatives = ["emit_false_const", "keep_as_is"],
+                confidence = 0.95
+            );
+            return Some(proc_macro2::TokenStream::new());
+        }
+    }
+    None
+}
+
+fn codegen_walrus_lets(
+    walrus_assigns: &[(String, HirExpr)],
+    ctx: &mut CodeGenContext,
+) -> Result<Vec<proc_macro2::TokenStream>> {
+    let mut walrus_lets = Vec::new();
+    for (name, value_expr) in walrus_assigns {
+        let var_ident = safe_ident(name);
+        let value_tokens = value_expr.to_rust_expr(ctx)?;
+        walrus_lets.push(quote! { let #var_ident = #value_tokens; });
+        ctx.declare_var(name);
+    }
+    Ok(walrus_lets)
+}
+
+fn prepare_if_condition(
+    simplified_condition: &HirExpr,
+    original_condition: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Result<syn::Expr> {
+    // DEPYLER-0844: isinstance(x, T) → true
+    let mut cond = if let HirExpr::Call { func, .. } = simplified_condition {
+        if func == "isinstance" {
+            parse_quote! { true }
+        } else {
+            simplified_condition.to_rust_expr(ctx)?
+        }
+    } else {
+        simplified_condition.to_rust_expr(ctx)?
+    };
+
+    // DEPYLER-0308: Auto-unwrap Result<bool> in if conditions
+    if let HirExpr::Call { func, .. } = original_condition {
+        if ctx.result_bool_functions.contains(func) {
+            cond = parse_quote! { #cond.unwrap_or(false) };
+        }
+    }
+
+    // DEPYLER-99MODE-S9: Auto-unwrap Result-returning calls in truthiness contexts
+    if let HirExpr::Call { func, .. } = original_condition {
+        if ctx.type_mapper.nasa_mode
+            && ctx.result_returning_functions.contains(func)
+            && ctx.current_function_can_fail
+            && !ctx.result_bool_functions.contains(func)
+        {
+            cond = parse_quote! { #cond? };
+        }
+    }
+
+    Ok(cond)
+}
+
+fn collect_hoisted_vars(
+    then_body: &[HirStmt],
+    else_body: &Option<Vec<HirStmt>>,
+    ctx: &CodeGenContext,
+) -> std::collections::HashSet<String> {
+    use std::collections::HashSet;
+
+    let then_vars = extract_toplevel_assigned_symbols(then_body);
+    let mut hoisted_vars: HashSet<String> = if let Some(else_stmts) = else_body {
+        let else_vars = extract_toplevel_assigned_symbols(else_stmts);
+        then_vars.intersection(&else_vars).cloned().collect()
+    } else {
+        HashSet::new()
+    };
+
+    // DEPYLER-0823: Add None-placeholder variables
+    for var_name in &then_vars {
+        if ctx.none_placeholder_vars.contains(var_name) {
+            hoisted_vars.insert(var_name.clone());
+        }
+    }
+    if let Some(else_stmts) = else_body {
+        let else_vars = extract_toplevel_assigned_symbols(else_stmts);
+        for var_name in &else_vars {
+            if ctx.none_placeholder_vars.contains(var_name) {
+                hoisted_vars.insert(var_name.clone());
+            }
+        }
+    }
+
+    hoisted_vars
+}
+
+fn generate_hoisted_decls(
+    hoisted_vars: &std::collections::HashSet<String>,
+    then_body: &[HirStmt],
+    else_body: &Option<Vec<HirStmt>>,
+    ctx: &mut CodeGenContext,
+) -> Result<Vec<proc_macro2::TokenStream>> {
+    let mut hoisted_decls = Vec::new();
+    for var_name in hoisted_vars {
+        if ctx.is_declared(var_name) {
+            continue;
+        }
+
+        let var_ident = safe_ident(var_name);
+
+        // DEPYLER-0625: Check if variable needs Box<dyn Write>
+        if let Some(else_stmts) = else_body {
+            if needs_boxed_dyn_write(var_name, then_body, else_stmts) {
+                hoisted_decls.push(quote! { let mut #var_ident: Box<dyn std::io::Write>; });
+                ctx.boxed_dyn_write_vars.insert(var_name.clone());
+                ctx.declare_var(var_name);
+                continue;
+            }
+        }
+
+        let var_type = find_variable_type(var_name, then_body).or_else(|| {
+            if let Some(else_stmts) = else_body {
+                find_variable_type(var_name, else_stmts)
+            } else {
+                None
+            }
+        });
+
+        generate_single_hoisted_decl(
+            var_name,
+            &var_ident,
+            var_type,
+            else_body,
+            ctx,
+            &mut hoisted_decls,
+        )?;
+
+        ctx.declare_var(var_name);
+    }
+    Ok(hoisted_decls)
+}
+
+fn generate_single_hoisted_decl(
+    var_name: &str,
+    var_ident: &syn::Ident,
+    var_type: Option<Type>,
+    else_body: &Option<Vec<HirStmt>>,
+    ctx: &mut CodeGenContext,
+    hoisted_decls: &mut Vec<proc_macro2::TokenStream>,
+) -> Result<()> {
+    if let Some(ty) = var_type {
+        let rust_type = ctx.type_mapper.map_type(&ty);
+        let syn_type = rust_type_to_syn(&rust_type)?;
+        if else_body.is_none() {
+            hoisted_decls.push(quote! { let mut #var_ident: #syn_type = Default::default(); });
+        } else {
+            hoisted_decls.push(quote! { let mut #var_ident: #syn_type; });
+        }
+    } else {
+        if else_body.is_none() && ctx.none_placeholder_vars.contains(var_name) {
+            hoisted_decls.push(quote! { let mut #var_ident: String = Default::default(); });
+        } else {
+            hoisted_decls.push(quote! { let mut #var_ident; });
+        }
+        ctx.hoisted_inference_vars.insert(var_name.to_string());
+    }
+    Ok(())
 }
 
 /// DEPYLER-1151: Detect if a condition is a None check on a variable
@@ -5604,222 +5617,210 @@ pub(crate) fn codegen_assign_symbol(
     is_final: bool,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
-    // DEPYLER-0023: Use safe_ident to escape Rust keywords (match, type, impl, etc.)
     let target_ident = safe_ident(symbol);
 
-    // Inside generators, check if variable is a state variable
     if ctx.in_generator && ctx.generator_state_vars.contains(symbol) {
-        // State variable assignment: self.field = value
-        Ok(quote! { self.#target_ident = #value_expr; })
-    } else if is_final {
-        // Final type annotation - generate const instead of let
-        if let Some(type_ann) = type_annotation_tokens {
-            Ok(quote! { const #target_ident #type_ann = #value_expr; })
+        return Ok(quote! { self.#target_ident = #value_expr; });
+    }
+
+    if is_final {
+        return codegen_final_assign(&target_ident, value_expr, type_annotation_tokens);
+    }
+
+    if ctx.is_declared(symbol) {
+        return codegen_reassign_symbol(symbol, &target_ident, value_expr, ctx);
+    }
+
+    codegen_first_declaration(symbol, &target_ident, value_expr, type_annotation_tokens, ctx)
+}
+
+fn codegen_final_assign(
+    target_ident: &syn::Ident,
+    value_expr: syn::Expr,
+    type_annotation_tokens: Option<proc_macro2::TokenStream>,
+) -> Result<proc_macro2::TokenStream> {
+    if let Some(type_ann) = type_annotation_tokens {
+        Ok(quote! { const #target_ident #type_ann = #value_expr; })
+    } else {
+        Ok(quote! { const #target_ident = #value_expr; })
+    }
+}
+
+fn normalize_reassign_value(
+    value_expr: syn::Expr,
+    ctx: &CodeGenContext,
+) -> syn::Expr {
+    let value_str = quote!(#value_expr).to_string();
+    let is_string_literal = value_str.starts_with('"') && value_str.ends_with('"');
+    let is_str_param = ctx.fn_str_params.contains(&value_str);
+    let is_ref_binding = ctx.subcommand_match_fields.contains(&value_str);
+    let is_interned_const = value_str.starts_with("STR_");
+
+    if is_string_literal || is_str_param || is_ref_binding || is_interned_const {
+        parse_quote! { #value_expr.to_string() }
+    } else {
+        value_expr
+    }
+}
+
+fn try_mut_option_assign(
+    symbol: &str,
+    target_ident: &syn::Ident,
+    value_expr: &syn::Expr,
+    ctx: &CodeGenContext,
+) -> Option<proc_macro2::TokenStream> {
+    let is_mut_option = ctx.mut_option_dict_params.contains(symbol)
+        || ctx.mut_option_params.contains(symbol);
+    if !is_mut_option {
+        return None;
+    }
+    let value_str = quote!(#value_expr).to_string();
+    if value_str.starts_with("Some") || value_str == "None" {
+        Some(quote! { *#target_ident = #value_expr; })
+    } else {
+        Some(quote! { *#target_ident = Some(#value_expr); })
+    }
+}
+
+fn wrap_optional_value(
+    symbol: &str,
+    value_expr: syn::Expr,
+    ctx: &CodeGenContext,
+) -> syn::Expr {
+    let inner_type = match ctx.var_types.get(symbol) {
+        Some(Type::Optional(inner)) => inner.clone(),
+        _ => return value_expr,
+    };
+
+    let value_str = quote!(#value_expr).to_string();
+
+    let source_var_is_optional = check_source_is_optional(&value_expr, ctx);
+    let expr_returns_option = check_expr_returns_option(&value_str);
+
+    if source_var_is_optional || expr_returns_option {
+        if source_var_is_optional && !expr_returns_option {
+            parse_quote! { #value_expr.clone() }
         } else {
-            // Final without explicit type annotation - shouldn't happen, but handle gracefully
-            Ok(quote! { const #target_ident = #value_expr; })
+            value_expr
         }
-    } else if ctx.is_declared(symbol) {
-        // Variable already exists, just assign
-        // DEPYLER-0777: Convert string literals to .to_string() when reassigning hoisted variables
-        // Hoisted variables (e.g., loop-escaping vars) are declared with Default::default()
-        // If the first "real" assignment is a string literal like "", the type would be &str
-        // But later assignments with format!() return String → E0308 type mismatch
-        // Solution: Convert string literal reassignments to owned String
-        // DEPYLER-0787: Also handle &str parameter references (not just literals)
-        // When `result = text` where text is &str param, we need `.to_string()` too
-        // DEPYLER-0788: Also handle ref-pattern bindings from match arms (e.g., `ref text`)
-        // When `result = text` where text is from `ref text`, it's &String and needs .to_string()
-        let value_expr = {
-            let value_str = quote!(#value_expr).to_string();
-            // Check if it's a string literal
-            let is_string_literal = value_str.starts_with('"') && value_str.ends_with('"');
-            // Check if it's a &str parameter reference
-            let is_str_param = ctx.fn_str_params.contains(&value_str);
-            // Check if it's a ref-pattern binding from match arm (gives &String)
-            let is_ref_binding = ctx.subcommand_match_fields.contains(&value_str);
-            // DEPYLER-1130: Check if it's an interned string constant (e.g., STR_EMPTY)
-            // These are &'static str constants that need .to_string() when assigned to String variables
-            let is_interned_const = value_str.starts_with("STR_");
+    } else {
+        wrap_in_some(value_expr, &inner_type)
+    }
+}
 
-            if is_string_literal || is_str_param || is_ref_binding || is_interned_const {
-                parse_quote! { #value_expr.to_string() }
-            } else {
-                value_expr
-            }
-        };
-        // DEPYLER-0964: Handle &mut Option<Dict> parameter assignments
-        // When assigning to a parameter that is `&mut Option<HashMap<K, V>>`,
-        // we need to dereference and wrap in Some:
-        // - Python: `memo = {}` → Rust: `*memo = Some(HashMap::new())`
-        // This handles the common memoization pattern: `if memo is None: memo = {}`
-        if ctx.mut_option_dict_params.contains(symbol) {
-            // Check if value is already wrapped in Some or is None
-            let value_str = quote!(#value_expr).to_string();
-            if value_str.starts_with("Some") || value_str == "None" {
-                // Already wrapped, just dereference
-                return Ok(quote! { *#target_ident = #value_expr; });
-            } else {
-                // Wrap in Some and dereference
-                return Ok(quote! { *#target_ident = Some(#value_expr); });
+fn check_source_is_optional(value_expr: &syn::Expr, ctx: &CodeGenContext) -> bool {
+    if let syn::Expr::Path(ref path) = value_expr {
+        if path.path.segments.len() == 1 {
+            let source_var = path.path.segments[0].ident.to_string();
+            return ctx
+                .var_types
+                .get(&source_var)
+                .map(|ty| matches!(ty, Type::Optional(_)))
+                .unwrap_or(false);
+        }
+    }
+    false
+}
+
+fn check_expr_returns_option(value_str: &str) -> bool {
+    value_str.starts_with("Some")
+        || value_str == "None"
+        || value_str.ends_with(".ok()")
+        || value_str.ends_with(". ok ()")
+        || value_str.contains(".get(")
+        || value_str.contains(". get (")
+        || value_str.ends_with(".cloned()")
+        || value_str.ends_with(". cloned ()")
+        || (value_str.contains(".as_ref()") && !value_str.contains(".unwrap()"))
+}
+
+fn wrap_in_some(value_expr: syn::Expr, inner_type: &Type) -> syn::Expr {
+    if matches!(inner_type, Type::String) {
+        let value_str = quote!(#value_expr).to_string();
+        if value_str.starts_with('"') && value_str.ends_with('"') {
+            return parse_quote! { Some(#value_expr.to_string()) };
+        }
+    }
+    parse_quote! { Some(#value_expr) }
+}
+
+fn codegen_reassign_symbol(
+    symbol: &str,
+    target_ident: &syn::Ident,
+    value_expr: syn::Expr,
+    ctx: &CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let value_expr = normalize_reassign_value(value_expr, ctx);
+
+    if let Some(tokens) = try_mut_option_assign(symbol, target_ident, &value_expr, ctx) {
+        return Ok(tokens);
+    }
+
+    let final_value = wrap_optional_value(symbol, value_expr, ctx);
+    Ok(quote! { #target_ident = #final_value; })
+}
+
+fn check_needs_clone(
+    value_expr: &syn::Expr,
+    symbol: &str,
+    ctx: &CodeGenContext,
+) -> bool {
+    if let syn::Expr::Path(ref path) = value_expr {
+        if path.path.segments.len() == 1 {
+            let var_name = path.path.segments[0].ident.to_string();
+            return ctx.subcommand_match_fields.contains(&var_name)
+                || (ctx.is_declared(&var_name) && var_name != symbol);
+        }
+    } else if let syn::Expr::Field(ref field) = value_expr {
+        if let syn::Expr::Path(ref base_path) = *field.base {
+            if base_path.path.segments.len() == 1 {
+                let base_name = base_path.path.segments[0].ident.to_string();
+                return ctx.is_declared(&base_name);
             }
         }
+    }
+    false
+}
 
-        // DEPYLER-1126: Handle &mut Option<T> parameter assignments (any T, not just Dict)
-        // When assigning to a parameter that is `&mut Option<T>`,
-        // we need to dereference and wrap in Some:
-        // - Python: `as_of = date.today()` → Rust: `*as_of = Some(DepylerDate::today())`
-        // This handles the common "optional with default None" pattern
-        if ctx.mut_option_params.contains(symbol) {
-            let value_str = quote!(#value_expr).to_string();
-            if value_str.starts_with("Some") || value_str == "None" {
-                // Already wrapped, just dereference
-                return Ok(quote! { *#target_ident = #value_expr; });
-            } else {
-                // Wrap in Some and dereference
-                return Ok(quote! { *#target_ident = Some(#value_expr); });
-            }
+fn check_is_str_param(value_expr: &syn::Expr, ctx: &CodeGenContext) -> bool {
+    if let syn::Expr::Path(ref path) = value_expr {
+        if path.path.segments.len() == 1 {
+            let var_name = path.path.segments[0].ident.to_string();
+            return ctx.fn_str_params.contains(&var_name);
         }
+    }
+    false
+}
 
-        // DEPYLER-0604: Check if variable has Optional type and wrap value in Some()
-        let final_value = if let Some(Type::Optional(inner_type)) = ctx.var_types.get(symbol) {
-            // Check if the value is already wrapped in Some or is None
-            // DEPYLER-1093: Also check for expressions that already return Option<T>
-            let value_str = quote!(#value_expr).to_string();
+fn codegen_first_declaration(
+    symbol: &str,
+    target_ident: &syn::Ident,
+    value_expr: syn::Expr,
+    type_annotation_tokens: Option<proc_macro2::TokenStream>,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    ctx.declare_var(symbol);
+    if ctx.mutable_vars.contains(symbol) {
+        let is_str_param = check_is_str_param(&value_expr, ctx);
+        let needs_clone = check_needs_clone(&value_expr, symbol, ctx);
 
-            // DEPYLER-1093: Check if source variable is also Optional type
-            // When assigning from Option<T> variable to Option<T> target, don't wrap
-            // Extract variable name from simple path expression (e.g., "default" from syn::Expr)
-            let source_var_is_optional = if let syn::Expr::Path(ref path) = value_expr {
-                if path.path.segments.len() == 1 {
-                    let source_var = path.path.segments[0].ident.to_string();
-                    ctx.var_types
-                        .get(&source_var)
-                        .map(|ty| matches!(ty, Type::Optional(_)))
-                        .unwrap_or(false)
-                } else {
-                    false
-                }
-            } else {
-                false
-            };
-
-            // Expression patterns that already return Option<T>
-            let expr_returns_option = value_str.starts_with("Some")
-                || value_str == "None"
-                // .ok() converts Result<T, E> to Option<T>
-                || value_str.ends_with(".ok()")
-                || value_str.ends_with(". ok ()")
-                // .get(...) on HashMap/Vec returns Option
-                || value_str.contains(".get(")
-                || value_str.contains(". get (")
-                // .cloned() preserves Option
-                || value_str.ends_with(".cloned()")
-                || value_str.ends_with(". cloned ()")
-                // .as_ref() on Option preserves Option
-                || (value_str.contains(".as_ref()") && !value_str.contains(".unwrap()"));
-
-            if source_var_is_optional || expr_returns_option {
-                // DEPYLER-1093: If source is &Option<T> variable, need .clone() for owned Option<T>
-                // But if it's an expression like .ok() or .get(), it returns owned Option
-                if source_var_is_optional && !expr_returns_option {
-                    parse_quote! { #value_expr.clone() }
-                } else {
-                    value_expr
-                }
-            } else {
-                // Wrap non-Optional value in Some()
-                // DEPYLER-0604: Handle string conversion for Optional<String>
-                if matches!(inner_type.as_ref(), Type::String) {
-                    // Check if it's a string literal that needs .to_string()
-                    let value_str = quote!(#value_expr).to_string();
-                    if value_str.starts_with('"') && value_str.ends_with('"') {
-                        parse_quote! { Some(#value_expr.to_string()) }
-                    } else {
-                        parse_quote! { Some(#value_expr) }
-                    }
-                } else {
-                    parse_quote! { Some(#value_expr) }
-                }
-            }
+        let init_expr = if is_str_param {
+            parse_quote! { #value_expr.to_string() }
+        } else if needs_clone {
+            parse_quote! { #value_expr.clone() }
         } else {
             value_expr
         };
-        Ok(quote! { #target_ident = #final_value; })
-    } else {
-        // First declaration - check if variable needs mut
-        ctx.declare_var(symbol);
-        if ctx.mutable_vars.contains(symbol) {
-            // DEPYLER-0464: When initializing from a borrowed dict/json parameter
-            // that will be reassigned with .cloned() later, clone it to create an owned value
-            // Pattern: `let mut value = config` where config is a parameter
-            // DEPYLER-0644: Also handle field access like `args.text` from ref pattern matching
-            // DEPYLER-0665: Also handle ref-pattern bindings from match arms (e.g., `ref text`)
-            let needs_clone = if let syn::Expr::Path(ref path) = value_expr {
-                // Check if this is a simple path (single identifier)
-                if path.path.segments.len() == 1 {
-                    let ident = &path.path.segments[0].ident;
-                    let var_name = ident.to_string();
-                    // Check if:
-                    // 1. Source is a ref-pattern binding from match arm (subcommand_match_fields)
-                    // 2. OR source is already declared and different from target
-                    // This handles `let mut result = text` where `text` is from `ref text`
-                    ctx.subcommand_match_fields.contains(&var_name)
-                        || (ctx.is_declared(&var_name) && var_name != symbol)
-                } else {
-                    false
-                }
-            } else if let syn::Expr::Field(ref field) = value_expr {
-                // Handle field access like `args.text` from ref pattern matching
-                // These are typically &String that need to be cloned for ownership
-                if let syn::Expr::Path(ref base_path) = *field.base {
-                    if base_path.path.segments.len() == 1 {
-                        let base_name = base_path.path.segments[0].ident.to_string();
-                        // If the base (e.g., `args`) is declared, the field is borrowed
-                        ctx.is_declared(&base_name)
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            } else {
-                false
-            };
 
-            // DEPYLER-0704: When initializing mutable var from &str param, use .to_string()
-            // instead of .clone() because &str.clone() returns &str, not String.
-            // This prevents type mismatch when the var is later assigned a String.
-            let is_str_param = if let syn::Expr::Path(ref path) = value_expr {
-                if path.path.segments.len() == 1 {
-                    let var_name = path.path.segments[0].ident.to_string();
-                    ctx.fn_str_params.contains(&var_name)
-                } else {
-                    false
-                }
-            } else {
-                false
-            };
-
-            let init_expr = if is_str_param {
-                // Convert &str to owned String for mutable vars
-                parse_quote! { #value_expr.to_string() }
-            } else if needs_clone {
-                parse_quote! { #value_expr.clone() }
-            } else {
-                value_expr
-            };
-
-            if let Some(type_ann) = type_annotation_tokens {
-                Ok(quote! { let mut #target_ident #type_ann = #init_expr; })
-            } else {
-                Ok(quote! { let mut #target_ident = #init_expr; })
-            }
-        } else if let Some(type_ann) = type_annotation_tokens {
-            Ok(quote! { let #target_ident #type_ann = #value_expr; })
+        if let Some(type_ann) = type_annotation_tokens {
+            Ok(quote! { let mut #target_ident #type_ann = #init_expr; })
         } else {
-            Ok(quote! { let #target_ident = #value_expr; })
+            Ok(quote! { let mut #target_ident = #init_expr; })
         }
+    } else if let Some(type_ann) = type_annotation_tokens {
+        Ok(quote! { let #target_ident #type_ann = #value_expr; })
+    } else {
+        Ok(quote! { let #target_ident = #value_expr; })
     }
 }
 
@@ -6423,334 +6424,342 @@ pub(crate) fn codegen_assign_tuple(
         .collect();
 
     // DEPYLER-1064: Handle native tuples of DepylerValue elements (e.g., Tuple[Any, Any, Any])
-    // These become (DepylerValue, DepylerValue, DepylerValue) in Rust, use positional access .0, .1, .2
     if is_native_depyler_tuple(value, ctx) {
         if let Some(ref symbols) = all_symbols {
-            // Generate: let _tuple_tmp = <value_expr>;
-            //          let var0 = _tuple_tmp.0<extraction>;
-            //          let var1 = _tuple_tmp.1<extraction>;
-            let temp_var = syn::Ident::new("_tuple_tmp", proc_macro2::Span::call_site());
-
-            // Pre-collect type info and mutability before mutable borrows
-            let target_info: Vec<_> = symbols
-                .iter()
-                .map(|s| {
-                    let target_type = ctx.var_types.get(*s).cloned();
-                    let is_mutable = ctx.mutable_vars.contains(*s);
-                    (*s, target_type, is_mutable)
-                })
-                .collect();
-
-            // Declare all variables and register types for DepylerValue unpacking
-            for (s, target_type, _) in &target_info {
-                if !ctx.is_declared(s) {
-                    ctx.declare_var(s);
-                }
-                // DEPYLER-1064: Register unpacked variables with Unknown type if no annotation
-                // This ensures string method calls can detect DepylerValue variables later
-                if target_type.is_none() {
-                    ctx.var_types.insert(s.to_string(), Type::Unknown);
-                }
-            }
-
-            let assignments: Vec<proc_macro2::TokenStream> = target_info
-                .iter()
-                .enumerate()
-                .map(|(idx, (s, target_type, is_mutable))| {
-                    let ident = safe_ident(s);
-                    let index = syn::Index::from(idx);
-
-                    let mut_token = if *is_mutable {
-                        quote! { mut }
-                    } else {
-                        quote! {}
-                    };
-
-                    // Generate extraction with type coercion if target type is known
-                    // Use positional access (.0, .1, .2) for native tuples
-                    match target_type {
-                        Some(Type::Int) => {
-                            quote! { let #mut_token #ident: i32 = #temp_var.#index.to_i64() as i32; }
-                        }
-                        Some(Type::Float) => {
-                            quote! { let #mut_token #ident: f64 = #temp_var.#index.to_f64(); }
-                        }
-                        Some(Type::String) => {
-                            quote! { let #mut_token #ident: String = #temp_var.#index.to_string(); }
-                        }
-                        Some(Type::Bool) => {
-                            quote! { let #mut_token #ident: bool = #temp_var.#index.to_bool(); }
-                        }
-                        _ => {
-                            // No known type, keep as DepylerValue
-                            quote! { let #mut_token #ident = #temp_var.#index.clone(); }
-                        }
-                    }
-                })
-                .collect();
-
-            return Ok(quote! {
-                let #temp_var = #value_expr;
-                #(#assignments)*
-            });
+            return codegen_native_depyler_tuple_unpack(symbols, value_expr, ctx);
         }
     }
 
     // DEPYLER-1064: Check if value produces DepylerValue (e.g., from dict access)
-    // If so, inject get_tuple_elem() calls with type coercion for each target
     if expr_produces_depyler_value(value, ctx) {
         if let Some(ref symbols) = all_symbols {
-            // Generate: let _tuple_tmp = <value_expr>;
-            //          let var0 = _tuple_tmp.get_tuple_elem(0)<extraction>;
-            //          let var1 = _tuple_tmp.get_tuple_elem(1)<extraction>;
-            let temp_var = syn::Ident::new("_tuple_tmp", proc_macro2::Span::call_site());
-            let num_targets = symbols.len();
-
-            // Pre-collect type info and mutability before mutable borrows
-            let target_info: Vec<_> = symbols
-                .iter()
-                .map(|s| {
-                    let target_type = ctx.var_types.get(*s).cloned();
-                    let is_mutable = ctx.mutable_vars.contains(*s);
-                    (*s, target_type, is_mutable)
-                })
-                .collect();
-
-            // Declare all variables
-            for s in symbols.iter() {
-                if !ctx.is_declared(s) {
-                    ctx.declare_var(s);
-                }
-            }
-
-            let assignments: Vec<proc_macro2::TokenStream> = target_info
-                .iter()
-                .enumerate()
-                .map(|(idx, (s, target_type, is_mutable))| {
-                    let ident = safe_ident(s);
-                    let idx_lit = syn::LitInt::new(&idx.to_string(), proc_macro2::Span::call_site());
-
-                    let mut_token = if *is_mutable {
-                        quote! { mut }
-                    } else {
-                        quote! {}
-                    };
-
-                    // Generate extraction with type coercion if target type is known
-                    match target_type {
-                        Some(Type::Int) => {
-                            quote! { let #mut_token #ident: i32 = #temp_var.get_tuple_elem(#idx_lit).to_i64() as i32; }
-                        }
-                        Some(Type::Float) => {
-                            quote! { let #mut_token #ident: f64 = #temp_var.get_tuple_elem(#idx_lit).to_f64(); }
-                        }
-                        Some(Type::String) => {
-                            quote! { let #mut_token #ident: String = #temp_var.get_tuple_elem(#idx_lit).to_string(); }
-                        }
-                        Some(Type::Bool) => {
-                            quote! { let #mut_token #ident: bool = #temp_var.get_tuple_elem(#idx_lit).to_bool(); }
-                        }
-                        _ => {
-                            // No known type, keep as DepylerValue
-                            quote! { let #mut_token #ident = #temp_var.get_tuple_elem(#idx_lit); }
-                        }
-                    }
-                })
-                .collect();
-
-            // Add validation for tuple length at runtime
-            let num_lit =
-                syn::LitInt::new(&num_targets.to_string(), proc_macro2::Span::call_site());
-
-            return Ok(quote! {
-                let #temp_var = #value_expr;
-                // Validate tuple has expected number of elements
-                let _ = #temp_var.extract_tuple(#num_lit);
-                #(#assignments)*
-            });
+            return codegen_depyler_value_tuple_unpack(symbols, value_expr, ctx);
         }
     }
 
     match all_symbols {
-        Some(symbols) => {
-            // DEPYLER-0494 FIX: Check if we're in a generator with state variables
-            // Pattern: (a, b) = (0, 1) where a, b are generator state variables
-            // Must generate: let _temp = (0, 1); self.a = _temp.0; self.b = _tuple.1;
-            let generator_state_vars: Vec<_> = if ctx.in_generator {
-                symbols
-                    .iter()
-                    .filter(|s| ctx.generator_state_vars.contains(&s.to_string()))
-                    .collect()
-            } else {
-                vec![]
-            };
+        Some(symbols) => codegen_assign_tuple_symbols(symbols, value_expr, ctx),
+        None => codegen_assign_tuple_indices(targets, value_expr, ctx),
+    }
+}
 
-            if !generator_state_vars.is_empty() {
-                // At least one variable is a generator state variable
-                // Destructure into temporary, then assign each field
-                let temp_var = syn::Ident::new("_tuple_temp", proc_macro2::Span::call_site());
-                let assignments: Vec<_> = symbols
-                    .iter()
-                    .enumerate()
-                    .map(|(idx, s)| {
-                        let ident = safe_ident(s);
-                        let index = syn::Index::from(idx);
+fn codegen_native_depyler_tuple_unpack(
+    symbols: &[&str],
+    value_expr: syn::Expr,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let temp_var = syn::Ident::new("_tuple_tmp", proc_macro2::Span::call_site());
 
-                        if ctx.generator_state_vars.contains(&s.to_string()) {
-                            // State variable: self.field = temp.N;
-                            quote! { self.#ident = #temp_var.#index; }
-                        } else {
-                            // Local variable: ident = temp.N; (if already declared)
-                            // or: let ident = temp.N; (if first declaration)
-                            if ctx.is_declared(s) {
-                                quote! { #ident = #temp_var.#index; }
-                            } else {
-                                ctx.declare_var(s);
-                                let mut_token = if ctx.mutable_vars.contains(*s) {
-                                    quote! { mut }
-                                } else {
-                                    quote! {}
-                                };
-                                quote! { let #mut_token #ident = #temp_var.#index; }
-                            }
-                        }
-                    })
-                    .collect();
+    let target_info: Vec<_> = symbols
+        .iter()
+        .map(|s| {
+            let target_type = ctx.var_types.get(*s).cloned();
+            let is_mutable = ctx.mutable_vars.contains(*s);
+            (*s, target_type, is_mutable)
+        })
+        .collect();
 
-                Ok(quote! {
-                    let #temp_var = #value_expr;
-                    #(#assignments)*
-                })
-            } else {
-                // No generator state variables - original logic
-                let all_declared = symbols.iter().all(|s| ctx.is_declared(s));
-
-                // DEPYLER-0671: Check if value_expr is a Vec from split/collect
-                // Can't destructure Vec directly - need iterator-based unpacking
-                let value_str = quote! { #value_expr }.to_string();
-                let is_vec_from_split = value_str.contains("collect ::<Vec")
-                    || value_str.contains("collect::< Vec")
-                    || value_str.contains(".collect ()")
-                    || (value_str.contains("splitn") && value_str.contains("collect"));
-
-                if is_vec_from_split {
-                    // DEPYLER-0671: Vec from split() can't be destructured directly
-                    // Strategy: Store in temp Vec, then index into it
-                    // From: let (a, b) = s.split(...).collect::<Vec<_>>()
-                    // To: let _parts = s.split(...).collect::<Vec<_>>();
-                    //     let a = _parts.get(0).cloned().unwrap_or_default();
-                    //     let b = _parts.get(1).cloned().unwrap_or_default();
-                    let parts_name =
-                        syn::Ident::new("_split_parts", proc_macro2::Span::call_site());
-
-                    let assignments: Vec<_> = symbols
-                        .iter()
-                        .enumerate()
-                        .map(|(idx, s)| {
-                            let ident = safe_ident(s);
-                            ctx.declare_var(s);
-                            let mut_token = if ctx.mutable_vars.contains(*s) {
-                                quote! { mut }
-                            } else {
-                                quote! {}
-                            };
-                            let idx_lit = syn::Index::from(idx);
-                            quote! { let #mut_token #ident = #parts_name.get(#idx_lit).cloned().unwrap_or_default(); }
-                        })
-                        .collect();
-
-                    Ok(quote! {
-                        let #parts_name = #value_expr;
-                        #(#assignments)*
-                    })
-                } else if all_declared {
-                    // All variables exist, do reassignment
-                    let idents: Vec<_> = symbols
-                        .iter()
-                        .map(|s| safe_ident(s)) // DEPYLER-0023
-                        .collect();
-                    Ok(quote! { (#(#idents),*) = #value_expr; })
-                } else {
-                    // First declaration - mark each variable individually
-                    symbols.iter().for_each(|s| ctx.declare_var(s));
-                    let idents_with_mut: Vec<_> = symbols
-                        .iter()
-                        .map(|s| {
-                            let ident = safe_ident(s); // DEPYLER-0023
-                            if ctx.mutable_vars.contains(*s) {
-                                quote! { mut #ident }
-                            } else {
-                                quote! { #ident }
-                            }
-                        })
-                        .collect();
-                    Ok(quote! { let (#(#idents_with_mut),*) = #value_expr; })
-                }
-            }
+    for (s, target_type, _) in &target_info {
+        if !ctx.is_declared(s) {
+            ctx.declare_var(s);
         }
-        None => {
-            // GH-109: Handle tuple unpacking with Index targets
-            // Pattern: list[i], list[j] = list[j], list[i] (swap)
-            // Strategy: Store RHS in temp tuple, then assign each element
+        if target_type.is_none() {
+            ctx.var_types.insert(s.to_string(), Type::Unknown);
+        }
+    }
 
-            // Check if all targets are Index expressions (subscripts)
-            let all_indices: Option<Vec<_>> = targets
-                .iter()
-                .map(|t| match t {
-                    AssignTarget::Index { base, index } => Some((base, index)),
-                    _ => None,
-                })
-                .collect();
+    let assignments: Vec<proc_macro2::TokenStream> = target_info
+        .iter()
+        .enumerate()
+        .map(|(idx, (s, target_type, is_mutable))| {
+            let ident = safe_ident(s);
+            let index = syn::Index::from(idx);
+            let mut_token = mut_token_for(*is_mutable);
+            emit_positional_coercion(&temp_var, &ident, &index, &mut_token, target_type)
+        })
+        .collect();
 
-            if let Some(indices) = all_indices {
-                // All targets are subscripts - generate temp-based assignment
-                let temp_var = syn::Ident::new("_swap_temp", proc_macro2::Span::call_site());
+    Ok(quote! {
+        let #temp_var = #value_expr;
+        #(#assignments)*
+    })
+}
 
-                // Generate assignments for each target from temp tuple
-                let mut assignments = Vec::new();
-                for (idx, (base, index)) in indices.iter().enumerate() {
-                    let base_expr = base.to_rust_expr(ctx)?;
-                    let index_expr = index.to_rust_expr(ctx)?;
-                    let tuple_idx = syn::Index::from(idx);
+fn codegen_depyler_value_tuple_unpack(
+    symbols: &[&str],
+    value_expr: syn::Expr,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let temp_var = syn::Ident::new("_tuple_tmp", proc_macro2::Span::call_site());
+    let num_targets = symbols.len();
 
-                    // DEPYLER-1171: Check if index is numeric TYPE, not just literal
-                    // Python: arr[i], arr[j] = arr[j], arr[i] where i, j are int variables
-                    // Must use vec[i] = x, NOT vec.insert(i, x)
-                    let is_numeric_index = match index.as_ref() {
-                        HirExpr::Literal(Literal::Int(_)) => true,
-                        HirExpr::Var(name) => {
-                            // Check if variable has Int type
-                            ctx.var_types
-                                .get(name)
-                                .map(|ty| matches!(ty, Type::Int))
-                                .unwrap_or(false)
-                        }
-                        // Binary ops on ints are still ints (e.g., i + 1)
-                        HirExpr::Binary { .. } => true, // Assume arithmetic for now
-                        _ => false,
-                    };
+    let target_info: Vec<_> = symbols
+        .iter()
+        .map(|s| {
+            let target_type = ctx.var_types.get(*s).cloned();
+            let is_mutable = ctx.mutable_vars.contains(*s);
+            (*s, target_type, is_mutable)
+        })
+        .collect();
 
-                    if is_numeric_index {
-                        // Vec assignment: base[index as usize] = temp.N
-                        assignments.push(quote! {
-                            #base_expr[(#index_expr) as usize] = #temp_var.#tuple_idx;
-                        });
-                    } else {
-                        // HashMap assignment: base.insert(key, temp.N)
-                        assignments.push(quote! {
-                            #base_expr.insert(#index_expr, #temp_var.#tuple_idx);
-                        });
-                    }
+    for s in symbols.iter() {
+        if !ctx.is_declared(s) {
+            ctx.declare_var(s);
+        }
+    }
+
+    let assignments: Vec<proc_macro2::TokenStream> = target_info
+        .iter()
+        .enumerate()
+        .map(|(idx, (s, target_type, is_mutable))| {
+            let ident = safe_ident(s);
+            let idx_lit = syn::LitInt::new(&idx.to_string(), proc_macro2::Span::call_site());
+            let mut_token = mut_token_for(*is_mutable);
+            emit_get_tuple_elem_coercion(&temp_var, &ident, &idx_lit, &mut_token, target_type)
+        })
+        .collect();
+
+    let num_lit =
+        syn::LitInt::new(&num_targets.to_string(), proc_macro2::Span::call_site());
+
+    Ok(quote! {
+        let #temp_var = #value_expr;
+        // Validate tuple has expected number of elements
+        let _ = #temp_var.extract_tuple(#num_lit);
+        #(#assignments)*
+    })
+}
+
+fn mut_token_for(is_mutable: bool) -> proc_macro2::TokenStream {
+    if is_mutable {
+        quote! { mut }
+    } else {
+        quote! {}
+    }
+}
+
+fn emit_positional_coercion(
+    temp_var: &syn::Ident,
+    ident: &syn::Ident,
+    index: &syn::Index,
+    mut_token: &proc_macro2::TokenStream,
+    target_type: &Option<Type>,
+) -> proc_macro2::TokenStream {
+    match target_type {
+        Some(Type::Int) => {
+            quote! { let #mut_token #ident: i32 = #temp_var.#index.to_i64() as i32; }
+        }
+        Some(Type::Float) => {
+            quote! { let #mut_token #ident: f64 = #temp_var.#index.to_f64(); }
+        }
+        Some(Type::String) => {
+            quote! { let #mut_token #ident: String = #temp_var.#index.to_string(); }
+        }
+        Some(Type::Bool) => {
+            quote! { let #mut_token #ident: bool = #temp_var.#index.to_bool(); }
+        }
+        _ => {
+            quote! { let #mut_token #ident = #temp_var.#index.clone(); }
+        }
+    }
+}
+
+fn emit_get_tuple_elem_coercion(
+    temp_var: &syn::Ident,
+    ident: &syn::Ident,
+    idx_lit: &syn::LitInt,
+    mut_token: &proc_macro2::TokenStream,
+    target_type: &Option<Type>,
+) -> proc_macro2::TokenStream {
+    match target_type {
+        Some(Type::Int) => {
+            quote! { let #mut_token #ident: i32 = #temp_var.get_tuple_elem(#idx_lit).to_i64() as i32; }
+        }
+        Some(Type::Float) => {
+            quote! { let #mut_token #ident: f64 = #temp_var.get_tuple_elem(#idx_lit).to_f64(); }
+        }
+        Some(Type::String) => {
+            quote! { let #mut_token #ident: String = #temp_var.get_tuple_elem(#idx_lit).to_string(); }
+        }
+        Some(Type::Bool) => {
+            quote! { let #mut_token #ident: bool = #temp_var.get_tuple_elem(#idx_lit).to_bool(); }
+        }
+        _ => {
+            quote! { let #mut_token #ident = #temp_var.get_tuple_elem(#idx_lit); }
+        }
+    }
+}
+
+fn codegen_assign_tuple_symbols(
+    symbols: Vec<&str>,
+    value_expr: syn::Expr,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0494 FIX: Check if we're in a generator with state variables
+    let generator_state_vars: Vec<_> = if ctx.in_generator {
+        symbols
+            .iter()
+            .filter(|s| ctx.generator_state_vars.contains(&s.to_string()))
+            .collect()
+    } else {
+        vec![]
+    };
+
+    if !generator_state_vars.is_empty() {
+        return codegen_generator_tuple_assign(&symbols, value_expr, ctx);
+    }
+
+    // No generator state variables - original logic
+    let all_declared = symbols.iter().all(|s| ctx.is_declared(s));
+
+    // DEPYLER-0671: Check if value_expr is a Vec from split/collect
+    let value_str = quote! { #value_expr }.to_string();
+    let is_vec_from_split = value_str.contains("collect ::<Vec")
+        || value_str.contains("collect::< Vec")
+        || value_str.contains(".collect ()")
+        || (value_str.contains("splitn") && value_str.contains("collect"));
+
+    if is_vec_from_split {
+        return codegen_vec_split_unpack(&symbols, value_expr, ctx);
+    }
+
+    if all_declared {
+        let idents: Vec<_> = symbols
+            .iter()
+            .map(|s| safe_ident(s)) // DEPYLER-0023
+            .collect();
+        Ok(quote! { (#(#idents),*) = #value_expr; })
+    } else {
+        symbols.iter().for_each(|s| ctx.declare_var(s));
+        let idents_with_mut: Vec<_> = symbols
+            .iter()
+            .map(|s| {
+                let ident = safe_ident(s); // DEPYLER-0023
+                if ctx.mutable_vars.contains(*s) {
+                    quote! { mut #ident }
+                } else {
+                    quote! { #ident }
                 }
+            })
+            .collect();
+        Ok(quote! { let (#(#idents_with_mut),*) = #value_expr; })
+    }
+}
 
-                return Ok(quote! {
-                    let #temp_var = #value_expr;
-                    #(#assignments)*
+fn codegen_generator_tuple_assign(
+    symbols: &[&str],
+    value_expr: syn::Expr,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let temp_var = syn::Ident::new("_tuple_temp", proc_macro2::Span::call_site());
+    let assignments: Vec<_> = symbols
+        .iter()
+        .enumerate()
+        .map(|(idx, s)| {
+            let ident = safe_ident(s);
+            let index = syn::Index::from(idx);
+
+            if ctx.generator_state_vars.contains(&s.to_string()) {
+                quote! { self.#ident = #temp_var.#index; }
+            } else if ctx.is_declared(s) {
+                quote! { #ident = #temp_var.#index; }
+            } else {
+                ctx.declare_var(s);
+                let mut_token = mut_token_for(ctx.mutable_vars.contains(*s));
+                quote! { let #mut_token #ident = #temp_var.#index; }
+            }
+        })
+        .collect();
+
+    Ok(quote! {
+        let #temp_var = #value_expr;
+        #(#assignments)*
+    })
+}
+
+fn codegen_vec_split_unpack(
+    symbols: &[&str],
+    value_expr: syn::Expr,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let parts_name =
+        syn::Ident::new("_split_parts", proc_macro2::Span::call_site());
+
+    let assignments: Vec<_> = symbols
+        .iter()
+        .enumerate()
+        .map(|(idx, s)| {
+            let ident = safe_ident(s);
+            ctx.declare_var(s);
+            let mut_token = mut_token_for(ctx.mutable_vars.contains(*s));
+            let idx_lit = syn::Index::from(idx);
+            quote! { let #mut_token #ident = #parts_name.get(#idx_lit).cloned().unwrap_or_default(); }
+        })
+        .collect();
+
+    Ok(quote! {
+        let #parts_name = #value_expr;
+        #(#assignments)*
+    })
+}
+
+fn codegen_assign_tuple_indices(
+    targets: &[AssignTarget],
+    value_expr: syn::Expr,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    // GH-109: Handle tuple unpacking with Index targets
+    // Pattern: list[i], list[j] = list[j], list[i] (swap)
+    let all_indices: Option<Vec<_>> = targets
+        .iter()
+        .map(|t| match t {
+            AssignTarget::Index { base, index } => Some((base, index)),
+            _ => None,
+        })
+        .collect();
+
+    if let Some(indices) = all_indices {
+        let temp_var = syn::Ident::new("_swap_temp", proc_macro2::Span::call_site());
+
+        let mut assignments = Vec::new();
+        for (idx, (base, index)) in indices.iter().enumerate() {
+            let base_expr = base.to_rust_expr(ctx)?;
+            let index_expr = index.to_rust_expr(ctx)?;
+            let tuple_idx = syn::Index::from(idx);
+
+            let is_numeric_index = is_numeric_index_expr(index, ctx);
+
+            if is_numeric_index {
+                assignments.push(quote! {
+                    #base_expr[(#index_expr) as usize] = #temp_var.#tuple_idx;
+                });
+            } else {
+                assignments.push(quote! {
+                    #base_expr.insert(#index_expr, #temp_var.#tuple_idx);
                 });
             }
-
-            bail!("Complex tuple unpacking not yet supported")
         }
+
+        return Ok(quote! {
+            let #temp_var = #value_expr;
+            #(#assignments)*
+        });
+    }
+
+    bail!("Complex tuple unpacking not yet supported")
+}
+
+fn is_numeric_index_expr(index: &HirExpr, ctx: &CodeGenContext) -> bool {
+    match index {
+        HirExpr::Literal(Literal::Int(_)) => true,
+        HirExpr::Var(name) => {
+            ctx.var_types
+                .get(name)
+                .map(|ty| matches!(ty, Type::Int))
+                .unwrap_or(false)
+        }
+        HirExpr::Binary { .. } => true,
+        _ => false,
     }
 }
 

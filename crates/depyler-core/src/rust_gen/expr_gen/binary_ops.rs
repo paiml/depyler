@@ -1406,246 +1406,318 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         left_expr: syn::Expr,
         right_expr: syn::Expr,
     ) -> Result<syn::Expr> {
-        // DEPYLER-0380 #3: Handle `var in os.environ` / `var not in os.environ`
+        if let Some(result) = self.try_os_environ_containment(negate, right, &left_expr) {
+            return result;
+        }
+
+        if let Some(result) =
+            self.try_mut_option_dict_containment(negate, left, right, &left_expr, &right_expr)
+        {
+            return result;
+        }
+
+        if self.is_dict_expr(right) {
+            let needs_borrow = self.left_needs_borrow(left);
+            return Self::emit_get_check(negate, needs_borrow, &left_expr, &right_expr);
+        }
+
+        let is_string = self.is_string_type(right);
+        let is_set = self.is_set_expr(right) || self.is_set_var(right);
+        let is_list = self.is_list_expr(right);
+        let is_tuple = matches!(right, HirExpr::Tuple(_));
+        let needs_borrow = self.left_needs_borrow(left);
+
+        if is_tuple {
+            if let Some(result) =
+                self.try_tuple_containment(negate, needs_borrow, &left_expr, &right_expr)
+            {
+                return result;
+            }
+        }
+
+        if is_string || is_set || is_list {
+            return self.convert_collection_containment(
+                negate,
+                needs_borrow,
+                is_string,
+                is_set,
+                is_list,
+                left,
+                right,
+                &left_expr,
+                &right_expr,
+            );
+        }
+
+        self.convert_fallback_containment(negate, needs_borrow, left, right, &left_expr, &right_expr)
+    }
+
+    fn try_os_environ_containment(
+        &self,
+        negate: bool,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+    ) -> Option<Result<syn::Expr>> {
         if let HirExpr::Attribute { value, attr } = right {
             if let HirExpr::Var(module_name) = &**value {
                 if module_name == "os" && attr == "environ" {
-                    // os.environ maps to std::env::var().is_ok()
                     return if negate {
-                        Ok(parse_quote! { !std::env::var(#left_expr).is_ok() })
+                        Some(Ok(parse_quote! { !std::env::var(#left_expr).is_ok() }))
                     } else {
-                        Ok(parse_quote! { std::env::var(#left_expr).is_ok() })
+                        Some(Ok(parse_quote! { std::env::var(#left_expr).is_ok() }))
                     };
                 }
             }
         }
+        None
+    }
 
-        // DEPYLER-0964: Handle containment check on &mut Option<HashMap<K, V>> parameters
-        // When checking `key in memo` where memo is a mut_option_dict_param,
-        // we need to unwrap the Option first: memo.as_ref().unwrap().get(&key).is_some()
+    fn try_mut_option_dict_containment(
+        &self,
+        negate: bool,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Option<Result<syn::Expr>> {
         if let HirExpr::Var(var_name) = right {
             if self.ctx.mut_option_dict_params.contains(var_name) {
-                let needs_borrow = match left {
-                    HirExpr::Var(var_name) => !self.is_borrowed_str_param(var_name),
-                    HirExpr::Literal(Literal::String(_)) => false,
-                    _ => true,
-                };
-                if negate {
-                    if needs_borrow {
-                        return Ok(
-                            parse_quote! { #right_expr.as_ref().expect("value is None").get(&#left_expr).is_none() },
-                        );
-                    } else {
-                        return Ok(
-                            parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_none() },
-                        );
-                    }
-                } else if needs_borrow {
-                    return Ok(
-                        parse_quote! { #right_expr.as_ref().expect("value is None").get(&#left_expr).is_some() },
-                    );
-                } else {
-                    return Ok(
-                        parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_some() },
-                    );
-                }
+                let needs_borrow = self.left_needs_borrow(left);
+                return Some(Self::emit_option_get_check(
+                    negate,
+                    needs_borrow,
+                    left_expr,
+                    right_expr,
+                ));
             }
         }
+        None
+    }
 
-        // DEPYLER-0960: Check dict FIRST before string (overlapping names like "data", "result")
-        // Dict check must come before string check because some names are ambiguous
-        // Use .get().is_some() instead of .contains_key() for compatibility with both
-        // HashMap and serde_json::Value types
-        if self.is_dict_expr(right) {
-            // DEPYLER-0559: Check if left side needs borrowing
-            let needs_borrow = match left {
-                HirExpr::Var(var_name) => !self.is_borrowed_str_param(var_name),
-                HirExpr::Literal(Literal::String(_)) => false,
-                _ => true,
-            };
-            // Dict/HashMap uses .get(&key).is_some() for compatibility
-            if negate {
-                if needs_borrow {
-                    return Ok(parse_quote! { #right_expr.get(&#left_expr).is_none() });
-                } else {
-                    return Ok(parse_quote! { #right_expr.get(#left_expr).is_none() });
-                }
-            } else if needs_borrow {
-                return Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() });
-            } else {
-                return Ok(parse_quote! { #right_expr.get(#left_expr).is_some() });
-            }
-        }
-
-        // DEPYLER-0321: Type-aware container detection
-        let is_string = self.is_string_type(right);
-        let is_set = self.is_set_expr(right) || self.is_set_var(right);
-        let is_list = self.is_list_expr(right);
-        // DEPYLER-0618: Detect tuple expressions for containment check
-        let is_tuple = matches!(right, HirExpr::Tuple(_));
-
-        // DEPYLER-0559: Check if left side is already a borrowed &str
-        // &str params and string literals don't need additional borrowing
-        let needs_borrow = match left {
+    fn left_needs_borrow(&self, left: &HirExpr) -> bool {
+        match left {
             HirExpr::Var(var_name) => !self.is_borrowed_str_param(var_name),
-            HirExpr::Literal(Literal::String(_)) => false, // String literals are &str, no borrow needed
-            _ => true, // Other expressions typically need borrowing
+            HirExpr::Literal(Literal::String(_)) => false,
+            _ => true,
+        }
+    }
+
+    fn emit_option_get_check(
+        negate: bool,
+        needs_borrow: bool,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Result<syn::Expr> {
+        let check = if negate { "is_none" } else { "is_some" };
+        if needs_borrow {
+            if check == "is_none" {
+                Ok(parse_quote! { #right_expr.as_ref().expect("value is None").get(&#left_expr).is_none() })
+            } else {
+                Ok(parse_quote! { #right_expr.as_ref().expect("value is None").get(&#left_expr).is_some() })
+            }
+        } else if check == "is_none" {
+            Ok(parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_none() })
+        } else {
+            Ok(parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_some() })
+        }
+    }
+
+    fn emit_get_check(
+        negate: bool,
+        needs_borrow: bool,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Result<syn::Expr> {
+        if negate {
+            if needs_borrow {
+                Ok(parse_quote! { #right_expr.get(&#left_expr).is_none() })
+            } else {
+                Ok(parse_quote! { #right_expr.get(#left_expr).is_none() })
+            }
+        } else if needs_borrow {
+            Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
+        } else {
+            Ok(parse_quote! { #right_expr.get(#left_expr).is_some() })
+        }
+    }
+
+    fn try_tuple_containment(
+        &self,
+        negate: bool,
+        needs_borrow: bool,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Option<Result<syn::Expr>> {
+        let right_str = right_expr.to_token_stream().to_string();
+        let array_str = if right_str.starts_with('(') && right_str.ends_with(')') {
+            format!("[{}]", &right_str[1..right_str.len() - 1])
+        } else {
+            format!("[{}]", right_str)
+        };
+        if let Ok(array_expr) = syn::parse_str::<syn::Expr>(&array_str) {
+            return Some(Self::emit_contains_check(
+                negate,
+                needs_borrow,
+                left_expr,
+                &array_expr,
+            ));
+        }
+        None
+    }
+
+    fn emit_contains_check(
+        negate: bool,
+        needs_borrow: bool,
+        left_expr: &syn::Expr,
+        container_expr: &syn::Expr,
+    ) -> Result<syn::Expr> {
+        if negate {
+            if needs_borrow {
+                Ok(parse_quote! { !#container_expr.contains(&#left_expr) })
+            } else {
+                Ok(parse_quote! { !#container_expr.contains(#left_expr) })
+            }
+        } else if needs_borrow {
+            Ok(parse_quote! { #container_expr.contains(&#left_expr) })
+        } else {
+            Ok(parse_quote! { #container_expr.contains(#left_expr) })
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn convert_collection_containment(
+        &self,
+        negate: bool,
+        needs_borrow: bool,
+        is_string: bool,
+        is_set: bool,
+        is_list: bool,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Result<syn::Expr> {
+        let is_string_list = if let HirExpr::List(elems) = right {
+            elems.first().is_some_and(|e| matches!(e, HirExpr::Literal(Literal::String(_))))
+        } else {
+            false
         };
 
-        // DEPYLER-0618: Handle tuple containment check
-        // Python: x in ("a", "b", "c") → Rust: [a, b, c].contains(&x)
-        // Tuples don't have .contains() or .get(), so wrap in array slice and use .contains()
-        // The right_expr is already converted, e.g., ("a".to_string(), "b".to_string())
-        // We convert tuple (a, b, c) to [a, b, c] by string manipulation
-        if is_tuple {
-            // Convert tuple expression to array slice for .contains() support
-            let right_str = right_expr.to_token_stream().to_string();
-            // Replace outer parens with brackets: (a, b) → [a, b]
-            let array_str = if right_str.starts_with('(') && right_str.ends_with(')') {
-                format!("[{}]", &right_str[1..right_str.len() - 1])
-            } else {
-                format!("[{}]", right_str)
-            };
-            if let Ok(array_expr) = syn::parse_str::<syn::Expr>(&array_str) {
-                if negate {
-                    if needs_borrow {
-                        return Ok(parse_quote! { !#array_expr.contains(&#left_expr) });
-                    } else {
-                        return Ok(parse_quote! { !#array_expr.contains(#left_expr) });
-                    }
-                } else if needs_borrow {
-                    return Ok(parse_quote! { #array_expr.contains(&#left_expr) });
-                } else {
-                    return Ok(parse_quote! { #array_expr.contains(#left_expr) });
+        if is_list && is_string_list {
+            return Self::emit_iter_any_check(negate, left_expr, right_expr);
+        }
+        if is_string || is_set {
+            let pattern = self.build_string_or_set_pattern(is_string, needs_borrow, left, left_expr);
+            return Self::emit_contains_pattern(negate, &pattern, right_expr);
+        }
+        Self::emit_contains_check(negate, needs_borrow, left_expr, right_expr)
+    }
+
+    fn emit_iter_any_check(
+        negate: bool,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Result<syn::Expr> {
+        if negate {
+            Ok(parse_quote! { !#right_expr.iter().any(|s| s == #left_expr) })
+        } else {
+            Ok(parse_quote! { #right_expr.iter().any(|s| s == #left_expr) })
+        }
+    }
+
+    fn build_string_or_set_pattern(
+        &self,
+        is_string: bool,
+        needs_borrow: bool,
+        left: &HirExpr,
+        left_expr: &syn::Expr,
+    ) -> syn::Expr {
+        if is_string {
+            match left {
+                HirExpr::Literal(Literal::String(s)) => {
+                    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                    parse_quote! { #lit }
+                }
+                HirExpr::Var(var_name) if self.ctx.char_iter_vars.contains(var_name) => {
+                    left_expr.clone()
+                }
+                _ => {
+                    parse_quote! { &*#left_expr }
                 }
             }
-            // If parsing fails, fall through to default
+        } else if needs_borrow {
+            parse_quote! { &#left_expr }
+        } else {
+            left_expr.clone()
+        }
+    }
+
+    fn emit_contains_pattern(
+        negate: bool,
+        pattern: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Result<syn::Expr> {
+        if negate {
+            Ok(parse_quote! { !#right_expr.contains(#pattern) })
+        } else {
+            Ok(parse_quote! { #right_expr.contains(#pattern) })
+        }
+    }
+
+    fn convert_fallback_containment(
+        &self,
+        negate: bool,
+        needs_borrow: bool,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Result<syn::Expr> {
+        let right_is_json_value = self.is_serde_json_value_expr(right);
+        if right_is_json_value {
+            return Self::emit_get_check_negated(negate, needs_borrow, left_expr, right_expr);
         }
 
-        if is_string || is_set || is_list {
-            // DEPYLER-0555: For list contains with strings, use .iter().any(|s| s == value)
-            // This handles both Vec<String>.contains(&str) and Vec<&str>.contains(&&str) correctly
-            // because String implements PartialEq<str> and PartialEq<&str>
-            //
-            // Detect if right side is a list that likely contains strings:
-            // - List literal with string elements
-            // - Variable that could be Vec<String>
-            let is_string_list = if let HirExpr::List(elems) = right {
-                // Check if first element is a string literal (heuristic for list type)
-                elems.first().is_some_and(|e| matches!(e, HirExpr::Literal(Literal::String(_))))
-            } else {
-                false
-            };
+        let left_is_string = self.is_string_type(left);
+        if left_is_string {
+            let pattern = self.build_string_pattern_for_left(left, left_expr);
+            return Self::emit_contains_pattern(negate, &pattern, right_expr);
+        }
 
-            // Use .iter().any() for string lists (handles &str vs String type mismatches)
-            if is_list && is_string_list {
-                // Use .iter().any() which works with mixed String/&str types
-                if negate {
-                    Ok(parse_quote! { !#right_expr.iter().any(|s| s == #left_expr) })
-                } else {
-                    Ok(parse_quote! { #right_expr.iter().any(|s| s == #left_expr) })
-                }
-            } else if is_string || is_set {
-                // DEPYLER-0200: For string contains, use raw string literal or &* for Pattern trait
-                // String literals should not have .to_string() added when used as patterns
-                let pattern: syn::Expr = if is_string {
-                    match left {
-                        HirExpr::Literal(Literal::String(s)) => {
-                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                            parse_quote! { #lit }
-                        }
-                        HirExpr::Var(var_name) if self.ctx.char_iter_vars.contains(var_name) => {
-                            // DEPYLER-1045: char can be passed directly to String.contains()
-                            // No &* dereference needed - char implements Pattern trait
-                            left_expr.clone()
-                        }
-                        _ => {
-                            // Use &* to deref-reborrow - works for both String (&*String -> &str)
-                            // and &str (&*&str -> &str), avoiding unstable str_as_str feature
-                            parse_quote! { &*#left_expr }
-                        }
-                    }
-                } else if needs_borrow {
-                    parse_quote! { &#left_expr }
-                } else {
-                    left_expr.clone()
-                };
+        Self::emit_get_check_negated(negate, needs_borrow, left_expr, right_expr)
+    }
 
-                // String and Set use .contains(&value)
-                if negate {
-                    Ok(parse_quote! { !#right_expr.contains(#pattern) })
-                } else {
-                    Ok(parse_quote! { #right_expr.contains(#pattern) })
-                }
+    fn emit_get_check_negated(
+        negate: bool,
+        needs_borrow: bool,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Result<syn::Expr> {
+        if negate {
+            if needs_borrow {
+                Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() })
             } else {
-                // Regular list contains
-                if negate {
-                    if needs_borrow {
-                        Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
-                    } else {
-                        Ok(parse_quote! { !#right_expr.contains(#left_expr) })
-                    }
-                } else if needs_borrow {
-                    Ok(parse_quote! { #right_expr.contains(&#left_expr) })
-                } else {
-                    Ok(parse_quote! { #right_expr.contains(#left_expr) })
-                }
+                Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() })
             }
+        } else if needs_borrow {
+            Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
         } else {
-            // DEPYLER-0449: Check for serde_json::Value FIRST (dict-like key lookup)
-            // Must check before left_is_string because dict keys are also strings
-            let right_is_json_value = self.is_serde_json_value_expr(right);
-            if right_is_json_value {
-                // Dict/HashMap/serde_json::Value uses .get(key).is_some() for compatibility
-                if negate {
-                    if needs_borrow {
-                        return Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() });
-                    } else {
-                        return Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() });
-                    }
-                } else if needs_borrow {
-                    return Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() });
-                } else {
-                    return Ok(parse_quote! { #right_expr.get(#left_expr).is_some() });
-                }
+            Ok(parse_quote! { #right_expr.get(#left_expr).is_some() })
+        }
+    }
+
+    fn build_string_pattern_for_left(
+        &self,
+        left: &HirExpr,
+        left_expr: &syn::Expr,
+    ) -> syn::Expr {
+        match left {
+            HirExpr::Literal(Literal::String(s)) => {
+                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                parse_quote! { #lit }
             }
-
-            // DEPYLER-0935: Check if left side is a string - if so, this is likely a substring check
-            // Python: pattern in entry (where both are strings) → Rust: entry.contains(&*pattern)
-            // This handles cases where type inference didn't detect the right side as a string
-            let left_is_string = self.is_string_type(left);
-
-            if left_is_string {
-                // Substring containment check - use .contains()
-                let pattern: syn::Expr = match left {
-                    HirExpr::Literal(Literal::String(s)) => {
-                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                        parse_quote! { #lit }
-                    }
-                    _ => {
-                        // Use &* to deref-reborrow for Pattern trait compatibility
-                        parse_quote! { &*#left_expr }
-                    }
-                };
-                if negate {
-                    Ok(parse_quote! { !#right_expr.contains(#pattern) })
-                } else {
-                    Ok(parse_quote! { #right_expr.contains(#pattern) })
-                }
-            } else {
-                // DEPYLER-0449: Dict/HashMap uses .get(key).is_some() for compatibility
-                // Works for both HashMap and serde_json::Value
-                if negate {
-                    if needs_borrow {
-                        Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() })
-                    } else {
-                        Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() })
-                    }
-                } else if needs_borrow {
-                    Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
-                } else {
-                    Ok(parse_quote! { #right_expr.get(#left_expr).is_some() })
-                }
+            _ => {
+                parse_quote! { &*#left_expr }
             }
         }
     }

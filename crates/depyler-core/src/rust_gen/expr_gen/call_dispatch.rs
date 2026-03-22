@@ -21,282 +21,314 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Option<Result<syn::Expr>> {
         match func {
-            // DEPYLER-STDLIB-PATHLIB: Handle Path() constructor
-            // DEPYLER-0559: Handle Optional args from argparse (Option<String>)
-            "Path" if args.len() == 1 => {
-                let path_expr = match args[0].to_rust_expr(self.ctx) {
-                    Ok(e) => e,
-                    Err(e) => return Some(Err(e)),
-                };
-                // Check if this is an argparse Optional field (args.field where field is Option<T>)
-                let is_optional_arg = if let HirExpr::Attribute { value, attr } = &args[0] {
-                    if let HirExpr::Var(var_name) = &**value {
-                        // Check if this is args.field pattern with Optional field
-                        if var_name == "args" {
-                            // Look through parsers for this argument
-                            self.ctx
-                                .argparser_tracker
-                                .get_first_parser()
-                                .map(|p| {
-                                    p.arguments
-                                        .iter()
-                                        .find(|a| a.rust_field_name() == *attr)
-                                        .map(|a| a.rust_type().starts_with("Option<"))
-                                        .unwrap_or(false)
-                                })
-                                .unwrap_or(false)
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                };
-
-                if is_optional_arg {
-                    // Unwrap the Option before PathBuf::from
-                    Some(Ok(
-                        parse_quote! { std::path::PathBuf::from(#path_expr.as_ref().expect("value is None")) },
-                    ))
-                } else {
-                    let borrowed_path = Self::borrow_if_needed(&path_expr);
-                    Some(Ok(parse_quote! { std::path::PathBuf::from(#borrowed_path) }))
-                }
-            }
-
-            // DEPYLER-STDLIB-DATETIME/1025: Handle datetime constructors
-            "datetime" if args.len() >= 3 => {
-                let nasa_mode = self.ctx.type_mapper.nasa_mode;
-                if !nasa_mode {
-                    self.ctx.needs_chrono = true;
-                }
-                let year = match args[0].to_rust_expr(self.ctx) {
-                    Ok(e) => e,
-                    Err(e) => return Some(Err(e)),
-                };
-                let month = match args[1].to_rust_expr(self.ctx) {
-                    Ok(e) => e,
-                    Err(e) => return Some(Err(e)),
-                };
-                let day = match args[2].to_rust_expr(self.ctx) {
-                    Ok(e) => e,
-                    Err(e) => return Some(Err(e)),
-                };
-
-                if args.len() == 3 {
-                    if nasa_mode {
-                        // DEPYLER-1067: NASA mode - use DepylerDateTime::new()
-                        self.ctx.needs_depyler_datetime = true;
-                        Some(Ok(
-                            parse_quote! { DepylerDateTime::new(#year as u32, #month as u32, #day as u32, 0, 0, 0, 0) },
-                        ))
-                    } else {
-                        Some(Ok(parse_quote! {
-                            chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
-                                .expect("invalid date")
-                                .and_hms_opt(0, 0, 0)
-                                .expect("invalid time")
-                        }))
-                    }
-                } else if args.len() >= 6 {
-                    let hour = match args[3].to_rust_expr(self.ctx) {
-                        Ok(e) => e,
-                        Err(e) => return Some(Err(e)),
-                    };
-                    let minute = match args[4].to_rust_expr(self.ctx) {
-                        Ok(e) => e,
-                        Err(e) => return Some(Err(e)),
-                    };
-                    let second = match args[5].to_rust_expr(self.ctx) {
-                        Ok(e) => e,
-                        Err(e) => return Some(Err(e)),
-                    };
-                    // DEPYLER-1067: Handle optional microsecond argument
-                    let microsecond = if args.len() >= 7 {
-                        match args[6].to_rust_expr(self.ctx) {
-                            Ok(e) => e,
-                            Err(e) => return Some(Err(e)),
-                        }
-                    } else {
-                        parse_quote! { 0 }
-                    };
-                    if nasa_mode {
-                        // DEPYLER-1067: NASA mode - use DepylerDateTime::new()
-                        self.ctx.needs_depyler_datetime = true;
-                        Some(Ok(
-                            parse_quote! { DepylerDateTime::new(#year as u32, #month as u32, #day as u32, #hour as u32, #minute as u32, #second as u32, #microsecond as u32) },
-                        ))
-                    } else {
-                        Some(Ok(parse_quote! {
-                            chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
-                                .expect("invalid date")
-                                .and_hms_opt(#hour as u32, #minute as u32, #second as u32)
-                                .expect("invalid time")
-                        }))
-                    }
-                } else {
-                    Some(Err(anyhow::anyhow!("datetime() requires 3 or 6+ arguments")))
-                }
-            }
+            "Path" if args.len() == 1 => self.convert_path_call(args),
+            "datetime" if args.len() >= 3 => self.convert_datetime_call(args),
             "datetime" => Some(Err(anyhow::anyhow!(
                 "datetime() requires at least 3 arguments (year, month, day)"
             ))),
-
-            // DEPYLER-1025/1066: date(year, month, day) - NASA mode uses DepylerDate struct
-            "date" if args.len() == 3 => {
-                let nasa_mode = self.ctx.type_mapper.nasa_mode;
-                if !nasa_mode {
-                    self.ctx.needs_chrono = true;
-                } else {
-                    // DEPYLER-1066: Mark that we need the DepylerDate struct
-                    self.ctx.needs_depyler_date = true;
-                }
-                let year = match args[0].to_rust_expr(self.ctx) {
-                    Ok(e) => e,
-                    Err(e) => return Some(Err(e)),
-                };
-                let month = match args[1].to_rust_expr(self.ctx) {
-                    Ok(e) => e,
-                    Err(e) => return Some(Err(e)),
-                };
-                let day = match args[2].to_rust_expr(self.ctx) {
-                    Ok(e) => e,
-                    Err(e) => return Some(Err(e)),
-                };
-                if nasa_mode {
-                    // DEPYLER-1066: Use DepylerDate::new() instead of raw tuple
-                    Some(Ok(
-                        parse_quote! { DepylerDate::new(#year as u32, #month as u32, #day as u32) },
-                    ))
-                } else {
-                    Some(Ok(parse_quote! {
-                        chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).expect("invalid date")
-                    }))
-                }
-            }
-
-            // DEPYLER-0938/1025: time() with no args - NASA mode uses tuple
-            "time" if args.is_empty() => {
-                let nasa_mode = self.ctx.type_mapper.nasa_mode;
-                if !nasa_mode {
-                    self.ctx.needs_chrono = true;
-                }
-                if nasa_mode {
-                    Some(Ok(parse_quote! { (0u32, 0u32, 0u32) }))
-                } else {
-                    Some(Ok(parse_quote! {
-                        chrono::NaiveTime::from_hms_opt(0, 0, 0).expect("invalid time")
-                    }))
-                }
-            }
-
-            // DEPYLER-0938/1025: time(hour) - NASA mode uses tuple
-            "time" if args.len() == 1 => {
-                let nasa_mode = self.ctx.type_mapper.nasa_mode;
-                if !nasa_mode {
-                    self.ctx.needs_chrono = true;
-                }
-                let hour = match args[0].to_rust_expr(self.ctx) {
-                    Ok(e) => e,
-                    Err(e) => return Some(Err(e)),
-                };
-                if nasa_mode {
-                    Some(Ok(parse_quote! { (#hour as u32, 0u32, 0u32) }))
-                } else {
-                    Some(Ok(parse_quote! {
-                        chrono::NaiveTime::from_hms_opt(#hour as u32, 0, 0).expect("invalid time")
-                    }))
-                }
-            }
-
-            // DEPYLER-1025: time(hour, minute, second) - NASA mode uses tuple
-            "time" if args.len() >= 2 => {
-                let nasa_mode = self.ctx.type_mapper.nasa_mode;
-                if !nasa_mode {
-                    self.ctx.needs_chrono = true;
-                }
-                let hour = match args[0].to_rust_expr(self.ctx) {
-                    Ok(e) => e,
-                    Err(e) => return Some(Err(e)),
-                };
-                let minute = match args[1].to_rust_expr(self.ctx) {
-                    Ok(e) => e,
-                    Err(e) => return Some(Err(e)),
-                };
-
-                if args.len() == 2 {
-                    if nasa_mode {
-                        Some(Ok(parse_quote! { (#hour as u32, #minute as u32, 0u32) }))
-                    } else {
-                        Some(Ok(parse_quote! {
-                            chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, 0).expect("invalid time")
-                        }))
-                    }
-                } else {
-                    let second = match args[2].to_rust_expr(self.ctx) {
-                        Ok(e) => e,
-                        Err(e) => return Some(Err(e)),
-                    };
-                    if nasa_mode {
-                        Some(Ok(parse_quote! { (#hour as u32, #minute as u32, #second as u32) }))
-                    } else {
-                        Some(Ok(parse_quote! {
-                            chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, #second as u32).expect("invalid time")
-                        }))
-                    }
-                }
-            }
-
-            // DEPYLER-1025/1068: timedelta(days=..., seconds=...) - NASA mode uses DepylerTimeDelta
-            "timedelta" => {
-                let nasa_mode = self.ctx.type_mapper.nasa_mode;
-                if !nasa_mode {
-                    self.ctx.needs_chrono = true;
-                } else {
-                    self.ctx.needs_depyler_timedelta = true;
-                }
-                if args.is_empty() {
-                    if nasa_mode {
-                        Some(Ok(parse_quote! { DepylerTimeDelta::new(0, 0, 0) }))
-                    } else {
-                        Some(Ok(parse_quote! { chrono::Duration::zero() }))
-                    }
-                } else if args.len() == 1 {
-                    let days = match args[0].to_rust_expr(self.ctx) {
-                        Ok(e) => e,
-                        Err(e) => return Some(Err(e)),
-                    };
-                    if nasa_mode {
-                        Some(Ok(parse_quote! { DepylerTimeDelta::new(#days as i64, 0, 0) }))
-                    } else {
-                        Some(Ok(parse_quote! { chrono::Duration::days(#days as i64) }))
-                    }
-                } else if args.len() == 2 {
-                    let days = match args[0].to_rust_expr(self.ctx) {
-                        Ok(e) => e,
-                        Err(e) => return Some(Err(e)),
-                    };
-                    let seconds = match args[1].to_rust_expr(self.ctx) {
-                        Ok(e) => e,
-                        Err(e) => return Some(Err(e)),
-                    };
-                    if nasa_mode {
-                        Some(Ok(
-                            parse_quote! { DepylerTimeDelta::new(#days as i64, #seconds as i64, 0) },
-                        ))
-                    } else {
-                        Some(Ok(parse_quote! {
-                            chrono::Duration::days(#days as i64) + chrono::Duration::seconds(#seconds as i64)
-                        }))
-                    }
-                } else {
-                    None // Let it fall through
-                }
-            }
-
+            "date" if args.len() == 3 => self.convert_date_call(args),
+            "time" if args.is_empty() => self.convert_time_no_args(),
+            "time" if args.len() == 1 => self.convert_time_one_arg(args),
+            "time" if args.len() >= 2 => self.convert_time_multi_args(args),
+            "timedelta" => self.convert_timedelta_call(args),
             _ => None,
+        }
+    }
+
+    fn convert_path_call(&mut self, args: &[HirExpr]) -> Option<Result<syn::Expr>> {
+        let path_expr = match args[0].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        let is_optional_arg = self.is_optional_argparse_field(&args[0]);
+
+        if is_optional_arg {
+            Some(Ok(
+                parse_quote! { std::path::PathBuf::from(#path_expr.as_ref().expect("value is None")) },
+            ))
+        } else {
+            let borrowed_path = Self::borrow_if_needed(&path_expr);
+            Some(Ok(parse_quote! { std::path::PathBuf::from(#borrowed_path) }))
+        }
+    }
+
+    fn is_optional_argparse_field(&self, arg: &HirExpr) -> bool {
+        if let HirExpr::Attribute { value, attr } = arg {
+            if let HirExpr::Var(var_name) = &**value {
+                if var_name == "args" {
+                    return self
+                        .ctx
+                        .argparser_tracker
+                        .get_first_parser()
+                        .map(|p| {
+                            p.arguments
+                                .iter()
+                                .find(|a| a.rust_field_name() == *attr)
+                                .map(|a| a.rust_type().starts_with("Option<"))
+                                .unwrap_or(false)
+                        })
+                        .unwrap_or(false);
+                }
+            }
+        }
+        false
+    }
+
+    fn convert_datetime_call(&mut self, args: &[HirExpr]) -> Option<Result<syn::Expr>> {
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+        if !nasa_mode {
+            self.ctx.needs_chrono = true;
+        }
+        let year = match args[0].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        let month = match args[1].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        let day = match args[2].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+
+        if args.len() == 3 {
+            self.convert_datetime_date_only(nasa_mode, &year, &month, &day)
+        } else if args.len() >= 6 {
+            self.convert_datetime_full(nasa_mode, args, &year, &month, &day)
+        } else {
+            Some(Err(anyhow::anyhow!("datetime() requires 3 or 6+ arguments")))
+        }
+    }
+
+    fn convert_datetime_date_only(
+        &mut self,
+        nasa_mode: bool,
+        year: &syn::Expr,
+        month: &syn::Expr,
+        day: &syn::Expr,
+    ) -> Option<Result<syn::Expr>> {
+        if nasa_mode {
+            self.ctx.needs_depyler_datetime = true;
+            Some(Ok(
+                parse_quote! { DepylerDateTime::new(#year as u32, #month as u32, #day as u32, 0, 0, 0, 0) },
+            ))
+        } else {
+            Some(Ok(parse_quote! {
+                chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
+                    .expect("invalid date")
+                    .and_hms_opt(0, 0, 0)
+                    .expect("invalid time")
+            }))
+        }
+    }
+
+    fn convert_datetime_full(
+        &mut self,
+        nasa_mode: bool,
+        args: &[HirExpr],
+        year: &syn::Expr,
+        month: &syn::Expr,
+        day: &syn::Expr,
+    ) -> Option<Result<syn::Expr>> {
+        let hour = match args[3].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        let minute = match args[4].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        let second = match args[5].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        let microsecond = if args.len() >= 7 {
+            match args[6].to_rust_expr(self.ctx) {
+                Ok(e) => e,
+                Err(e) => return Some(Err(e)),
+            }
+        } else {
+            parse_quote! { 0 }
+        };
+        if nasa_mode {
+            self.ctx.needs_depyler_datetime = true;
+            Some(Ok(
+                parse_quote! { DepylerDateTime::new(#year as u32, #month as u32, #day as u32, #hour as u32, #minute as u32, #second as u32, #microsecond as u32) },
+            ))
+        } else {
+            Some(Ok(parse_quote! {
+                chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
+                    .expect("invalid date")
+                    .and_hms_opt(#hour as u32, #minute as u32, #second as u32)
+                    .expect("invalid time")
+            }))
+        }
+    }
+
+    fn convert_date_call(&mut self, args: &[HirExpr]) -> Option<Result<syn::Expr>> {
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+        if !nasa_mode {
+            self.ctx.needs_chrono = true;
+        } else {
+            self.ctx.needs_depyler_date = true;
+        }
+        let year = match args[0].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        let month = match args[1].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        let day = match args[2].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        if nasa_mode {
+            Some(Ok(
+                parse_quote! { DepylerDate::new(#year as u32, #month as u32, #day as u32) },
+            ))
+        } else {
+            Some(Ok(parse_quote! {
+                chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).expect("invalid date")
+            }))
+        }
+    }
+
+    fn convert_time_no_args(&mut self) -> Option<Result<syn::Expr>> {
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+        if !nasa_mode {
+            self.ctx.needs_chrono = true;
+        }
+        if nasa_mode {
+            Some(Ok(parse_quote! { (0u32, 0u32, 0u32) }))
+        } else {
+            Some(Ok(parse_quote! {
+                chrono::NaiveTime::from_hms_opt(0, 0, 0).expect("invalid time")
+            }))
+        }
+    }
+
+    fn convert_time_one_arg(&mut self, args: &[HirExpr]) -> Option<Result<syn::Expr>> {
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+        if !nasa_mode {
+            self.ctx.needs_chrono = true;
+        }
+        let hour = match args[0].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        if nasa_mode {
+            Some(Ok(parse_quote! { (#hour as u32, 0u32, 0u32) }))
+        } else {
+            Some(Ok(parse_quote! {
+                chrono::NaiveTime::from_hms_opt(#hour as u32, 0, 0).expect("invalid time")
+            }))
+        }
+    }
+
+    fn convert_time_multi_args(&mut self, args: &[HirExpr]) -> Option<Result<syn::Expr>> {
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+        if !nasa_mode {
+            self.ctx.needs_chrono = true;
+        }
+        let hour = match args[0].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        let minute = match args[1].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+
+        if args.len() == 2 {
+            if nasa_mode {
+                Some(Ok(parse_quote! { (#hour as u32, #minute as u32, 0u32) }))
+            } else {
+                Some(Ok(parse_quote! {
+                    chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, 0).expect("invalid time")
+                }))
+            }
+        } else {
+            let second = match args[2].to_rust_expr(self.ctx) {
+                Ok(e) => e,
+                Err(e) => return Some(Err(e)),
+            };
+            if nasa_mode {
+                Some(Ok(parse_quote! { (#hour as u32, #minute as u32, #second as u32) }))
+            } else {
+                Some(Ok(parse_quote! {
+                    chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, #second as u32).expect("invalid time")
+                }))
+            }
+        }
+    }
+
+    fn convert_timedelta_call(&mut self, args: &[HirExpr]) -> Option<Result<syn::Expr>> {
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+        if !nasa_mode {
+            self.ctx.needs_chrono = true;
+        } else {
+            self.ctx.needs_depyler_timedelta = true;
+        }
+        if args.is_empty() {
+            return self.convert_timedelta_zero(nasa_mode);
+        }
+        if args.len() == 1 {
+            return self.convert_timedelta_days(nasa_mode, args);
+        }
+        if args.len() == 2 {
+            return self.convert_timedelta_days_seconds(nasa_mode, args);
+        }
+        None
+    }
+
+    fn convert_timedelta_zero(&self, nasa_mode: bool) -> Option<Result<syn::Expr>> {
+        if nasa_mode {
+            Some(Ok(parse_quote! { DepylerTimeDelta::new(0, 0, 0) }))
+        } else {
+            Some(Ok(parse_quote! { chrono::Duration::zero() }))
+        }
+    }
+
+    fn convert_timedelta_days(
+        &mut self,
+        nasa_mode: bool,
+        args: &[HirExpr],
+    ) -> Option<Result<syn::Expr>> {
+        let days = match args[0].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        if nasa_mode {
+            Some(Ok(parse_quote! { DepylerTimeDelta::new(#days as i64, 0, 0) }))
+        } else {
+            Some(Ok(parse_quote! { chrono::Duration::days(#days as i64) }))
+        }
+    }
+
+    fn convert_timedelta_days_seconds(
+        &mut self,
+        nasa_mode: bool,
+        args: &[HirExpr],
+    ) -> Option<Result<syn::Expr>> {
+        let days = match args[0].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        let seconds = match args[1].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        if nasa_mode {
+            Some(Ok(
+                parse_quote! { DepylerTimeDelta::new(#days as i64, #seconds as i64, 0) },
+            ))
+        } else {
+            Some(Ok(parse_quote! {
+                chrono::Duration::days(#days as i64) + chrono::Duration::seconds(#seconds as i64)
+            }))
         }
     }
 

@@ -55,144 +55,156 @@ pub fn convert_int_cast(
     }
     let arg = &arg_exprs[0];
 
-    // Handle int(string, base) with from_str_radix
-    // DEPYLER-0653: Add & to convert String to &str
     if arg_exprs.len() == 2 {
         let base = &arg_exprs[1];
         return Ok(parse_quote! { i64::from_str_radix(&#arg, #base).expect("parse failed") });
     }
 
     if !hir_args.is_empty() {
-        match &hir_args[0] {
-            // Integer literals don't need casting
-            HirExpr::Literal(Literal::Int(_)) => return Ok(arg.clone()),
+        return convert_int_cast_from_hir(
+            ctx,
+            &hir_args[0],
+            arg,
+            &is_string_method_call_fn,
+            &is_bool_expr_fn,
+        );
+    }
 
-            // String literals need parsing
-            HirExpr::Literal(Literal::String(_)) => {
-                return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
+    convert_int_cast_fallback(arg)
+}
+
+fn convert_int_cast_from_hir(
+    ctx: &CodeGenContext,
+    hir_arg: &HirExpr,
+    arg: &syn::Expr,
+    is_string_method_call_fn: &dyn Fn(&HirExpr, &str, &[HirExpr]) -> bool,
+    is_bool_expr_fn: &dyn Fn(&HirExpr) -> Option<bool>,
+) -> Result<syn::Expr> {
+    match hir_arg {
+        HirExpr::Literal(Literal::Int(_)) => Ok(arg.clone()),
+        HirExpr::Literal(Literal::String(_)) => {
+            Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() })
+        }
+        HirExpr::Var(var_name) => convert_int_cast_var(ctx, var_name, arg),
+        HirExpr::MethodCall { object, method, args: method_args, .. } => {
+            if is_string_method_call_fn(object, method, method_args) {
+                Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() })
+            } else {
+                Ok(parse_quote! { (#arg) as i32 })
             }
-
-            // Check if variable is String type
-            HirExpr::Var(var_name) => {
-                // DEPYLER-99MODE-S9: Check if variable is a char from string iteration
-                // int(ch) where ch is a char should use to_digit, not parse
-                if ctx.char_iter_vars.contains(var_name) {
-                    return Ok(parse_quote! { #arg.to_digit(10).unwrap_or(0) as i32 });
-                }
-
-                let is_known_string =
-                    ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::String));
-
-                // DEPYLER-99MODE-S9: If we have concrete type info, use it
-                if let Some(var_type) = ctx.var_types.get(var_name) {
-                    if matches!(var_type, Type::String) {
-                        return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
-                    }
-                    // Known non-string type: just cast
+        }
+        HirExpr::Attribute { attr, .. } => convert_int_cast_attribute(attr, arg),
+        HirExpr::Index { base, .. } => convert_int_cast_index(ctx, base, arg),
+        expr => {
+            if let Some(is_bool) = is_bool_expr_fn(expr) {
+                if is_bool {
                     return Ok(parse_quote! { (#arg) as i32 });
                 }
-
-                // Heuristic: variable names that look like strings
-                let name = var_name.as_str();
-                let looks_like_string = name.ends_with("_str")
-                    || name.ends_with("_string")
-                    || name == "s"
-                    || name == "string"
-                    || name == "text"
-                    || name == "word"
-                    || name == "line"
-                    || name == "value"
-                    || name == "value_str"
-                    || name.starts_with("str_")
-                    || name.starts_with("string_");
-
-                if is_known_string || looks_like_string {
-                    return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
-                }
-                return Ok(parse_quote! { (#arg) as i32 });
             }
-
-            // Check if method call returns String type
-            HirExpr::MethodCall { object, method, args: method_args, .. } => {
-                if is_string_method_call_fn(object, method, method_args) {
-                    return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
-                }
-                return Ok(parse_quote! { (#arg) as i32 });
-            }
-
-            // DEPYLER-0654: Check attribute access for string-like attribute names
-            HirExpr::Attribute { attr, .. } => {
-                let attr_name = attr.as_str();
-                let looks_like_string = attr_name.ends_with("_str")
-                    || attr_name.ends_with("_string")
-                    || attr_name == "text"
-                    || attr_name == "string"
-                    || attr_name == "word"
-                    || attr_name == "line"
-                    || attr_name == "input"
-                    || attr_name == "name"
-                    || attr_name == "message";
-                if looks_like_string {
-                    return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
-                }
-                return Ok(parse_quote! { (#arg) as i32 });
-            }
-
-            // DEPYLER-99MODE-S9: Index into a string → parse to int
-            HirExpr::Index { base, .. } => {
-                if let HirExpr::Var(base_name) = base.as_ref() {
-                    let is_string_base =
-                        ctx.var_types.get(base_name).is_some_and(|t| matches!(t, Type::String));
-                    if is_string_base {
-                        return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
-                    }
-                }
-                return Ok(parse_quote! { (#arg) as i32 });
-            }
-
-            // Check if it's a known bool expression
-            expr => {
-                if let Some(is_bool) = is_bool_expr_fn(expr) {
-                    if is_bool {
-                        return Ok(parse_quote! { (#arg) as i32 });
-                    }
-                }
-                return Ok(parse_quote! { (#arg) as i32 });
-            }
+            Ok(parse_quote! { (#arg) as i32 })
         }
     }
+}
 
-    // DEPYLER-0654: Fallback - check syn::Expr for string-like variable names
-    // This handles cases where hir_args is empty but variable name suggests string type
-    let check_ident = |ident: &syn::Ident| -> bool {
-        let name = ident.to_string();
-        name.ends_with("_str")
-            || name.ends_with("_string")
-            || name == "s"
-            || name == "string"
-            || name == "text"
-            || name == "word"
-            || name == "line"
-            || name == "input"
-            || name == "value_str"
-            || name.starts_with("str_")
-            || name.starts_with("string_")
-    };
+fn convert_int_cast_var(
+    ctx: &CodeGenContext,
+    var_name: &str,
+    arg: &syn::Expr,
+) -> Result<syn::Expr> {
+    if ctx.char_iter_vars.contains(var_name) {
+        return Ok(parse_quote! { #arg.to_digit(10).unwrap_or(0) as i32 });
+    }
 
-    // Check direct path
+    if let Some(var_type) = ctx.var_types.get(var_name) {
+        if matches!(var_type, Type::String) {
+            return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
+        }
+        return Ok(parse_quote! { (#arg) as i32 });
+    }
+
+    if var_name_looks_like_string(var_name) {
+        return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
+    }
+    Ok(parse_quote! { (#arg) as i32 })
+}
+
+fn var_name_looks_like_string(name: &str) -> bool {
+    name.ends_with("_str")
+        || name.ends_with("_string")
+        || name == "s"
+        || name == "string"
+        || name == "text"
+        || name == "word"
+        || name == "line"
+        || name == "value"
+        || name == "value_str"
+        || name.starts_with("str_")
+        || name.starts_with("string_")
+}
+
+fn attr_name_looks_like_string(name: &str) -> bool {
+    name.ends_with("_str")
+        || name.ends_with("_string")
+        || name == "text"
+        || name == "string"
+        || name == "word"
+        || name == "line"
+        || name == "input"
+        || name == "name"
+        || name == "message"
+}
+
+fn convert_int_cast_attribute(attr: &str, arg: &syn::Expr) -> Result<syn::Expr> {
+    if attr_name_looks_like_string(attr) {
+        Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() })
+    } else {
+        Ok(parse_quote! { (#arg) as i32 })
+    }
+}
+
+fn convert_int_cast_index(
+    ctx: &CodeGenContext,
+    base: &HirExpr,
+    arg: &syn::Expr,
+) -> Result<syn::Expr> {
+    if let HirExpr::Var(base_name) = base {
+        let is_string_base =
+            ctx.var_types.get(base_name.as_str()).is_some_and(|t| matches!(t, Type::String));
+        if is_string_base {
+            return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
+        }
+    }
+    Ok(parse_quote! { (#arg) as i32 })
+}
+
+fn ident_looks_like_string(ident: &syn::Ident) -> bool {
+    let name = ident.to_string();
+    name.ends_with("_str")
+        || name.ends_with("_string")
+        || name == "s"
+        || name == "string"
+        || name == "text"
+        || name == "word"
+        || name == "line"
+        || name == "input"
+        || name == "value_str"
+        || name.starts_with("str_")
+        || name.starts_with("string_")
+}
+
+fn convert_int_cast_fallback(arg: &syn::Expr) -> Result<syn::Expr> {
     if let syn::Expr::Path(path) = arg {
         if let Some(ident) = path.path.get_ident() {
-            if check_ident(ident) {
+            if ident_looks_like_string(ident) {
                 return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
             }
         }
     }
 
-    // Check parenthesized expression like (text)
     if let syn::Expr::Paren(paren) = arg {
         if let syn::Expr::Path(path) = paren.expr.as_ref() {
             if let Some(ident) = path.path.get_ident() {
-                if check_ident(ident) {
+                if ident_looks_like_string(ident) {
                     let inner = &paren.expr;
                     return Ok(parse_quote! { #inner.parse::<i32>().unwrap_or_default() });
                 }
