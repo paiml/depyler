@@ -378,311 +378,343 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         kwargs: &[(String, HirExpr)],
     ) -> Result<Option<syn::Expr>> {
         // DEPYLER-0493: Handle constructor patterns for imported types
-        // tempfile.NamedTempFile() → tempfile::NamedTempFile::new()
         if let HirExpr::Var(module_name) = object {
-            // Check if this module is imported and has constructor pattern metadata
-            if let Some(module_mapping) = self.ctx.imported_modules.get(module_name) {
-                // Look up the Python name → Rust name mapping
-                if let Some(rust_name) = module_mapping.item_map.get(method) {
-                    // Check if this has a constructor pattern defined
-                    if let Some(constructor_pattern) =
-                        module_mapping.constructor_patterns.get(rust_name)
-                    {
-                        use crate::module_mapper::ConstructorPattern;
-
-                        // Clone what we need to avoid borrow checker issues
-                        let rust_path_str = format!("{}::{}", module_mapping.rust_path, rust_name);
-                        let constructor_pattern_owned = constructor_pattern.clone();
-                        let rust_name_owned = rust_name.clone(); // DEPYLER-0534: Clone for later use
-
-                        // Build the full Rust path
-                        let path_parts: Vec<&str> = rust_path_str.split("::").collect();
-                        let mut path = quote! {};
-                        for (i, part) in path_parts.iter().enumerate() {
-                            let part_ident = syn::Ident::new(part, proc_macro2::Span::call_site());
-                            if i == 0 {
-                                path = quote! { #part_ident };
-                            } else {
-                                path = quote! { #path::#part_ident };
-                            }
-                        }
-
-                        // Convert arguments
-                        let arg_exprs: Vec<syn::Expr> = args
-                            .iter()
-                            .map(|arg| arg.to_rust_expr(self.ctx))
-                            .collect::<Result<Vec<_>>>()?;
-
-                        // GH-204: Handle collections module constructors specially
-                        // Counter, deque, and defaultdict need custom conversion, not generic new()
-                        if module_name == "collections" {
-                            match method {
-                                "Counter" => {
-                                    return Ok(Some(
-                                        crate::rust_gen::collection_constructors::convert_counter_builtin(
-                                            self.ctx,
-                                            &arg_exprs,
-                                        )?,
-                                    ));
-                                }
-                                "deque" => {
-                                    return Ok(Some(
-                                        crate::rust_gen::collection_constructors::convert_deque_builtin(
-                                            self.ctx,
-                                            &arg_exprs,
-                                        )?,
-                                    ));
-                                }
-                                "defaultdict" => {
-                                    return Ok(Some(
-                                        crate::rust_gen::collection_constructors::convert_defaultdict_builtin(
-                                            self.ctx,
-                                            &arg_exprs,
-                                        )?,
-                                    ));
-                                }
-                                _ => {} // Fall through to generic pattern handling
-                            }
-                        }
-
-                        // Generate call based on constructor pattern
-                        let result = match constructor_pattern_owned {
-                            ConstructorPattern::New => {
-                                // Struct type → use ::new() pattern
-                                if arg_exprs.is_empty() {
-                                    parse_quote! { #path::new() }
-                                } else {
-                                    parse_quote! { #path::new(#(#arg_exprs),*) }
-                                }
-                            }
-                            ConstructorPattern::Method(method_name) => {
-                                // Custom method (e.g., File::open())
-                                let method_ident =
-                                    syn::Ident::new(&method_name, proc_macro2::Span::call_site());
-                                if arg_exprs.is_empty() {
-                                    parse_quote! { #path::#method_ident() }
-                                } else {
-                                    parse_quote! { #path::#method_ident(#(#arg_exprs),*) }
-                                }
-                            }
-                            ConstructorPattern::Function => {
-                                // Regular function call
-                                if arg_exprs.is_empty() {
-                                    parse_quote! { #path() }
-                                } else {
-                                    parse_quote! { #path(#(#arg_exprs),*) }
-                                }
-                            }
-                        };
-
-                        // DEPYLER-0534: Unwrap fallible constructors
-                        // tempfile functions return Result<T, io::Error>
-                        // Use .unwrap() for simplicity (matches Python's exception-on-failure behavior)
-                        let is_fallible_constructor = module_name == "tempfile"
-                            && (rust_name_owned == "NamedTempFile"
-                                || rust_name_owned == "TempFile"
-                                || rust_name_owned == "TempDir");
-
-                        // DEPYLER-1002: Set needs_tempfile when using tempfile constructors
-                        if module_name == "tempfile" {
-                            self.ctx.needs_tempfile = true;
-                        }
-
-                        let result = if is_fallible_constructor {
-                            parse_quote! { #result.expect("operation failed") }
-                        } else {
-                            result
-                        };
-
-                        return Ok(Some(result));
-                    }
-                }
+            if let Some(result) =
+                self.try_convert_constructor_pattern(module_name, method, args)?
+            {
+                return Ok(Some(result));
             }
         }
 
-        // DEPYLER-0386: Handle os.environ.get() and other os.environ methods
-        // os.environ.get('VAR') → std::env::var('VAR').ok()
-        // os.environ.get('VAR', 'default') → std::env::var('VAR').unwrap_or_else(|_| 'default'.to_string())
+        // DEPYLER-0386: Handle os.environ.get(), os.path, datetime.datetime methods
+        if let Some(result) = self.try_convert_dotted_module_method(object, method, args)? {
+            return Ok(Some(result));
+        }
+
+        if let HirExpr::Var(module_name) = object {
+            return self.try_convert_var_module_method(module_name, method, args, kwargs);
+        }
+        Ok(None)
+    }
+
+    /// CB-200: Handle constructor patterns for imported types.
+    /// tempfile.NamedTempFile() -> tempfile::NamedTempFile::new()
+    fn try_convert_constructor_pattern(
+        &mut self,
+        module_name: &str,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        use crate::module_mapper::ConstructorPattern;
+
+        // Check if this module is imported and has constructor pattern metadata
+        let (rust_path_str, constructor_pattern_owned, rust_name_owned) = {
+            let Some(module_mapping) = self.ctx.imported_modules.get(module_name) else {
+                return Ok(None);
+            };
+            let Some(rust_name) = module_mapping.item_map.get(method) else {
+                return Ok(None);
+            };
+            let Some(constructor_pattern) = module_mapping.constructor_patterns.get(rust_name)
+            else {
+                return Ok(None);
+            };
+            (
+                format!("{}::{}", module_mapping.rust_path, rust_name),
+                constructor_pattern.clone(),
+                rust_name.clone(),
+            )
+        };
+
+        // Build the full Rust path
+        let path = Self::build_rust_path_from_str(&rust_path_str);
+
+        // Convert arguments
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // GH-204: Handle collections module constructors specially
+        if let Some(result) = self.try_convert_collection_constructor(module_name, method, &arg_exprs)? {
+            return Ok(Some(result));
+        }
+
+        // Generate call based on constructor pattern
+        let result = match constructor_pattern_owned {
+            ConstructorPattern::New => {
+                if arg_exprs.is_empty() {
+                    parse_quote! { #path::new() }
+                } else {
+                    parse_quote! { #path::new(#(#arg_exprs),*) }
+                }
+            }
+            ConstructorPattern::Method(method_name) => {
+                let method_ident =
+                    syn::Ident::new(&method_name, proc_macro2::Span::call_site());
+                if arg_exprs.is_empty() {
+                    parse_quote! { #path::#method_ident() }
+                } else {
+                    parse_quote! { #path::#method_ident(#(#arg_exprs),*) }
+                }
+            }
+            ConstructorPattern::Function => {
+                if arg_exprs.is_empty() {
+                    parse_quote! { #path() }
+                } else {
+                    parse_quote! { #path(#(#arg_exprs),*) }
+                }
+            }
+        };
+
+        // DEPYLER-0534: Unwrap fallible constructors
+        let is_fallible_constructor = module_name == "tempfile"
+            && (rust_name_owned == "NamedTempFile"
+                || rust_name_owned == "TempFile"
+                || rust_name_owned == "TempDir");
+
+        // DEPYLER-1002: Set needs_tempfile when using tempfile constructors
+        if module_name == "tempfile" {
+            self.ctx.needs_tempfile = true;
+        }
+
+        let result = if is_fallible_constructor {
+            parse_quote! { #result.expect("operation failed") }
+        } else {
+            result
+        };
+
+        Ok(Some(result))
+    }
+
+    /// CB-200: Handle collections module constructors (Counter, deque, defaultdict).
+    fn try_convert_collection_constructor(
+        &mut self,
+        module_name: &str,
+        method: &str,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<Option<syn::Expr>> {
+        if module_name != "collections" {
+            return Ok(None);
+        }
+        match method {
+            "Counter" => Ok(Some(
+                crate::rust_gen::collection_constructors::convert_counter_builtin(
+                    self.ctx, arg_exprs,
+                )?,
+            )),
+            "deque" => Ok(Some(
+                crate::rust_gen::collection_constructors::convert_deque_builtin(
+                    self.ctx, arg_exprs,
+                )?,
+            )),
+            "defaultdict" => Ok(Some(
+                crate::rust_gen::collection_constructors::convert_defaultdict_builtin(
+                    self.ctx, arg_exprs,
+                )?,
+            )),
+            _ => Ok(None),
+        }
+    }
+
+    /// CB-200: Build a proc_macro2::TokenStream path from a "::" separated string.
+    fn build_rust_path_from_str(rust_path_str: &str) -> proc_macro2::TokenStream {
+        let path_parts: Vec<&str> = rust_path_str.split("::").collect();
+        let mut path = quote! {};
+        for (i, part) in path_parts.iter().enumerate() {
+            let part_ident = syn::Ident::new(part, proc_macro2::Span::call_site());
+            if i == 0 {
+                path = quote! { #part_ident };
+            } else {
+                path = quote! { #path::#part_ident };
+            }
+        }
+        path
+    }
+
+    /// CB-200: Handle dotted module methods (os.environ.get, os.path.X, datetime.datetime.X).
+    fn try_convert_dotted_module_method(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
         if let HirExpr::Attribute { value, attr } = object {
             if let HirExpr::Var(module_name) = &**value {
                 if module_name == "os" && attr == "environ" {
                     return self.try_convert_os_environ_method(method, args);
                 }
-                // DEPYLER-0430: Handle os.path.exists(), os.path.join(), etc.
-                // os.path.exists(path) → Path::new(path).exists()
-                // os.path.join(a, b) → PathBuf::from(a).join(b)
                 if module_name == "os" && attr == "path" {
                     return self.try_convert_os_path_method(method, args);
                 }
-                // DEPYLER-0553: Handle datetime.datetime.method() calls
-                // datetime.datetime.fromtimestamp(ts) → chrono::DateTime::from_timestamp(ts, 0)
-                // datetime.datetime.now() → chrono::Local::now()
                 if module_name == "datetime" && attr == "datetime" {
                     return self.try_convert_datetime_method(method, args);
                 }
             }
         }
+        Ok(None)
+    }
 
-        if let HirExpr::Var(module_name) = object {
-            // DEPYLER-99MODE-S9: Skip module routing if this variable is known to be a
-            // local/declared variable (not a module). This prevents local variables named
-            // 'copy', 'calendar', etc. from being mistakenly routed to module method handlers.
-            let is_local_var = self.ctx.is_declared(module_name);
-            let is_actually_imported = !is_local_var;
+    /// CB-200: Handle module method calls where the object is a simple Var (module name).
+    fn try_convert_var_module_method(
+        &mut self,
+        module_name: &str,
+        method: &str,
+        args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
+    ) -> Result<Option<syn::Expr>> {
+        // DEPYLER-99MODE-S9: Skip module routing for local/declared variables
+        let is_local_var = self.ctx.is_declared(module_name);
+        let is_actually_imported = !is_local_var;
 
-            // DEPYLER-0021: Handle struct module (pack, unpack, calcsize)
-            if is_actually_imported && module_name == "struct" {
-                return self.try_convert_struct_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-MATH: Handle math module functions
-            // math.sqrt(x) → x.sqrt()
-            // math.sin(x) → x.sin()
-            // math.pow(x, y) → x.powf(y)
-            if is_actually_imported && module_name == "math" {
-                return stdlib_method_gen::convert_math_method(method, args, self.ctx);
-            }
-
-            // DEPYLER-STDLIB-RANDOM: Handle random module functions
-            // random.random() → thread_rng().gen()
-            // random.randint(a, b) → thread_rng().gen_range(a..=b)
-            if is_actually_imported && module_name == "random" {
-                return stdlib_method_gen::convert_random_method(method, args, self.ctx);
-            }
-
-            // DEPYLER-STDLIB-STATISTICS: Handle statistics module functions
-            // statistics.mean(data) → inline calculation
-            // statistics.median(data) → sorted median calculation
-            if is_actually_imported && module_name == "statistics" {
-                return self.try_convert_statistics_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-FRACTIONS: Handle fractions module functions
-            // Fraction(1, 2) → Ratio::new(1, 2)
-            // f.limit_denominator(100) → approximate with max denominator
-            if is_actually_imported && module_name == "fractions" {
-                return self.try_convert_fractions_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-PATHLIB: Handle pathlib module functions
-            // Path("/foo/bar").exists() → PathBuf::from("/foo/bar").exists()
-            // Path("/foo").join("bar") → PathBuf::from("/foo").join("bar")
-            if is_actually_imported && module_name == "pathlib" {
-                return stdlib_method_gen::convert_pathlib_method(method, args, self.ctx);
-            }
-
-            // DEPYLER-STDLIB-DATETIME: Handle datetime module functions
-            // CB-200 Batch 9: date/time min/max/today extracted to helpers
-            if is_actually_imported
-                && (module_name == "datetime" || module_name == "date")
-                && (method == "min" || method == "max")
+        if is_actually_imported {
+            if let Some(result) =
+                self.try_convert_imported_module_method(module_name, method, args, kwargs)?
             {
-                return self.try_convert_date_datetime_min_max(module_name, method);
-            }
-
-            if is_actually_imported
-                && (module_name == "datetime" || module_name == "date")
-                && method == "today"
-                && args.is_empty()
-            {
-                return self.try_convert_date_datetime_today(module_name);
-            }
-
-            if is_actually_imported && (module_name == "datetime" || module_name == "date") {
-                return self.try_convert_datetime_method(method, args);
-            }
-
-            if is_actually_imported && module_name == "time" && (method == "min" || method == "max")
-            {
-                return self.try_convert_time_min_max(method);
-            }
-
-            // CB-200 Batch 9: stdlib module routing extracted to helper
-            if is_actually_imported {
-                if let Some(result) =
-                    self.try_convert_stdlib_module_dispatch(module_name, method, args, kwargs)?
-                {
-                    return Ok(Some(result));
-                }
-            }
-
-            // DEPYLER-0335 FIX #2: Get rust_path and rust_name before converting args (avoid borrow conflict)
-            let module_info = self.ctx.imported_modules.get(module_name).and_then(|mapping| {
-                mapping
-                    .item_map
-                    .get(method)
-                    .map(|rust_name| (mapping.rust_path.clone(), rust_name.clone()))
-            });
-
-            if let Some((rust_path, rust_name)) = module_info {
-                // Convert args
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| arg.to_rust_expr(self.ctx))
-                    .collect::<Result<Vec<_>>>()?;
-
-                // DEPYLER-0335 FIX #2: Special handling for math module functions (use method syntax)
-                // Python: math.sqrt(x) → Rust: x.sqrt() or f64::sqrt(x)
-                if module_name == "math" && !arg_exprs.is_empty() {
-                    let receiver = &arg_exprs[0];
-                    let method_ident = syn::Ident::new(&rust_name, proc_macro2::Span::call_site());
-                    return Ok(Some(parse_quote! { (#receiver).#method_ident() }));
-                }
-
-                // DEPYLER-0335 FIX #2: Use rust_path from mapping instead of hardcoding "std"
-                // Build the Rust function path using the module's rust_path
-
-                // DEPYLER-0840: Handle macro names (ending with !) specially
-                // Macros like "join!" cannot be split and used as identifiers
-                if rust_name.ends_with('!') {
-                    // This is a macro - handle it specially
-                    // For now, skip macro-based mappings as they need special handling
-                    // Note: Implement proper macro invocation support
-                    return Ok(None);
-                }
-
-                let path_parts: Vec<&str> = rust_name.split("::").collect();
-
-                // Start with the module's rust_path instead of hardcoded "std"
-                let base_path: syn::Path =
-                    syn::parse_str(&rust_path).unwrap_or_else(|_| parse_quote! { std });
-                let mut path = quote! { #base_path };
-
-                for part in path_parts {
-                    let part_ident = syn::Ident::new(part, proc_macro2::Span::call_site());
-                    path = quote! { #path::#part_ident };
-                }
-
-                // Special handling for certain functions
-                let result = match rust_name.as_str() {
-                    "env::current_dir" => {
-                        // current_dir returns Result<PathBuf>, we need to convert to String
-                        parse_quote! {
-                            #path().expect("operation failed").to_string_lossy().to_string()
-                        }
-                    }
-                    "Regex::new" => {
-                        // re.compile(pattern) -> Regex::new(pattern)
-                        if arg_exprs.is_empty() {
-                            bail!("re.compile() requires a pattern argument");
-                        }
-                        let pattern = &arg_exprs[0];
-                        parse_quote! {
-                            regex::Regex::new(#pattern).expect("parse failed")
-                        }
-                    }
-                    _ => {
-                        if arg_exprs.is_empty() {
-                            parse_quote! { #path() }
-                        } else {
-                            parse_quote! { #path(#(#arg_exprs),*) }
-                        }
-                    }
-                };
                 return Ok(Some(result));
             }
         }
+
+        // DEPYLER-0335 FIX #2: Fallback to module_info-based call generation
+        self.try_convert_module_info_call(module_name, method, args)
+    }
+
+    /// CB-200: Route imported module method calls to the correct handler.
+    fn try_convert_imported_module_method(
+        &mut self,
+        module_name: &str,
+        method: &str,
+        args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
+    ) -> Result<Option<syn::Expr>> {
+        // DEPYLER-0021: Handle struct module (pack, unpack, calcsize)
+        if module_name == "struct" {
+            return self.try_convert_struct_method(method, args);
+        }
+
+        if module_name == "math" {
+            return stdlib_method_gen::convert_math_method(method, args, self.ctx);
+        }
+
+        if module_name == "random" {
+            return stdlib_method_gen::convert_random_method(method, args, self.ctx);
+        }
+
+        if module_name == "statistics" {
+            return self.try_convert_statistics_method(method, args);
+        }
+
+        if module_name == "fractions" {
+            return self.try_convert_fractions_method(method, args);
+        }
+
+        if module_name == "pathlib" {
+            return stdlib_method_gen::convert_pathlib_method(method, args, self.ctx);
+        }
+
+        // DEPYLER-STDLIB-DATETIME: date/time min/max/today
+        if (module_name == "datetime" || module_name == "date")
+            && (method == "min" || method == "max")
+        {
+            return self.try_convert_date_datetime_min_max(module_name, method);
+        }
+
+        if (module_name == "datetime" || module_name == "date")
+            && method == "today"
+            && args.is_empty()
+        {
+            return self.try_convert_date_datetime_today(module_name);
+        }
+
+        if module_name == "datetime" || module_name == "date" {
+            return self.try_convert_datetime_method(method, args);
+        }
+
+        if module_name == "time" && (method == "min" || method == "max") {
+            return self.try_convert_time_min_max(method);
+        }
+
+        // CB-200 Batch 9: stdlib module routing extracted to helper
+        if let Some(result) =
+            self.try_convert_stdlib_module_dispatch(module_name, method, args, kwargs)?
+        {
+            return Ok(Some(result));
+        }
+
         Ok(None)
+    }
+
+    /// CB-200: Generate a Rust call from module_info (rust_path + rust_name mapping).
+    fn try_convert_module_info_call(
+        &mut self,
+        module_name: &str,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let module_info = self.ctx.imported_modules.get(module_name).and_then(|mapping| {
+            mapping
+                .item_map
+                .get(method)
+                .map(|rust_name| (mapping.rust_path.clone(), rust_name.clone()))
+        });
+
+        let Some((rust_path, rust_name)) = module_info else {
+            return Ok(None);
+        };
+
+        // Convert args
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // DEPYLER-0335 FIX #2: Special handling for math module functions (use method syntax)
+        if module_name == "math" && !arg_exprs.is_empty() {
+            let receiver = &arg_exprs[0];
+            let method_ident = syn::Ident::new(&rust_name, proc_macro2::Span::call_site());
+            return Ok(Some(parse_quote! { (#receiver).#method_ident() }));
+        }
+
+        // DEPYLER-0840: Handle macro names (ending with !) specially
+        if rust_name.ends_with('!') {
+            return Ok(None);
+        }
+
+        let path_parts: Vec<&str> = rust_name.split("::").collect();
+        let base_path: syn::Path =
+            syn::parse_str(&rust_path).unwrap_or_else(|_| parse_quote! { std });
+        let mut path = quote! { #base_path };
+
+        for part in path_parts {
+            let part_ident = syn::Ident::new(part, proc_macro2::Span::call_site());
+            path = quote! { #path::#part_ident };
+        }
+
+        // Special handling for certain functions
+        let result = match rust_name.as_str() {
+            "env::current_dir" => {
+                parse_quote! {
+                    #path().expect("operation failed").to_string_lossy().to_string()
+                }
+            }
+            "Regex::new" => {
+                if arg_exprs.is_empty() {
+                    bail!("re.compile() requires a pattern argument");
+                }
+                let pattern = &arg_exprs[0];
+                parse_quote! {
+                    regex::Regex::new(#pattern).expect("parse failed")
+                }
+            }
+            _ => {
+                if arg_exprs.is_empty() {
+                    parse_quote! { #path() }
+                } else {
+                    parse_quote! { #path(#(#arg_exprs),*) }
+                }
+            }
+        };
+        Ok(Some(result))
     }
 
     // =========================================================================

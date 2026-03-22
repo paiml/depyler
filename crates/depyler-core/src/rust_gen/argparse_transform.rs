@@ -886,6 +886,239 @@ fn generate_command_attrs(parser_info: &ArgParserInfo) -> Vec<proc_macro2::Token
     command_attrs
 }
 
+/// CB-200: Context for walking HIR trees to detect subcommand field accesses.
+/// Holds the walk state to avoid threading 5 parameters through every recursive call.
+struct FieldAccessWalker<'a> {
+    args_param: &'a str,
+    field_to_variant: HashMap<String, (String, &'a SubcommandInfo)>,
+    accessed_fields: std::collections::HashSet<String>,
+    detected_variant: Option<String>,
+}
+
+impl<'a> FieldAccessWalker<'a> {
+    /// Walk a single HIR expression, recording subcommand field accesses.
+    fn walk_expr(&mut self, expr: &crate::hir::HirExpr) {
+        use crate::hir::HirExpr;
+        match expr {
+            HirExpr::Attribute { value, attr } => {
+                self.walk_expr_attribute(value, attr);
+            }
+            HirExpr::Binary { left, right, .. } => {
+                self.walk_expr(left);
+                self.walk_expr(right);
+            }
+            HirExpr::Unary { operand, .. } => {
+                self.walk_expr(operand);
+            }
+            HirExpr::Call { args, .. } => {
+                for arg in args {
+                    self.walk_expr(arg);
+                }
+            }
+            HirExpr::MethodCall { object, args, .. } => {
+                self.walk_expr(object);
+                for arg in args {
+                    self.walk_expr(arg);
+                }
+            }
+            HirExpr::List(elements)
+            | HirExpr::Tuple(elements)
+            | HirExpr::Set(elements)
+            | HirExpr::FrozenSet(elements) => {
+                self.walk_expr_elements(elements);
+            }
+            HirExpr::Dict(items) => {
+                for (key, value) in items {
+                    self.walk_expr(key);
+                    self.walk_expr(value);
+                }
+            }
+            HirExpr::Index { base, index } => {
+                self.walk_expr(base);
+                self.walk_expr(index);
+            }
+            HirExpr::Slice { base, start, stop, step } => {
+                self.walk_expr_slice(base, start, stop, step);
+            }
+            HirExpr::Borrow { expr, .. } => {
+                self.walk_expr(expr);
+            }
+            HirExpr::ListComp { element, generators }
+            | HirExpr::SetComp { element, generators } => {
+                self.walk_expr(element);
+                self.walk_expr_generators(generators);
+            }
+            HirExpr::DictComp { key, value, generators } => {
+                self.walk_expr(key);
+                self.walk_expr(value);
+                self.walk_expr_generators(generators);
+            }
+            HirExpr::Lambda { body, .. } => {
+                self.walk_expr(body);
+            }
+            HirExpr::FString { parts } => {
+                self.walk_expr_fstring(parts);
+            }
+            HirExpr::IfExpr { test, body, orelse } => {
+                self.walk_expr(test);
+                self.walk_expr(body);
+                self.walk_expr(orelse);
+            }
+            HirExpr::SortByKey { iterable, key_body, .. } => {
+                self.walk_expr(iterable);
+                self.walk_expr(key_body);
+            }
+            HirExpr::GeneratorExp { element, generators } => {
+                self.walk_expr(element);
+                self.walk_expr_generators(generators);
+            }
+            HirExpr::Await { value } => {
+                self.walk_expr(value);
+            }
+            HirExpr::Yield { value: Some(v) } => {
+                self.walk_expr(v);
+            }
+            HirExpr::Yield { value: None } => {}
+            _ => {}
+        }
+    }
+
+    /// CB-200: Handle attribute access — check if this is args.field_name for a subcommand.
+    fn walk_expr_attribute(&mut self, value: &crate::hir::HirExpr, attr: &str) {
+        use crate::hir::HirExpr;
+        if let HirExpr::Var(id) = value {
+            if id == self.args_param {
+                if let Some((variant_name, _)) = self.field_to_variant.get(attr) {
+                    self.accessed_fields.insert(attr.to_string());
+                    if self.detected_variant.is_none() {
+                        self.detected_variant = Some(variant_name.clone());
+                    }
+                }
+            }
+        }
+        self.walk_expr(value);
+    }
+
+    /// CB-200: Walk a list of elements (List, Tuple, Set, FrozenSet).
+    fn walk_expr_elements(&mut self, elements: &[crate::hir::HirExpr]) {
+        for elem in elements {
+            self.walk_expr(elem);
+        }
+    }
+
+    /// CB-200: Walk a slice expression with optional start/stop/step.
+    fn walk_expr_slice(
+        &mut self,
+        base: &crate::hir::HirExpr,
+        start: &Option<Box<crate::hir::HirExpr>>,
+        stop: &Option<Box<crate::hir::HirExpr>>,
+        step: &Option<Box<crate::hir::HirExpr>>,
+    ) {
+        self.walk_expr(base);
+        if let Some(s) = start {
+            self.walk_expr(s);
+        }
+        if let Some(s) = stop {
+            self.walk_expr(s);
+        }
+        if let Some(s) = step {
+            self.walk_expr(s);
+        }
+    }
+
+    /// CB-200: Walk comprehension generators (shared by ListComp, SetComp, DictComp, GeneratorExp).
+    fn walk_expr_generators(&mut self, generators: &[crate::hir::Comprehension]) {
+        for gen in generators {
+            self.walk_expr(&gen.iter);
+            for cond in &gen.conditions {
+                self.walk_expr(cond);
+            }
+        }
+    }
+
+    /// CB-200: Walk f-string interpolated expressions.
+    fn walk_expr_fstring(&mut self, parts: &[crate::hir::FStringPart]) {
+        for part in parts {
+            if let crate::hir::FStringPart::Expr(expr) = part {
+                self.walk_expr(expr);
+            }
+        }
+    }
+
+    /// Walk a single HIR statement, recursing into sub-expressions and sub-statements.
+    fn walk_stmt(&mut self, stmt: &crate::hir::HirStmt) {
+        use crate::hir::HirStmt;
+        match stmt {
+            HirStmt::Expr(expr) => self.walk_expr(expr),
+            HirStmt::Assign { value, .. } => self.walk_expr(value),
+            HirStmt::Return(Some(expr)) => self.walk_expr(expr),
+            HirStmt::If { condition, then_body, else_body } => {
+                self.walk_expr(condition);
+                self.walk_stmts(then_body);
+                if let Some(else_stmts) = else_body {
+                    self.walk_stmts(else_stmts);
+                }
+            }
+            HirStmt::While { condition, body } => {
+                self.walk_expr(condition);
+                self.walk_stmts(body);
+            }
+            HirStmt::For { body, .. } => {
+                self.walk_stmts(body);
+            }
+            HirStmt::With { context, body, .. } => {
+                self.walk_expr(context);
+                self.walk_stmts(body);
+            }
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
+                self.walk_stmt_try(body, handlers, orelse, finalbody);
+            }
+            HirStmt::Assert { test, msg } => {
+                self.walk_expr(test);
+                if let Some(msg_expr) = msg {
+                    self.walk_expr(msg_expr);
+                }
+            }
+            HirStmt::Raise { exception, cause } => {
+                if let Some(exc) = exception {
+                    self.walk_expr(exc);
+                }
+                if let Some(cause_expr) = cause {
+                    self.walk_expr(cause_expr);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// CB-200: Walk a slice of statements.
+    fn walk_stmts(&mut self, stmts: &[crate::hir::HirStmt]) {
+        for s in stmts {
+            self.walk_stmt(s);
+        }
+    }
+
+    /// CB-200: Walk a Try statement (body + handlers + orelse + finalbody).
+    fn walk_stmt_try(
+        &mut self,
+        body: &[crate::hir::HirStmt],
+        handlers: &[crate::hir::ExceptHandler],
+        orelse: &Option<Vec<crate::hir::HirStmt>>,
+        finalbody: &Option<Vec<crate::hir::HirStmt>>,
+    ) {
+        self.walk_stmts(body);
+        for handler in handlers {
+            self.walk_stmts(&handler.body);
+        }
+        if let Some(orelse_stmts) = orelse {
+            self.walk_stmts(orelse_stmts);
+        }
+        if let Some(final_stmts) = finalbody {
+            self.walk_stmts(final_stmts);
+        }
+    }
+}
+
 /// DEPYLER-0425: Analyze which subcommand fields are accessed in a function
 ///
 /// Returns: Option<(variant_name, Vec<field_names>)>
@@ -896,9 +1129,6 @@ pub fn analyze_subcommand_field_access(
     func: &crate::hir::HirFunction,
     tracker: &ArgParserTracker,
 ) -> Option<(String, Vec<String>)> {
-    use crate::hir::{HirExpr, HirStmt};
-    use std::collections::HashSet;
-
     if !tracker.has_subcommands() {
         return None;
     }
@@ -907,9 +1137,6 @@ pub fn analyze_subcommand_field_access(
     let args_param = func.params.first()?.name.as_ref();
 
     // DEPYLER-99MODE-E0308-P3: Only analyze functions where the first parameter is the argparse args variable
-    // This prevents false positives where a function parameter happens to have the same field name
-    // as an argparse argument (e.g., `get_year(d: date)` where `d.year` was matching subcommand `year` field)
-    // We check if any parser has this variable as its args_var
     let is_args_variable =
         tracker.parsers.values().any(|p| p.args_var.as_ref().is_some_and(|av| av == args_param));
     if !is_args_variable {
@@ -926,355 +1153,20 @@ pub fn analyze_subcommand_field_access(
         }
     }
 
-    // Track which subcommand fields are accessed
-    let mut accessed_fields: HashSet<String> = HashSet::new();
-    let mut detected_variant: Option<String> = None;
-
-    // Recursive function to walk expressions
-    fn walk_expr(
-        expr: &HirExpr,
-        args_param: &str,
-        field_to_variant: &HashMap<String, (String, &SubcommandInfo)>,
-        accessed_fields: &mut HashSet<String>,
-        detected_variant: &mut Option<String>,
-    ) {
-        match expr {
-            HirExpr::Attribute { value, attr } => {
-                // Check if this is args.field_name
-                if let HirExpr::Var(id) = &**value {
-                    if id == args_param {
-                        // This is an attribute access on args
-                        if let Some((variant_name, _)) = field_to_variant.get(attr.as_str()) {
-                            // This field belongs to a subcommand variant
-                            accessed_fields.insert(attr.clone());
-                            if detected_variant.is_none() {
-                                *detected_variant = Some(variant_name.clone());
-                            }
-                        }
-                    }
-                }
-                // Recurse into value
-                walk_expr(value, args_param, field_to_variant, accessed_fields, detected_variant);
-            }
-            HirExpr::Binary { left, right, .. } => {
-                walk_expr(left, args_param, field_to_variant, accessed_fields, detected_variant);
-                walk_expr(right, args_param, field_to_variant, accessed_fields, detected_variant);
-            }
-            HirExpr::Unary { operand, .. } => {
-                walk_expr(operand, args_param, field_to_variant, accessed_fields, detected_variant);
-            }
-            HirExpr::Call { args, .. } => {
-                // Note: func is a Symbol, not an HirExpr
-                for arg in args {
-                    walk_expr(arg, args_param, field_to_variant, accessed_fields, detected_variant);
-                }
-            }
-            HirExpr::MethodCall { object, args, .. } => {
-                walk_expr(object, args_param, field_to_variant, accessed_fields, detected_variant);
-                for arg in args {
-                    walk_expr(arg, args_param, field_to_variant, accessed_fields, detected_variant);
-                }
-            }
-            HirExpr::List(elements)
-            | HirExpr::Tuple(elements)
-            | HirExpr::Set(elements)
-            | HirExpr::FrozenSet(elements) => {
-                for elem in elements {
-                    walk_expr(
-                        elem,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
-                }
-            }
-            HirExpr::Dict(items) => {
-                for (key, value) in items {
-                    walk_expr(key, args_param, field_to_variant, accessed_fields, detected_variant);
-                    walk_expr(
-                        value,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
-                }
-            }
-            HirExpr::Index { base, index } => {
-                walk_expr(base, args_param, field_to_variant, accessed_fields, detected_variant);
-                walk_expr(index, args_param, field_to_variant, accessed_fields, detected_variant);
-            }
-            HirExpr::Slice { base, start, stop, step } => {
-                walk_expr(base, args_param, field_to_variant, accessed_fields, detected_variant);
-                if let Some(s) = start {
-                    walk_expr(s, args_param, field_to_variant, accessed_fields, detected_variant);
-                }
-                if let Some(s) = stop {
-                    walk_expr(s, args_param, field_to_variant, accessed_fields, detected_variant);
-                }
-                if let Some(s) = step {
-                    walk_expr(s, args_param, field_to_variant, accessed_fields, detected_variant);
-                }
-            }
-            HirExpr::Borrow { expr, .. } => {
-                walk_expr(expr, args_param, field_to_variant, accessed_fields, detected_variant);
-            }
-            HirExpr::ListComp { element, generators }
-            | HirExpr::SetComp { element, generators } => {
-                // DEPYLER-0504: Support multiple generators
-                walk_expr(element, args_param, field_to_variant, accessed_fields, detected_variant);
-                for gen in generators {
-                    walk_expr(
-                        &gen.iter,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
-                    for cond in &gen.conditions {
-                        walk_expr(
-                            cond,
-                            args_param,
-                            field_to_variant,
-                            accessed_fields,
-                            detected_variant,
-                        );
-                    }
-                }
-            }
-            HirExpr::DictComp { key, value, generators } => {
-                // DEPYLER-0504: Support multiple generators
-                walk_expr(key, args_param, field_to_variant, accessed_fields, detected_variant);
-                walk_expr(value, args_param, field_to_variant, accessed_fields, detected_variant);
-                for gen in generators {
-                    walk_expr(
-                        &gen.iter,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
-                    for cond in &gen.conditions {
-                        walk_expr(
-                            cond,
-                            args_param,
-                            field_to_variant,
-                            accessed_fields,
-                            detected_variant,
-                        );
-                    }
-                }
-            }
-            HirExpr::Lambda { body, .. } => {
-                walk_expr(body, args_param, field_to_variant, accessed_fields, detected_variant);
-            }
-            HirExpr::FString { parts } => {
-                // DEPYLER-0425: Walk f-string interpolated expressions
-                for part in parts {
-                    if let crate::hir::FStringPart::Expr(expr) = part {
-                        walk_expr(
-                            expr,
-                            args_param,
-                            field_to_variant,
-                            accessed_fields,
-                            detected_variant,
-                        );
-                    }
-                }
-            }
-            HirExpr::IfExpr { test, body, orelse } => {
-                walk_expr(test, args_param, field_to_variant, accessed_fields, detected_variant);
-                walk_expr(body, args_param, field_to_variant, accessed_fields, detected_variant);
-                walk_expr(orelse, args_param, field_to_variant, accessed_fields, detected_variant);
-            }
-            HirExpr::SortByKey { iterable, key_body, .. } => {
-                walk_expr(
-                    iterable,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
-                walk_expr(
-                    key_body,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
-            }
-            HirExpr::GeneratorExp { element, generators } => {
-                walk_expr(element, args_param, field_to_variant, accessed_fields, detected_variant);
-                for gen in generators {
-                    walk_expr(
-                        &gen.iter,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
-                    for cond in &gen.conditions {
-                        walk_expr(
-                            cond,
-                            args_param,
-                            field_to_variant,
-                            accessed_fields,
-                            detected_variant,
-                        );
-                    }
-                }
-            }
-            HirExpr::Await { value } => {
-                walk_expr(value, args_param, field_to_variant, accessed_fields, detected_variant);
-            }
-            HirExpr::Yield { value: Some(v) } => {
-                walk_expr(v, args_param, field_to_variant, accessed_fields, detected_variant);
-            }
-            HirExpr::Yield { value: None } => {}
-            _ => {}
-        }
-    }
-
-    // Walk all statements in function body
-    fn walk_stmt(
-        stmt: &HirStmt,
-        args_param: &str,
-        field_to_variant: &HashMap<String, (String, &SubcommandInfo)>,
-        accessed_fields: &mut HashSet<String>,
-        detected_variant: &mut Option<String>,
-    ) {
-        match stmt {
-            HirStmt::Expr(expr) => {
-                walk_expr(expr, args_param, field_to_variant, accessed_fields, detected_variant)
-            }
-            HirStmt::Assign { value, .. } => {
-                walk_expr(value, args_param, field_to_variant, accessed_fields, detected_variant)
-            }
-            HirStmt::Return(Some(expr)) => {
-                walk_expr(expr, args_param, field_to_variant, accessed_fields, detected_variant)
-            }
-            HirStmt::If { condition, then_body, else_body } => {
-                walk_expr(
-                    condition,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
-                for s in then_body {
-                    walk_stmt(s, args_param, field_to_variant, accessed_fields, detected_variant);
-                }
-                if let Some(else_stmts) = else_body {
-                    for s in else_stmts {
-                        walk_stmt(
-                            s,
-                            args_param,
-                            field_to_variant,
-                            accessed_fields,
-                            detected_variant,
-                        );
-                    }
-                }
-            }
-            HirStmt::While { condition, body } => {
-                walk_expr(
-                    condition,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
-                for s in body {
-                    walk_stmt(s, args_param, field_to_variant, accessed_fields, detected_variant);
-                }
-            }
-            HirStmt::For { body, .. } => {
-                for s in body {
-                    walk_stmt(s, args_param, field_to_variant, accessed_fields, detected_variant);
-                }
-            }
-            HirStmt::With { context, body, .. } => {
-                walk_expr(context, args_param, field_to_variant, accessed_fields, detected_variant);
-                for s in body {
-                    walk_stmt(s, args_param, field_to_variant, accessed_fields, detected_variant);
-                }
-            }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
-                for s in body {
-                    walk_stmt(s, args_param, field_to_variant, accessed_fields, detected_variant);
-                }
-                for handler in handlers {
-                    for s in &handler.body {
-                        walk_stmt(
-                            s,
-                            args_param,
-                            field_to_variant,
-                            accessed_fields,
-                            detected_variant,
-                        );
-                    }
-                }
-                if let Some(orelse_stmts) = orelse {
-                    for s in orelse_stmts {
-                        walk_stmt(
-                            s,
-                            args_param,
-                            field_to_variant,
-                            accessed_fields,
-                            detected_variant,
-                        );
-                    }
-                }
-                if let Some(final_stmts) = finalbody {
-                    for s in final_stmts {
-                        walk_stmt(
-                            s,
-                            args_param,
-                            field_to_variant,
-                            accessed_fields,
-                            detected_variant,
-                        );
-                    }
-                }
-            }
-            HirStmt::Assert { test, msg } => {
-                walk_expr(test, args_param, field_to_variant, accessed_fields, detected_variant);
-                if let Some(msg_expr) = msg {
-                    walk_expr(
-                        msg_expr,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
-                }
-            }
-            HirStmt::Raise { exception, cause } => {
-                if let Some(exc) = exception {
-                    walk_expr(exc, args_param, field_to_variant, accessed_fields, detected_variant);
-                }
-                if let Some(cause_expr) = cause {
-                    walk_expr(
-                        cause_expr,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
-                }
-            }
-            _ => {}
-        }
-    }
+    let mut walker = FieldAccessWalker {
+        args_param,
+        field_to_variant,
+        accessed_fields: std::collections::HashSet::new(),
+        detected_variant: None,
+    };
 
     for stmt in &func.body {
-        walk_stmt(stmt, args_param, &field_to_variant, &mut accessed_fields, &mut detected_variant);
+        walker.walk_stmt(stmt);
     }
 
     // If we found a variant and accessed fields, return them
-    if let Some(variant) = detected_variant {
-        let mut fields: Vec<String> = accessed_fields.into_iter().collect();
+    if let Some(variant) = walker.detected_variant {
+        let mut fields: Vec<String> = walker.accessed_fields.into_iter().collect();
         fields.sort(); // Deterministic order
         Some((variant, fields))
     } else {
