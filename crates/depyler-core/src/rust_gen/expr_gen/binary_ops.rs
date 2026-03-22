@@ -212,282 +212,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         if is_comparison {
-            // DEPYLER-99MODE-S9: Convert `x == []` to `x.is_empty()` and `x != []` to `!x.is_empty()`
-            // This avoids E0283 type annotation errors when comparing with empty vec![]
-            if matches!(op, BinOp::Eq | BinOp::NotEq) {
-                let left_is_empty_list = matches!(left, HirExpr::List(elts) if elts.is_empty());
-                let right_is_empty_list = matches!(right, HirExpr::List(elts) if elts.is_empty());
-
-                if right_is_empty_list {
-                    if matches!(op, BinOp::Eq) {
-                        return Ok(parse_quote! { #left_expr.is_empty() });
-                    } else {
-                        return Ok(parse_quote! { !#left_expr.is_empty() });
-                    }
-                }
-                if left_is_empty_list {
-                    if matches!(op, BinOp::Eq) {
-                        return Ok(parse_quote! { #right_expr.is_empty() });
-                    } else {
-                        return Ok(parse_quote! { !#right_expr.is_empty() });
-                    }
-                }
+            // CB-200 Batch 16: Delegate comparison transforms to extracted helper
+            if let Some(early) = self.try_empty_list_comparison(op, left, right, &left_expr, &right_expr)? {
+                return Ok(early);
             }
-
-            if left_is_option && !right_is_option {
-                // Left is Option, right is plain - unwrap left
-                left_expr = parse_quote! { #left_expr.unwrap_or_default() };
-            }
-            if right_is_option && !left_is_option {
-                // Right is Option, left is plain - unwrap right for comparison
-                // For less-than: unwrap_or(i32::MAX) so None is treated as "very large"
-                // For greater-than: unwrap_or(i32::MIN) so None is treated as "very small"
-                // For equality: unwrap_or_default()
-                match op {
-                    BinOp::Lt | BinOp::LtEq => {
-                        right_expr = parse_quote! { #right_expr.unwrap_or(i32::MAX) };
-                    }
-                    BinOp::Gt | BinOp::GtEq => {
-                        right_expr = parse_quote! { #right_expr.unwrap_or(i32::MIN) };
-                    }
-                    _ => {
-                        right_expr = parse_quote! { #right_expr.unwrap_or_default() };
-                    }
-                }
-            }
-
-            // DEPYLER-1074: Auto-dereference variables that are references (e.g. from iterators or ref params)
-            // This fixes E0308 errors where we compare &T with T (e.g. &i32 == 0)
-            let left_is_ref = if let HirExpr::Var(name) = left {
-                self.ctx.ref_params.contains(name)
-            } else {
-                false
-            };
-
-            let right_is_ref = if let HirExpr::Var(name) = right {
-                self.ctx.ref_params.contains(name)
-            } else {
-                false
-            };
-
-            if left_is_ref && !right_is_ref {
-                left_expr = parse_quote! { (*#left_expr) };
-            } else if right_is_ref && !left_is_ref {
-                right_expr = parse_quote! { (*#right_expr) };
-            }
-
-            // DEPYLER-0550: Handle serde_json::Value comparisons
-            // When comparing Option<String> (from dict.get()) with serde_json::Value,
-            // convert the Value to Option<String> for compatibility
-            // Pattern: row.get(col).cloned() == val where val comes from JSON .items()
-            let left_is_dict_get =
-                matches!(left, HirExpr::MethodCall { method, .. } if method == "get");
-            let right_is_json_value = self.is_serde_json_value_expr(right);
-
-            if left_is_dict_get && right_is_json_value {
-                // Convert serde_json::Value to Option<String> for comparison
-                right_expr = parse_quote! { #right_expr.as_str().map(|s| s.to_string()) };
-            }
-
-            // Also handle the reverse case
-            let right_is_dict_get =
-                matches!(right, HirExpr::MethodCall { method, .. } if method == "get");
-            let left_is_json_value = self.is_serde_json_value_expr(left);
-
-            if right_is_dict_get && left_is_json_value {
-                left_expr = parse_quote! { #left_expr.as_str().map(|s| s.to_string()) };
-            }
-
-            // DEPYLER-0575: Coerce integer literal to float when comparing with float expression
-            // DEPYLER-0720: Extended to ALL integer literals, not just 0
-            // DEPYLER-0828: Extended to ALL integer expressions (variables, not just literals)
-            // DEPYLER-0920: Use f32 literals for trueno/numpy f32 results
-            // Example: `self.balance > 0` -> `self.balance > 0.0` when balance is f64
-            // Example: `std > 0` -> `std > 0f32` when std is trueno f32 result
-            // Example: `x < y` where x:f64, y:i32 -> `x < (y as f64)`
-            let left_is_float = self.expr_returns_float(left);
-            let right_is_float = self.expr_returns_float(right);
-            let left_is_f32 = self.expr_returns_f32(left);
-            let right_is_f32 = self.expr_returns_f32(right);
-
-            if left_is_float && !right_is_float {
-                if let HirExpr::Literal(Literal::Int(n)) = right {
-                    // Integer literal: convert at compile time
-                    // DEPYLER-0920: Use f32 for trueno results
-                    if left_is_f32 {
-                        let float_val = *n as f32;
-                        right_expr = parse_quote! { #float_val };
-                    } else {
-                        let float_val = *n as f64;
-                        right_expr = parse_quote! { #float_val };
-                    }
-                } else {
-                    // DEPYLER-0828: Integer variable/expression: cast at runtime
-                    if left_is_f32 {
-                        right_expr = parse_quote! { (#right_expr as f32) };
-                    } else {
-                        right_expr = parse_quote! { (#right_expr as f64) };
-                    }
-                }
-            } else if right_is_float && !left_is_float {
-                if let HirExpr::Literal(Literal::Int(n)) = left {
-                    // Integer literal: convert at compile time
-                    // DEPYLER-0920: Use f32 for trueno results
-                    if right_is_f32 {
-                        let float_val = *n as f32;
-                        left_expr = parse_quote! { #float_val };
-                    } else {
-                        let float_val = *n as f64;
-                        left_expr = parse_quote! { #float_val };
-                    }
-                } else {
-                    // DEPYLER-0828: Integer variable/expression: cast at runtime
-                    if right_is_f32 {
-                        left_expr = parse_quote! { (#left_expr as f32) };
-                    } else {
-                        left_expr = parse_quote! { (#left_expr as f64) };
-                    }
-                }
-            }
-
-            // DEPYLER-STRING-COMPARE: Handle string comparison type mismatches
-            // String >= &str doesn't work (PartialOrd not implemented)
-            // String == &String doesn't work directly
-            // Convert String operands to &str for comparison
-            let is_ordering_compare =
-                matches!(op, BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq);
-
-            // Check if left is string index (produces String) and needs .as_str()
-            let left_is_string_index =
-                matches!(left, HirExpr::Index { base, .. } if self.is_string_base(base));
-            // Check if right is string index (produces String) and needs .as_str()
-            let right_is_string_index =
-                matches!(right, HirExpr::Index { base, .. } if self.is_string_base(base));
-
-            // Check if left is a String-typed variable
-            // First check var_types, then fall back to heuristics
-            // IMPORTANT: If var_types says it's NOT a string (e.g., Int), don't use heuristic
-            let left_is_string_var = if let HirExpr::Var(name) = left {
-                // Check explicit type info first
-                if let Some(ty) = self.ctx.var_types.get(name) {
-                    // If we have explicit type info, use it
-                    matches!(ty, Type::String)
-                } else {
-                    // No type info - use heuristic for char/string variable names
-                    // But be conservative: only match these names if right side is a string literal
-                    false // Don't use name heuristic alone - too error-prone
-                }
-            } else {
-                false
-            };
-
-            // Check if right side is a single-character string literal (like "a", "z")
-            // This indicates we're comparing a character variable against a char literal
-            let right_is_char_literal = matches!(
-                right,
-                HirExpr::Literal(Literal::String(s)) if s.len() == 1
-            );
-
-            // DEPYLER-99MODE-S9: Check if left is a char iteration variable
-            // `for ch in text:` → ch is `char`, not `String`
-            // char doesn't have .as_str(), compare with char literals instead
-            let left_is_char_iter_var = if let HirExpr::Var(name) = left {
-                self.ctx.char_iter_vars.contains(name.as_str())
-            } else {
-                false
-            };
-
-            // If comparing a char iter var with a single-char string literal,
-            // convert the string literal to a char literal (e.g., "a" → 'a')
-            if is_ordering_compare && left_is_char_iter_var && right_is_char_literal {
-                if let HirExpr::Literal(Literal::String(s)) = right {
-                    if let Some(ch) = s.chars().next() {
-                        let ch_lit = syn::LitChar::new(ch, proc_macro2::Span::call_site());
-                        right_expr = parse_quote! { #ch_lit };
-                    }
-                }
-            }
-
-            // If comparing a variable with a single-char string literal in ordering comparison,
-            // the variable is likely a String that needs .as_str() conversion
-            // But NOT for char iteration variables (they're already char type)
-            let left_needs_as_str = is_ordering_compare
-                && matches!(left, HirExpr::Var(_))
-                && right_is_char_literal
-                && !left_is_char_iter_var;
-
-            // DEPYLER-99MODE-S9: Check if right is a String-typed variable (symmetric with left)
-            let right_is_string_var = if let HirExpr::Var(name) = right {
-                if let Some(ty) = self.ctx.var_types.get(name) {
-                    matches!(ty, Type::String)
-                } else {
-                    false
-                }
-            } else {
-                false
-            };
-
-            // For ordering comparisons with string expressions, convert to &str
-            // because String doesn't implement PartialOrd<&str>
-            let left_converting = left_is_string_index || left_is_string_var || left_needs_as_str;
-            if is_ordering_compare && left_converting {
-                left_expr = parse_quote! { (#left_expr).as_str() };
-            }
-            // Convert right side to &str if it's a string index or string variable
-            // (when left is also converting, both sides must be &str for PartialOrd)
-            if is_ordering_compare
-                && (right_is_string_index || (right_is_string_var && left_converting))
-            {
-                right_expr = parse_quote! { (#right_expr).as_str() };
-            }
-            // DEPYLER-99MODE-S9: When left is converting to &str and right is a string literal,
-            // ensure right is also &str (bare literal) not String (.to_string())
-            // Otherwise we get &str >= String which fails
-            if is_ordering_compare && left_converting {
-                if let HirExpr::Literal(Literal::String(s)) = right {
-                    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                    right_expr = parse_quote! { #lit };
-                }
-            }
-
-            // For equality comparisons, handle String == &String case
-            // by dereferencing the &String side to get String
-            // Right side could be:
-            // - A variable (HirExpr::Var)
-            // - An attribute like args.target (HirExpr::Attribute)
-            let right_is_ref_pattern =
-                matches!(right, HirExpr::Var(_)) || matches!(right, HirExpr::Attribute { .. });
-            if matches!(op, BinOp::Eq | BinOp::NotEq)
-                && left_is_string_index
-                && right_is_ref_pattern
-            {
-                // Right side might be &String from ref pattern - deref to String for comparison
-                right_expr = parse_quote! { *#right_expr };
-            }
-
-            // DEPYLER-1045: Handle char vs &str comparison
-            // When iterating over string.chars(), the loop variable is Rust `char` type.
-            // Comparing char with &str doesn't work - need to convert char to String.
-            if matches!(op, BinOp::Eq | BinOp::NotEq) {
-                let left_is_char_iter = if let HirExpr::Var(name) = left {
-                    self.ctx.char_iter_vars.contains(name)
-                } else {
-                    false
-                };
-                let right_is_char_iter = if let HirExpr::Var(name) = right {
-                    self.ctx.char_iter_vars.contains(name)
-                } else {
-                    false
-                };
-
-                // Convert char to String for comparison
-                if left_is_char_iter && !right_is_char_iter {
-                    left_expr = parse_quote! { #left_expr.to_string() };
-                }
-                if right_is_char_iter && !left_is_char_iter {
-                    right_expr = parse_quote! { #right_expr.to_string() };
-                }
-            }
+            self.apply_comparison_option_unwrap(op, left_is_option, right_is_option, &mut left_expr, &mut right_expr);
+            self.apply_comparison_ref_deref(left, right, &mut left_expr, &mut right_expr);
+            self.apply_comparison_json_value_coerce(left, right, &mut left_expr, &mut right_expr);
+            self.apply_comparison_float_coerce(left, right, &mut left_expr, &mut right_expr);
+            self.apply_comparison_string_transforms(op, left, right, &mut left_expr, &mut right_expr);
         }
 
         match op {
@@ -882,6 +615,267 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     op: rust_op,
                     right: Box::new(right_expr_final),
                 }))
+            }
+        }
+    }
+
+    // ========================================================================
+    // CB-200 Batch 16: Comparison helpers extracted from convert_binary
+    // ========================================================================
+
+    /// CB-200 Batch 16: Try converting empty list comparisons to .is_empty()
+    fn try_empty_list_comparison(
+        &self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Result<Option<syn::Expr>> {
+        if !matches!(op, BinOp::Eq | BinOp::NotEq) {
+            return Ok(None);
+        }
+        let left_is_empty_list = matches!(left, HirExpr::List(elts) if elts.is_empty());
+        let right_is_empty_list = matches!(right, HirExpr::List(elts) if elts.is_empty());
+        if right_is_empty_list {
+            if matches!(op, BinOp::Eq) {
+                return Ok(Some(parse_quote! { #left_expr.is_empty() }));
+            } else {
+                return Ok(Some(parse_quote! { !#left_expr.is_empty() }));
+            }
+        }
+        if left_is_empty_list {
+            if matches!(op, BinOp::Eq) {
+                return Ok(Some(parse_quote! { #right_expr.is_empty() }));
+            } else {
+                return Ok(Some(parse_quote! { !#right_expr.is_empty() }));
+            }
+        }
+        Ok(None)
+    }
+
+    /// CB-200 Batch 16: Unwrap Option operands for comparison
+    fn apply_comparison_option_unwrap(
+        &self,
+        op: BinOp,
+        left_is_option: bool,
+        right_is_option: bool,
+        left_expr: &mut syn::Expr,
+        right_expr: &mut syn::Expr,
+    ) {
+        if left_is_option && !right_is_option {
+            *left_expr = parse_quote! { #left_expr.unwrap_or_default() };
+        }
+        if right_is_option && !left_is_option {
+            match op {
+                BinOp::Lt | BinOp::LtEq => {
+                    *right_expr = parse_quote! { #right_expr.unwrap_or(i32::MAX) };
+                }
+                BinOp::Gt | BinOp::GtEq => {
+                    *right_expr = parse_quote! { #right_expr.unwrap_or(i32::MIN) };
+                }
+                _ => {
+                    *right_expr = parse_quote! { #right_expr.unwrap_or_default() };
+                }
+            }
+        }
+    }
+
+    /// CB-200 Batch 16: Auto-dereference ref params in comparisons (DEPYLER-1074)
+    fn apply_comparison_ref_deref(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &mut syn::Expr,
+        right_expr: &mut syn::Expr,
+    ) {
+        let left_is_ref = if let HirExpr::Var(name) = left {
+            self.ctx.ref_params.contains(name)
+        } else {
+            false
+        };
+        let right_is_ref = if let HirExpr::Var(name) = right {
+            self.ctx.ref_params.contains(name)
+        } else {
+            false
+        };
+        if left_is_ref && !right_is_ref {
+            *left_expr = parse_quote! { (*#left_expr) };
+        } else if right_is_ref && !left_is_ref {
+            *right_expr = parse_quote! { (*#right_expr) };
+        }
+    }
+
+    /// CB-200 Batch 16: Handle serde_json::Value comparisons (DEPYLER-0550)
+    fn apply_comparison_json_value_coerce(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &mut syn::Expr,
+        right_expr: &mut syn::Expr,
+    ) {
+        let left_is_dict_get =
+            matches!(left, HirExpr::MethodCall { method, .. } if method == "get");
+        let right_is_json_value = self.is_serde_json_value_expr(right);
+        if left_is_dict_get && right_is_json_value {
+            *right_expr = parse_quote! { #right_expr.as_str().map(|s| s.to_string()) };
+        }
+        let right_is_dict_get =
+            matches!(right, HirExpr::MethodCall { method, .. } if method == "get");
+        let left_is_json_value = self.is_serde_json_value_expr(left);
+        if right_is_dict_get && left_is_json_value {
+            *left_expr = parse_quote! { #left_expr.as_str().map(|s| s.to_string()) };
+        }
+    }
+
+    /// CB-200 Batch 16: Coerce int to float in comparisons (DEPYLER-0575/0720/0828/0920)
+    fn apply_comparison_float_coerce(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &mut syn::Expr,
+        right_expr: &mut syn::Expr,
+    ) {
+        let left_is_float = self.expr_returns_float(left);
+        let right_is_float = self.expr_returns_float(right);
+        let left_is_f32 = self.expr_returns_f32(left);
+        let right_is_f32 = self.expr_returns_f32(right);
+
+        if left_is_float && !right_is_float {
+            Self::coerce_operand_to_float(right, right_expr, left_is_f32);
+        } else if right_is_float && !left_is_float {
+            Self::coerce_operand_to_float(left, left_expr, right_is_f32);
+        }
+    }
+
+    /// CB-200 Batch 16: Coerce a single operand from int to float
+    fn coerce_operand_to_float(
+        hir: &HirExpr,
+        expr: &mut syn::Expr,
+        use_f32: bool,
+    ) {
+        if let HirExpr::Literal(Literal::Int(n)) = hir {
+            if use_f32 {
+                let float_val = *n as f32;
+                *expr = parse_quote! { #float_val };
+            } else {
+                let float_val = *n as f64;
+                *expr = parse_quote! { #float_val };
+            }
+        } else if use_f32 {
+            *expr = parse_quote! { (#expr as f32) };
+        } else {
+            *expr = parse_quote! { (#expr as f64) };
+        }
+    }
+
+    /// CB-200 Batch 16: Handle string comparison transforms (ordering, equality, char iter)
+    fn apply_comparison_string_transforms(
+        &self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &mut syn::Expr,
+        right_expr: &mut syn::Expr,
+    ) {
+        let is_ordering_compare =
+            matches!(op, BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq);
+
+        let left_is_string_index =
+            matches!(left, HirExpr::Index { base, .. } if self.is_string_base(base));
+        let right_is_string_index =
+            matches!(right, HirExpr::Index { base, .. } if self.is_string_base(base));
+
+        let left_is_string_var = if let HirExpr::Var(name) = left {
+            if let Some(ty) = self.ctx.var_types.get(name) {
+                matches!(ty, Type::String)
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        let right_is_char_literal = matches!(
+            right,
+            HirExpr::Literal(Literal::String(s)) if s.len() == 1
+        );
+
+        let left_is_char_iter_var = if let HirExpr::Var(name) = left {
+            self.ctx.char_iter_vars.contains(name.as_str())
+        } else {
+            false
+        };
+
+        // Convert char iter var vs single-char string to char literal
+        if is_ordering_compare && left_is_char_iter_var && right_is_char_literal {
+            if let HirExpr::Literal(Literal::String(s)) = right {
+                if let Some(ch) = s.chars().next() {
+                    let ch_lit = syn::LitChar::new(ch, proc_macro2::Span::call_site());
+                    *right_expr = parse_quote! { #ch_lit };
+                }
+            }
+        }
+
+        let left_needs_as_str = is_ordering_compare
+            && matches!(left, HirExpr::Var(_))
+            && right_is_char_literal
+            && !left_is_char_iter_var;
+
+        let right_is_string_var = if let HirExpr::Var(name) = right {
+            if let Some(ty) = self.ctx.var_types.get(name) {
+                matches!(ty, Type::String)
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        // For ordering comparisons with string expressions, convert to &str
+        let left_converting = left_is_string_index || left_is_string_var || left_needs_as_str;
+        if is_ordering_compare && left_converting {
+            *left_expr = parse_quote! { (#left_expr).as_str() };
+        }
+        if is_ordering_compare
+            && (right_is_string_index || (right_is_string_var && left_converting))
+        {
+            *right_expr = parse_quote! { (#right_expr).as_str() };
+        }
+        if is_ordering_compare && left_converting {
+            if let HirExpr::Literal(Literal::String(s)) = right {
+                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                *right_expr = parse_quote! { #lit };
+            }
+        }
+
+        // Equality: handle String == &String
+        let right_is_ref_pattern =
+            matches!(right, HirExpr::Var(_)) || matches!(right, HirExpr::Attribute { .. });
+        if matches!(op, BinOp::Eq | BinOp::NotEq)
+            && left_is_string_index
+            && right_is_ref_pattern
+        {
+            *right_expr = parse_quote! { *#right_expr };
+        }
+
+        // DEPYLER-1045: Handle char vs &str comparison
+        if matches!(op, BinOp::Eq | BinOp::NotEq) {
+            let left_is_char_iter = if let HirExpr::Var(name) = left {
+                self.ctx.char_iter_vars.contains(name)
+            } else {
+                false
+            };
+            let right_is_char_iter = if let HirExpr::Var(name) = right {
+                self.ctx.char_iter_vars.contains(name)
+            } else {
+                false
+            };
+            if left_is_char_iter && !right_is_char_iter {
+                *left_expr = parse_quote! { #left_expr.to_string() };
+            }
+            if right_is_char_iter && !left_is_char_iter {
+                *right_expr = parse_quote! { #right_expr.to_string() };
             }
         }
     }

@@ -2589,180 +2589,133 @@ fn gen_py_string_methods_string_impl() -> proc_macro2::TokenStream {
     }
 }
 
-/// CB-200 Batch 15: PyStringMethods impl for DepylerValue
+/// CB-200 Batch 16: PyStringMethods impl for DepylerValue — split into two halves
+/// to reduce cyclomatic complexity from 73 to ≤15 per function.
 fn gen_py_string_methods_depyler_value_impl() -> proc_macro2::TokenStream {
+    let basic_methods = gen_py_string_methods_dv_basic();
+    let query_methods = gen_py_string_methods_dv_query();
+    let format_methods = gen_py_string_methods_dv_format();
     quote! {
             // DEPYLER-1118: PyStringMethods for DepylerValue
             impl PyStringMethods for DepylerValue {
-                #[inline]
-                fn lower(&self) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.lower(),
-                        _ => String::new(),
-                    }
-                }
-                #[inline]
-                fn upper(&self) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.upper(),
-                        _ => String::new(),
-                    }
-                }
-                #[inline]
-                fn strip(&self) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.strip(),
-                        _ => String::new(),
-                    }
-                }
-                #[inline]
-                fn lstrip(&self) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.lstrip(),
-                        _ => String::new(),
-                    }
-                }
-                #[inline]
-                fn rstrip(&self) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.rstrip(),
-                        _ => String::new(),
-                    }
-                }
-                #[inline]
-                fn py_split(&self, sep: &str) -> Vec<String> {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.py_split(sep),
-                        _ => Vec::new(),
-                    }
-                }
-                #[inline]
-                fn py_replace(&self, old: &str, new: &str) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.py_replace(old, new),
-                        _ => String::new(),
-                    }
-                }
-                #[inline]
-                fn startswith(&self, prefix: &str) -> bool {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.startswith(prefix),
-                        _ => false,
-                    }
-                }
-                #[inline]
-                fn endswith(&self, suffix: &str) -> bool {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.endswith(suffix),
-                        _ => false,
-                    }
-                }
-                #[inline]
-                fn py_find(&self, sub: &str) -> i64 {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.py_find(sub),
-                        _ => -1,
-                    }
-                }
-                #[inline]
-                fn capitalize(&self) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.capitalize(),
-                        _ => String::new(),
-                    }
-                }
-                #[inline]
-                fn title(&self) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.title(),
-                        _ => String::new(),
-                    }
-                }
-                #[inline]
-                fn swapcase(&self) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.swapcase(),
-                        _ => String::new(),
-                    }
-                }
-                #[inline]
-                fn isalpha(&self) -> bool {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.isalpha(),
-                        _ => false,
-                    }
-                }
-                #[inline]
-                fn isdigit(&self) -> bool {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.isdigit(),
-                        _ => false,
-                    }
-                }
-                #[inline]
-                fn isalnum(&self) -> bool {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.isalnum(),
-                        _ => false,
-                    }
-                }
-                #[inline]
-                fn isspace(&self) -> bool {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.isspace(),
-                        _ => false,
-                    }
-                }
-                #[inline]
-                fn islower(&self) -> bool {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.islower(),
-                        _ => false,
-                    }
-                }
-                #[inline]
-                fn isupper(&self) -> bool {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.isupper(),
-                        _ => false,
-                    }
-                }
-                #[inline]
-                fn center(&self, width: usize) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.center(width),
-                        _ => String::new(),
-                    }
-                }
-                #[inline]
-                fn ljust(&self, width: usize) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.ljust(width),
-                        _ => String::new(),
-                    }
-                }
-                #[inline]
-                fn rjust(&self, width: usize) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.rjust(width),
-                        _ => String::new(),
-                    }
-                }
-                #[inline]
-                fn zfill(&self, width: usize) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.zfill(width),
-                        _ => String::new(),
-                    }
-                }
-                #[inline]
-                fn count(&self, sub: &str) -> usize {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.count(sub),
-                        _ => 0,
-                    }
-                }
+                #basic_methods
+                #query_methods
+                #format_methods
             }
+    }
+}
+
+/// CB-200 Batch 16: Basic string transform methods (lower, upper, strip, split, replace)
+fn gen_py_string_methods_dv_basic() -> proc_macro2::TokenStream {
+    quote! {
+        #[inline]
+        fn lower(&self) -> String {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.lower(), _ => String::new() }
+        }
+        #[inline]
+        fn upper(&self) -> String {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.upper(), _ => String::new() }
+        }
+        #[inline]
+        fn strip(&self) -> String {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.strip(), _ => String::new() }
+        }
+        #[inline]
+        fn lstrip(&self) -> String {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.lstrip(), _ => String::new() }
+        }
+        #[inline]
+        fn rstrip(&self) -> String {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.rstrip(), _ => String::new() }
+        }
+        #[inline]
+        fn py_split(&self, sep: &str) -> Vec<String> {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.py_split(sep), _ => Vec::new() }
+        }
+        #[inline]
+        fn py_replace(&self, old: &str, new: &str) -> String {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.py_replace(old, new), _ => String::new() }
+        }
+        #[inline]
+        fn capitalize(&self) -> String {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.capitalize(), _ => String::new() }
+        }
+        #[inline]
+        fn title(&self) -> String {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.title(), _ => String::new() }
+        }
+        #[inline]
+        fn swapcase(&self) -> String {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.swapcase(), _ => String::new() }
+        }
+    }
+}
+
+/// CB-200 Batch 16: String query/predicate methods (startswith, find, isalpha, etc.)
+fn gen_py_string_methods_dv_query() -> proc_macro2::TokenStream {
+    quote! {
+        #[inline]
+        fn startswith(&self, prefix: &str) -> bool {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.startswith(prefix), _ => false }
+        }
+        #[inline]
+        fn endswith(&self, suffix: &str) -> bool {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.endswith(suffix), _ => false }
+        }
+        #[inline]
+        fn py_find(&self, sub: &str) -> i64 {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.py_find(sub), _ => -1 }
+        }
+        #[inline]
+        fn isalpha(&self) -> bool {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.isalpha(), _ => false }
+        }
+        #[inline]
+        fn isdigit(&self) -> bool {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.isdigit(), _ => false }
+        }
+        #[inline]
+        fn isalnum(&self) -> bool {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.isalnum(), _ => false }
+        }
+        #[inline]
+        fn isspace(&self) -> bool {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.isspace(), _ => false }
+        }
+        #[inline]
+        fn islower(&self) -> bool {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.islower(), _ => false }
+        }
+        #[inline]
+        fn isupper(&self) -> bool {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.isupper(), _ => false }
+        }
+        #[inline]
+        fn count(&self, sub: &str) -> usize {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.count(sub), _ => 0 }
+        }
+    }
+}
+
+/// CB-200 Batch 16: String formatting/padding methods (center, ljust, rjust, zfill)
+fn gen_py_string_methods_dv_format() -> proc_macro2::TokenStream {
+    quote! {
+        #[inline]
+        fn center(&self, width: usize) -> String {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.center(width), _ => String::new() }
+        }
+        #[inline]
+        fn ljust(&self, width: usize) -> String {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.ljust(width), _ => String::new() }
+        }
+        #[inline]
+        fn rjust(&self, width: usize) -> String {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.rjust(width), _ => String::new() }
+        }
+        #[inline]
+        fn zfill(&self, width: usize) -> String {
+            match self { DepylerValue::Str(_dv_s) => _dv_s.zfill(width), _ => String::new() }
+        }
     }
 }
 

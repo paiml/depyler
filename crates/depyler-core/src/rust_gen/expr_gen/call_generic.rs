@@ -110,15 +110,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0588: Use safe_ident to handle keywords and invalid characters
             let func_ident = crate::rust_gen::keywords::safe_ident(func);
 
-            // CB-200 Batch 15: Argument borrowing + coercion extracted to helper
+            // CB-200 Batch 16: Argument borrowing + coercion with extracted early-return helpers
             let borrowed_args: Vec<syn::Expr> = hir_args
                 .iter()
                 .zip(args.iter())
                 .enumerate()
                 .map(|(param_idx, (hir_arg, arg_expr))| {
-                    // DEPYLER-99MODE-S9: Unwrap Result-returning function calls in arguments
-                    // When a Result-returning function call is passed as an argument,
-                    // add ? to unwrap it (e.g., `foo(bar(x))` → `foo(bar(x)?)`)
+                    // CB-200 Batch 16: Unwrap Result calls + apply early coercions
                     let mut arg_expr = arg_expr.clone();
                     if self.ctx.current_function_can_fail {
                         if let HirExpr::Call { func: inner_func, .. } = hir_arg {
@@ -128,116 +126,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     }
 
-                    // DEPYLER-0950: Integer literal coercion at f64 call sites
-                    // When calling add(1, 2.5) where add expects (f64, f64), coerce 1 to 1.0
-                    if let HirExpr::Literal(Literal::Int(n)) = hir_arg {
-                        if let Some(param_types) = self.ctx.function_param_types.get(func) {
-                            if let Some(Type::Float) = param_types.get(param_idx) {
-                                // Integer literal passed where f64 expected - coerce to float
-                                let f_val = *n as f64;
-                                return parse_quote! { #f_val };
-                            }
-                        }
+                    // CB-200 Batch 16: Try early-return coercions (int→float, DepylerValue→concrete, char→str)
+                    if let Some(coerced) = self.try_arg_early_coercion(func, param_idx, hir_arg, &arg_expr) {
+                        return coerced;
                     }
 
-                    // DEPYLER-1208: DepylerValue→concrete auto-coercion (Rule 2)
-                    // When a DepylerValue variable is passed to a function expecting concrete type,
-                    // generate appropriate extraction: x.as_i64() as i32, x.as_f64(), etc.
-                    if let HirExpr::Var(var_name) = hir_arg {
-                        let var_type = self.ctx.var_types.get(var_name);
-                        // DEPYLER-99MODE-S9: Also check module_constant_types - constants like PI
-                        // are already concrete types, not DepylerValue
-                        let is_known_concrete =
-                            self.ctx.module_constant_types.contains_key(var_name);
-                        let is_depyler_value = !is_known_concrete
-                            && (matches!(var_type, Some(Type::Unknown) | None)
-                                || matches!(var_type, Some(Type::Custom(s)) if s == "DepylerValue"));
-
-                        if is_depyler_value {
-                            if let Some(param_types) = self.ctx.function_param_types.get(func) {
-                                if let Some(expected_type) = param_types.get(param_idx) {
-                                    match expected_type {
-                                        Type::Int => {
-                                            return parse_quote! { #arg_expr.as_i64().unwrap_or_default() as i32 };
-                                        }
-                                        Type::Float => {
-                                            return parse_quote! { #arg_expr.as_f64().unwrap_or_default() };
-                                        }
-                                        Type::String => {
-                                            return parse_quote! { #arg_expr.as_str().unwrap_or_default().to_string() };
-                                        }
-                                        Type::Bool => {
-                                            return parse_quote! { #arg_expr.as_bool().unwrap_or_default() };
-                                        }
-                                        _ => {} // Other types - let regular flow handle
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // DEPYLER-1045: Convert char to String when passing to functions expecting &str
-                    // When a loop variable from string.chars() is passed to a function,
-                    // it needs to be converted to String because char and &str are incompatible.
-                    if let HirExpr::Var(var_name) = hir_arg {
-                        if self.ctx.char_iter_vars.contains(var_name) {
-                            // Check if function expects &str at this param position
-                            let expects_str = self.ctx
-                                .function_param_borrows
-                                .get(func)
-                                .and_then(|borrows| borrows.get(param_idx))
-                                .copied()
-                                .unwrap_or(true); // Default to expecting str for char iter vars
-                            if expects_str {
-                                return parse_quote! { &#arg_expr.to_string() };
-                            }
-                        }
-                    }
-
-                    // DEPYLER-0471: Clone args.config when passing to functions taking owned String
-                    // This avoids "use after move" errors when args.config is used multiple times
-                    if matches!(hir_arg, HirExpr::Attribute { value, attr }
-                        if attr == "config" && matches!(value.as_ref(), HirExpr::Var(v) if v == "args"))
-                    {
-                        // Check if function takes owned String (not &str)
-                        // For save_config and load_config, clone args.config
-                        if matches!(func, "save_config" | "load_config") {
-                            return parse_quote! { #arg_expr.clone() };
-                        }
-                    }
-
-                    // DEPYLER-0469/0488: Special case for known functions that need String borrowing
-                    // get_nested_value(config, key) - key param (index 1) needs &str
-                    // set_nested_value(config, key, value) - key (1) needs &str, value (2) needs &str (NOT &mut!)
-                    // DEPYLER-0488: Removed incorrect &mut for value parameter - it's only READ in the function
-                    // These work with both Var and Attribute expressions (before/after argparse transform)
-                    if (func == "get_nested_value" || func == "set_nested_value") && param_idx == 1 {
-                        // Immutable borrow for key parameter
-                        return parse_quote! { &#arg_expr };
-                    } else if func == "set_nested_value" && param_idx == 2 {
-                        // DEPYLER-0488: value parameter is READ (RHS of assignment), not mutated
-                        // Immutable borrow is sufficient
-                        return parse_quote! { &#arg_expr };
-                    }
-
-                    // DEPYLER-0424: Check if argument is argparse args variable
-                    // If so, always pass by reference (&args)
-                    if let HirExpr::Var(var_name) = hir_arg {
-                        let is_argparse_args =
-                            self.ctx
-                                .argparser_tracker
-                                .parsers
-                                .values()
-                                .any(|parser_info| {
-                                    parser_info
-                                        .args_var
-                                        .as_ref()
-                                        .is_some_and(|args_var| args_var == var_name)
-                                });
-
-                        if is_argparse_args {
-                            return parse_quote! { &#arg_expr };
-                        }
+                    // CB-200 Batch 16: Try special-case argument transforms
+                    if let Some(special) = self.try_arg_special_case(func, param_idx, hir_arg, &arg_expr) {
+                        return special;
                     }
 
                     // DEPYLER-0600: First check if function explicitly requires &mut at this position
@@ -483,6 +379,106 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     // ========================================================================
+    // ========================================================================
+    // CB-200 Batch 16: Early-return coercion helpers for convert_generic_call
+    // ========================================================================
+
+    /// CB-200 Batch 16: Try early-return coercions (int→float, DepylerValue→concrete, char→str)
+    fn try_arg_early_coercion(
+        &self,
+        func: &str,
+        param_idx: usize,
+        hir_arg: &HirExpr,
+        arg_expr: &syn::Expr,
+    ) -> Option<syn::Expr> {
+        // DEPYLER-0950: Integer literal coercion at f64 call sites
+        if let HirExpr::Literal(Literal::Int(n)) = hir_arg {
+            if let Some(param_types) = self.ctx.function_param_types.get(func) {
+                if let Some(Type::Float) = param_types.get(param_idx) {
+                    let f_val = *n as f64;
+                    return Some(parse_quote! { #f_val });
+                }
+            }
+        }
+
+        // DEPYLER-1208: DepylerValue→concrete auto-coercion (Rule 2)
+        if let HirExpr::Var(var_name) = hir_arg {
+            let var_type = self.ctx.var_types.get(var_name);
+            let is_known_concrete = self.ctx.module_constant_types.contains_key(var_name);
+            let is_depyler_value = !is_known_concrete
+                && (matches!(var_type, Some(Type::Unknown) | None)
+                    || matches!(var_type, Some(Type::Custom(s)) if s == "DepylerValue"));
+
+            if is_depyler_value {
+                if let Some(param_types) = self.ctx.function_param_types.get(func) {
+                    if let Some(expected_type) = param_types.get(param_idx) {
+                        match expected_type {
+                            Type::Int => return Some(parse_quote! { #arg_expr.as_i64().unwrap_or_default() as i32 }),
+                            Type::Float => return Some(parse_quote! { #arg_expr.as_f64().unwrap_or_default() }),
+                            Type::String => return Some(parse_quote! { #arg_expr.as_str().unwrap_or_default().to_string() }),
+                            Type::Bool => return Some(parse_quote! { #arg_expr.as_bool().unwrap_or_default() }),
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+
+        // DEPYLER-1045: Convert char to String when passing to functions expecting &str
+        if let HirExpr::Var(var_name) = hir_arg {
+            if self.ctx.char_iter_vars.contains(var_name) {
+                let expects_str = self.ctx
+                    .function_param_borrows
+                    .get(func)
+                    .and_then(|borrows| borrows.get(param_idx))
+                    .copied()
+                    .unwrap_or(true);
+                if expects_str {
+                    return Some(parse_quote! { &#arg_expr.to_string() });
+                }
+            }
+        }
+
+        None
+    }
+
+    /// CB-200 Batch 16: Try special-case argument transforms (args.config, nested_value, argparse)
+    fn try_arg_special_case(
+        &self,
+        func: &str,
+        param_idx: usize,
+        hir_arg: &HirExpr,
+        arg_expr: &syn::Expr,
+    ) -> Option<syn::Expr> {
+        // DEPYLER-0471: Clone args.config when passing to save_config/load_config
+        if matches!(hir_arg, HirExpr::Attribute { value, attr }
+            if attr == "config" && matches!(value.as_ref(), HirExpr::Var(v) if v == "args"))
+        {
+            if matches!(func, "save_config" | "load_config") {
+                return Some(parse_quote! { #arg_expr.clone() });
+            }
+        }
+
+        // DEPYLER-0469/0488: Special case for nested value functions
+        if (func == "get_nested_value" || func == "set_nested_value") && param_idx == 1 {
+            return Some(parse_quote! { &#arg_expr });
+        } else if func == "set_nested_value" && param_idx == 2 {
+            return Some(parse_quote! { &#arg_expr });
+        }
+
+        // DEPYLER-0424: Check if argument is argparse args variable
+        if let HirExpr::Var(var_name) = hir_arg {
+            let is_argparse_args = self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                parser_info.args_var.as_ref().is_some_and(|args_var| args_var == var_name)
+            });
+            if is_argparse_args {
+                return Some(parse_quote! { &#arg_expr });
+            }
+        }
+
+        None
+    }
+
     // CB-200 Batch 15: Helpers extracted from convert_generic_call
     // ========================================================================
 

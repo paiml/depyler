@@ -583,343 +583,42 @@ pub(crate) fn codegen_return_stmt(
     );
 
     if let Some(e) = expr {
-        // DEPYLER-1064: Handle Tuple[Any, ...] returns - wrap elements in DepylerValue
-        // When return type is Tuple containing Any types, each element needs DepylerValue wrapping
-        // DEPYLER-1158: Clone elem_types to avoid borrow conflict with ctx
-        let elem_types_owned: Option<Vec<Type>> =
-            if let Some(Type::Tuple(types)) = ctx.current_return_type.as_ref() {
-                Some(types.clone())
-            } else {
-                None
-            };
-        if let (HirExpr::Tuple(elts), Some(elem_types)) = (e, elem_types_owned.as_ref()) {
-            // DEPYLER-1158: Trigger wrapping for tuples with Unknown, Any, or list of Unknown types
-            // This ensures proper element conversion when function signature differs from expression types
-            // Key insight: HIR uses Type::Unknown, not Type::Custom("DepylerValue") - the DepylerValue
-            // tokens are generated during code emission, not stored in the type system
-            let has_depyler_related_types = elem_types.iter().any(|t| {
-                matches!(t, Type::Unknown)
-                    || matches!(t, Type::Custom(name) if name == "Any" || name == "object")
-                    || matches!(t, Type::List(inner) if matches!(inner.as_ref(), Type::Unknown))
-            });
-            if ctx.type_mapper.nasa_mode && has_depyler_related_types {
-                // DEPYLER-1158: Generate tuple with each element respecting expected type
-                // Use indexed iteration to avoid borrow checker issues with ctx
-                let mut wrapped_elems = Vec::with_capacity(elts.len());
-                for (i, elem) in elts.iter().enumerate() {
-                    let elem_expr = elem.to_rust_expr(ctx)?;
-                    let expected_type = elem_types.get(i);
-                    // DEPYLER-1158: Check expected type and infer from expression for Unknown
-                    // For list expressions with Unknown type, produce Vec<DepylerValue>
-                    // Key: HIR uses Type::List(Type::Unknown), not Type::List(Type::Custom("DepylerValue"))
-                    let wrapped = match expected_type {
-                        // DEPYLER-1158: List<Unknown> maps to Vec<DepylerValue>
-                        Some(Type::List(inner)) if matches!(inner.as_ref(), Type::Unknown) => {
-                            // Expected: Vec<DepylerValue> - convert each element
-                            quote! { #elem_expr.into_iter().map(DepylerValue::from).collect::<Vec<_>>() }
-                        }
-                        // DEPYLER-1158: Scalar Unknown maps to DepylerValue
-                        Some(Type::Unknown) => {
-                            // Check if expression is a list or likely produces a list
-                            let is_list_expr = matches!(elem, HirExpr::List(_))
-                                || matches!(elem, HirExpr::ListComp { .. })
-                                || match elem {
-                                    HirExpr::Var(name) => {
-                                        // Check if var is known to be a list type
-                                        ctx.var_types
-                                            .get(name)
-                                            .map(|t| matches!(t, Type::List(_)))
-                                            .unwrap_or(false)
-                                    }
-                                    HirExpr::MethodCall { method, .. } => {
-                                        // Methods like map, filter, collect return lists
-                                        matches!(
-                                            method.as_str(),
-                                            "collect" | "map" | "filter" | "sorted" | "list"
-                                        )
-                                    }
-                                    _ => false,
-                                };
-                            if is_list_expr {
-                                // List expression with Unknown type -> Vec<DepylerValue>
-                                quote! { #elem_expr.into_iter().map(DepylerValue::from).collect::<Vec<_>>() }
-                            } else {
-                                // Non-list: wrap in DepylerValue::from()
-                                quote! { DepylerValue::from(#elem_expr) }
-                            }
-                        }
-                        _ => {
-                            // Default: wrap in DepylerValue::from()
-                            quote! { DepylerValue::from(#elem_expr) }
-                        }
-                    };
-                    wrapped_elems.push(wrapped);
-                }
-
-                return Ok(quote! { return (#(#wrapped_elems),*); });
-            }
+        // CB-200 Batch 16: Try early return for tuple DepylerValue wrapping
+        if let Some(result) = try_codegen_return_tuple_wrap(e, ctx)? {
+            return Ok(result);
         }
 
-        // DEPYLER-1036: Set current_assign_type for Dict expressions in return statements
-        // This ensures empty dicts use the function return type for type inference
-        let prev_assign_type = ctx.current_assign_type.take();
-        if matches!(e, HirExpr::Dict(_)) {
-            if let Some(return_type) = &ctx.current_return_type {
-                // Extract Dict type from Optional<Dict> or use directly if Dict
-                let dict_type = match return_type {
-                    Type::Optional(inner) => match inner.as_ref() {
-                        Type::Dict(_, _) => Some(inner.as_ref().clone()),
-                        _ => None,
-                    },
-                    Type::Dict(_, _) => Some(return_type.clone()),
-                    _ => None,
-                };
-                if let Some(dt) = dict_type {
-                    ctx.current_assign_type = Some(dt);
-                }
-            }
-        }
-        let mut expr_tokens = e.to_rust_expr(ctx)?;
-        ctx.current_assign_type = prev_assign_type;
-
-        // DEPYLER-0626: Wrap return value with Box::new() for heterogeneous IO types
-        // When function returns Box<dyn Write> (e.g., sys.stdout vs File), wrap the value
-        if ctx.function_returns_boxed_write {
-            expr_tokens = parse_quote! { Box::new(#expr_tokens) };
-        }
-
-        // DEPYLER-1124: Convert concrete type to Union type via .into()
-        // When return type is Union[A, B] and expression is concrete A or B,
-        // add .into() to let Rust's From trait handle the conversion.
-        // Union types generate enum with From impls for each variant.
-        let is_union_return = matches!(ctx.current_return_type.as_ref(), Some(Type::Union(_)));
-        if is_union_return {
-            expr_tokens = parse_quote! { #expr_tokens.into() };
-        }
-
-        // DEPYLER-0241: Apply type conversion if needed (e.g., usize -> i32 from enumerate())
-        if let Some(return_type) = &ctx.current_return_type {
-            // Unwrap Optional to get the underlying type
-            let target_type = match return_type {
-                Type::Optional(inner) => inner.as_ref(),
-                other => other,
-            };
-
-            // DEPYLER-0272: Pass expression to check if cast is actually needed
-            // DEPYLER-0455 #7: Also pass ctx to check validator function context
-            if needs_type_conversion(target_type, e) {
-                expr_tokens = apply_type_conversion(expr_tokens, target_type);
-            }
-
-            // DEPYLER-E0308-FIX: String literal to String conversion in return statements
-            // When returning a string literal and the return type is String, add .to_string()
-            // Example: `return ""` should become `"".to_string()` when return type is String
-            if matches!(e, HirExpr::Literal(Literal::String(_)))
-                && matches!(target_type, Type::String)
-            {
-                expr_tokens = parse_quote! { #expr_tokens.to_string() };
-            }
-
-            // DEPYLER-E0282-FIX: Add type hint for chained PyOps expressions in return statements
-            // When returning expressions like ((a).py_add(b)).py_add(c), Rust can't infer the
-            // intermediate types because PyOps traits have multiple impls (i32+i32, i32+f64, etc.)
-            // Also handles Ok(...) wrapped expressions where inner type is Int/Float.
-            // Fix: Wrap in type assertion block { let _r: <type> = expr; _r }
-            // DEPYLER-99MODE-S9: Skip type assertion for Result-returning function calls.
-            // The function's return type is already known, and wrapping in {let _r: T = call(); _r}
-            // would assign Result<T> to T. The PyOps in arguments are resolved at arg level.
-            let is_result_call = matches!(e, HirExpr::Call { func, .. }
-                if ctx.result_returning_functions.contains(func));
-            if ctx.type_mapper.nasa_mode && has_chained_pyops(e) && !is_result_call {
-                // Check if target_type is Result/Option and extract inner type
-                let effective_type = get_inner_optional_type(target_type).unwrap_or(target_type);
-                let type_tokens: Option<syn::Type> = match effective_type {
-                    Type::Int => Some(parse_quote! { i32 }),
-                    Type::Float => Some(parse_quote! { f64 }),
-                    _ => None,
-                };
-                if let Some(ty) = type_tokens {
-                    expr_tokens = parse_quote! { { let _r: #ty = #expr_tokens; _r } };
-                }
-            }
-        }
-
-        // DEPYLER-1150: Convert slice params to Vec when returning in Vec-returning function
-        // Pattern: def func(*args) -> List[T]: return args
-        // Rust: fn func(args: &[T]) -> Vec<T> { args.to_vec() }
-        // Without this, we get E0308: expected Vec<T>, found &[T]
-        if let HirExpr::Var(var_name) = e {
-            let is_slice_param = ctx.slice_params.contains(var_name);
-            let is_vec_return = matches!(
-                ctx.current_return_type.as_ref(),
-                Some(Type::List(_)) | Some(Type::Tuple(_))
-            );
-            if is_slice_param && is_vec_return {
-                expr_tokens = parse_quote! { #expr_tokens.to_vec() };
-            }
-
-            // DEPYLER-99MODE-S9: Convert &str params to String when returning String
-            // Pattern: def func(s: str) -> str: return s
-            // Rust: fn func(s: &str) -> String { s.to_string() }
-            let is_str_param = ctx.fn_str_params.contains(var_name);
-            let is_string_return_type =
-                matches!(ctx.current_return_type.as_ref(), Some(Type::String));
-            if is_str_param && is_string_return_type {
-                expr_tokens = parse_quote! { #expr_tokens.to_string() };
-            }
-        }
-
-        // DEPYLER-0757: Wrap return values when function returns serde_json::Value (Python's `any`)
-        // When return type is serde_json::Value, use json!() macro to convert any value
-        // Note: ctx.current_return_type contains HIR type (e.g., "any") not the mapped Rust type
-        let is_json_value_return = matches!(
-            ctx.current_return_type.as_ref(),
-            Some(Type::Custom(name)) if name == "serde_json::Value"
-                || name == "any"
-                || name == "Any"
-                || name == "typing.Any"
-        );
-        // DEPYLER-1017: Skip serde_json in NASA mode
-        if is_json_value_return && !ctx.type_mapper.nasa_mode {
-            // Use serde_json::json!() macro to convert the expression to Value
-            // This handles bool, int, float, string, arrays, etc. automatically
-            expr_tokens = parse_quote! { serde_json::json!(#expr_tokens) };
-        }
-
-        // DEPYLER-0943: Convert serde_json::Value to String when return type is String
-        // Dict subscript access returns serde_json::Value, but if the function return type
-        // is String, we need to extract the string value from the JSON Value.
-        // DEPYLER-1221: Only apply this conversion when dict VALUE type is serde_json::Value.
-        // If the dict value type is already String, skip the conversion.
-        // DEPYLER-1320: Skip this conversion in NASA mode - DepylerValue uses .into() for type
-        // conversion which already handles String extraction via From<DepylerValue> trait.
-        let is_string_return = matches!(ctx.current_return_type.as_ref(), Some(Type::String));
-        let is_dict_subscript = is_dict_index_access(e);
-        let needs_json_to_string_conversion = if ctx.type_mapper.nasa_mode {
-            // In NASA mode, .into() already handles DepylerValue to String conversion
-            false
-        } else if is_string_return && is_dict_subscript {
-            // Check if the dict has serde_json::Value value type
-            if let HirExpr::Index { base, .. } = e {
-                if let HirExpr::Var(var_name) = base.as_ref() {
-                    // Look up the dict type in var_types
-                    if let Some(dict_type) = ctx.var_types.get(var_name) {
-                        // Only convert if value type is serde_json::Value or Unknown
-                        is_dict_with_value_type(dict_type)
-                    } else {
-                        // Unknown dict type - assume needs conversion for safety
-                        true
-                    }
-                } else {
-                    // Complex base expression - assume needs conversion
-                    true
-                }
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-        if needs_json_to_string_conversion {
-            // Convert Value to String: value.as_str().unwrap_or("").to_string()
-            expr_tokens = parse_quote! { #expr_tokens.as_str().unwrap_or("").to_string() };
-        }
+        // CB-200 Batch 16: Apply chain of expression transforms
+        let mut expr_tokens = apply_return_expr_transforms(e, ctx)?;
 
         // Check if return type is Optional and wrap value in Some()
         let is_optional_return =
             matches!(ctx.current_return_type.as_ref(), Some(Type::Optional(_)));
 
-        // DEPYLER-0330: DISABLED - Heuristic too broad, breaks plain int variables named "result"
-        // Original logic: Unwrap Option-typed variables when returning from non-Optional function
-        // Problem: Can't distinguish between:
-        //   1. result = d.get(key)  # Option<T> - needs unwrap
-        //   2. result = 0           # i32 - breaks with unwrap
-        // NOTE: Re-enable unwrap_or optimization when HIR has type tracking (tracked in DEPYLER-0424)
-        //
-        // if !is_optional_return {
-        //     if let HirExpr::Var(var_name) = e {
-        //         let is_primitive_return = matches!(
-        //             ctx.current_return_type.as_ref(),
-        //             Some(Type::Int | Type::Float | Type::Bool | Type::String)
-        //         );
-        //         if ctx.is_final_statement && var_name == "result" && is_primitive_return {
-        //             expr_tokens = parse_quote! { #expr_tokens.unwrap() };
-        //         }
-        //     }
-        // }
-
         // Check if the expression is None literal
         let is_none_literal = matches!(e, HirExpr::Literal(Literal::None));
 
-        // DEPYLER-0744: Check if expression is already Option-typed (e.g., param with default=None)
-        // DEPYLER-0951: Extended to check method calls that return Option
-        // Don't wrap in Some() if the expression is already Option<T>
-        let is_already_optional = if let HirExpr::Var(var_name) = e {
-            ctx.var_types.get(var_name).map(|ty| matches!(ty, Type::Optional(_))).unwrap_or(false)
-        } else if let HirExpr::MethodCall { method, args, .. } = e {
-            // DEPYLER-0951: These methods return Option<T>, don't wrap in Some()
-            // - dict.get(key) -> Option<&V>
-            // - environ.get(key) -> Option<String> (via std::env::var().ok())
-            // - Result.ok() -> Option<T>
-            // - Option.cloned() -> Option<T>
-            // DEPYLER-1036: dict.get(key, default) returns value type, NOT Option
-            // Python's dict.get with 2 args has built-in default, so it never returns None
-            let is_get_with_default = method == "get" && args.len() == 2;
-            if is_get_with_default {
-                false // dict.get(key, default) returns value, not Option
-            } else {
-                matches!(
-                    method.as_str(),
-                    "get" | "ok" | "cloned" | "copied" | "pop" | "first" | "last"
-                )
-            }
-        } else {
-            // DEPYLER-0951: Also check if the generated tokens end with .ok() or contain .get(
-            // This catches cases where the HIR doesn't directly show the Option-returning method
-            let expr_str = quote!(#expr_tokens).to_string();
-            // DEPYLER-1036: Check for unwrapping methods that convert Option<T> to T
-            // If expression ends with .unwrap_or(...) or .unwrap_or_default(), it's NOT optional
-            // DEPYLER-1078: .next() also returns Option<T>
-            let has_option_method = expr_str.ends_with(". ok ()")
-                || expr_str.ends_with(". next ()")
-                || expr_str.contains(". get (");
-            let has_unwrap_method = expr_str.contains(". unwrap_or (")
-                || expr_str.contains(". unwrap_or_default (")
-                || expr_str.contains(". unwrap (")
-                || expr_str.contains(". expect (");
-            has_option_method && !has_unwrap_method
-        };
+        // CB-200 Batch 16: Check if expression is already Option-typed
+        let is_already_optional = check_is_already_optional(e, &expr_tokens, ctx);
 
         // DEPYLER-0498: Check if expression is if-expr with None arm (ternary with None)
-        // Pattern: `return x if cond else None` -> should be `if cond { Some(x) } else { None }`
-        // NOT: `Some(if cond { x } else { None })`
         let is_if_expr_with_none = matches!(
             e,
             HirExpr::IfExpr { orelse, .. } if matches!(&**orelse, HirExpr::Literal(Literal::None))
         );
 
         // DEPYLER-0271: For final statement in function, omit `return` keyword (idiomatic Rust)
-        // Early returns (not final) keep the `return` keyword
         let use_return_keyword = !ctx.is_final_statement;
 
         // DEPYLER-0357: Check if function returns void (None in Python -> () in Rust)
-        // Must check this BEFORE is_optional_return to avoid false positive
-        // Python `-> None` maps to Rust `()`, not `Option<T>`
         let is_void_return = matches!(ctx.current_return_type.as_ref(), Some(Type::None));
 
         // DEPYLER-1147: Unwrap Optional parameters when return type is the inner type
-        // Pattern: `def foo(x: Optional[int]) -> int: ... return x`
-        // The parameter is &Option<T> and return type is T, so we need to unwrap
-        // This is safe when preceded by `if x is None: return default` pattern
         if is_already_optional && !is_optional_return && !is_void_return {
             if let HirExpr::Var(var_name) = e {
-                // Check if this variable is typed as Optional in var_types
-                // (function parameters with Optional type are tracked there)
                 let is_optional_typed =
                     ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::Optional(_)));
                 if is_optional_typed {
-                    // For &Option<T> parameters, need (*var).unwrap() to get T
-                    // Since optional params are passed by reference: &Option<T>
                     expr_tokens =
                         parse_quote! { (*#expr_tokens).expect("optional parameter unwrap failed") };
                 }
@@ -927,275 +626,13 @@ pub(crate) fn codegen_return_stmt(
         }
 
         if ctx.current_function_can_fail {
-            if is_void_return && is_none_literal {
-                // Void function with can_fail: return Ok(()) for `return None`
-                if use_return_keyword {
-                    Ok(quote! { return Ok(()); })
-                } else {
-                    Ok(quote! { Ok(()) })
-                }
-            } else if is_optional_return
-                && !is_none_literal
-                && !is_if_expr_with_none
-                && !is_already_optional
-            {
-                // Wrap value in Some() for Optional return types
-                // DEPYLER-1079: Skip wrapping if if-expr has None arm (handled separately below)
-                if use_return_keyword {
-                    Ok(quote! { return Ok(Some(#expr_tokens)); })
-                } else {
-                    Ok(quote! { Ok(Some(#expr_tokens)) })
-                }
-            } else if is_optional_return && is_if_expr_with_none {
-                // DEPYLER-1079: If-expr with None arm in Result context
-                // Pattern: `return x if cond else None` -> `Ok(if cond { Some(x) } else { None })`
-                if let HirExpr::IfExpr { test, body, orelse: _ } = e {
-                    // DEPYLER-1071: Check if test is an Option variable (regex match result)
-                    // Pattern: `return m.group(0) if m else None` where m is Option<Match>
-                    // Should generate: `Ok(m.as_ref().map(|m_val| m_val.group(0)))`
-                    if let HirExpr::Var(var_name) = test.as_ref() {
-                        let is_option = ctx
-                            .var_types
-                            .get(var_name)
-                            .is_some_and(|t| matches!(t, Type::Optional(_)))
-                            || is_option_var_name(var_name);
-
-                        if is_option && body_uses_option_var(body, var_name) {
-                            let var_ident = crate::rust_gen::keywords::safe_ident(var_name);
-                            let val_name = format!("{}_val", var_name);
-                            let val_ident = crate::rust_gen::keywords::safe_ident(&val_name);
-
-                            // Substitute variable in body
-                            let body_substituted = substitute_var_in_hir(body, var_name, &val_name);
-                            let body_tokens = body_substituted.to_rust_expr(ctx)?;
-
-                            if use_return_keyword {
-                                return Ok(
-                                    quote! { return Ok(#var_ident.as_ref().map(|#val_ident| #body_tokens)); },
-                                );
-                            } else {
-                                return Ok(
-                                    quote! { Ok(#var_ident.as_ref().map(|#val_ident| #body_tokens)) },
-                                );
-                            }
-                        }
-                    }
-
-                    let test_tokens = test.to_rust_expr(ctx)?;
-                    // DEPYLER-1079: Apply truthiness conversion for collection/string/optional conditions
-                    let test_tokens = apply_truthiness_conversion(test.as_ref(), test_tokens, ctx);
-                    let body_tokens = body.to_rust_expr(ctx)?;
-
-                    if use_return_keyword {
-                        Ok(
-                            quote! { return Ok(if #test_tokens { Some(#body_tokens) } else { None }); },
-                        )
-                    } else {
-                        Ok(quote! { Ok(if #test_tokens { Some(#body_tokens) } else { None }) })
-                    }
-                } else {
-                    unreachable!("is_if_expr_with_none should only match IfExpr")
-                }
-            } else if is_optional_return && is_already_optional {
-                // DEPYLER-0744: Expression is already Option<T>, just wrap in Ok()
-                if use_return_keyword {
-                    Ok(quote! { return Ok(#expr_tokens); })
-                } else {
-                    Ok(quote! { Ok(#expr_tokens) })
-                }
-            } else if is_optional_return && is_none_literal {
-                // DEPYLER-0277: Return None for Optional types (not ())
-                if use_return_keyword {
-                    Ok(quote! { return Ok(None); })
-                } else {
-                    Ok(quote! { Ok(None) })
-                }
-            } else if ctx.is_main_function {
-                // DEPYLER-0617: Handle exit code returns in main() function
-                // Python pattern: `def main() -> int: ... return 1`
-                // Rust main() can only return () or Result<(), E>, so integer returns
-                // must be converted to process::exit() for non-zero or Ok(()) for zero
-                //
-                // DEPYLER-0950: Only apply main() special handling for int/void returns.
-                // If main() returns other types like f64, treat it as a normal function.
-                let is_main_entry_point_return = matches!(
-                    ctx.current_return_type.as_ref(),
-                    None | Some(Type::Int) | Some(Type::None)
-                );
-                if !is_main_entry_point_return {
-                    // main() with non-int/non-void return type (e.g., `def main() -> float`)
-                    // Treat as normal function - generate standard return with Ok() wrapper
-                    if use_return_keyword {
-                        Ok(quote! { return Ok(#expr_tokens); })
-                    } else {
-                        Ok(quote! { Ok(#expr_tokens) })
-                    }
-                } else if let HirExpr::Literal(Literal::Int(exit_code)) = e {
-                    if *exit_code == 0 {
-                        // Success exit code -> Ok(())
-                        if use_return_keyword {
-                            Ok(quote! { return Ok(()); })
-                        } else {
-                            Ok(quote! { Ok(()) })
-                        }
-                    } else {
-                        // Non-zero exit code -> std::process::exit(N)
-                        let code = *exit_code as i32;
-                        Ok(quote! { std::process::exit(#code) })
-                    }
-                } else {
-                    // DEPYLER-0703: Other expressions in main - evaluate for side effects
-                    // and return Ok(()). Use explicit semicolon to prevent DEPYLER-0694 wrap.
-                    if use_return_keyword {
-                        Ok(quote! { let _ = #expr_tokens; return Ok(()); })
-                    } else {
-                        Ok(quote! { let _ = #expr_tokens; Ok(()) })
-                    }
-                }
-            } else if is_call_to_result_returning_fn(e, ctx) {
-                // DEPYLER-99MODE-S9: Don't double-wrap Result-returning function calls in Ok()
-                // If the return expression is a call to a function that already returns Result,
-                // just return the call directly (possibly with ?)
-                if use_return_keyword {
-                    Ok(quote! { return #expr_tokens; })
-                } else {
-                    Ok(quote! { #expr_tokens })
-                }
-            } else if use_return_keyword {
-                Ok(quote! { return Ok(#expr_tokens); })
-            } else {
-                Ok(quote! { Ok(#expr_tokens) })
-            }
-        } else if is_void_return {
-            // Void functions (Python -> None): no return value (non-fallible)
-            if use_return_keyword {
-                // Early return from void function: use empty return
-                Ok(quote! { return; })
-            } else {
-                // Final statement in void function: use unit value ()
-                Ok(quote! { () })
-            }
-        } else if is_optional_return
-            && !is_none_literal
-            && !is_if_expr_with_none
-            && !is_already_optional
-        {
-            // Wrap value in Some() for Optional return types
-            // DEPYLER-0498: Skip wrapping if if-expr has None arm (handled separately)
-            // DEPYLER-0744: Skip wrapping if expression is already Option<T>
-            if use_return_keyword {
-                Ok(quote! { return Some(#expr_tokens); })
-            } else {
-                Ok(quote! { Some(#expr_tokens) })
-            }
-        } else if is_optional_return && is_already_optional {
-            // DEPYLER-0744: Expression is already Option<T>, don't double-wrap
-            if use_return_keyword {
-                Ok(quote! { return #expr_tokens; })
-            } else {
-                Ok(quote! { #expr_tokens })
-            }
-        } else if is_optional_return && is_if_expr_with_none {
-            // DEPYLER-0498: If-expr with None arm - manually wrap true arm in Some()
-            // Pattern: `return x if cond else None` -> `if cond { Some(x) } else { None }`
-            if let HirExpr::IfExpr { test, body, orelse: _ } = e {
-                // DEPYLER-1071: Check if test is an Option variable (regex match result)
-                // Pattern: `return m.group(0) if m else None` where m is Option<Match>
-                // Should generate: `m.as_ref().map(|m_val| m_val.group(0))`
-                if let HirExpr::Var(var_name) = test.as_ref() {
-                    let is_option =
-                        ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::Optional(_)))
-                            || is_option_var_name(var_name);
-
-                    if is_option && body_uses_option_var(body, var_name) {
-                        let var_ident = crate::rust_gen::keywords::safe_ident(var_name);
-                        let val_name = format!("{}_val", var_name);
-                        let val_ident = crate::rust_gen::keywords::safe_ident(&val_name);
-
-                        // Substitute variable in body
-                        let body_substituted = substitute_var_in_hir(body, var_name, &val_name);
-                        let body_tokens = body_substituted.to_rust_expr(ctx)?;
-
-                        if use_return_keyword {
-                            return Ok(
-                                quote! { return #var_ident.as_ref().map(|#val_ident| #body_tokens); },
-                            );
-                        } else {
-                            return Ok(
-                                quote! { #var_ident.as_ref().map(|#val_ident| #body_tokens) },
-                            );
-                        }
-                    }
-                }
-
-                let test_tokens = test.to_rust_expr(ctx)?;
-                // DEPYLER-1079: Apply truthiness conversion for collection/string/optional conditions
-                let test_tokens = apply_truthiness_conversion(test.as_ref(), test_tokens, ctx);
-                let body_tokens = body.to_rust_expr(ctx)?;
-
-                if use_return_keyword {
-                    Ok(quote! { return if #test_tokens { Some(#body_tokens) } else { None }; })
-                } else {
-                    Ok(quote! { if #test_tokens { Some(#body_tokens) } else { None } })
-                }
-            } else {
-                unreachable!("is_if_expr_with_none should only match IfExpr")
-            }
-        } else if is_optional_return && is_none_literal {
-            // DEPYLER-0277: Return None for Optional types (not ()) - non-Result case
-            if use_return_keyword {
-                Ok(quote! { return None; })
-            } else {
-                Ok(quote! { None })
-            }
-        } else if ctx.is_main_function {
-            // DEPYLER-0617: Handle exit code returns in main() function (non-fallible case)
-            // Python pattern: `def main() -> int: ... return 0`
-            // Rust main() can only return () or Result<(), E>, so integer returns
-            // must be converted to process::exit() for non-zero or () for zero
-            //
-            // DEPYLER-0950: Only apply main() special handling for int/void returns.
-            // If main() returns other types like f64, treat it as a normal function.
-            let is_main_entry_point_return = matches!(
-                ctx.current_return_type.as_ref(),
-                None | Some(Type::Int) | Some(Type::None)
-            );
-            if !is_main_entry_point_return {
-                // main() with non-int/non-void return type (e.g., `def main() -> float`)
-                // Treat as normal function - generate standard return
-                if use_return_keyword {
-                    Ok(quote! { return #expr_tokens; })
-                } else {
-                    Ok(quote! { #expr_tokens })
-                }
-            } else if let HirExpr::Literal(Literal::Int(exit_code)) = e {
-                if *exit_code == 0 {
-                    // Success exit code -> ()
-                    if use_return_keyword {
-                        Ok(quote! { return; })
-                    } else {
-                        Ok(quote! { () })
-                    }
-                } else {
-                    // Non-zero exit code -> std::process::exit(N)
-                    let code = *exit_code as i32;
-                    Ok(quote! { std::process::exit(#code) })
-                }
-            } else {
-                // DEPYLER-0703: Other expressions in main - evaluate for side effects
-                // and return (). Use explicit (); to prevent DEPYLER-0694 from wrapping again.
-                if use_return_keyword {
-                    Ok(quote! { let _ = #expr_tokens; return; })
-                } else {
-                    // Note: Use explicit statement with semicolon to prevent
-                    // DEPYLER-0694 from adding another let _ =
-                    Ok(quote! { let _ = #expr_tokens; })
-                }
-            }
-        } else if use_return_keyword {
-            Ok(quote! { return #expr_tokens; })
+            codegen_return_fallible(e, expr_tokens, is_void_return, is_none_literal,
+                is_optional_return, is_if_expr_with_none, is_already_optional,
+                use_return_keyword, ctx)
         } else {
-            Ok(quote! { #expr_tokens })
+            codegen_return_infallible(e, expr_tokens, is_void_return, is_none_literal,
+                is_optional_return, is_if_expr_with_none, is_already_optional,
+                use_return_keyword, ctx)
         }
     } else if ctx.current_function_can_fail {
         // No expression - check if return type is Optional
@@ -1222,6 +659,411 @@ pub(crate) fn codegen_return_stmt(
             // Final bare return becomes unit value (implicit)
             Ok(quote! {})
         }
+    }
+}
+
+/// CB-200 Batch 16: Try early return for tuple DepylerValue wrapping (DEPYLER-1064/1158)
+fn try_codegen_return_tuple_wrap(
+    e: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Result<Option<proc_macro2::TokenStream>> {
+    let elem_types_owned: Option<Vec<Type>> =
+        if let Some(Type::Tuple(types)) = ctx.current_return_type.as_ref() {
+            Some(types.clone())
+        } else {
+            None
+        };
+    if let (HirExpr::Tuple(elts), Some(elem_types)) = (e, elem_types_owned.as_ref()) {
+        let has_depyler_related_types = elem_types.iter().any(|t| {
+            matches!(t, Type::Unknown)
+                || matches!(t, Type::Custom(name) if name == "Any" || name == "object")
+                || matches!(t, Type::List(inner) if matches!(inner.as_ref(), Type::Unknown))
+        });
+        if ctx.type_mapper.nasa_mode && has_depyler_related_types {
+            let mut wrapped_elems = Vec::with_capacity(elts.len());
+            for (i, elem) in elts.iter().enumerate() {
+                let elem_expr = elem.to_rust_expr(ctx)?;
+                let expected_type = elem_types.get(i);
+                let wrapped = wrap_return_tuple_element(elem, &elem_expr, expected_type, ctx);
+                wrapped_elems.push(wrapped);
+            }
+            return Ok(Some(quote! { return (#(#wrapped_elems),*); }));
+        }
+    }
+    Ok(None)
+}
+
+/// CB-200 Batch 16: Wrap a single tuple element for DepylerValue return (DEPYLER-1158)
+fn wrap_return_tuple_element(
+    elem: &HirExpr,
+    elem_expr: &proc_macro2::TokenStream,
+    expected_type: Option<&Type>,
+    ctx: &CodeGenContext,
+) -> proc_macro2::TokenStream {
+    match expected_type {
+        Some(Type::List(inner)) if matches!(inner.as_ref(), Type::Unknown) => {
+            quote! { #elem_expr.into_iter().map(DepylerValue::from).collect::<Vec<_>>() }
+        }
+        Some(Type::Unknown) => {
+            let is_list_expr = matches!(elem, HirExpr::List(_))
+                || matches!(elem, HirExpr::ListComp { .. })
+                || match elem {
+                    HirExpr::Var(name) => {
+                        ctx.var_types.get(name).map(|t| matches!(t, Type::List(_))).unwrap_or(false)
+                    }
+                    HirExpr::MethodCall { method, .. } => {
+                        matches!(method.as_str(), "collect" | "map" | "filter" | "sorted" | "list")
+                    }
+                    _ => false,
+                };
+            if is_list_expr {
+                quote! { #elem_expr.into_iter().map(DepylerValue::from).collect::<Vec<_>>() }
+            } else {
+                quote! { DepylerValue::from(#elem_expr) }
+            }
+        }
+        _ => {
+            quote! { DepylerValue::from(#elem_expr) }
+        }
+    }
+}
+
+/// CB-200 Batch 16: Apply the chain of return expression transforms
+fn apply_return_expr_transforms(
+    e: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Result<syn::Expr> {
+    // DEPYLER-1036: Set current_assign_type for Dict expressions in return statements
+    let prev_assign_type = ctx.current_assign_type.take();
+    if matches!(e, HirExpr::Dict(_)) {
+        if let Some(return_type) = &ctx.current_return_type {
+            let dict_type = match return_type {
+                Type::Optional(inner) => match inner.as_ref() {
+                    Type::Dict(_, _) => Some(inner.as_ref().clone()),
+                    _ => None,
+                },
+                Type::Dict(_, _) => Some(return_type.clone()),
+                _ => None,
+            };
+            if let Some(dt) = dict_type {
+                ctx.current_assign_type = Some(dt);
+            }
+        }
+    }
+    let mut expr_tokens = e.to_rust_expr(ctx)?;
+    ctx.current_assign_type = prev_assign_type;
+
+    // DEPYLER-0626: Wrap return value with Box::new() for heterogeneous IO types
+    if ctx.function_returns_boxed_write {
+        expr_tokens = parse_quote! { Box::new(#expr_tokens) };
+    }
+
+    // DEPYLER-1124: Convert concrete type to Union type via .into()
+    if matches!(ctx.current_return_type.as_ref(), Some(Type::Union(_))) {
+        expr_tokens = parse_quote! { #expr_tokens.into() };
+    }
+
+    // DEPYLER-0241: Apply type conversion if needed (e.g., usize -> i32 from enumerate())
+    if let Some(return_type) = &ctx.current_return_type {
+        let target_type = match return_type {
+            Type::Optional(inner) => inner.as_ref(),
+            other => other,
+        };
+        if needs_type_conversion(target_type, e) {
+            expr_tokens = apply_type_conversion(expr_tokens, target_type);
+        }
+        if matches!(e, HirExpr::Literal(Literal::String(_))) && matches!(target_type, Type::String) {
+            expr_tokens = parse_quote! { #expr_tokens.to_string() };
+        }
+        // DEPYLER-E0282-FIX: Add type hint for chained PyOps expressions
+        let is_result_call = matches!(e, HirExpr::Call { func, .. }
+            if ctx.result_returning_functions.contains(func));
+        if ctx.type_mapper.nasa_mode && has_chained_pyops(e) && !is_result_call {
+            let effective_type = get_inner_optional_type(target_type).unwrap_or(target_type);
+            let type_tokens: Option<syn::Type> = match effective_type {
+                Type::Int => Some(parse_quote! { i32 }),
+                Type::Float => Some(parse_quote! { f64 }),
+                _ => None,
+            };
+            if let Some(ty) = type_tokens {
+                expr_tokens = parse_quote! { { let _r: #ty = #expr_tokens; _r } };
+            }
+        }
+    }
+
+    // DEPYLER-1150: Convert slice params to Vec when returning in Vec-returning function
+    if let HirExpr::Var(var_name) = e {
+        let is_slice_param = ctx.slice_params.contains(var_name);
+        let is_vec_return = matches!(
+            ctx.current_return_type.as_ref(),
+            Some(Type::List(_)) | Some(Type::Tuple(_))
+        );
+        if is_slice_param && is_vec_return {
+            expr_tokens = parse_quote! { #expr_tokens.to_vec() };
+        }
+        let is_str_param = ctx.fn_str_params.contains(var_name);
+        let is_string_return_type = matches!(ctx.current_return_type.as_ref(), Some(Type::String));
+        if is_str_param && is_string_return_type {
+            expr_tokens = parse_quote! { #expr_tokens.to_string() };
+        }
+    }
+
+    // DEPYLER-0757: Wrap return values when function returns serde_json::Value
+    let is_json_value_return = matches!(
+        ctx.current_return_type.as_ref(),
+        Some(Type::Custom(name)) if name == "serde_json::Value"
+            || name == "any" || name == "Any" || name == "typing.Any"
+    );
+    if is_json_value_return && !ctx.type_mapper.nasa_mode {
+        expr_tokens = parse_quote! { serde_json::json!(#expr_tokens) };
+    }
+
+    // DEPYLER-0943: Convert serde_json::Value to String when return type is String
+    if check_needs_json_to_string(e, ctx) {
+        expr_tokens = parse_quote! { #expr_tokens.as_str().unwrap_or("").to_string() };
+    }
+
+    Ok(expr_tokens)
+}
+
+/// CB-200 Batch 16: Check if return expression needs JSON-to-String conversion (DEPYLER-0943/1221/1320)
+fn check_needs_json_to_string(e: &HirExpr, ctx: &CodeGenContext) -> bool {
+    if ctx.type_mapper.nasa_mode {
+        return false;
+    }
+    let is_string_return = matches!(ctx.current_return_type.as_ref(), Some(Type::String));
+    let is_dict_subscript = is_dict_index_access(e);
+    if is_string_return && is_dict_subscript {
+        if let HirExpr::Index { base, .. } = e {
+            if let HirExpr::Var(var_name) = base.as_ref() {
+                if let Some(dict_type) = ctx.var_types.get(var_name) {
+                    return is_dict_with_value_type(dict_type);
+                } else {
+                    return true;
+                }
+            } else {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// CB-200 Batch 16: Check if expression is already Option-typed (DEPYLER-0744/0951)
+fn check_is_already_optional(
+    e: &HirExpr,
+    expr_tokens: &syn::Expr,
+    ctx: &CodeGenContext,
+) -> bool {
+    if let HirExpr::Var(var_name) = e {
+        ctx.var_types.get(var_name).map(|ty| matches!(ty, Type::Optional(_))).unwrap_or(false)
+    } else if let HirExpr::MethodCall { method, args, .. } = e {
+        let is_get_with_default = method == "get" && args.len() == 2;
+        if is_get_with_default {
+            false
+        } else {
+            matches!(
+                method.as_str(),
+                "get" | "ok" | "cloned" | "copied" | "pop" | "first" | "last"
+            )
+        }
+    } else {
+        let expr_str = quote!(#expr_tokens).to_string();
+        let has_option_method = expr_str.ends_with(". ok ()")
+            || expr_str.ends_with(". next ()")
+            || expr_str.contains(". get (");
+        let has_unwrap_method = expr_str.contains(". unwrap_or (")
+            || expr_str.contains(". unwrap_or_default (")
+            || expr_str.contains(". unwrap (")
+            || expr_str.contains(". expect (");
+        has_option_method && !has_unwrap_method
+    }
+}
+
+/// CB-200 Batch 16: Generate if-expr-with-None return pattern (DEPYLER-0498/1071/1079)
+fn codegen_return_if_expr_with_none(
+    e: &HirExpr,
+    use_return_keyword: bool,
+    wrap_ok: bool,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    if let HirExpr::IfExpr { test, body, orelse: _ } = e {
+        if let HirExpr::Var(var_name) = test.as_ref() {
+            let is_option = ctx
+                .var_types
+                .get(var_name)
+                .is_some_and(|t| matches!(t, Type::Optional(_)))
+                || is_option_var_name(var_name);
+
+            if is_option && body_uses_option_var(body, var_name) {
+                let var_ident = crate::rust_gen::keywords::safe_ident(var_name);
+                let val_name = format!("{}_val", var_name);
+                let val_ident = crate::rust_gen::keywords::safe_ident(&val_name);
+                let body_substituted = substitute_var_in_hir(body, var_name, &val_name);
+                let body_tokens = body_substituted.to_rust_expr(ctx)?;
+
+                let map_expr = quote! { #var_ident.as_ref().map(|#val_ident| #body_tokens) };
+                if wrap_ok {
+                    if use_return_keyword {
+                        return Ok(quote! { return Ok(#map_expr); });
+                    } else {
+                        return Ok(quote! { Ok(#map_expr) });
+                    }
+                } else if use_return_keyword {
+                    return Ok(quote! { return #map_expr; });
+                } else {
+                    return Ok(quote! { #map_expr });
+                }
+            }
+        }
+
+        let test_tokens = test.to_rust_expr(ctx)?;
+        let test_tokens = apply_truthiness_conversion(test.as_ref(), test_tokens, ctx);
+        let body_tokens = body.to_rust_expr(ctx)?;
+
+        let if_expr = quote! { if #test_tokens { Some(#body_tokens) } else { None } };
+        if wrap_ok {
+            if use_return_keyword {
+                Ok(quote! { return Ok(#if_expr); })
+            } else {
+                Ok(quote! { Ok(#if_expr) })
+            }
+        } else if use_return_keyword {
+            Ok(quote! { return #if_expr; })
+        } else {
+            Ok(quote! { #if_expr })
+        }
+    } else {
+        unreachable!("is_if_expr_with_none should only match IfExpr")
+    }
+}
+
+/// CB-200 Batch 16: Generate main() exit code return (DEPYLER-0617/0950)
+fn codegen_return_main_exit(
+    e: &HirExpr,
+    expr_tokens: &proc_macro2::TokenStream,
+    use_return_keyword: bool,
+    wrap_ok: bool,
+    ctx: &CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let is_main_entry_point_return = matches!(
+        ctx.current_return_type.as_ref(),
+        None | Some(Type::Int) | Some(Type::None)
+    );
+    if !is_main_entry_point_return {
+        if wrap_ok {
+            if use_return_keyword {
+                return Ok(quote! { return Ok(#expr_tokens); });
+            } else {
+                return Ok(quote! { Ok(#expr_tokens) });
+            }
+        } else if use_return_keyword {
+            return Ok(quote! { return #expr_tokens; });
+        } else {
+            return Ok(quote! { #expr_tokens });
+        }
+    }
+    if let HirExpr::Literal(Literal::Int(exit_code)) = e {
+        if *exit_code == 0 {
+            if wrap_ok {
+                if use_return_keyword { Ok(quote! { return Ok(()); }) }
+                else { Ok(quote! { Ok(()) }) }
+            } else if use_return_keyword {
+                Ok(quote! { return; })
+            } else {
+                Ok(quote! { () })
+            }
+        } else {
+            let code = *exit_code as i32;
+            Ok(quote! { std::process::exit(#code) })
+        }
+    } else if wrap_ok {
+        if use_return_keyword {
+            Ok(quote! { let _ = #expr_tokens; return Ok(()); })
+        } else {
+            Ok(quote! { let _ = #expr_tokens; Ok(()) })
+        }
+    } else if use_return_keyword {
+        Ok(quote! { let _ = #expr_tokens; return; })
+    } else {
+        Ok(quote! { let _ = #expr_tokens; })
+    }
+}
+
+/// CB-200 Batch 16: Return dispatch for fallible (Result-returning) functions
+#[allow(clippy::too_many_arguments)]
+fn codegen_return_fallible(
+    e: &HirExpr,
+    expr_tokens: syn::Expr,
+    is_void_return: bool,
+    is_none_literal: bool,
+    is_optional_return: bool,
+    is_if_expr_with_none: bool,
+    is_already_optional: bool,
+    use_return_keyword: bool,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let et = quote! { #expr_tokens };
+    if is_void_return && is_none_literal {
+        if use_return_keyword { Ok(quote! { return Ok(()); }) }
+        else { Ok(quote! { Ok(()) }) }
+    } else if is_optional_return && !is_none_literal && !is_if_expr_with_none && !is_already_optional {
+        if use_return_keyword { Ok(quote! { return Ok(Some(#et)); }) }
+        else { Ok(quote! { Ok(Some(#et)) }) }
+    } else if is_optional_return && is_if_expr_with_none {
+        codegen_return_if_expr_with_none(e, use_return_keyword, true, ctx)
+    } else if is_optional_return && is_already_optional {
+        if use_return_keyword { Ok(quote! { return Ok(#et); }) }
+        else { Ok(quote! { Ok(#et) }) }
+    } else if is_optional_return && is_none_literal {
+        if use_return_keyword { Ok(quote! { return Ok(None); }) }
+        else { Ok(quote! { Ok(None) }) }
+    } else if ctx.is_main_function {
+        codegen_return_main_exit(e, &et, use_return_keyword, true, ctx)
+    } else if is_call_to_result_returning_fn(e, ctx) {
+        if use_return_keyword { Ok(quote! { return #et; }) }
+        else { Ok(quote! { #et }) }
+    } else if use_return_keyword {
+        Ok(quote! { return Ok(#et); })
+    } else {
+        Ok(quote! { Ok(#et) })
+    }
+}
+
+/// CB-200 Batch 16: Return dispatch for infallible (non-Result) functions
+#[allow(clippy::too_many_arguments)]
+fn codegen_return_infallible(
+    e: &HirExpr,
+    expr_tokens: syn::Expr,
+    is_void_return: bool,
+    is_none_literal: bool,
+    is_optional_return: bool,
+    is_if_expr_with_none: bool,
+    is_already_optional: bool,
+    use_return_keyword: bool,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let et = quote! { #expr_tokens };
+    if is_void_return {
+        if use_return_keyword { Ok(quote! { return; }) }
+        else { Ok(quote! { () }) }
+    } else if is_optional_return && !is_none_literal && !is_if_expr_with_none && !is_already_optional {
+        if use_return_keyword { Ok(quote! { return Some(#et); }) }
+        else { Ok(quote! { Some(#et) }) }
+    } else if is_optional_return && is_already_optional {
+        if use_return_keyword { Ok(quote! { return #et; }) }
+        else { Ok(quote! { #et }) }
+    } else if is_optional_return && is_if_expr_with_none {
+        codegen_return_if_expr_with_none(e, use_return_keyword, false, ctx)
+    } else if is_optional_return && is_none_literal {
+        if use_return_keyword { Ok(quote! { return None; }) }
+        else { Ok(quote! { None }) }
+    } else if ctx.is_main_function {
+        codegen_return_main_exit(e, &et, use_return_keyword, false, ctx)
+    } else if use_return_keyword {
+        Ok(quote! { return #et; })
+    } else {
+        Ok(quote! { #et })
     }
 }
 
@@ -4717,423 +4559,12 @@ pub(crate) fn codegen_assign_stmt(
         if matches!(value, HirExpr::Literal(Literal::None)) {
             (Some(quote! { : Option<()> }), false)
         } else if ctx.type_mapper.nasa_mode {
-            // DEPYLER-1174: Aggressive Defaulting - force DepylerValue for ambiguous types
-            // Rationale: E0282 (type annotation needed) stops compilation immediately.
-            // E0308 (type mismatch) from DepylerValue can be fixed later.
-            // It's better to compile with potential type mismatches than not compile at all.
-            match value {
-                // Empty dict literal: `x = {}` - DEPYLER-1218 Smart type inference
-                // Priority: 1. Variable's known type (for params/prior assignments)
-                //           2. Function return type (if Dict)
-                //           3. Default to HashMap<String, DepylerValue>
-                HirExpr::Dict(entries) if entries.is_empty() => {
-                    // DEPYLER-1314: Helper to check if dict type has Unknown key/val types
-                    let has_unknown_types = |k: &Type, v: &Type| {
-                        matches!(k, Type::Unknown | Type::UnificationVar(_))
-                            || matches!(v, Type::Unknown | Type::UnificationVar(_))
-                    };
-                    // First check if var_types has a known type for this variable
-                    let var_dict_type = if let AssignTarget::Symbol(name) = target {
-                        if let Some(Type::Dict(key, val)) = ctx.var_types.get(name) {
-                            // DEPYLER-1314: Skip type annotation if key/val are Unknown
-                            // Let Rust infer from the expression to avoid HashMap<DepylerValue, DepylerValue>
-                            // conflicting with generated HashMap<String, DepylerValue>
-                            if has_unknown_types(key, val) {
-                                None // Fall through to default
-                            } else {
-                                let key_ty = hir_type_to_tokens(key);
-                                let val_ty = hir_type_to_tokens(val);
-                                Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
-                            }
-                        } else if let Some(Type::Optional(inner)) = ctx.var_types.get(name) {
-                            // Handle Option<Dict> case (like memo: Dict[int, int] = None)
-                            if let Type::Dict(key, val) = inner.as_ref() {
-                                if has_unknown_types(key, val) {
-                                    None
-                                } else {
-                                    let key_ty = hir_type_to_tokens(key);
-                                    let val_ty = hir_type_to_tokens(val);
-                                    Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
-                                }
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
-                    // Then check current_return_type for Dict type info
-                    // DEPYLER-1314: Skip if return type has Unknown key/val
-                    let return_dict_type = match &ctx.current_return_type {
-                        Some(Type::Dict(key, val)) if !has_unknown_types(key, val) => {
-                            let key_ty = hir_type_to_tokens(key);
-                            let val_ty = hir_type_to_tokens(val);
-                            Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
-                        }
-                        _ => None,
-                    };
-                    if let Some(ty) = var_dict_type.or(return_dict_type) {
-                        (Some(ty), false)
-                    } else {
-                        (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
-                    }
-                }
-                // Dict literal with entries: infer from usage or default to DepylerValue values
-                HirExpr::Dict(_) => {
-                    // DEPYLER-1314: Helper for unknown type check
-                    let has_unknown = |k: &Type, v: &Type| {
-                        matches!(k, Type::Unknown | Type::UnificationVar(_))
-                            || matches!(v, Type::Unknown | Type::UnificationVar(_))
-                    };
-                    // First check if var_types has a known type for this variable
-                    let var_dict_type = if let AssignTarget::Symbol(name) = target {
-                        if let Some(Type::Dict(key, val)) = ctx.var_types.get(name) {
-                            if has_unknown(key, val) {
-                                None
-                            } else {
-                                let key_ty = hir_type_to_tokens(key);
-                                let val_ty = hir_type_to_tokens(val);
-                                Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
-                            }
-                        } else if let Some(Type::Optional(inner)) = ctx.var_types.get(name) {
-                            if let Type::Dict(key, val) = inner.as_ref() {
-                                if has_unknown(key, val) {
-                                    None
-                                } else {
-                                    let key_ty = hir_type_to_tokens(key);
-                                    let val_ty = hir_type_to_tokens(val);
-                                    Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
-                                }
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
-                    let return_dict_type = match &ctx.current_return_type {
-                        Some(Type::Dict(key, val)) if !has_unknown(key, val) => {
-                            let key_ty = hir_type_to_tokens(key);
-                            let val_ty = hir_type_to_tokens(val);
-                            Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
-                        }
-                        _ => None,
-                    };
-                    if let Some(ty) = var_dict_type.or(return_dict_type) {
-                        (Some(ty), false)
-                    } else {
-                        (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
-                    }
-                }
-                // Dict comprehension: `x = {k: v for ...}` → infer from return type or default
-                HirExpr::DictComp { .. } => {
-                    let var_dict_type = if let AssignTarget::Symbol(name) = target {
-                        if let Some(Type::Dict(key, val)) = ctx.var_types.get(name) {
-                            let key_ty = hir_type_to_tokens(key);
-                            let val_ty = hir_type_to_tokens(val);
-                            Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
-                    let return_dict_type = match &ctx.current_return_type {
-                        Some(Type::Dict(key, val)) => {
-                            let key_ty = hir_type_to_tokens(key);
-                            let val_ty = hir_type_to_tokens(val);
-                            Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
-                        }
-                        _ => None,
-                    };
-                    if let Some(ty) = var_dict_type.or(return_dict_type) {
-                        (Some(ty), false)
-                    } else {
-                        (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
-                    }
-                }
-                // Empty list literal: `x = []` - DEPYLER-1206 Smart type inference
-                // Priority: 1. Variable's known type from var_types
-                //           2. Function return type (if List)
-                //           3. Default to Vec<DepylerValue>
-                HirExpr::List(elems) if elems.is_empty() => {
-                    // First check if var_types has a known type for this variable
-                    let var_type = if let AssignTarget::Symbol(name) = target {
-                        ctx.var_types.get(name).cloned()
-                    } else {
-                        None
-                    };
-
-                    // Then check current_return_type for List element type
-                    let return_list_type = match &ctx.current_return_type {
-                        Some(Type::List(elem)) => Some(elem.as_ref().clone()),
-                        Some(Type::Tuple(elems)) => {
-                            // For tuple returns, check if any element is a list we might be assigning
-                            elems.iter().find_map(|t| {
-                                if let Type::List(elem) = t {
-                                    Some(elem.as_ref().clone())
-                                } else {
-                                    None
-                                }
-                            })
-                        }
-                        _ => None,
-                    };
-
-                    // Use var_type if it's a List, else return_list_type, else default
-                    let elem_type = if let Some(Type::List(elem)) = var_type {
-                        Some(elem.as_ref().clone())
-                    } else {
-                        return_list_type
-                    };
-
-                    match elem_type {
-                        Some(Type::Int) => (Some(quote! { : Vec<i32> }), false),
-                        Some(Type::Float) => (Some(quote! { : Vec<f64> }), false),
-                        Some(Type::String) => (Some(quote! { : Vec<String> }), false),
-                        Some(Type::Bool) => (Some(quote! { : Vec<bool> }), false),
-                        Some(Type::Tuple(types)) => {
-                            // For List[Tuple[...]], generate Vec<(T1, T2, ...)>
-                            let tuple_types: Vec<proc_macro2::TokenStream> = types
-                                .iter()
-                                .map(|t| match t {
-                                    Type::String => quote! { String },
-                                    Type::Int => quote! { i32 },
-                                    Type::Float => quote! { f64 },
-                                    Type::Bool => quote! { bool },
-                                    Type::Custom(name) => {
-                                        let ident =
-                                            syn::Ident::new(name, proc_macro2::Span::call_site());
-                                        quote! { #ident }
-                                    }
-                                    _ => quote! { DepylerValue },
-                                })
-                                .collect();
-                            (Some(quote! { : Vec<(#(#tuple_types),*)> }), false)
-                        }
-                        Some(Type::Custom(name)) => {
-                            // For List[CustomType], generate Vec<CustomType>
-                            let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
-                            (Some(quote! { : Vec<#ident> }), false)
-                        }
-                        _ => (Some(quote! { : Vec<DepylerValue> }), false),
-                    }
-                }
-                // DEPYLER-0467: Non-empty list literal with type inference
-                // `x = [a, b, c]` where a,b,c are i32 → `Vec<i32>` (NOT Vec<DepylerValue>)
-                // This resolves the type inference issue for variable-containing lists
-                // DEPYLER-1313: Extended to handle nested lists (Vec<Vec<T>>)
-                HirExpr::List(elems) => {
-                    let elem_type = infer_collection_element_type_with_ctx(elems, &ctx.var_types);
-                    match &elem_type {
-                        Type::Int => (Some(quote! { : Vec<i32> }), false),
-                        Type::Float => (Some(quote! { : Vec<f64> }), false),
-                        Type::String => (Some(quote! { : Vec<String> }), false),
-                        Type::Bool => (Some(quote! { : Vec<bool> }), false),
-                        // DEPYLER-1313: Handle nested lists - generate Vec<Vec<T>>
-                        Type::List(inner) => {
-                            if let Some(inner_tokens) = type_to_vec_annotation(inner) {
-                                (Some(quote! { : Vec<#inner_tokens> }), false)
-                            } else {
-                                (Some(quote! { : Vec<DepylerValue> }), false)
-                            }
-                        }
-                        // DEPYLER-1313: Handle tuples in lists - generate Vec<(T1, T2, ...)>
-                        Type::Tuple(types) => {
-                            let tuple_types: Vec<proc_macro2::TokenStream> =
-                                types.iter().map(type_to_simple_token).collect();
-                            (Some(quote! { : Vec<(#(#tuple_types),*)> }), false)
-                        }
-                        _ => {
-                            // Unknown or mixed types - fall back to DepylerValue
-                            (Some(quote! { : Vec<DepylerValue> }), false)
-                        }
-                    }
-                }
-                // List comprehension: `x = [v for ...]` → infer from iterable type if possible
-                HirExpr::ListComp { generators, .. } => {
-                    // DEPYLER-1176: Smart list comprehension typing
-                    // Try to infer element type from the iterable being iterated over
-                    // If iter is a Var with known List[T] type, result is Vec<T>
-                    // Also handles slices: `arr[1:]` preserves element type
-                    let inferred_type = generators.first().and_then(|gen| {
-                        // Helper to get element type from a list type
-                        let get_list_elem_type = |var_name: &str| {
-                            ctx.var_types.get(var_name).and_then(|t| {
-                                if let Type::List(elem_ty) = t {
-                                    Some(elem_ty.as_ref().clone())
-                                } else {
-                                    None
-                                }
-                            })
-                        };
-
-                        match gen.iter.as_ref() {
-                            // Direct variable: `for x in arr`
-                            HirExpr::Var(iter_name) => get_list_elem_type(iter_name),
-                            // Slice: `for x in arr[1:]` - base var determines type
-                            HirExpr::Slice { base, .. } => {
-                                if let HirExpr::Var(base_name) = base.as_ref() {
-                                    get_list_elem_type(base_name)
-                                } else {
-                                    None
-                                }
-                            }
-                            // Index: `for x in arr[0]` (nested list)
-                            HirExpr::Index { base, .. } => {
-                                if let HirExpr::Var(base_name) = base.as_ref() {
-                                    // If base is List[List[T]], indexing gives List[T], so element is T
-                                    ctx.var_types.get(base_name).and_then(|t| {
-                                        if let Type::List(inner) = t {
-                                            if let Type::List(elem_ty) = inner.as_ref() {
-                                                Some(elem_ty.as_ref().clone())
-                                            } else {
-                                                // Base is List[T], indexing gives T (not a list)
-                                                None
-                                            }
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                } else {
-                                    None
-                                }
-                            }
-                            _ => None,
-                        }
-                    });
-
-                    if let Some(elem_type) = inferred_type {
-                        // Inferred element type - use it
-                        let rust_type = ctx.type_mapper.map_type(&elem_type);
-                        match rust_type_to_syn(&rust_type) {
-                            Ok(syn_type) => (Some(quote! { : Vec<#syn_type> }), false),
-                            Err(_) => (Some(quote! { : Vec<DepylerValue> }), false),
-                        }
-                    } else {
-                        // Couldn't infer - fall back to DepylerValue
-                        (Some(quote! { : Vec<DepylerValue> }), false)
-                    }
-                }
-                // DEPYLER-1149: Set literal with element type inference
-                // `x = {1, 2, 3}` → `HashSet<i32>` if all ints
-                // `x = {"a", "b"}` → `HashSet<String>` if all strings
-                // `x = {1, "a"}` → `HashSet<DepylerValue>` if mixed
-                // DEPYLER-0467: Also infers type from variables (e.g., `{a, b, c}` where a,b,c are i32)
-                HirExpr::Set(elems) => {
-                    let elem_type = infer_collection_element_type_with_ctx(elems, &ctx.var_types);
-                    match elem_type {
-                        Type::Int => (Some(quote! { : std::collections::HashSet<i32> }), false),
-                        Type::Float => (Some(quote! { : std::collections::HashSet<f64> }), false),
-                        Type::String => {
-                            (Some(quote! { : std::collections::HashSet<String> }), false)
-                        }
-                        Type::Bool => (Some(quote! { : std::collections::HashSet<bool> }), false),
-                        _ => {
-                            // Unknown or mixed types - fall back to DepylerValue
-                            (Some(quote! { : std::collections::HashSet<DepylerValue> }), false)
-                        }
-                    }
-                }
-                // Set comprehension: `x = {v for ...}` → `HashSet<DepylerValue>`
-                HirExpr::SetComp { .. } => {
-                    (Some(quote! { : std::collections::HashSet<DepylerValue> }), false)
-                }
-                // Generator expression assigned to variable: force Vec<DepylerValue>
-                HirExpr::GeneratorExp { .. } => (Some(quote! { : Vec<DepylerValue> }), false),
-                // DEPYLER-1167: set() call with list argument - infer element type from list
-                // `x = set([1, 2, 3])` → `HashSet<i32>` if all ints (NOT HashSet<DepylerValue>)
-                // This prevents E0308 type mismatch between HashSet<DepylerValue> and HashSet<{integer}>
-                // DEPYLER-0467: Also supports variables in the list
-                HirExpr::Call { func, args, .. } if func == "set" => {
-                    // If set() has a list argument, infer element type from the list
-                    if args.len() == 1 {
-                        if let HirExpr::List(elems) = &args[0] {
-                            let elem_type =
-                                infer_collection_element_type_with_ctx(elems, &ctx.var_types);
-                            match elem_type {
-                                Type::Int => {
-                                    (Some(quote! { : std::collections::HashSet<i32> }), false)
-                                }
-                                Type::Float => {
-                                    (Some(quote! { : std::collections::HashSet<f64> }), false)
-                                }
-                                Type::String => {
-                                    (Some(quote! { : std::collections::HashSet<String> }), false)
-                                }
-                                Type::Bool => {
-                                    (Some(quote! { : std::collections::HashSet<bool> }), false)
-                                }
-                                _ => {
-                                    // Mixed or unknown types - fall back to DepylerValue
-                                    (
-                                        Some(quote! { : std::collections::HashSet<DepylerValue> }),
-                                        false,
-                                    )
-                                }
-                            }
-                        } else {
-                            // set() with non-list argument - let Rust infer
-                            (None, false)
-                        }
-                    } else {
-                        // Empty set() - use i32 as default (DEPYLER-0409)
-                        (Some(quote! { : std::collections::HashSet<i32> }), false)
-                    }
-                }
-                // DEPYLER-1168: list() call with range argument - infer element type
-                // `x = list(range(5))` → `Vec<i32>` (NOT Vec<DepylerValue>)
-                // DEPYLER-0467: Also supports variables in the list
-                HirExpr::Call { func, args, .. } if func == "list" => {
-                    if args.len() == 1 {
-                        // Check if argument is range()
-                        if let HirExpr::Call { func: inner_func, .. } = &args[0] {
-                            if inner_func == "range" {
-                                // range() produces integers
-                                (Some(quote! { : Vec<i32> }), false)
-                            } else {
-                                // Other function call - let Rust infer
-                                (None, false)
-                            }
-                        } else if let HirExpr::List(elems) = &args[0] {
-                            // list([1, 2, 3]) - infer from elements
-                            let elem_type =
-                                infer_collection_element_type_with_ctx(elems, &ctx.var_types);
-                            match elem_type {
-                                Type::Int => (Some(quote! { : Vec<i32> }), false),
-                                Type::Float => (Some(quote! { : Vec<f64> }), false),
-                                Type::String => (Some(quote! { : Vec<String> }), false),
-                                Type::Bool => (Some(quote! { : Vec<bool> }), false),
-                                _ => (Some(quote! { : Vec<DepylerValue> }), false),
-                            }
-                        } else {
-                            // list() with other argument - let Rust infer
-                            (None, false)
-                        }
-                    } else {
-                        // Empty list() - use default
-                        (Some(quote! { : Vec<i32> }), false)
-                    }
-                }
-                // DEPYLER-CI-FIX: User-defined class constructor calls
-                // `calc = Calculator(10)` → `let calc: Calculator = Calculator::new(10);`
-                // This prevents E0308 type mismatch when class instance is typed as HashSet<DepylerValue>
-                HirExpr::Call { func, .. } if ctx.class_names.contains(func) => {
-                    let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
-                    (Some(quote! { : #class_ident }), false)
-                }
-                // Default: let Rust infer if possible
-                _ => (None, false),
-            }
+            // CB-200 Batch 16: Delegate NASA-mode type inference to extracted helper
+            infer_nasa_mode_type_annotation(target, value, ctx)
         } else {
             (None, false)
         }
     };
-
     // DEPYLER-0455 #2: String literal normalization for hoisted inference variables
     // When a variable is hoisted without type annotation, string literals must be
     // normalized to String to ensure consistent type inference across if/else branches
@@ -5295,6 +4726,268 @@ pub(crate) fn codegen_assign_stmt(
         AssignTarget::Tuple(targets) => {
             codegen_assign_tuple(targets, value, value_expr, type_annotation_tokens, ctx)
         }
+    }
+}
+
+/// CB-200 Batch 16: NASA-mode type annotation inference extracted from codegen_assign_stmt
+/// DEPYLER-1174: Aggressive Defaulting - force DepylerValue for ambiguous types
+fn infer_nasa_mode_type_annotation(
+    target: &AssignTarget,
+    value: &HirExpr,
+    ctx: &CodeGenContext,
+) -> (Option<proc_macro2::TokenStream>, bool) {
+    /// Helper: check if dict key/val types are Unknown or unresolved
+    fn has_unknown_types(k: &Type, v: &Type) -> bool {
+        matches!(k, Type::Unknown | Type::UnificationVar(_))
+            || matches!(v, Type::Unknown | Type::UnificationVar(_))
+    }
+    /// Helper: try to resolve dict type annotation from var_types or return type
+    fn try_dict_annotation(
+        target: &AssignTarget,
+        ctx: &CodeGenContext,
+        check_unknown: bool,
+    ) -> Option<proc_macro2::TokenStream> {
+        let var_dict_type = if let AssignTarget::Symbol(name) = target {
+            if let Some(Type::Dict(key, val)) = ctx.var_types.get(name) {
+                if check_unknown && has_unknown_types(key, val) {
+                    None
+                } else {
+                    let key_ty = hir_type_to_tokens(key);
+                    let val_ty = hir_type_to_tokens(val);
+                    Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
+                }
+            } else if let Some(Type::Optional(inner)) = ctx.var_types.get(name) {
+                if let Type::Dict(key, val) = inner.as_ref() {
+                    if check_unknown && has_unknown_types(key, val) { None }
+                    else {
+                        let key_ty = hir_type_to_tokens(key);
+                        let val_ty = hir_type_to_tokens(val);
+                        Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
+                    }
+                } else { None }
+            } else { None }
+        } else { None };
+        let return_dict_type = match &ctx.current_return_type {
+            Some(Type::Dict(key, val)) if !check_unknown || !has_unknown_types(key, val) => {
+                let key_ty = hir_type_to_tokens(key);
+                let val_ty = hir_type_to_tokens(val);
+                Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
+            }
+            _ => None,
+        };
+        var_dict_type.or(return_dict_type)
+    }
+
+    match value {
+        HirExpr::Dict(entries) if entries.is_empty() => {
+            if let Some(ty) = try_dict_annotation(target, ctx, true) {
+                (Some(ty), false)
+            } else {
+                (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+            }
+        }
+        HirExpr::Dict(_) => {
+            if let Some(ty) = try_dict_annotation(target, ctx, true) {
+                (Some(ty), false)
+            } else {
+                (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+            }
+        }
+        HirExpr::DictComp { .. } => {
+            if let Some(ty) = try_dict_annotation(target, ctx, false) {
+                (Some(ty), false)
+            } else {
+                (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+            }
+        }
+        HirExpr::List(elems) if elems.is_empty() => {
+            infer_nasa_empty_list_type(target, ctx)
+        }
+        HirExpr::List(elems) => {
+            infer_nasa_nonempty_list_type(elems, ctx)
+        }
+        HirExpr::ListComp { generators, .. } => {
+            infer_nasa_listcomp_type(generators, ctx)
+        }
+        HirExpr::Set(elems) => {
+            let elem_type = infer_collection_element_type_with_ctx(elems, &ctx.var_types);
+            match elem_type {
+                Type::Int => (Some(quote! { : std::collections::HashSet<i32> }), false),
+                Type::Float => (Some(quote! { : std::collections::HashSet<f64> }), false),
+                Type::String => (Some(quote! { : std::collections::HashSet<String> }), false),
+                Type::Bool => (Some(quote! { : std::collections::HashSet<bool> }), false),
+                _ => (Some(quote! { : std::collections::HashSet<DepylerValue> }), false),
+            }
+        }
+        HirExpr::SetComp { .. } => {
+            (Some(quote! { : std::collections::HashSet<DepylerValue> }), false)
+        }
+        HirExpr::GeneratorExp { .. } => (Some(quote! { : Vec<DepylerValue> }), false),
+        HirExpr::Call { func, args, .. } if func == "set" => {
+            infer_nasa_set_call_type(args, ctx)
+        }
+        HirExpr::Call { func, args, .. } if func == "list" => {
+            infer_nasa_list_call_type(args, ctx)
+        }
+        HirExpr::Call { func, .. } if ctx.class_names.contains(func) => {
+            let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+            (Some(quote! { : #class_ident }), false)
+        }
+        _ => (None, false),
+    }
+}
+
+/// CB-200 Batch 16: Infer type for empty list in NASA mode
+fn infer_nasa_empty_list_type(
+    target: &AssignTarget,
+    ctx: &CodeGenContext,
+) -> (Option<proc_macro2::TokenStream>, bool) {
+    let var_type = if let AssignTarget::Symbol(name) = target {
+        ctx.var_types.get(name).cloned()
+    } else { None };
+    let return_list_type = match &ctx.current_return_type {
+        Some(Type::List(elem)) => Some(elem.as_ref().clone()),
+        Some(Type::Tuple(elems)) => elems.iter().find_map(|t| {
+            if let Type::List(elem) = t { Some(elem.as_ref().clone()) } else { None }
+        }),
+        _ => None,
+    };
+    let elem_type = if let Some(Type::List(elem)) = var_type {
+        Some(elem.as_ref().clone())
+    } else { return_list_type };
+
+    match elem_type {
+        Some(Type::Int) => (Some(quote! { : Vec<i32> }), false),
+        Some(Type::Float) => (Some(quote! { : Vec<f64> }), false),
+        Some(Type::String) => (Some(quote! { : Vec<String> }), false),
+        Some(Type::Bool) => (Some(quote! { : Vec<bool> }), false),
+        Some(Type::Tuple(types)) => {
+            let tuple_types: Vec<proc_macro2::TokenStream> = types.iter().map(|t| match t {
+                Type::String => quote! { String }, Type::Int => quote! { i32 },
+                Type::Float => quote! { f64 }, Type::Bool => quote! { bool },
+                Type::Custom(name) => { let ident = syn::Ident::new(name, proc_macro2::Span::call_site()); quote! { #ident } }
+                _ => quote! { DepylerValue },
+            }).collect();
+            (Some(quote! { : Vec<(#(#tuple_types),*)> }), false)
+        }
+        Some(Type::Custom(name)) => {
+            let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
+            (Some(quote! { : Vec<#ident> }), false)
+        }
+        _ => (Some(quote! { : Vec<DepylerValue> }), false),
+    }
+}
+
+/// CB-200 Batch 16: Infer type for non-empty list in NASA mode
+fn infer_nasa_nonempty_list_type(
+    elems: &[HirExpr],
+    ctx: &CodeGenContext,
+) -> (Option<proc_macro2::TokenStream>, bool) {
+    let elem_type = infer_collection_element_type_with_ctx(elems, &ctx.var_types);
+    match &elem_type {
+        Type::Int => (Some(quote! { : Vec<i32> }), false),
+        Type::Float => (Some(quote! { : Vec<f64> }), false),
+        Type::String => (Some(quote! { : Vec<String> }), false),
+        Type::Bool => (Some(quote! { : Vec<bool> }), false),
+        Type::List(inner) => {
+            if let Some(inner_tokens) = type_to_vec_annotation(inner) {
+                (Some(quote! { : Vec<#inner_tokens> }), false)
+            } else {
+                (Some(quote! { : Vec<DepylerValue> }), false)
+            }
+        }
+        Type::Tuple(types) => {
+            let tuple_types: Vec<proc_macro2::TokenStream> =
+                types.iter().map(type_to_simple_token).collect();
+            (Some(quote! { : Vec<(#(#tuple_types),*)> }), false)
+        }
+        _ => (Some(quote! { : Vec<DepylerValue> }), false),
+    }
+}
+
+/// CB-200 Batch 16: Infer type for list comprehension in NASA mode
+fn infer_nasa_listcomp_type(
+    generators: &[crate::hir::Comprehension],
+    ctx: &CodeGenContext,
+) -> (Option<proc_macro2::TokenStream>, bool) {
+    let inferred_type = generators.first().and_then(|gen| {
+        let get_list_elem_type = |var_name: &str| {
+            ctx.var_types.get(var_name).and_then(|t| {
+                if let Type::List(elem_ty) = t { Some(elem_ty.as_ref().clone()) } else { None }
+            })
+        };
+        match gen.iter.as_ref() {
+            HirExpr::Var(iter_name) => get_list_elem_type(iter_name),
+            HirExpr::Slice { base, .. } => {
+                if let HirExpr::Var(base_name) = base.as_ref() { get_list_elem_type(base_name) } else { None }
+            }
+            HirExpr::Index { base, .. } => {
+                if let HirExpr::Var(base_name) = base.as_ref() {
+                    ctx.var_types.get(base_name).and_then(|t| {
+                        if let Type::List(inner) = t {
+                            if let Type::List(elem_ty) = inner.as_ref() { Some(elem_ty.as_ref().clone()) } else { None }
+                        } else { None }
+                    })
+                } else { None }
+            }
+            _ => None,
+        }
+    });
+    if let Some(elem_type) = inferred_type {
+        let rust_type = ctx.type_mapper.map_type(&elem_type);
+        match rust_type_to_syn(&rust_type) {
+            Ok(syn_type) => (Some(quote! { : Vec<#syn_type> }), false),
+            Err(_) => (Some(quote! { : Vec<DepylerValue> }), false),
+        }
+    } else {
+        (Some(quote! { : Vec<DepylerValue> }), false)
+    }
+}
+
+/// CB-200 Batch 16: Infer type for set() call in NASA mode
+fn infer_nasa_set_call_type(
+    args: &[HirExpr],
+    ctx: &CodeGenContext,
+) -> (Option<proc_macro2::TokenStream>, bool) {
+    if args.len() == 1 {
+        if let HirExpr::List(elems) = &args[0] {
+            let elem_type = infer_collection_element_type_with_ctx(elems, &ctx.var_types);
+            match elem_type {
+                Type::Int => (Some(quote! { : std::collections::HashSet<i32> }), false),
+                Type::Float => (Some(quote! { : std::collections::HashSet<f64> }), false),
+                Type::String => (Some(quote! { : std::collections::HashSet<String> }), false),
+                Type::Bool => (Some(quote! { : std::collections::HashSet<bool> }), false),
+                _ => (Some(quote! { : std::collections::HashSet<DepylerValue> }), false),
+            }
+        } else { (None, false) }
+    } else {
+        (Some(quote! { : std::collections::HashSet<i32> }), false)
+    }
+}
+
+/// CB-200 Batch 16: Infer type for list() call in NASA mode
+fn infer_nasa_list_call_type(
+    args: &[HirExpr],
+    ctx: &CodeGenContext,
+) -> (Option<proc_macro2::TokenStream>, bool) {
+    if args.len() == 1 {
+        if let HirExpr::Call { func: inner_func, .. } = &args[0] {
+            if inner_func == "range" { return (Some(quote! { : Vec<i32> }), false); }
+            return (None, false);
+        }
+        if let HirExpr::List(elems) = &args[0] {
+            let elem_type = infer_collection_element_type_with_ctx(elems, &ctx.var_types);
+            return match elem_type {
+                Type::Int => (Some(quote! { : Vec<i32> }), false),
+                Type::Float => (Some(quote! { : Vec<f64> }), false),
+                Type::String => (Some(quote! { : Vec<String> }), false),
+                Type::Bool => (Some(quote! { : Vec<bool> }), false),
+                _ => (Some(quote! { : Vec<DepylerValue> }), false),
+            };
+        }
+        (None, false)
+    } else {
+        (Some(quote! { : Vec<i32> }), false)
     }
 }
 
