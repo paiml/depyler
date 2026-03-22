@@ -146,138 +146,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             });
         }
 
-        // DEPYLER-0413: Handle string methods FIRST before any other checks
-        // This ensures string methods like upper/lower are converted even when
-        // inside class methods where parameters might be mistyped as class instances
-        // DEPYLER-1070: Skip if object is a known stdlib module (re, json, etc.) to allow
-        // module method handling later (e.g., re.split() should be regex split, not str.split())
-        // DEPYLER-99MODE-S9: Skip stdlib module routing if the variable is a known local variable.
-        // This prevents local variables named 'copy', 'calendar', 'string', etc. from
-        // being mistakenly treated as stdlib module references.
-        let is_stdlib_module = if let HirExpr::Var(name) = object {
-            !self.ctx.is_declared(name)
-                && matches!(
-                    name.as_str(),
-                    "re" | "json"
-                        | "math"
-                        | "random"
-                        | "os"
-                        | "sys"
-                        | "time"
-                        | "datetime"
-                        | "pathlib"
-                        | "struct"
-                        | "statistics"
-                        | "fractions"
-                        | "decimal"
-                        | "collections"
-                        | "itertools"
-                        | "functools"
-                        | "shutil"
-                        | "csv"
-                        | "base64"
-                        | "hashlib"
-                        | "subprocess"
-                        | "string"
-                        | "tempfile"
-                )
-        } else {
-            false
-        };
-
-        if !is_stdlib_module
-            && matches!(
-                method,
-                "upper"
-                    | "lower"
-                    | "strip"
-                    | "lstrip"
-                    | "rstrip"
-                    | "startswith"
-                    | "endswith"
-                    | "split"
-                    | "splitlines"
-                    | "join"
-                    // DEPYLER-99MODE-FIX: "replace" removed from here - handled earlier with arg count check
-                    // to allow datetime.replace(kwargs) to fall through to datetime handler
-                    | "find"
-                    | "rfind"
-                    | "rindex"
-                    | "isdigit"
-                    | "isalpha"
-                    | "isalnum"
-                    | "title"
-                    | "center"
-                    | "ljust"
-                    | "rjust"
-                    | "zfill"
-                    | "hex"
-                    | "format"
-            )
-        {
-            let object_expr = object.to_rust_expr(self.ctx)?;
-            let arg_exprs: Vec<syn::Expr> =
-                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
-            return self.convert_string_method(object, &object_expr, method, &arg_exprs, args);
+        // CB-200 Batch 15: String/pathlib/datetime method dispatch extracted to helpers
+        if let Some(result) = self.try_dispatch_string_method(object, method, args)? {
+            return Ok(result);
         }
-
-        // DEPYLER-0829: Handle pathlib methods on Path variables (not just module calls)
-        // Python: p = Path("/foo"); p.write_text(content)
-        // Rust: PathBuf doesn't have write_text, must use std::fs::write
-        // This catches path methods when object is a variable, not the pathlib module
-        // DEPYLER-0956: Exclude "os" module - os.mkdir/os.rmdir are os module functions, not Path methods
-        let is_os_module = matches!(object, HirExpr::Var(name) if name == "os");
-        if !is_os_module
-            && matches!(
-                method,
-                "write_text"
-                    | "read_text"
-                    | "read_bytes"
-                    | "write_bytes"
-                    | "exists"
-                    | "is_file"
-                    | "is_dir"
-                    | "mkdir"
-                    | "rmdir"
-                    | "unlink"
-                    | "iterdir"
-                    | "glob"
-                    | "rglob"
-                    | "with_name"
-                    | "with_suffix"
-                    | "with_stem"
-                    | "resolve"
-                    | "absolute"
-                    | "relative_to"
-            )
-        {
-            let object_expr = object.to_rust_expr(self.ctx)?;
-            let arg_exprs: Vec<syn::Expr> =
-                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
-            return self.convert_pathlib_instance_method(&object_expr, method, &arg_exprs);
+        if let Some(result) = self.try_dispatch_pathlib_method(object, method, args)? {
+            return Ok(result);
         }
-
-        // DEPYLER-0830: Handle datetime/timedelta instance methods on variables
-        // Python: td = datetime.timedelta(seconds=100); td.total_seconds()
-        // Rust: TimeDelta.num_seconds() as f64
-        // This catches datetime methods when object is a variable, not the datetime module
-        if matches!(
-            method,
-            "total_seconds"
-                | "fromisoformat"
-                | "isoformat"
-                | "strftime"
-                | "timestamp"
-                | "timetuple"
-                | "weekday"
-                | "isoweekday"
-                | "isocalendar"
-                | "replace"
-        ) {
-            let object_expr = object.to_rust_expr(self.ctx)?;
-            let arg_exprs: Vec<syn::Expr> =
-                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
-            return self.convert_datetime_instance_method(&object_expr, method, args, &arg_exprs);
+        if let Some(result) = self.try_dispatch_datetime_method(object, method, args)? {
+            return Ok(result);
         }
 
         // DEPYLER-0416: Check if this is a static method call on a class (e.g., Point.origin())
@@ -482,6 +359,93 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Some methods like sort(key=func) need to preserve keyword argument names
         // For other methods, they can merge kwargs as positional if needed
         self.convert_instance_method(object, &object_expr, method, &arg_exprs, args, kwargs)
+    }
+
+    /// CB-200 Batch 15: Check if object is a known stdlib module
+    fn is_stdlib_module_var(&self, object: &HirExpr) -> bool {
+        if let HirExpr::Var(name) = object {
+            !self.ctx.is_declared(name)
+                && matches!(
+                    name.as_str(),
+                    "re" | "json" | "math" | "random" | "os" | "sys" | "time"
+                        | "datetime" | "pathlib" | "struct" | "statistics" | "fractions"
+                        | "decimal" | "collections" | "itertools" | "functools" | "shutil"
+                        | "csv" | "base64" | "hashlib" | "subprocess" | "string" | "tempfile"
+                )
+        } else {
+            false
+        }
+    }
+
+    /// CB-200 Batch 15: Try dispatching as a string method
+    fn try_dispatch_string_method(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if self.is_stdlib_module_var(object) {
+            return Ok(None);
+        }
+        if !matches!(
+            method,
+            "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith"
+                | "endswith" | "split" | "splitlines" | "join" | "find" | "rfind"
+                | "rindex" | "isdigit" | "isalpha" | "isalnum" | "title" | "center"
+                | "ljust" | "rjust" | "zfill" | "hex" | "format"
+        ) {
+            return Ok(None);
+        }
+        let object_expr = object.to_rust_expr(self.ctx)?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
+        Ok(Some(self.convert_string_method(object, &object_expr, method, &arg_exprs, args)?))
+    }
+
+    /// CB-200 Batch 15: Try dispatching as a pathlib instance method
+    fn try_dispatch_pathlib_method(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let is_os_module = matches!(object, HirExpr::Var(name) if name == "os");
+        if is_os_module {
+            return Ok(None);
+        }
+        if !matches!(
+            method,
+            "write_text" | "read_text" | "read_bytes" | "write_bytes" | "exists"
+                | "is_file" | "is_dir" | "mkdir" | "rmdir" | "unlink" | "iterdir"
+                | "glob" | "rglob" | "with_name" | "with_suffix" | "with_stem"
+                | "resolve" | "absolute" | "relative_to"
+        ) {
+            return Ok(None);
+        }
+        let object_expr = object.to_rust_expr(self.ctx)?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
+        Ok(Some(self.convert_pathlib_instance_method(&object_expr, method, &arg_exprs)?))
+    }
+
+    /// CB-200 Batch 15: Try dispatching as a datetime/timedelta instance method
+    fn try_dispatch_datetime_method(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if !matches!(
+            method,
+            "total_seconds" | "fromisoformat" | "isoformat" | "strftime" | "timestamp"
+                | "timetuple" | "weekday" | "isoweekday" | "isocalendar" | "replace"
+        ) {
+            return Ok(None);
+        }
+        let object_expr = object.to_rust_expr(self.ctx)?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
+        Ok(Some(self.convert_datetime_instance_method(&object_expr, method, args, &arg_exprs)?))
     }
 
     /// CB-200 Batch 12: Handle method calls on &mut Option<T> parameters

@@ -1242,384 +1242,383 @@ pub fn preregister_subcommands_from_hir(
     func: &crate::hir::HirFunction,
     tracker: &mut ArgParserTracker,
 ) {
-    use crate::hir::{HirExpr, HirStmt};
-
-    // Helper to extract string literal value from HIR expression
-    fn extract_string_from_hir(expr: &HirExpr) -> String {
-        match expr {
-            HirExpr::Literal(crate::hir::Literal::String(s)) => s.clone(),
-            _ => String::new(),
-        }
-    }
-
-    // Helper to extract keyword argument string value
-    fn extract_kwarg_string_from_hir(kwargs: &[(String, HirExpr)], key: &str) -> Option<String> {
-        kwargs.iter().find(|(k, _)| k == key).map(|(_, v)| extract_string_from_hir(v))
-    }
-
-    // CB-200 Batch 9: Helper to handle add_parser() method calls in walk_expr
-    fn handle_add_parser_expr(
-        object: &HirExpr,
-        args: &[HirExpr],
-        kwargs: &[(String, HirExpr)],
-        tracker: &mut ArgParserTracker,
-    ) {
-        if let HirExpr::Var(subparsers_var) = object {
-            if tracker.get_subparsers(subparsers_var).is_some() {
-                if !args.is_empty() {
-                    let command_name = extract_string_from_hir(&args[0]);
-                    if command_name.is_empty() {
-                        emit_decision!(
-                            "argparse.subcommand.skipped.variable_name",
-                            "add_parser() called with non-literal expression"
-                        );
-                    } else {
-                        emit_decision!("argparse.subcommand.detected", &command_name);
-                        let help = extract_kwarg_string_from_hir(kwargs, "help");
-                        let subcommand_info = SubcommandInfo {
-                            name: command_name.clone(),
-                            help,
-                            arguments: vec![],
-                            subparsers_var: subparsers_var.clone(),
-                        };
-                        tracker.register_subcommand(command_name.clone(), subcommand_info);
-                        emit_decision!("argparse.subcommand.registered", &command_name);
-                    }
-                }
-            }
-        }
-    }
-
-    // CB-200 Batch 9: Helper to extract kwargs for add_argument in walk_expr
-    fn extract_add_argument_kwargs(
-        kwargs: &[(String, HirExpr)],
-        arg: &mut ArgParserArgument,
-    ) {
-        for (kw_name, kw_value) in kwargs {
-            match kw_name.as_str() {
-                "type" => {
-                    if let HirExpr::Var(type_name) = kw_value {
-                        match type_name.as_str() {
-                            "int" => arg.arg_type = Some(crate::hir::Type::Int),
-                            "float" => arg.arg_type = Some(crate::hir::Type::Float),
-                            "str" => arg.arg_type = Some(crate::hir::Type::String),
-                            "Path" => {
-                                arg.arg_type =
-                                    Some(crate::hir::Type::Custom("PathBuf".to_string()))
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                "action" => {
-                    if let HirExpr::Literal(crate::hir::Literal::String(action_val)) = kw_value {
-                        arg.action = Some(action_val.clone());
-                    }
-                }
-                "nargs" => match kw_value {
-                    HirExpr::Literal(crate::hir::Literal::String(nargs_val)) => {
-                        arg.nargs = Some(nargs_val.clone());
-                    }
-                    HirExpr::Literal(crate::hir::Literal::Int(n)) => {
-                        arg.nargs = Some(n.to_string());
-                    }
-                    _ => {}
-                },
-                "help" => {
-                    if let HirExpr::Literal(crate::hir::Literal::String(help_val)) = kw_value {
-                        arg.help = Some(help_val.clone());
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    // CB-200 Batch 9: Helper to handle add_argument() method calls in walk_expr
-    fn handle_add_argument_expr(
-        object: &HirExpr,
-        args: &[HirExpr],
-        kwargs: &[(String, HirExpr)],
-        tracker: &mut ArgParserTracker,
-    ) {
-        if let HirExpr::Var(parser_var) = object {
-            let cmd_name = tracker.subcommand_var_to_cmd.get(parser_var).cloned();
-            let lookup_key = cmd_name.as_deref().unwrap_or(parser_var);
-
-            if let Some(subcommand_info) = tracker.get_subcommand_mut(lookup_key) {
-                if let Some(first_arg) = args.first() {
-                    let arg_name = extract_string_from_hir(first_arg);
-                    let mut arg = ArgParserArgument::new(arg_name);
-
-                    if let Some(second_arg) = args.get(1) {
-                        let second_str = extract_string_from_hir(second_arg);
-                        if second_str.starts_with("--") {
-                            arg.long = Some(second_str);
-                        }
-                    }
-
-                    extract_add_argument_kwargs(kwargs, &mut arg);
-
-                    if !subcommand_info
-                        .arguments
-                        .iter()
-                        .any(|existing| existing.name == arg.name)
-                    {
-                        subcommand_info.arguments.push(arg);
-                    }
-                }
-            }
-        }
-    }
-
-    // CB-200 Batch 9: Helper to recurse into method call children
-    fn recurse_method_call(
-        object: &HirExpr,
-        args: &[HirExpr],
-        kwargs: &[(String, HirExpr)],
-        tracker: &mut ArgParserTracker,
-    ) {
-        walk_expr(object, tracker);
-        for arg in args {
-            walk_expr(arg, tracker);
-        }
-        for (_, val) in kwargs {
-            walk_expr(val, tracker);
-        }
-    }
-
-    // CB-200 Batch 13: Walk children of non-method-call expressions
-    fn walk_expr_children(expr: &HirExpr, tracker: &mut ArgParserTracker) {
-        match expr {
-            HirExpr::Binary { left, right, .. } => {
-                walk_expr(left, tracker);
-                walk_expr(right, tracker);
-            }
-            HirExpr::Unary { operand, .. } => walk_expr(operand, tracker),
-            HirExpr::Call { args, kwargs, .. } => {
-                for arg in args { walk_expr(arg, tracker); }
-                for (_, val) in kwargs { walk_expr(val, tracker); }
-            }
-            HirExpr::MethodCall { object, args, kwargs, .. } => {
-                recurse_method_call(object, args, kwargs, tracker);
-            }
-            HirExpr::Attribute { value, .. } => walk_expr(value, tracker),
-            HirExpr::List(items)
-            | HirExpr::Tuple(items)
-            | HirExpr::Set(items)
-            | HirExpr::FrozenSet(items) => {
-                for item in items { walk_expr(item, tracker); }
-            }
-            HirExpr::Dict(items) => {
-                for (k, v) in items { walk_expr(k, tracker); walk_expr(v, tracker); }
-            }
-            HirExpr::Index { base, index } => {
-                walk_expr(base, tracker);
-                walk_expr(index, tracker);
-            }
-            HirExpr::IfExpr { test, body, orelse } => {
-                walk_expr(test, tracker);
-                walk_expr(body, tracker);
-                walk_expr(orelse, tracker);
-            }
-            _ => {} // Literals, vars, etc.
-        }
-    }
-
-    // Recursive walker for expressions
-    fn walk_expr(expr: &HirExpr, tracker: &mut ArgParserTracker) {
-        match expr {
-            HirExpr::MethodCall { object, method, args, kwargs } if method == "add_parser" => {
-                handle_add_parser_expr(object, args, kwargs, tracker);
-                recurse_method_call(object, args, kwargs, tracker);
-            }
-            HirExpr::MethodCall { object, method, args, kwargs } if method == "add_argument" => {
-                handle_add_argument_expr(object, args, kwargs, tracker);
-                recurse_method_call(object, args, kwargs, tracker);
-            }
-            other => walk_expr_children(other, tracker),
-        }
-    }
-
-    // CB-200 Batch 11: Helper to handle ArgumentParser() call assignments
-    fn handle_argument_parser_call(
-        target: &crate::hir::AssignTarget,
-        kwargs: &[(String, HirExpr)],
-        tracker: &mut ArgParserTracker,
-    ) {
-        if let crate::hir::AssignTarget::Symbol(parser_var) = target {
-            let description = extract_kwarg_string_from_hir(kwargs, "description");
-            let epilog = extract_kwarg_string_from_hir(kwargs, "epilog");
-            let parser_info = ArgParserInfo {
-                parser_var: parser_var.clone(),
-                description,
-                epilog,
-                arguments: vec![],
-                args_var: None,
-            };
-            tracker.register_parser(parser_var.clone(), parser_info);
-        }
-    }
-
-    // CB-200 Batch 11: Helper to handle add_subparsers() assignments
-    fn handle_add_subparsers_assign(
-        target: &crate::hir::AssignTarget,
-        object: &HirExpr,
-        kwargs: &[(String, HirExpr)],
-        tracker: &mut ArgParserTracker,
-    ) {
-        if let HirExpr::Var(parser_var) = object {
-            if tracker.get_parser(parser_var).is_some() {
-                if let crate::hir::AssignTarget::Symbol(subparsers_var) = target {
-                    let dest_field = extract_kwarg_string_from_hir(kwargs, "dest")
-                        .unwrap_or_else(|| "command".to_string());
-                    let required = extract_kwarg_string_from_hir(kwargs, "required")
-                        .map(|s| s == "true" || s == "True")
-                        .unwrap_or(false);
-                    let help = extract_kwarg_string_from_hir(kwargs, "help");
-
-                    let subparser_info = SubparserInfo {
-                        parser_var: parser_var.clone(),
-                        dest_field,
-                        required,
-                        help,
-                    };
-                    tracker.register_subparsers(subparsers_var.clone(), subparser_info);
-                }
-            }
-        }
-    }
-
-    // CB-200 Batch 11: Helper to handle add_parser() assignments
-    fn handle_add_parser_assign(
-        target: &crate::hir::AssignTarget,
-        object: &HirExpr,
-        args: &[HirExpr],
-        kwargs: &[(String, HirExpr)],
-        tracker: &mut ArgParserTracker,
-    ) {
-        if let HirExpr::Var(subparsers_var) = object {
-            if tracker.get_subparsers(subparsers_var).is_some() {
-                if let crate::hir::AssignTarget::Symbol(parser_var_name) = target {
-                    if let Some(first_arg) = args.first() {
-                        let command_name = extract_string_from_hir(first_arg);
-                        let help = extract_kwarg_string_from_hir(kwargs, "help");
-                        let subcommand_info = SubcommandInfo {
-                            name: command_name.clone(),
-                            help,
-                            arguments: vec![],
-                            subparsers_var: subparsers_var.clone(),
-                        };
-                        tracker.register_subcommand(command_name.clone(), subcommand_info);
-                        tracker
-                            .subcommand_var_to_cmd
-                            .insert(parser_var_name.clone(), command_name);
-                    }
-                }
-            }
-        }
-    }
-
-    // CB-200 Batch 11: Helper to handle Assign statement in walk_stmt
-    fn handle_assign_stmt(
-        target: &crate::hir::AssignTarget,
-        value: &HirExpr,
-        tracker: &mut ArgParserTracker,
-    ) {
-        // Handle ArgumentParser() as Call
-        if let HirExpr::Call { func, kwargs, .. } = value {
-            if func == "ArgumentParser" {
-                handle_argument_parser_call(target, kwargs, tracker);
-            }
-        }
-
-        // Handle ArgumentParser() as MethodCall
-        if let HirExpr::MethodCall { method, kwargs, .. } = value {
-            if method == "ArgumentParser" {
-                handle_argument_parser_call(target, kwargs, tracker);
-            }
-        }
-
-        // Handle add_subparsers() and add_parser() assignments
-        if let HirExpr::MethodCall { object, method, args, kwargs } = value {
-            if method == "add_subparsers" {
-                handle_add_subparsers_assign(target, object, kwargs, tracker);
-            } else if method == "add_parser" {
-                handle_add_parser_assign(target, object, args, kwargs, tracker);
-            }
-        }
-        walk_expr(value, tracker);
-    }
-
-    // CB-200 Batch 12: Helper to walk a slice of statements
-    fn walk_stmts(stmts: &[HirStmt], tracker: &mut ArgParserTracker) {
-        for s in stmts {
-            walk_stmt(s, tracker);
-        }
-    }
-
-    // CB-200 Batch 12: Helper to walk Try statement children
-    fn walk_try_stmt(
-        body: &[HirStmt],
-        handlers: &[crate::hir::ExceptHandler],
-        orelse: &Option<Vec<HirStmt>>,
-        finalbody: &Option<Vec<HirStmt>>,
-        tracker: &mut ArgParserTracker,
-    ) {
-        walk_stmts(body, tracker);
-        for handler in handlers {
-            walk_stmts(&handler.body, tracker);
-        }
-        if let Some(orelse_stmts) = orelse {
-            walk_stmts(orelse_stmts, tracker);
-        }
-        if let Some(final_stmts) = finalbody {
-            walk_stmts(final_stmts, tracker);
-        }
-    }
-
-    // CB-200 Batch 14: Handle control flow statements (if/while/for)
-    fn walk_control_flow_stmt(stmt: &HirStmt, tracker: &mut ArgParserTracker) {
-        match stmt {
-            HirStmt::If { condition, then_body, else_body } => {
-                walk_expr(condition, tracker);
-                walk_stmts(then_body, tracker);
-                if let Some(else_stmts) = else_body {
-                    walk_stmts(else_stmts, tracker);
-                }
-            }
-            HirStmt::While { condition, body } => {
-                walk_expr(condition, tracker);
-                walk_stmts(body, tracker);
-            }
-            HirStmt::For { body, .. } => {
-                walk_stmts(body, tracker);
-            }
-            _ => {}
-        }
-    }
-
-    // Recursive walker for statements
-    fn walk_stmt(stmt: &HirStmt, tracker: &mut ArgParserTracker) {
-        match stmt {
-            HirStmt::Expr(expr) => walk_expr(expr, tracker),
-            HirStmt::Assign { target, value, type_annotation: _ } => {
-                handle_assign_stmt(target, value, tracker);
-            }
-            HirStmt::Return(Some(expr)) => walk_expr(expr, tracker),
-            HirStmt::If { .. } | HirStmt::While { .. } | HirStmt::For { .. } => {
-                walk_control_flow_stmt(stmt, tracker);
-            }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
-                walk_try_stmt(body, handlers, orelse, finalbody, tracker);
-            }
-            _ => {}
-        }
-    }
-
+    use crate::hir::HirStmt;
     // Walk all statements in function body
     for stmt in &func.body {
-        walk_stmt(stmt, tracker);
+        hir_walk_stmt(stmt, tracker);
+    }
+}
+
+/// CB-200 Batch 15: Extract string literal value from HIR expression (module-level helper)
+fn hir_extract_string(expr: &crate::hir::HirExpr) -> String {
+    match expr {
+        crate::hir::HirExpr::Literal(crate::hir::Literal::String(s)) => s.clone(),
+        _ => String::new(),
+    }
+}
+
+/// CB-200 Batch 15: Extract keyword argument string value (module-level helper)
+fn hir_extract_kwarg_string(kwargs: &[(String, crate::hir::HirExpr)], key: &str) -> Option<String> {
+    kwargs.iter().find(|(k, _)| k == key).map(|(_, v)| hir_extract_string(v))
+}
+
+/// CB-200 Batch 15: Handle add_parser() method calls
+fn hir_handle_add_parser_expr(
+    object: &crate::hir::HirExpr,
+    args: &[crate::hir::HirExpr],
+    kwargs: &[(String, crate::hir::HirExpr)],
+    tracker: &mut ArgParserTracker,
+) {
+    if let crate::hir::HirExpr::Var(subparsers_var) = object {
+        if tracker.get_subparsers(subparsers_var).is_some() {
+            if !args.is_empty() {
+                let command_name = hir_extract_string(&args[0]);
+                if command_name.is_empty() {
+                    emit_decision!(
+                        "argparse.subcommand.skipped.variable_name",
+                        "add_parser() called with non-literal expression"
+                    );
+                } else {
+                    emit_decision!("argparse.subcommand.detected", &command_name);
+                    let help = hir_extract_kwarg_string(kwargs, "help");
+                    let subcommand_info = SubcommandInfo {
+                        name: command_name.clone(),
+                        help,
+                        arguments: vec![],
+                        subparsers_var: subparsers_var.clone(),
+                    };
+                    tracker.register_subcommand(command_name.clone(), subcommand_info);
+                    emit_decision!("argparse.subcommand.registered", &command_name);
+                }
+            }
+        }
+    }
+}
+
+/// CB-200 Batch 15: Extract kwargs for add_argument
+fn hir_extract_add_argument_kwargs(
+    kwargs: &[(String, crate::hir::HirExpr)],
+    arg: &mut ArgParserArgument,
+) {
+    use crate::hir::HirExpr;
+    for (kw_name, kw_value) in kwargs {
+        match kw_name.as_str() {
+            "type" => {
+                if let HirExpr::Var(type_name) = kw_value {
+                    match type_name.as_str() {
+                        "int" => arg.arg_type = Some(crate::hir::Type::Int),
+                        "float" => arg.arg_type = Some(crate::hir::Type::Float),
+                        "str" => arg.arg_type = Some(crate::hir::Type::String),
+                        "Path" => {
+                            arg.arg_type = Some(crate::hir::Type::Custom("PathBuf".to_string()))
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            "action" => {
+                if let HirExpr::Literal(crate::hir::Literal::String(action_val)) = kw_value {
+                    arg.action = Some(action_val.clone());
+                }
+            }
+            "nargs" => match kw_value {
+                HirExpr::Literal(crate::hir::Literal::String(nargs_val)) => {
+                    arg.nargs = Some(nargs_val.clone());
+                }
+                HirExpr::Literal(crate::hir::Literal::Int(n)) => {
+                    arg.nargs = Some(n.to_string());
+                }
+                _ => {}
+            },
+            "help" => {
+                if let HirExpr::Literal(crate::hir::Literal::String(help_val)) = kw_value {
+                    arg.help = Some(help_val.clone());
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// CB-200 Batch 15: Handle add_argument() method calls
+fn hir_handle_add_argument_expr(
+    object: &crate::hir::HirExpr,
+    args: &[crate::hir::HirExpr],
+    kwargs: &[(String, crate::hir::HirExpr)],
+    tracker: &mut ArgParserTracker,
+) {
+    if let crate::hir::HirExpr::Var(parser_var) = object {
+        let cmd_name = tracker.subcommand_var_to_cmd.get(parser_var).cloned();
+        let lookup_key = cmd_name.as_deref().unwrap_or(parser_var);
+
+        if let Some(subcommand_info) = tracker.get_subcommand_mut(lookup_key) {
+            if let Some(first_arg) = args.first() {
+                let arg_name = hir_extract_string(first_arg);
+                let mut arg = ArgParserArgument::new(arg_name);
+
+                if let Some(second_arg) = args.get(1) {
+                    let second_str = hir_extract_string(second_arg);
+                    if second_str.starts_with("--") {
+                        arg.long = Some(second_str);
+                    }
+                }
+
+                hir_extract_add_argument_kwargs(kwargs, &mut arg);
+
+                if !subcommand_info
+                    .arguments
+                    .iter()
+                    .any(|existing| existing.name == arg.name)
+                {
+                    subcommand_info.arguments.push(arg);
+                }
+            }
+        }
+    }
+}
+
+/// CB-200 Batch 15: Recurse into method call children
+fn hir_recurse_method_call(
+    object: &crate::hir::HirExpr,
+    args: &[crate::hir::HirExpr],
+    kwargs: &[(String, crate::hir::HirExpr)],
+    tracker: &mut ArgParserTracker,
+) {
+    hir_walk_expr(object, tracker);
+    for arg in args {
+        hir_walk_expr(arg, tracker);
+    }
+    for (_, val) in kwargs {
+        hir_walk_expr(val, tracker);
+    }
+}
+
+/// CB-200 Batch 15: Walk children of non-method-call expressions
+fn hir_walk_expr_children(expr: &crate::hir::HirExpr, tracker: &mut ArgParserTracker) {
+    use crate::hir::HirExpr;
+    match expr {
+        HirExpr::Binary { left, right, .. } => {
+            hir_walk_expr(left, tracker);
+            hir_walk_expr(right, tracker);
+        }
+        HirExpr::Unary { operand, .. } => hir_walk_expr(operand, tracker),
+        HirExpr::Call { args, kwargs, .. } => {
+            for arg in args { hir_walk_expr(arg, tracker); }
+            for (_, val) in kwargs { hir_walk_expr(val, tracker); }
+        }
+        HirExpr::MethodCall { object, args, kwargs, .. } => {
+            hir_recurse_method_call(object, args, kwargs, tracker);
+        }
+        HirExpr::Attribute { value, .. } => hir_walk_expr(value, tracker),
+        HirExpr::List(items)
+        | HirExpr::Tuple(items)
+        | HirExpr::Set(items)
+        | HirExpr::FrozenSet(items) => {
+            for item in items { hir_walk_expr(item, tracker); }
+        }
+        HirExpr::Dict(items) => {
+            for (k, v) in items { hir_walk_expr(k, tracker); hir_walk_expr(v, tracker); }
+        }
+        HirExpr::Index { base, index } => {
+            hir_walk_expr(base, tracker);
+            hir_walk_expr(index, tracker);
+        }
+        HirExpr::IfExpr { test, body, orelse } => {
+            hir_walk_expr(test, tracker);
+            hir_walk_expr(body, tracker);
+            hir_walk_expr(orelse, tracker);
+        }
+        _ => {} // Literals, vars, etc.
+    }
+}
+
+/// CB-200 Batch 15: Recursive walker for expressions
+fn hir_walk_expr(expr: &crate::hir::HirExpr, tracker: &mut ArgParserTracker) {
+    use crate::hir::HirExpr;
+    match expr {
+        HirExpr::MethodCall { object, method, args, kwargs } if method == "add_parser" => {
+            hir_handle_add_parser_expr(object, args, kwargs, tracker);
+            hir_recurse_method_call(object, args, kwargs, tracker);
+        }
+        HirExpr::MethodCall { object, method, args, kwargs } if method == "add_argument" => {
+            hir_handle_add_argument_expr(object, args, kwargs, tracker);
+            hir_recurse_method_call(object, args, kwargs, tracker);
+        }
+        other => hir_walk_expr_children(other, tracker),
+    }
+}
+
+/// CB-200 Batch 15: Handle ArgumentParser() call assignments
+fn hir_handle_argument_parser_call(
+    target: &crate::hir::AssignTarget,
+    kwargs: &[(String, crate::hir::HirExpr)],
+    tracker: &mut ArgParserTracker,
+) {
+    if let crate::hir::AssignTarget::Symbol(parser_var) = target {
+        let description = hir_extract_kwarg_string(kwargs, "description");
+        let epilog = hir_extract_kwarg_string(kwargs, "epilog");
+        let parser_info = ArgParserInfo {
+            parser_var: parser_var.clone(),
+            description,
+            epilog,
+            arguments: vec![],
+            args_var: None,
+        };
+        tracker.register_parser(parser_var.clone(), parser_info);
+    }
+}
+
+/// CB-200 Batch 15: Handle add_subparsers() assignments
+fn hir_handle_add_subparsers_assign(
+    target: &crate::hir::AssignTarget,
+    object: &crate::hir::HirExpr,
+    kwargs: &[(String, crate::hir::HirExpr)],
+    tracker: &mut ArgParserTracker,
+) {
+    if let crate::hir::HirExpr::Var(parser_var) = object {
+        if tracker.get_parser(parser_var).is_some() {
+            if let crate::hir::AssignTarget::Symbol(subparsers_var) = target {
+                let dest_field = hir_extract_kwarg_string(kwargs, "dest")
+                    .unwrap_or_else(|| "command".to_string());
+                let required = hir_extract_kwarg_string(kwargs, "required")
+                    .map(|s| s == "true" || s == "True")
+                    .unwrap_or(false);
+                let help = hir_extract_kwarg_string(kwargs, "help");
+
+                let subparser_info = SubparserInfo {
+                    parser_var: parser_var.clone(),
+                    dest_field,
+                    required,
+                    help,
+                };
+                tracker.register_subparsers(subparsers_var.clone(), subparser_info);
+            }
+        }
+    }
+}
+
+/// CB-200 Batch 15: Handle add_parser() assignments
+fn hir_handle_add_parser_assign(
+    target: &crate::hir::AssignTarget,
+    object: &crate::hir::HirExpr,
+    args: &[crate::hir::HirExpr],
+    kwargs: &[(String, crate::hir::HirExpr)],
+    tracker: &mut ArgParserTracker,
+) {
+    if let crate::hir::HirExpr::Var(subparsers_var) = object {
+        if tracker.get_subparsers(subparsers_var).is_some() {
+            if let crate::hir::AssignTarget::Symbol(parser_var_name) = target {
+                if let Some(first_arg) = args.first() {
+                    let command_name = hir_extract_string(first_arg);
+                    let help = hir_extract_kwarg_string(kwargs, "help");
+                    let subcommand_info = SubcommandInfo {
+                        name: command_name.clone(),
+                        help,
+                        arguments: vec![],
+                        subparsers_var: subparsers_var.clone(),
+                    };
+                    tracker.register_subcommand(command_name.clone(), subcommand_info);
+                    tracker
+                        .subcommand_var_to_cmd
+                        .insert(parser_var_name.clone(), command_name);
+                }
+            }
+        }
+    }
+}
+
+/// CB-200 Batch 15: Handle Assign statement in walk_stmt
+fn hir_handle_assign_stmt(
+    target: &crate::hir::AssignTarget,
+    value: &crate::hir::HirExpr,
+    tracker: &mut ArgParserTracker,
+) {
+    use crate::hir::HirExpr;
+    if let HirExpr::Call { func, kwargs, .. } = value {
+        if func == "ArgumentParser" {
+            hir_handle_argument_parser_call(target, kwargs, tracker);
+        }
+    }
+    if let HirExpr::MethodCall { method, kwargs, .. } = value {
+        if method == "ArgumentParser" {
+            hir_handle_argument_parser_call(target, kwargs, tracker);
+        }
+    }
+    if let HirExpr::MethodCall { object, method, args, kwargs } = value {
+        if method == "add_subparsers" {
+            hir_handle_add_subparsers_assign(target, object, kwargs, tracker);
+        } else if method == "add_parser" {
+            hir_handle_add_parser_assign(target, object, args, kwargs, tracker);
+        }
+    }
+    hir_walk_expr(value, tracker);
+}
+
+/// CB-200 Batch 15: Walk a slice of statements
+fn hir_walk_stmts(stmts: &[crate::hir::HirStmt], tracker: &mut ArgParserTracker) {
+    for s in stmts {
+        hir_walk_stmt(s, tracker);
+    }
+}
+
+/// CB-200 Batch 15: Walk Try statement children
+fn hir_walk_try_stmt(
+    body: &[crate::hir::HirStmt],
+    handlers: &[crate::hir::ExceptHandler],
+    orelse: &Option<Vec<crate::hir::HirStmt>>,
+    finalbody: &Option<Vec<crate::hir::HirStmt>>,
+    tracker: &mut ArgParserTracker,
+) {
+    hir_walk_stmts(body, tracker);
+    for handler in handlers {
+        hir_walk_stmts(&handler.body, tracker);
+    }
+    if let Some(orelse_stmts) = orelse {
+        hir_walk_stmts(orelse_stmts, tracker);
+    }
+    if let Some(final_stmts) = finalbody {
+        hir_walk_stmts(final_stmts, tracker);
+    }
+}
+
+/// CB-200 Batch 15: Handle control flow statements (if/while/for)
+fn hir_walk_control_flow_stmt(stmt: &crate::hir::HirStmt, tracker: &mut ArgParserTracker) {
+    use crate::hir::HirStmt;
+    match stmt {
+        HirStmt::If { condition, then_body, else_body } => {
+            hir_walk_expr(condition, tracker);
+            hir_walk_stmts(then_body, tracker);
+            if let Some(else_stmts) = else_body {
+                hir_walk_stmts(else_stmts, tracker);
+            }
+        }
+        HirStmt::While { condition, body } => {
+            hir_walk_expr(condition, tracker);
+            hir_walk_stmts(body, tracker);
+        }
+        HirStmt::For { body, .. } => {
+            hir_walk_stmts(body, tracker);
+        }
+        _ => {}
+    }
+}
+
+/// CB-200 Batch 15: Recursive walker for statements
+fn hir_walk_stmt(stmt: &crate::hir::HirStmt, tracker: &mut ArgParserTracker) {
+    use crate::hir::HirStmt;
+    match stmt {
+        HirStmt::Expr(expr) => hir_walk_expr(expr, tracker),
+        HirStmt::Assign { target, value, type_annotation: _ } => {
+            hir_handle_assign_stmt(target, value, tracker);
+        }
+        HirStmt::Return(Some(expr)) => hir_walk_expr(expr, tracker),
+        HirStmt::If { .. } | HirStmt::While { .. } | HirStmt::For { .. } => {
+            hir_walk_control_flow_stmt(stmt, tracker);
+        }
+        HirStmt::Try { body, handlers, orelse, finalbody } => {
+            hir_walk_try_stmt(body, handlers, orelse, finalbody, tracker);
+        }
+        _ => {}
     }
 }
 

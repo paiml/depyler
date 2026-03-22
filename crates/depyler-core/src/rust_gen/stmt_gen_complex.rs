@@ -170,269 +170,278 @@ pub(crate) fn codegen_try_stmt(
             })
         }
     } else {
-        // DEPYLER-0437/0429: Generate proper match expressions for parse() patterns
-        // Check if try_stmts contains a .parse() call that we can convert to match
+        // CB-200 Batch 15: Parse pattern handling extracted to helper
         if handlers.len() == 1 {
-            if let Some((var_name, parse_expr_str, remaining_stmts)) =
-                extract_parse_from_tokens(&try_stmts)
-            {
-                // Parse the expression string back to token stream
-                let parse_expr: proc_macro2::TokenStream = match parse_expr_str.parse() {
-                    Ok(ts) => ts,
-                    Err(_) => return Ok(quote! { #(#try_stmts)* }), // Fallback on parse error
-                };
-                let ok_var = safe_ident(&var_name);
-
-                // Generate Ok branch (remaining statements after parse)
-                let ok_body = quote! { #(#remaining_stmts)* };
-
-                // Generate Err branch (handler body)
-                let err_body = &handler_tokens[0];
-
-                // DEPYLER-0429: Check if exception variable should be bound
-                let err_pattern = if let Some(exc_var) = &handlers[0].name {
-                    // Bind exception variable: Err(e) => { ... }
-                    let exc_ident = safe_ident(exc_var);
-                    quote! { Err(#exc_ident) }
-                } else {
-                    // No exception variable: Err(_) => { ... }
-                    quote! { Err(_) }
-                };
-
-                // Build match expression
-                let match_expr = quote! {
-                    match #parse_expr {
-                        Ok(#ok_var) => { #ok_body },
-                        #err_pattern => { #err_body }
-                    }
-                };
-
-                // Wrap with finally if present
-                if let Some(finally_code) = finally_stmts {
-                    return Ok(quote! {
-                        {
-                            #match_expr
-                            #finally_code
-                        }
-                    });
-                } else {
-                    return Ok(match_expr);
-                }
+            if let Some(result) = try_codegen_parse_pattern(
+                &try_stmts, handlers, &handler_tokens, &finally_stmts,
+            )? {
+                return Ok(result);
             }
         }
 
-        // Fall through to existing simple_pattern_info logic
+        // CB-200 Batch 15: Simple pattern handling extracted to helper
         if let Some((exception_value_str, _exception_type)) = simple_pattern_info {
-            // Fall through to existing unwrap_or logic if not a match pattern
-            // Convert try_stmts to string to post-process
-            let try_code = quote! { #(#try_stmts)* };
-            let try_str = try_code.to_string();
+            return codegen_simple_try_pattern(
+                &try_stmts, &handler_tokens, &hoisted_decls, &finally_stmts,
+                &exception_value_str,
+            );
+        } else {
+            // CB-200 Batch 15: Closure pattern extracted to helper
+            codegen_closure_try_pattern(
+                body, handlers, &try_stmts, &handler_tokens,
+                &hoisted_decls, &finally_stmts, ctx,
+            )
+        }
+    }
+}
 
-            // DEPYLER-0358: Replace unwrap_or_default() with unwrap_or(exception_value)
-            // This handles the case where int(str) generates .parse().unwrap_or_default()
-            // but we want .parse().unwrap_or(-1) based on the except clause
-            if try_str.contains("unwrap_or_default") {
-                // Parse the try code and replace unwrap_or_default with unwrap_or(value)
-                // Handle both "unwrap_or_default ()" and "unwrap_or_default()"
-                let fixed_code = try_str
-                    .replace(
-                        "unwrap_or_default ()",
-                        &format!("unwrap_or ({})", exception_value_str),
-                    )
-                    .replace("unwrap_or_default()", &format!("unwrap_or({})", exception_value_str));
+/// CB-200 Batch 15: Handle try/except with .parse() pattern → match Ok/Err
+fn try_codegen_parse_pattern(
+    try_stmts: &[proc_macro2::TokenStream],
+    handlers: &[ExceptHandler],
+    handler_tokens: &[proc_macro2::TokenStream],
+    finally_stmts: &Option<proc_macro2::TokenStream>,
+) -> Result<Option<proc_macro2::TokenStream>> {
+    let Some((var_name, parse_expr_str, remaining_stmts)) =
+        extract_parse_from_tokens(try_stmts) else {
+        return Ok(None);
+    };
 
-                // Parse back to token stream
-                let fixed_tokens: proc_macro2::TokenStream = fixed_code.parse().unwrap_or(try_code);
+    let parse_expr: proc_macro2::TokenStream = match parse_expr_str.parse() {
+        Ok(ts) => ts,
+        Err(_) => return Ok(Some(quote! { #(#try_stmts)* })),
+    };
+    let ok_var = safe_ident(&var_name);
+    let ok_body = quote! { #(#remaining_stmts)* };
+    let err_body = &handler_tokens[0];
 
-                // DEPYLER-0437: Include hoisted variable declarations
-                if let Some(finally_code) = finally_stmts {
-                    Ok(quote! {
-                        {
-                            #(#hoisted_decls)*
-                            #fixed_tokens
-                            #finally_code
-                        }
-                    })
-                } else if hoisted_decls.is_empty() {
-                    Ok(fixed_tokens)
-                } else {
-                    Ok(quote! {
-                        #(#hoisted_decls)*
-                        #fixed_tokens
-                    })
+    let err_pattern = if let Some(exc_var) = &handlers[0].name {
+        let exc_ident = safe_ident(exc_var);
+        quote! { Err(#exc_ident) }
+    } else {
+        quote! { Err(_) }
+    };
+
+    let match_expr = quote! {
+        match #parse_expr {
+            Ok(#ok_var) => { #ok_body },
+            #err_pattern => { #err_body }
+        }
+    };
+
+    if let Some(finally_code) = finally_stmts {
+        Ok(Some(quote! {
+            {
+                #match_expr
+                #finally_code
+            }
+        }))
+    } else {
+        Ok(Some(match_expr))
+    }
+}
+
+/// CB-200 Batch 15: Handle simple try/except pattern (unwrap_or_default replacement)
+fn codegen_simple_try_pattern(
+    try_stmts: &[proc_macro2::TokenStream],
+    handler_tokens: &[proc_macro2::TokenStream],
+    hoisted_decls: &[proc_macro2::TokenStream],
+    finally_stmts: &Option<proc_macro2::TokenStream>,
+    exception_value_str: &str,
+) -> Result<proc_macro2::TokenStream> {
+    let try_code = quote! { #(#try_stmts)* };
+    let try_str = try_code.to_string();
+
+    if try_str.contains("unwrap_or_default") {
+        let fixed_code = try_str
+            .replace(
+                "unwrap_or_default ()",
+                &format!("unwrap_or ({})", exception_value_str),
+            )
+            .replace("unwrap_or_default()", &format!("unwrap_or({})", exception_value_str));
+
+        let fixed_tokens: proc_macro2::TokenStream = fixed_code.parse().unwrap_or(try_code);
+
+        if let Some(finally_code) = finally_stmts {
+            Ok(quote! {
+                {
+                    #(#hoisted_decls)*
+                    #fixed_tokens
+                    #finally_code
                 }
-            } else {
-                // Pattern matched but no unwrap_or_default found
-                // This means it's not a parse operation, so fall through to normal concatenation
-                // to include the exception handler code
-                // DEPYLER-0437: Include hoisted variable declarations
-                let handler_code = &handler_tokens[0];
-                if let Some(finally_code) = finally_stmts {
-                    Ok(quote! {
-                        {
-                            #(#hoisted_decls)*
-                            #(#try_stmts)*
-                            #handler_code
-                            #finally_code
-                        }
-                    })
-                } else {
-                    Ok(quote! {
-                        {
-                            #(#hoisted_decls)*
-                            #(#try_stmts)*
-                            #handler_code
-                        }
-                    })
+            })
+        } else if hoisted_decls.is_empty() {
+            Ok(fixed_tokens)
+        } else {
+            Ok(quote! {
+                #(#hoisted_decls)*
+                #fixed_tokens
+            })
+        }
+    } else {
+        let handler_code = &handler_tokens[0];
+        if let Some(finally_code) = finally_stmts {
+            Ok(quote! {
+                {
+                    #(#hoisted_decls)*
+                    #(#try_stmts)*
+                    #handler_code
+                    #finally_code
+                }
+            })
+        } else {
+            Ok(quote! {
+                {
+                    #(#hoisted_decls)*
+                    #(#try_stmts)*
+                    #handler_code
+                }
+            })
+        }
+    }
+}
+
+/// CB-200 Batch 15: Generate closure-based try/except pattern
+fn codegen_closure_try_pattern(
+    body: &[HirStmt],
+    handlers: &[ExceptHandler],
+    try_stmts: &[proc_macro2::TokenStream],
+    handler_tokens: &[proc_macro2::TokenStream],
+    hoisted_decls: &[proc_macro2::TokenStream],
+    finally_stmts: &Option<proc_macro2::TokenStream>,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let try_return_type = infer_try_body_return_type(body, ctx);
+    let return_type_tokens = try_return_type
+        .as_ref()
+        .map(try_return_type_to_tokens)
+        .unwrap_or_else(|| quote! { () });
+    let ok_value = try_return_type
+        .as_ref()
+        .map(|_| quote! { _result })
+        .unwrap_or_else(|| quote! { () });
+
+    let any_handler_raises = handlers.iter().any(|h| handler_contains_raise(&h.body));
+    let ok_arm_body = if try_return_type.is_some() {
+        if any_handler_raises
+            || ctx.exception_nesting_depth() > 0
+            || ctx.current_function_can_fail
+        {
+            quote! { return Ok(_result); }
+        } else {
+            quote! { return _result; }
+        }
+    } else {
+        quote! {}
+    };
+
+    let try_stmts_transformed = wrap_try_returns_in_ok(try_stmts);
+
+    let always_returns = body.iter().any(|s| matches!(s, HirStmt::Return(_)));
+    let closure_fallback = if always_returns {
+        quote! {}
+    } else if try_return_type.is_none() {
+        quote! { Ok(()) }
+    } else {
+        quote! { Ok(Default::default()) }
+    };
+
+    let match_expr = gen_try_match_expr(
+        handlers, handler_tokens, &try_stmts_transformed, &return_type_tokens,
+        &ok_value, &ok_arm_body, &closure_fallback,
+    );
+
+    if let Some(finally_code) = finally_stmts {
+        Ok(quote! {
+            #(#hoisted_decls)*
+            {
+                #match_expr
+                #finally_code
+            }
+        })
+    } else {
+        Ok(quote! {
+            #(#hoisted_decls)*
+            #match_expr
+        })
+    }
+}
+
+/// CB-200 Batch 15: Transform return statements to wrap in Ok()
+fn wrap_try_returns_in_ok(
+    try_stmts: &[proc_macro2::TokenStream],
+) -> Vec<proc_macro2::TokenStream> {
+    try_stmts
+        .iter()
+        .map(|stmt| {
+            let stmt_str = stmt.to_string();
+            if stmt_str.starts_with("return ") && !stmt_str.starts_with("return Ok (") {
+                if let Some(expr_part) = stmt_str.strip_prefix("return ") {
+                    if let Some(expr) = expr_part.strip_suffix(" ;") {
+                        let wrapped = format!("return Ok({}) ;", expr);
+                        return wrapped.parse().unwrap_or_else(|_| stmt.clone());
+                    }
+                }
+            }
+            stmt.clone()
+        })
+        .collect()
+}
+
+/// CB-200 Batch 15: Generate match expression for closure try/except
+fn gen_try_match_expr(
+    handlers: &[ExceptHandler],
+    handler_tokens: &[proc_macro2::TokenStream],
+    try_stmts_transformed: &[proc_macro2::TokenStream],
+    return_type_tokens: &proc_macro2::TokenStream,
+    ok_value: &proc_macro2::TokenStream,
+    ok_arm_body: &proc_macro2::TokenStream,
+    closure_fallback: &proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    if handlers.len() == 1 {
+        let err_pattern = if let Some(exc_var) = &handlers[0].name {
+            let exc_ident = safe_ident(exc_var);
+            quote! { Err(#exc_ident) }
+        } else {
+            quote! { Err(_) }
+        };
+        let handler_code = &handler_tokens[0];
+        quote! {
+            match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
+                #(#try_stmts_transformed)*
+                #closure_fallback
+            })() {
+                Ok(#ok_value) => { #ok_arm_body },
+                #err_pattern => { #handler_code }
+            }
+        }
+    } else {
+        let exc_var_opt = handlers.iter().find_map(|h| h.name.as_ref());
+        let handler_code = if let Some(idx) = handlers.iter().position(|h| h.name.is_some()) {
+            &handler_tokens[idx]
+        } else {
+            &handler_tokens[0]
+        };
+        if let Some(exc_var) = exc_var_opt {
+            let exc_ident = safe_ident(exc_var);
+            quote! {
+                match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
+                    #(#try_stmts_transformed)*
+                    #closure_fallback
+                })() {
+                    Ok(#ok_value) => { #ok_arm_body },
+                    Err(#exc_ident) => { #handler_code }
                 }
             }
         } else {
-            // DEPYLER-0931: Always use closure pattern for robust control flow & scoping
-            // This guarantees that:
-            // 1. Variables are hoisted and accessible after the block (declared outside)
-            // 2. Control flow (return/raise) inside try block correctly jumps to handler or exits
-            // 3. Variables assigned in try block are correctly captured by mutable reference
-
-            // Infer return type from try body
-            let try_return_type = infer_try_body_return_type(body, ctx);
-            let return_type_tokens = try_return_type
-                .as_ref()
-                .map(try_return_type_to_tokens)
-                .unwrap_or_else(|| quote! { () });
-            let ok_value = try_return_type
-                .as_ref()
-                .map(|_| quote! { _result })
-                .unwrap_or_else(|| quote! { () });
-
-            // The Ok arm extracts _result from Result
-            // DEPYLER-0819: When handlers contain raise, the function returns Result<T, E>
-            // and we must wrap the success value in Ok()
-            // DEPYLER-0931: Always use Ok(_result) when returning from try/except closure
-            // because we're inside a Result-returning closure (even for nested try/except)
-            let any_handler_raises = handlers.iter().any(|h| handler_contains_raise(&h.body));
-            let ok_arm_body = if try_return_type.is_some() {
-                // Always wrap in Ok() - we're returning from a Result<T, E> closure
-                // If any_handler_raises OR outer function returns Result, we must wrap in Ok()
-                if any_handler_raises
-                    || ctx.exception_nesting_depth() > 0
-                    || ctx.current_function_can_fail
-                {
-                    quote! { return Ok(_result); }
-                } else {
-                    quote! { return _result; }
+            quote! {
+                match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
+                    #(#try_stmts_transformed)*
+                    #closure_fallback
+                })() {
+                    Ok(#ok_value) => { #ok_arm_body },
+                    Err(_) => { #handler_code }
                 }
-            } else {
-                quote! {}
-            };
-
-            // Transform try body return statements to wrap values in Ok()
-            // The closure returns Result<T, E>, so `return expr;` must become `return Ok(expr);`
-            let try_stmts_transformed: Vec<_> = try_stmts
-                .iter()
-                .map(|stmt| {
-                    let stmt_str = stmt.to_string();
-                    // Transform `return expr ;` to `return Ok ( expr ) ;`
-                    // Simple text-based transformation for now (robust enough for generated code)
-                    if stmt_str.starts_with("return ") && !stmt_str.starts_with("return Ok (") {
-                        if let Some(expr_part) = stmt_str.strip_prefix("return ") {
-                            if let Some(expr) = expr_part.strip_suffix(" ;") {
-                                let wrapped = format!("return Ok({}) ;", expr);
-                                return wrapped.parse().unwrap_or_else(|_| stmt.clone());
-                            }
-                        }
-                    }
-                    stmt.clone()
-                })
-                .collect();
-
-            // Check if try body always returns (to avoid unreachable code warning)
-            let always_returns = body.iter().any(|s| matches!(s, HirStmt::Return(_)));
-
-            // Only add fallback Ok(Default::default()) when try body has no return
-            // If try body has returns, they're already wrapped in Ok() and there's no need for fallback
-            let closure_fallback = if always_returns {
-                quote! {}
-            } else if try_return_type.is_none() {
-                quote! { Ok(()) } // Return unit for fallthrough
-            } else {
-                // If try body returns a value, we need a fallback for fallthrough path
-                // (e.g., if try block finishes without returning)
-                // Use Default::default() for the return type
-                quote! { Ok(Default::default()) }
-            };
-
-            // Generate handler matching logic
-            let match_expr = if handlers.len() == 1 {
-                // Single handler - use match pattern
-                let err_pattern = if let Some(exc_var) = &handlers[0].name {
-                    let exc_ident = safe_ident(exc_var);
-                    quote! { Err(#exc_ident) }
-                } else {
-                    quote! { Err(_) }
-                };
-
-                let handler_code = &handler_tokens[0];
-
-                quote! {
-                    match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
-                        #(#try_stmts_transformed)*
-                        #closure_fallback
-                    })() {
-                        Ok(#ok_value) => { #ok_arm_body },
-                        #err_pattern => { #handler_code }
-                    }
-                }
-            } else {
-                // Multiple handlers - find one with binding or fallback to catch-all
-                // Note: Implement proper type-based dispatch for multiple handlers
-                let exc_var_opt = handlers.iter().find_map(|h| h.name.as_ref());
-                let handler_code = if let Some(idx) = handlers.iter().position(|h| h.name.is_some())
-                {
-                    &handler_tokens[idx]
-                } else {
-                    &handler_tokens[0]
-                };
-
-                if let Some(exc_var) = exc_var_opt {
-                    let exc_ident = safe_ident(exc_var);
-                    quote! {
-                        match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
-                            #(#try_stmts_transformed)*
-                            #closure_fallback
-                        })() {
-                            Ok(#ok_value) => { #ok_arm_body },
-                            Err(#exc_ident) => { #handler_code }
-                        }
-                    }
-                } else {
-                    quote! {
-                        match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
-                            #(#try_stmts_transformed)*
-                            #closure_fallback
-                        })() {
-                            Ok(#ok_value) => { #ok_arm_body },
-                            Err(_) => { #handler_code }
-                        }
-                    }
-                }
-            };
-
-            // DEPYLER-0931: Emit hoisted declarations OUTSIDE the match/closure
-            // This ensures variables are captured by mutable reference and retain values
-            // after the try/except block.
-            if let Some(finally_code) = finally_stmts {
-                Ok(quote! {
-                    #(#hoisted_decls)*
-                    {
-                        #match_expr
-                        #finally_code
-                    }
-                })
-            } else {
-                Ok(quote! {
-                    #(#hoisted_decls)*
-                    #match_expr
-                })
             }
         }
     }

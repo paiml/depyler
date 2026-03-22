@@ -662,10 +662,24 @@ fn gen_from_impls() -> proc_macro2::TokenStream {
 
 /// CB-200 Batch 14: Generate arithmetic operator implementations (Add, Sub, Mul, Div, Rem, Neg, Not, Bit*)
 fn gen_arithmetic_ops() -> proc_macro2::TokenStream {
+    let add_ops = gen_arith_add_ops();
+    let sub_ops = gen_arith_sub_ops();
+    let mul_ops = gen_arith_mul_ops();
+    let div_ops = gen_arith_div_ops();
+    let misc_ops = gen_arith_misc_ops();
+    quote! {
+        #add_ops
+        #sub_ops
+        #mul_ops
+        #div_ops
+        #misc_ops
+    }
+}
+
+/// CB-200 Batch 15: Add operations for DepylerValue
+fn gen_arith_add_ops() -> proc_macro2::TokenStream {
     quote! {
             // DEPYLER-1051: Arithmetic operations for DepylerValue
-            // Enables: let result = x + y; where x, y are DepylerValue
-            // DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables
             impl std::ops::Add for DepylerValue {
                 type Output = DepylerValue;
                 fn add(self, rhs: Self) -> Self::Output {
@@ -761,7 +775,12 @@ fn gen_arithmetic_ops() -> proc_macro2::TokenStream {
                     self + rhs.to_f64()
                 }
             }
+    }
+}
 
+/// CB-200 Batch 15: Sub operations for DepylerValue
+fn gen_arith_sub_ops() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-1040b: Sub with concrete types
             impl std::ops::Sub<i64> for DepylerValue {
                 type Output = DepylerValue;
@@ -810,7 +829,12 @@ fn gen_arithmetic_ops() -> proc_macro2::TokenStream {
                     self - rhs.to_f64()
                 }
             }
+    }
+}
 
+/// CB-200 Batch 15: Mul operations for DepylerValue
+fn gen_arith_mul_ops() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-1040b: Mul with concrete types
             impl std::ops::Mul<i64> for DepylerValue {
                 type Output = DepylerValue;
@@ -859,7 +883,12 @@ fn gen_arithmetic_ops() -> proc_macro2::TokenStream {
                     self * rhs.to_f64()
                 }
             }
+    }
+}
 
+/// CB-200 Batch 15: Div operations for DepylerValue
+fn gen_arith_div_ops() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-1040b: Div with concrete types
             impl std::ops::Div<i64> for DepylerValue {
                 type Output = DepylerValue;
@@ -914,7 +943,12 @@ fn gen_arithmetic_ops() -> proc_macro2::TokenStream {
                     if divisor == 0.0 { 0.0 } else { self / divisor }
                 }
             }
+    }
+}
 
+/// CB-200 Batch 15: Misc arithmetic operations (Add<f64>, Neg, Not, BitOps)
+fn gen_arith_misc_ops() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-1040b: Add f64 for completeness
             impl std::ops::Add<f64> for DepylerValue {
                 type Output = DepylerValue;
@@ -1360,48 +1394,57 @@ fn gen_helper_functions() -> proc_macro2::TokenStream {
 
 /// CB-200 Batch 14: Generate Python arithmetic/index traits (PyAdd, PySub, PyMul, PyDiv, PyMod, PyIndex)
 fn gen_py_traits() -> proc_macro2::TokenStream {
+    let trait_defs = gen_py_trait_definitions();
+    let py_add = gen_py_add_impls();
+    let py_sub = gen_py_sub_impls();
+    let py_mul = gen_py_mul_impls();
+    let py_div = gen_py_div_impls();
+    let py_mod = gen_py_mod_impls();
+    let py_index = gen_py_index_impls();
     quote! {
-            // DEPYLER-1104: PyAdd trait for Python addition semantics
-            // Handles cross-type promotion (int + float = float, str + str = str concat)
+        #trait_defs
+        #py_add
+        #py_sub
+        #py_mul
+        #py_div
+        #py_mod
+        #py_index
+    }
+}
+
+/// CB-200 Batch 15: Trait definitions for Py* traits
+fn gen_py_trait_definitions() -> proc_macro2::TokenStream {
+    quote! {
             pub trait PyAdd<Rhs = Self> {
                 type Output;
                 fn py_add(self, rhs: Rhs) -> Self::Output;
             }
-
-            // DEPYLER-1104: PySub trait for Python subtraction semantics
             pub trait PySub<Rhs = Self> {
                 type Output;
                 fn py_sub(self, rhs: Rhs) -> Self::Output;
             }
-
-            // DEPYLER-1104: PyMul trait for Python multiplication semantics
-            // Includes str * int for string repetition
             pub trait PyMul<Rhs = Self> {
                 type Output;
                 fn py_mul(self, rhs: Rhs) -> Self::Output;
             }
-
-            // DEPYLER-1104: PyDiv trait for Python division semantics
-            // Python 3 division always returns float
             pub trait PyDiv<Rhs = Self> {
                 type Output;
                 fn py_div(self, rhs: Rhs) -> Self::Output;
             }
-
-            // DEPYLER-1109: PyMod trait for Python modulo semantics
-            // Handles cross-type modulo (int % float, etc.)
             pub trait PyMod<Rhs = Self> {
                 type Output;
                 fn py_mod(self, rhs: Rhs) -> Self::Output;
             }
-
-            // DEPYLER-1104: PyIndex trait for Python indexing semantics
-            // Handles negative indices (list[-1] = last element)
             pub trait PyIndex<Idx> {
                 type Output;
                 fn py_index(&self, index: Idx) -> Self::Output;
             }
+    }
+}
 
+/// CB-200 Batch 15: PyAdd implementations
+fn gen_py_add_impls() -> proc_macro2::TokenStream {
+    quote! {
             // === PyAdd implementations ===
 
             impl PyAdd for i32 {
@@ -1529,7 +1572,12 @@ fn gen_py_traits() -> proc_macro2::TokenStream {
                 #[inline]
                 fn py_add(self, rhs: DepylerValue) -> f64 { self + rhs.to_f64() }
             }
+    }
+}
 
+/// CB-200 Batch 15: PySub implementations
+fn gen_py_sub_impls() -> proc_macro2::TokenStream {
+    quote! {
             // === PySub implementations ===
 
             impl PySub for i32 {
@@ -1620,7 +1668,12 @@ fn gen_py_traits() -> proc_macro2::TokenStream {
                     self.difference(rhs).cloned().collect()
                 }
             }
+    }
+}
 
+/// CB-200 Batch 15: PyMul implementations
+fn gen_py_mul_impls() -> proc_macro2::TokenStream {
+    quote! {
             // === PyMul implementations ===
 
             impl PyMul for i32 {
@@ -2008,7 +2061,12 @@ fn gen_py_traits() -> proc_macro2::TokenStream {
                     self.iter().map(|a| a + rhs).collect()
                 }
             }
+    }
+}
 
+/// CB-200 Batch 15: PyDiv implementations
+fn gen_py_div_impls() -> proc_macro2::TokenStream {
+    quote! {
             // === PyDiv implementations ===
             // Python 3: division always returns float
 
@@ -2108,7 +2166,12 @@ fn gen_py_traits() -> proc_macro2::TokenStream {
                     if divisor == 0.0 { f64::NAN } else { self / divisor }
                 }
             }
+    }
+}
 
+/// CB-200 Batch 15: PyMod implementations
+fn gen_py_mod_impls() -> proc_macro2::TokenStream {
+    quote! {
             // === PyMod implementations ===
             // Python modulo uses floored division semantics (result has same sign as divisor)
 
@@ -2190,7 +2253,12 @@ fn gen_py_traits() -> proc_macro2::TokenStream {
                     }
                 }
             }
+    }
+}
 
+/// CB-200 Batch 15: PyIndex implementations
+fn gen_py_index_impls() -> proc_macro2::TokenStream {
+    quote! {
             // === PyIndex implementations ===
             // Handles negative indices: list[-1] = last element
 
@@ -2313,21 +2381,26 @@ fn gen_py_traits() -> proc_macro2::TokenStream {
     }
 }
 
-/// CB-200 Batch 14: Generate PyStringMethods trait and implementations
+/// CB-200 Batch 15: Generate PyStringMethods trait and implementations (decomposed)
 fn gen_py_string_methods() -> proc_macro2::TokenStream {
+    let trait_def = gen_py_string_methods_trait_def();
+    let str_impl = gen_py_string_methods_str_impl();
+    let string_impl = gen_py_string_methods_string_impl();
+    let dv_impl = gen_py_string_methods_depyler_value_impl();
+    let dv_contains = gen_py_string_methods_dv_contains();
+    quote! {
+        #trait_def
+        #str_impl
+        #string_impl
+        #dv_impl
+        #dv_contains
+    }
+}
+
+/// CB-200 Batch 15: PyStringMethods trait definition
+fn gen_py_string_methods_trait_def() -> proc_macro2::TokenStream {
     quote! {
             // DEPYLER-1118: PyStringMethods trait for Python string method parity
-            // Maps Python string methods to their Rust equivalents:
-            // - str.lower() -> to_lowercase()
-            // - str.upper() -> to_uppercase()
-            // - str.strip() -> trim()
-            // - str.lstrip() -> trim_start()
-            // - str.rstrip() -> trim_end()
-            // - str.split(sep) -> split(sep)
-            // - str.replace(old, new) -> replace(old, new)
-            // - str.startswith(prefix) -> starts_with(prefix)
-            // - str.endswith(suffix) -> ends_with(suffix)
-            // - str.find(sub) -> find(sub) returning Option<usize> or -1
             pub trait PyStringMethods {
                 fn lower(&self) -> String;
                 fn upper(&self) -> String;
@@ -2354,7 +2427,12 @@ fn gen_py_string_methods() -> proc_macro2::TokenStream {
                 fn zfill(&self, width: usize) -> String;
                 fn count(&self, sub: &str) -> usize;
             }
+    }
+}
 
+/// CB-200 Batch 15: PyStringMethods impl for str
+fn gen_py_string_methods_str_impl() -> proc_macro2::TokenStream {
+    quote! {
             impl PyStringMethods for str {
                 #[inline]
                 fn lower(&self) -> String { self.to_lowercase() }
@@ -2452,7 +2530,12 @@ fn gen_py_string_methods() -> proc_macro2::TokenStream {
                 #[inline]
                 fn count(&self, sub: &str) -> usize { self.matches(sub).count() }
             }
+    }
+}
 
+/// CB-200 Batch 15: PyStringMethods impl for String (delegates to str)
+fn gen_py_string_methods_string_impl() -> proc_macro2::TokenStream {
+    quote! {
             impl PyStringMethods for String {
                 #[inline]
                 fn lower(&self) -> String { self.as_str().lower() }
@@ -2503,9 +2586,13 @@ fn gen_py_string_methods() -> proc_macro2::TokenStream {
                 #[inline]
                 fn count(&self, sub: &str) -> usize { self.as_str().count(sub) }
             }
+    }
+}
 
+/// CB-200 Batch 15: PyStringMethods impl for DepylerValue
+fn gen_py_string_methods_depyler_value_impl() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-1118: PyStringMethods for DepylerValue
-            // Delegates to the inner string when the value is Str, otherwise returns default
             impl PyStringMethods for DepylerValue {
                 #[inline]
                 fn lower(&self) -> String {
@@ -2676,7 +2763,12 @@ fn gen_py_string_methods() -> proc_macro2::TokenStream {
                     }
                 }
             }
+    }
+}
 
+/// CB-200 Batch 15: DepylerValue contains method
+fn gen_py_string_methods_dv_contains() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-1118: Additional string-like methods for DepylerValue
             impl DepylerValue {
                 /// Check if string contains substring (Python's `in` operator for strings)

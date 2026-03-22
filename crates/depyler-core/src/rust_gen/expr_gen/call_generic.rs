@@ -323,185 +323,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     }
 
+                    // CB-200 Batch 15: Borrow/wrap application extracted to helper
                     if should_borrow {
-                        // DEPYLER-0574: Check if function expects &mut for this param
-                        let needs_mut = self.ctx
-                            .function_param_muts
-                            .get(func)
-                            .and_then(|muts| muts.get(param_idx))
-                            .copied()
-                            .unwrap_or(false);
-
-                        // DEPYLER-0964/1217: Don't add &mut if variable is already &mut
-                        // This includes:
-                        // - mut_option_dict_params: &mut Option<HashMap>
-                        // - mut_ref_params: parameters that are &mut T (detected via mutation analysis)
-                        // Adding &mut would create &&mut which is invalid
-                        let is_already_mut_ref = if let HirExpr::Var(var_name) = hir_arg {
-                            self.ctx.mut_option_dict_params.contains(var_name)
-                                || self.ctx.mut_ref_params.contains(var_name)
-                        } else {
-                            false
-                        };
-
-                        if is_already_mut_ref {
-                            // Variable is already &mut, pass it directly
-                            arg_expr.clone()
-                        } else if needs_mut {
-                            parse_quote! { &mut #arg_expr }
-                        } else {
-                            parse_quote! { &#arg_expr }
-                        }
+                        self.apply_borrow_to_arg(func, param_idx, hir_arg, &arg_expr)
                     } else {
-                        // DEPYLER-0737/0779: Check if function param is Optional FIRST
-                        // This determines if we need to wrap the final result in Some()
-                        let is_optional_param = self.ctx
-                            .function_param_optionals
-                            .get(func)
-                            .and_then(|optionals| optionals.get(param_idx))
-                            .copied()
-                            .unwrap_or(false);
-
-                        // DEPYLER-0760: Don't double-wrap if arg is already Option<T>
-                        let is_already_optional = if let HirExpr::Var(var_name) = hir_arg {
-                            self.ctx
-                                .var_types
-                                .get(var_name)
-                                .map(|ty| matches!(ty, Type::Optional(_)))
-                                .unwrap_or(false)
-                        } else if let HirExpr::Attribute { value: _, attr } = hir_arg {
-                            // Handle attribute access like args.cwd
-                            let check_optional = |arg: &crate::rust_gen::argparse_transform::ArgParserArgument| {
-                                let field_name = arg.rust_field_name();
-                                if field_name != *attr {
-                                    return false;
-                                }
-                                if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
-                                    return false;
-                                }
-                                !arg.is_positional
-                                    && !arg.required.unwrap_or(false)
-                                    && arg.default.is_none()
-                                    && !matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
-                            };
-
-                            let is_optional_in_parser = self.ctx.argparser_tracker.parsers.values()
-                                .any(|parser_info| parser_info.arguments.iter().any(&check_optional));
-                            let is_optional_in_subcommand = self.ctx.argparser_tracker.subcommands.values()
-                                .any(|sub_info| sub_info.arguments.iter().any(&check_optional));
-
-                            is_optional_in_parser || is_optional_in_subcommand
-                        } else {
-                            false
-                        };
-
-                        // Don't wrap if arg is already None
-                        let is_none = matches!(hir_arg, HirExpr::Literal(Literal::None));
-                        let needs_some_wrap = is_optional_param && !is_none && !is_already_optional;
-
-                        // DEPYLER-0779: Check if the optional param is also borrowed (&Option<T>)
-                        // vs owned (Option<T>) - this determines if we use &Some() or Some()
-                        let optional_is_borrowed = self.ctx
-                            .function_param_borrows
-                            .get(func)
-                            .and_then(|borrows| borrows.get(param_idx))
-                            .copied()
-                            .unwrap_or(false);
-
-                        // DEPYLER-0635: String literal args need type-aware conversion
-                        // - If function param expects &str (borrowed), pass literal directly
-                        // - If function param expects String (owned), add .to_string()
-                        // Check function_param_borrows to determine expected type
-                        // DEPYLER-TYPE-001: Default to true (borrowed) because Type::String params
-                        // become &str in generated Rust code, not String. String literals ARE &str.
-                        if matches!(hir_arg, HirExpr::Literal(Literal::String(_))) {
-                            // Check if function expects borrowed string (&str) at this position
-                            let param_expects_borrowed = self.ctx
-                                .function_param_borrows
-                                .get(func)
-                                .and_then(|borrows| borrows.get(param_idx))
-                                .copied()
-                                .unwrap_or(true);
-
-                            if param_expects_borrowed {
-                                // Param is &str - string literal works directly
-                                // DEPYLER-0779: But wrap in Some if optional param
-                                // DEPYLER-TYPE-001: Don't add .to_string() when param expects borrowed
-                                if needs_some_wrap {
-                                    // For Option<&str>, wrap the literal directly without .to_string()
-                                    if optional_is_borrowed {
-                                        return parse_quote! { &Some(#arg_expr) };
-                                    } else {
-                                        return parse_quote! { Some(#arg_expr) };
-                                    }
-                                }
-                                return arg_expr.clone();
-                            } else {
-                                // Param is String - need .to_string() conversion
-                                let expr_str = quote::quote! { #arg_expr }.to_string();
-                                let converted: syn::Expr = if !expr_str.contains("to_string") {
-                                    parse_quote! { #arg_expr.to_string() }
-                                } else {
-                                    arg_expr.clone()
-                                };
-                                // DEPYLER-0779: Wrap in Some if optional param
-                                // Use &Some for borrowed (&Option<T>), Some for owned (Option<T>)
-                                if needs_some_wrap {
-                                    if optional_is_borrowed {
-                                        return parse_quote! { &Some(#converted) };
-                                    } else {
-                                        return parse_quote! { Some(#converted) };
-                                    }
-                                }
-                                return converted;
-                            }
-                        }
-
-                        // For non-string literals, apply Some wrapping if needed
-                        // Use &Some for borrowed (&Option<T>), Some for owned (Option<T>)
-                        if needs_some_wrap {
-                            if optional_is_borrowed {
-                                return parse_quote! { &Some(#arg_expr) };
-                            } else {
-                                return parse_quote! { Some(#arg_expr) };
-                            }
-                        }
-
-                        // DEPYLER-1168: Call-site clone insertion for variables used later
-                        // When a function takes ownership (doesn't borrow) and the argument
-                        // variable is used again later in the same scope, we need to clone it.
-                        // This prevents E0382 "use of moved value" errors.
-                        if let HirExpr::Var(var_name) = hir_arg {
-                            // Only clone if:
-                            // 1. Variable is used later in the same scope
-                            // 2. Variable type is clonable (List, Dict, Set, String, Custom types)
-                            let used_later = self.ctx.vars_used_later.contains(var_name);
-                            let is_clonable_type = self.ctx.var_types.get(var_name)
-                                .map(|ty| matches!(ty,
-                                    Type::List(_) | Type::Dict(_, _) | Type::Set(_) |
-                                    Type::String | Type::Tuple(_) | Type::Custom(_)
-                                ))
-                                .unwrap_or(false);
-
-                            if used_later && is_clonable_type {
-                                return parse_quote! { #arg_expr.clone() };
-                            }
-                        }
-
-                        // DEPYLER-99MODE-S9: Fallback borrow for non-Var complex expressions
-                        // When function_param_borrows says this param should be borrowed but
-                        // the expression is complex (e.g., function call with ?), add &
-                        let callee_expects_borrow = self.ctx
-                            .function_param_borrows
-                            .get(func)
-                            .and_then(|borrows| borrows.get(param_idx))
-                            .copied()
-                            .unwrap_or(false);
-                        if callee_expects_borrow && !matches!(hir_arg, HirExpr::Var(_)) {
-                            return parse_quote! { &#arg_expr };
-                        }
-
-                        arg_expr.clone()
+                        self.apply_owned_arg_transforms(func, param_idx, hir_arg, &arg_expr)
                     }
                 })
                 .collect();
@@ -657,4 +483,453 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     // ========================================================================
+    // CB-200 Batch 15: Helpers extracted from convert_generic_call
+    // ========================================================================
+
+    /// CB-200 Batch 15: Handle imported function calls (itertools, os.path, serde_json, etc.)
+    fn convert_imported_function_call(
+        &mut self,
+        func: &str,
+        hir_args: &[HirExpr],
+        args: &[syn::Expr],
+        rust_path: String,
+    ) -> Result<syn::Expr> {
+        // DEPYLER-0557: Special handling for itertools.groupby
+        if rust_path == "itertools::Itertools" && func == "groupby" && args.len() >= 2 {
+            let iterable = &args[0];
+            let key_func = &args[1];
+            return Ok(parse_quote! {
+                {
+                    use itertools::Itertools;
+                    #iterable.into_iter().group_by(#key_func)
+                }
+            });
+        }
+
+        // DEPYLER-0702: os.path method imports
+        if let Some(result) = self.try_convert_os_path_import(func, hir_args, args, &rust_path)? {
+            return Ok(result);
+        }
+
+        // DEPYLER-0771: math.isqrt import
+        if (rust_path == "std::f64::isqrt" || rust_path.ends_with("::isqrt"))
+            && func == "isqrt"
+            && args.len() == 1
+            && !self.ctx.function_return_types.contains_key(func)
+        {
+            let arg = &args[0];
+            return Ok(parse_quote! { ((#arg) as f64).sqrt().floor() as i32 });
+        }
+
+        // Parse the rust path and generate the call
+        let path_parts: Vec<&str> = rust_path.split("::").collect();
+        let mut path = quote! {};
+        for (i, part) in path_parts.iter().enumerate() {
+            let part_ident = syn::Ident::new(part, proc_macro2::Span::call_site());
+            if i == 0 {
+                path = quote! { #part_ident };
+            } else {
+                path = quote! { #path::#part_ident };
+            }
+        }
+
+        // DEPYLER-0493: Check constructor pattern
+        use crate::module_mapper::ConstructorPattern;
+        let constructor_pattern = self.ctx.imported_modules.values().find_map(|module| {
+            let type_name = path_parts.last()?;
+            module.constructor_patterns.get(*type_name)
+        });
+
+        // DEPYLER-1004: serde_json special handling
+        if let Some(result) = self.try_convert_serde_json_import(args, &rust_path, &path)? {
+            return Ok(result);
+        }
+
+        // DEPYLER-1004: Result-returning functions
+        let needs_unwrap =
+            matches!(rust_path.as_str(), "serde_json::to_string" | "serde_json::to_writer");
+
+        match constructor_pattern {
+            Some(ConstructorPattern::New) => {
+                if args.is_empty() {
+                    Ok(parse_quote! { #path::new() })
+                } else {
+                    Ok(parse_quote! { #path::new(#(#args),*) })
+                }
+            }
+            Some(ConstructorPattern::Method(method)) => {
+                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                if args.is_empty() {
+                    Ok(parse_quote! { #path::#method_ident() })
+                } else {
+                    Ok(parse_quote! { #path::#method_ident(#(#args),*) })
+                }
+            }
+            Some(ConstructorPattern::Function) | None => {
+                if needs_unwrap {
+                    if args.is_empty() {
+                        Ok(parse_quote! { #path().expect("operation failed") })
+                    } else {
+                        Ok(parse_quote! { #path(#(#args),*).expect("operation failed") })
+                    }
+                } else if args.is_empty() {
+                    Ok(parse_quote! { #path() })
+                } else {
+                    Ok(parse_quote! { #path(#(#args),*) })
+                }
+            }
+        }
+    }
+
+    /// CB-200 Batch 15: Handle os.path imports (join, exists, file_name, parent, splitext)
+    fn try_convert_os_path_import(
+        &mut self,
+        func: &str,
+        hir_args: &[HirExpr],
+        args: &[syn::Expr],
+        rust_path: &str,
+    ) -> Result<Option<syn::Expr>> {
+        if rust_path == "std::path::Path::join" {
+            if args.is_empty() {
+                bail!("path join requires at least 1 argument");
+            }
+            let first = &args[0];
+            if args.len() == 1 {
+                return Ok(Some(
+                    parse_quote! { std::path::PathBuf::from(#first).to_string_lossy().to_string() },
+                ));
+            }
+            // DEPYLER-0814: varargs check
+            for (i, hir_arg) in hir_args[1..].iter().enumerate() {
+                if let HirExpr::Var(name) = hir_arg {
+                    if let Some(Type::List(_)) = self.ctx.var_types.get(name) {
+                        let parts_var = &args[i + 1];
+                        return Ok(Some(parse_quote! {
+                            {
+                                let mut __path = std::path::PathBuf::from(#first);
+                                for __part in #parts_var {
+                                    __path = __path.join(__part);
+                                }
+                                __path.to_string_lossy().to_string()
+                            }
+                        }));
+                    }
+                }
+            }
+            let mut result: syn::Expr = parse_quote! { std::path::PathBuf::from(#first) };
+            for part in &args[1..] {
+                result = parse_quote! { #result.join(#part) };
+            }
+            return Ok(Some(parse_quote! { #result.to_string_lossy().to_string() }));
+        }
+
+        if rust_path == "std::path::Path::exists" && args.len() == 1 {
+            let path = &args[0];
+            return Ok(Some(parse_quote! { std::path::Path::new(&#path).exists() }));
+        }
+        if rust_path == "std::path::Path::file_name" && args.len() == 1 {
+            let path = &args[0];
+            return Ok(Some(parse_quote! {
+                std::path::Path::new(&#path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string()
+            }));
+        }
+        if rust_path == "std::path::Path::parent" && args.len() == 1 {
+            let path = &args[0];
+            return Ok(Some(parse_quote! {
+                std::path::Path::new(&#path)
+                    .parent()
+                    .and_then(|p| p.to_str())
+                    .unwrap_or("")
+                    .to_string()
+            }));
+        }
+
+        // DEPYLER-0721: splitext
+        if rust_path == "std::path::Path" && func == "splitext" && args.len() == 1 {
+            let path_arg = &args[0];
+            return Ok(Some(parse_quote! {
+                {
+                    let __path = std::path::Path::new(&#path_arg);
+                    let __stem = __path.file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let __ext = __path.extension()
+                        .and_then(|e| e.to_str())
+                        .map(|e| format!(".{}", e))
+                        .unwrap_or_default();
+                    (__stem, __ext)
+                }
+            }));
+        }
+
+        Ok(None)
+    }
+
+    /// CB-200 Batch 15: Handle serde_json from_str/from_reader imports
+    fn try_convert_serde_json_import(
+        &mut self,
+        args: &[syn::Expr],
+        rust_path: &str,
+        path_tokens: &proc_macro2::TokenStream,
+    ) -> Result<Option<syn::Expr>> {
+        if rust_path == "serde_json::from_str" && args.len() == 1 {
+            let arg = &args[0];
+            if self.ctx.type_mapper.nasa_mode {
+                self.ctx.needs_hashmap = true;
+                self.ctx.needs_depyler_value_enum = true;
+                return Ok(Some(parse_quote! {
+                    std::collections::HashMap::<String, DepylerValue>::new()
+                }));
+            }
+            self.ctx.needs_serde_json = true;
+            if stdlib_method_gen::json::return_type_needs_json_dict(self.ctx) {
+                self.ctx.needs_hashmap = true;
+                return Ok(Some(parse_quote! {
+                    serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&#arg).expect("parse failed")
+                }));
+            } else {
+                return Ok(Some(parse_quote! {
+                    serde_json::from_str::<serde_json::Value>(&#arg).expect("parse failed")
+                }));
+            }
+        }
+
+        if rust_path == "serde_json::from_reader" && args.len() == 1 {
+            let arg = &args[0];
+            if self.ctx.type_mapper.nasa_mode {
+                self.ctx.needs_hashmap = true;
+                self.ctx.needs_depyler_value_enum = true;
+                return Ok(Some(parse_quote! {
+                    std::collections::HashMap::<String, DepylerValue>::new()
+                }));
+            }
+            self.ctx.needs_serde_json = true;
+            if stdlib_method_gen::json::return_type_needs_json_dict(self.ctx) {
+                self.ctx.needs_hashmap = true;
+                return Ok(Some(parse_quote! {
+                    serde_json::from_reader::<_, std::collections::HashMap<String, serde_json::Value>>(#arg).expect("parse failed")
+                }));
+            } else {
+                return Ok(Some(parse_quote! {
+                    serde_json::from_reader::<_, serde_json::Value>(#arg).expect("parse failed")
+                }));
+            }
+        }
+
+        let _ = path_tokens; // used by caller for constructor pattern dispatch
+        Ok(None)
+    }
+
+    /// CB-200 Batch 15: Determine if an argument should be borrowed based on type/context
+    fn should_borrow_arg(
+        &self,
+        func: &str,
+        param_idx: usize,
+        hir_arg: &HirExpr,
+    ) -> bool {
+        match hir_arg {
+            HirExpr::Var(var_name) => {
+                if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                    if matches!(var_name.as_str(), "key" | "value") {
+                        eprintln!("[DEPYLER-0467] Variable '{}' has type: {:?}", var_name, var_type);
+                    }
+                    if matches!(var_type, Type::Custom(ref s) if s == "serde_json::Value") {
+                        true
+                    } else if matches!(var_type, Type::Dict(_, _)) {
+                        self.ctx.function_param_borrows.get(func)
+                            .and_then(|b| b.get(param_idx)).copied().unwrap_or(true)
+                    } else if matches!(var_type, Type::String) {
+                        !self.ctx.ref_params.contains(var_name)
+                    } else if matches!(var_type, Type::Unknown) {
+                        matches!(var_name.as_str(),
+                            "config" | "data" | "json" | "obj" | "document" |
+                            "key" | "value" | "path" | "name" | "text" | "content")
+                    } else if matches!(var_type, Type::List(_) | Type::Set(_)) {
+                        self.ctx.function_param_borrows.get(func)
+                            .and_then(|b| b.get(param_idx)).copied().unwrap_or(true)
+                    } else if matches!(var_type, Type::Custom(_)) {
+                        self.ctx.function_param_borrows.get(func)
+                            .and_then(|b| b.get(param_idx)).copied().unwrap_or(false)
+                    } else {
+                        false
+                    }
+                } else {
+                    eprintln!("[DEPYLER-0467] Variable '{}' NOT in var_types, checking function_param_borrows", var_name);
+                    self.ctx.function_param_borrows.get(func)
+                        .and_then(|b| b.get(param_idx)).copied()
+                        .unwrap_or(matches!(var_name.as_str(),
+                            "config" | "data" | "json" | "obj" | "document" |
+                            "key" | "value" | "path" | "name" | "text" | "content"))
+                }
+            }
+            HirExpr::List(_) | HirExpr::Dict(_) | HirExpr::Set(_) => {
+                self.ctx.function_param_borrows.get(func)
+                    .and_then(|b| b.get(param_idx)).copied().unwrap_or(true)
+            }
+            HirExpr::Literal(Literal::String(_)) => {
+                self.ctx.function_param_borrows.get(func)
+                    .and_then(|b| b.get(param_idx)).copied().unwrap_or(false)
+            }
+            HirExpr::Attribute { value, attr } => {
+                let is_args_field = if let HirExpr::Var(v) = value.as_ref() { v == "args" } else { false };
+                if is_args_field {
+                    self.ctx.function_param_borrows.get(func)
+                        .and_then(|b| b.get(param_idx)).copied()
+                        .unwrap_or(matches!(attr.as_str(),
+                            "column" | "value" | "name" | "key" | "pattern" |
+                            "text" | "query" | "path" | "config" | "file"))
+                } else {
+                    false
+                }
+            }
+            HirExpr::Slice { .. } | HirExpr::Call { .. } => false,
+            _ => false,
+        }
+    }
+
+    /// CB-200 Batch 15: Apply borrow (&/&mut) to an argument expression
+    fn apply_borrow_to_arg(
+        &self,
+        func: &str,
+        param_idx: usize,
+        hir_arg: &HirExpr,
+        arg_expr: &syn::Expr,
+    ) -> syn::Expr {
+        let needs_mut = self.ctx.function_param_muts.get(func)
+            .and_then(|muts| muts.get(param_idx)).copied().unwrap_or(false);
+        let is_already_mut_ref = if let HirExpr::Var(var_name) = hir_arg {
+            self.ctx.mut_option_dict_params.contains(var_name)
+                || self.ctx.mut_ref_params.contains(var_name)
+        } else {
+            false
+        };
+        if is_already_mut_ref {
+            arg_expr.clone()
+        } else if needs_mut {
+            parse_quote! { &mut #arg_expr }
+        } else {
+            parse_quote! { &#arg_expr }
+        }
+    }
+
+    /// CB-200 Batch 15: Apply owned-arg transforms (Some wrap, string conversion, clone, etc.)
+    fn apply_owned_arg_transforms(
+        &self,
+        func: &str,
+        param_idx: usize,
+        hir_arg: &HirExpr,
+        arg_expr: &syn::Expr,
+    ) -> syn::Expr {
+        let is_optional_param = self.ctx.function_param_optionals.get(func)
+            .and_then(|o| o.get(param_idx)).copied().unwrap_or(false);
+        let is_already_optional = self.is_arg_already_optional(hir_arg);
+        let is_none = matches!(hir_arg, HirExpr::Literal(Literal::None));
+        let needs_some_wrap = is_optional_param && !is_none && !is_already_optional;
+        let optional_is_borrowed = self.ctx.function_param_borrows.get(func)
+            .and_then(|b| b.get(param_idx)).copied().unwrap_or(false);
+
+        // String literal type-aware conversion
+        if matches!(hir_arg, HirExpr::Literal(Literal::String(_))) {
+            return self.convert_string_literal_arg(func, param_idx, arg_expr, needs_some_wrap, optional_is_borrowed);
+        }
+
+        // Some wrapping for non-string literals
+        if needs_some_wrap {
+            return if optional_is_borrowed {
+                parse_quote! { &Some(#arg_expr) }
+            } else {
+                parse_quote! { Some(#arg_expr) }
+            };
+        }
+
+        // Clone insertion for variables used later
+        if let HirExpr::Var(var_name) = hir_arg {
+            let used_later = self.ctx.vars_used_later.contains(var_name);
+            let is_clonable_type = self.ctx.var_types.get(var_name)
+                .map(|ty| matches!(ty,
+                    Type::List(_) | Type::Dict(_, _) | Type::Set(_) |
+                    Type::String | Type::Tuple(_) | Type::Custom(_)))
+                .unwrap_or(false);
+            if used_later && is_clonable_type {
+                return parse_quote! { #arg_expr.clone() };
+            }
+        }
+
+        // Fallback borrow for complex expressions
+        let callee_expects_borrow = self.ctx.function_param_borrows.get(func)
+            .and_then(|b| b.get(param_idx)).copied().unwrap_or(false);
+        if callee_expects_borrow && !matches!(hir_arg, HirExpr::Var(_)) {
+            return parse_quote! { &#arg_expr };
+        }
+
+        arg_expr.clone()
+    }
+
+    /// CB-200 Batch 15: Check if an argument is already Option<T>
+    fn is_arg_already_optional(&self, hir_arg: &HirExpr) -> bool {
+        if let HirExpr::Var(var_name) = hir_arg {
+            self.ctx.var_types.get(var_name)
+                .map(|ty| matches!(ty, Type::Optional(_))).unwrap_or(false)
+        } else if let HirExpr::Attribute { value: _, attr } = hir_arg {
+            let check_optional = |arg: &crate::rust_gen::argparse_transform::ArgParserArgument| {
+                let field_name = arg.rust_field_name();
+                if field_name != *attr { return false; }
+                if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) { return false; }
+                !arg.is_positional && !arg.required.unwrap_or(false)
+                    && arg.default.is_none()
+                    && !matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
+            };
+            self.ctx.argparser_tracker.parsers.values()
+                .any(|p| p.arguments.iter().any(&check_optional))
+                || self.ctx.argparser_tracker.subcommands.values()
+                    .any(|s| s.arguments.iter().any(&check_optional))
+        } else {
+            false
+        }
+    }
+
+    /// CB-200 Batch 15: Convert a string literal argument with type-aware handling
+    fn convert_string_literal_arg(
+        &self,
+        func: &str,
+        param_idx: usize,
+        arg_expr: &syn::Expr,
+        needs_some_wrap: bool,
+        optional_is_borrowed: bool,
+    ) -> syn::Expr {
+        let param_expects_borrowed = self.ctx.function_param_borrows.get(func)
+            .and_then(|b| b.get(param_idx)).copied().unwrap_or(true);
+        if param_expects_borrowed {
+            if needs_some_wrap {
+                if optional_is_borrowed {
+                    parse_quote! { &Some(#arg_expr) }
+                } else {
+                    parse_quote! { Some(#arg_expr) }
+                }
+            } else {
+                arg_expr.clone()
+            }
+        } else {
+            let expr_str = quote::quote! { #arg_expr }.to_string();
+            let converted: syn::Expr = if !expr_str.contains("to_string") {
+                parse_quote! { #arg_expr.to_string() }
+            } else {
+                arg_expr.clone()
+            };
+            if needs_some_wrap {
+                if optional_is_borrowed {
+                    parse_quote! { &Some(#converted) }
+                } else {
+                    parse_quote! { Some(#converted) }
+                }
+            } else {
+                converted
+            }
+        }
+    }
 }
