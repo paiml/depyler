@@ -27,7 +27,7 @@ jobs:
     secrets: inherit
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, clean-room]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -41,7 +41,7 @@ jobs:
       - run: cargo test --lib
 
   coverage:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, clean-room]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -59,3 +59,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo install cargo-audit --locked || true
       - run: cargo audit
+
+  gate:
+    name: gate
+    runs-on: [self-hosted, clean-room]
+    if: always()
+    needs: [test, coverage, security]
+    steps:
+      - name: Check all jobs
+        run: |
+          if [ "${{ needs.test.result }}" = "failure" ] || [ "${{ needs.coverage.result }}" = "failure" ]; then
+            exit 1
+          fi
