@@ -680,6 +680,165 @@ fn preload_stmt_type_annotations(stmt: &HirStmt, ctx: &mut CodeGenContext) {
     }
 }
 
+/// DEPYLER-0839/1075: Fix E0700 "hidden type captures lifetime" for impl Fn/Iterator returns.
+/// When a function returns `impl Fn(...)` or `impl Iterator<...>` and captures reference parameters,
+/// the return type must include a lifetime bound: `impl Fn(...) + 'a`.
+#[allow(clippy::too_many_arguments)]
+fn fixup_impl_trait_lifetimes(
+    rust_ret_type: &crate::type_mapper::RustType,
+    type_params: &[String],
+    lifetime_result: &crate::lifetime_analysis::LifetimeResult,
+    generic_params: proc_macro2::TokenStream,
+    return_type: proc_macro2::TokenStream,
+    params: Vec<proc_macro2::TokenStream>,
+    ctx: &CodeGenContext,
+    fn_name: &str,
+) -> (
+    proc_macro2::TokenStream,
+    proc_macro2::TokenStream,
+    Vec<proc_macro2::TokenStream>,
+) {
+    let type_str = if let crate::type_mapper::RustType::Custom(ref s) = rust_ret_type {
+        s.as_str()
+    } else {
+        return (generic_params, return_type, params);
+    };
+
+    let is_impl_trait = type_str.contains("impl Fn")
+        || type_str.contains("impl Iterator")
+        || type_str.contains("impl IntoIterator");
+    if !is_impl_trait {
+        return (generic_params, return_type, params);
+    }
+
+    let has_ref_params = ctx
+        .function_param_borrows
+        .get(fn_name)
+        .map(|borrows| borrows.iter().any(|&b| b))
+        .unwrap_or(false);
+    if !has_ref_params {
+        return (generic_params, return_type, params);
+    }
+
+    // DEPYLER-1080: Use single lifetime 'a for all reference params
+    let mut lifetime_params_with_a = lifetime_result.lifetime_params.clone();
+    if !lifetime_params_with_a.contains(&"'a".to_string()) {
+        lifetime_params_with_a.push("'a".to_string());
+    }
+    lifetime_params_with_a.retain(|lt| lt == "'a");
+    let new_generic_params = codegen_generic_params(type_params, &lifetime_params_with_a);
+
+    // Modify return type to add + 'a bound
+    let return_str = return_type.to_string();
+    let modified_return = if return_str.contains("impl Fn")
+        || return_str.contains("impl Iterator")
+        || return_str.contains("impl IntoIterator")
+    {
+        let modified = format!("{} + 'a", return_str.trim());
+        syn::parse_str::<proc_macro2::TokenStream>(&modified).unwrap_or(return_type.clone())
+    } else {
+        return_type.clone()
+    };
+
+    // DEPYLER-0839/1075: Add 'a lifetime to reference parameter types
+    let modified_params: Vec<proc_macro2::TokenStream> = params
+        .into_iter()
+        .map(|p| {
+            let param_str = p.to_string();
+            let modified_param = param_str
+                .replace("& 'b ", "& 'a ")
+                .replace("& 'c ", "& 'a ")
+                .replace("& 'd ", "& 'a ")
+                .replace("& 'e ", "& 'a ");
+            let modified_param =
+                if modified_param.contains("& ") && !modified_param.contains("& '") {
+                    modified_param
+                        .replace("& mut ", "& 'a mut ")
+                        .replace("& Vec", "& 'a Vec")
+                        .replace("& str", "& 'a str")
+                } else {
+                    modified_param
+                };
+            syn::parse_str::<proc_macro2::TokenStream>(&modified_param).unwrap_or(p)
+        })
+        .collect();
+
+    (new_generic_params, modified_return, modified_params)
+}
+
+/// Post-process body statements for argparser: generate Args struct, Commands enum,
+/// inject precompute statements, and apply option field substitutions.
+fn postprocess_argparser(
+    ctx: &mut CodeGenContext,
+    body_stmts: &mut Vec<proc_macro2::TokenStream>,
+) {
+    if !ctx.argparser_tracker.has_parsers() {
+        return;
+    }
+    let Some(parser_info) = ctx.argparser_tracker.get_first_parser() else {
+        return;
+    };
+
+    ctx.needs_clap = true;
+
+    // Generate Commands enum if subcommands exist
+    let commands_enum =
+        crate::rust_gen::argparse_transform::generate_commands_enum(&ctx.argparser_tracker);
+    if !commands_enum.is_empty() {
+        ctx.generated_commands_enum = Some(commands_enum);
+    }
+
+    // Generate the Args struct definition
+    let args_struct = crate::rust_gen::argparse_transform::generate_args_struct(
+        parser_info,
+        &ctx.argparser_tracker,
+    );
+    ctx.generated_args_struct = Some(args_struct);
+
+    // Inject precompute statements for Option fields
+    let precompute_stmts =
+        crate::rust_gen::argparse_transform::generate_option_precompute(parser_info);
+    if precompute_stmts.is_empty() {
+        return;
+    }
+
+    // FIRST post-process body to replace args.<field>.is_some() with has_<field>
+    let option_fields: Vec<String> = parser_info
+        .arguments
+        .iter()
+        .filter(|arg| arg.rust_type().starts_with("Option<"))
+        .map(|arg| arg.rust_field_name().to_string())
+        .collect();
+
+    if !option_fields.is_empty() {
+        *body_stmts = body_stmts
+            .iter()
+            .map(|stmt| {
+                let mut stmt_str = stmt.to_string();
+                for field in &option_fields {
+                    let pattern = format!("args . {} . is_some ()", field);
+                    let replacement = format!("has_{}", field);
+                    stmt_str = stmt_str.replace(&pattern, &replacement);
+                    let pattern_none = format!("args . {} . is_none ()", field);
+                    let replacement_none = format!("! has_{}", field);
+                    stmt_str = stmt_str.replace(&pattern_none, &replacement_none);
+                }
+                syn::parse_str(&stmt_str).unwrap_or_else(|_| stmt.clone())
+            })
+            .collect();
+    }
+
+    // THEN inject precompute statements after replacement
+    let insert_idx = body_stmts
+        .iter()
+        .position(|s| s.to_string().contains("Args :: parse"))
+        .map(|i| i + 1)
+        .unwrap_or(0);
+    for (offset, stmt) in precompute_stmts.into_iter().enumerate() {
+        body_stmts.insert(insert_idx + offset, stmt);
+    }
+}
+
 impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         // DEPYLER-0717: Clear var_types at the start of each function to prevent type leaking
@@ -911,95 +1070,16 @@ impl RustCodeGen for HirFunction {
             codegen_return_type(self, &lifetime_result, ctx)?;
 
         // DEPYLER-0839/1075: Fix E0700 "hidden type captures lifetime" for impl Fn/Iterator returns
-        // When a function returns `impl Fn(...)` or `impl Iterator<...>` and captures reference parameters,
-        // the return type must include a lifetime bound: `impl Fn(...) + 'a` or `impl Iterator<...> + '_`
-        // and the function must have the lifetime parameter: `fn foo<'a>(p: &'a str) -> impl Fn(...) + 'a`
-        // Additionally, reference parameters must have the 'a lifetime: `&str` -> `&'a str`
-        let (generic_params, return_type, params) =
-            if let crate::type_mapper::RustType::Custom(ref type_str) = rust_ret_type {
-                if type_str.contains("impl Fn")
-                    || type_str.contains("impl Iterator")
-                    || type_str.contains("impl IntoIterator")
-                {
-                    // Check if any parameter is a reference (borrowed)
-                    // Access from ctx since param_borrows was moved into function_param_borrows earlier
-                    let has_ref_params = ctx
-                        .function_param_borrows
-                        .get(&self.name)
-                        .map(|borrows| borrows.iter().any(|&b| b))
-                        .unwrap_or(false);
-                    if has_ref_params {
-                        // DEPYLER-1080: Use single lifetime 'a for all reference params
-                        // When returning impl Iterator, all captured refs must share the same lifetime
-                        // Using separate lifetimes causes E0623 "lifetime may not live long enough"
-                        let mut lifetime_params_with_a = lifetime_result.lifetime_params.clone();
-                        if !lifetime_params_with_a.contains(&"'a".to_string()) {
-                            lifetime_params_with_a.push("'a".to_string());
-                        }
-                        // Remove any other lifetimes - use only 'a
-                        lifetime_params_with_a.retain(|lt| lt == "'a");
-                        let new_generic_params =
-                            codegen_generic_params(&type_params, &lifetime_params_with_a);
-
-                        // Modify return type to add + 'a bound
-                        // The return type looks like "-> impl Fn(...) -> R" and we need "-> impl Fn(...) -> R + 'a"
-                        // DEPYLER-1075: Also handle impl Iterator<Item=T> -> impl Iterator<Item=T> + 'a
-                        // DEPYLER-1080: Use single 'a lifetime for all refs to avoid E0623
-                        let return_str = return_type.to_string();
-                        let modified_return = if return_str.contains("impl Fn")
-                            || return_str.contains("impl Iterator")
-                            || return_str.contains("impl IntoIterator")
-                        {
-                            // Find the impl type and add + 'a at the end
-                            // Handle both simple `impl Fn(T) -> R` and `impl Iterator<Item=T>`
-                            let modified = format!("{} + 'a", return_str.trim());
-                            syn::parse_str::<proc_macro2::TokenStream>(&modified)
-                                .unwrap_or(return_type.clone())
-                        } else {
-                            return_type.clone()
-                        };
-
-                        // DEPYLER-0839/1075: Add 'a lifetime to reference parameter types
-                        // `&str` -> `&'a str`, `& mut T` -> `&'a mut T`, `& Vec<T>` -> `&'a Vec<T>`
-                        // DEPYLER-1080: Use SAME lifetime 'a for ALL ref params to avoid E0623
-                        // This includes REPLACING any existing lifetimes ('b, 'c, etc.) with 'a
-                        let modified_params: Vec<proc_macro2::TokenStream> = params
-                            .into_iter()
-                            .map(|p| {
-                                let param_str = p.to_string();
-                                // DEPYLER-1080: Replace ANY lifetime with 'a for impl Iterator returns
-                                // First, replace existing lifetimes like 'b, 'c with 'a
-                                let modified_param = param_str
-                                    .replace("& 'b ", "& 'a ")
-                                    .replace("& 'c ", "& 'a ")
-                                    .replace("& 'd ", "& 'a ")
-                                    .replace("& 'e ", "& 'a ");
-                                // Then add 'a to refs without any lifetime
-                                let modified_param = if modified_param.contains("& ")
-                                    && !modified_param.contains("& '")
-                                {
-                                    modified_param
-                                        .replace("& mut ", "& 'a mut ")
-                                        .replace("& Vec", "& 'a Vec")
-                                        .replace("& str", "& 'a str")
-                                } else {
-                                    modified_param
-                                };
-                                syn::parse_str::<proc_macro2::TokenStream>(&modified_param)
-                                    .unwrap_or(p)
-                            })
-                            .collect();
-
-                        (new_generic_params, modified_return, modified_params)
-                    } else {
-                        (generic_params.clone(), return_type, params)
-                    }
-                } else {
-                    (generic_params.clone(), return_type, params)
-                }
-            } else {
-                (generic_params.clone(), return_type, params)
-            };
+        let (generic_params, return_type, params) = fixup_impl_trait_lifetimes(
+            &rust_ret_type,
+            &type_params,
+            &lifetime_result,
+            generic_params,
+            return_type,
+            params,
+            ctx,
+            &self.name,
+        );
 
         // DEPYLER-0425: Analyze subcommand field access BEFORE generating body
         // This sets ctx.current_subcommand_fields so expression generation can rewrite args.field → field
@@ -1120,83 +1200,8 @@ impl RustCodeGen for HirFunction {
         // Clear the subcommand fields context after body generation
         ctx.current_subcommand_fields = None;
 
-        // DEPYLER-0363: Check if ArgumentParser was detected and generate Args struct
-        // DEPYLER-0424: Store Args struct and Commands enum in context for module-level emission
-        // (hoisted outside function to make Args accessible to handler functions)
-        if ctx.argparser_tracker.has_parsers() {
-            if let Some(parser_info) = ctx.argparser_tracker.get_first_parser() {
-                // DEPYLER-0384: Set flag to include clap dependency in Cargo.toml
-                ctx.needs_clap = true;
-
-                // DEPYLER-0399: Generate Commands enum if subcommands exist
-                let commands_enum = crate::rust_gen::argparse_transform::generate_commands_enum(
-                    &ctx.argparser_tracker,
-                );
-                if !commands_enum.is_empty() {
-                    ctx.generated_commands_enum = Some(commands_enum);
-                }
-
-                // Generate the Args struct definition
-                let args_struct = crate::rust_gen::argparse_transform::generate_args_struct(
-                    parser_info,
-                    &ctx.argparser_tracker,
-                );
-                ctx.generated_args_struct = Some(args_struct);
-
-                // DEPYLER-0108: Inject precompute statements for Option fields
-                // This prevents borrow-after-move when Option is passed then checked with is_some()
-                let precompute_stmts =
-                    crate::rust_gen::argparse_transform::generate_option_precompute(parser_info);
-                if !precompute_stmts.is_empty() {
-                    // DEPYLER-0108: FIRST post-process body to replace args.<field>.is_some() with has_<field>
-                    // This must happen BEFORE injecting precompute statements to avoid replacing them too
-                    let option_fields: Vec<String> = parser_info
-                        .arguments
-                        .iter()
-                        .filter(|arg| arg.rust_type().starts_with("Option<"))
-                        .map(|arg| arg.rust_field_name().to_string())
-                        .collect();
-
-                    if !option_fields.is_empty() {
-                        body_stmts = body_stmts
-                            .into_iter()
-                            .map(|stmt| {
-                                let mut stmt_str = stmt.to_string();
-                                for field in &option_fields {
-                                    // Replace "args . <field> . is_some ()" with "has_<field>"
-                                    let pattern = format!("args . {} . is_some ()", field);
-                                    let replacement = format!("has_{}", field);
-                                    stmt_str = stmt_str.replace(&pattern, &replacement);
-                                    // Also handle is_none
-                                    let pattern_none = format!("args . {} . is_none ()", field);
-                                    let replacement_none = format!("! has_{}", field);
-                                    stmt_str = stmt_str.replace(&pattern_none, &replacement_none);
-                                }
-                                syn::parse_str(&stmt_str).unwrap_or(stmt)
-                            })
-                            .collect();
-                    }
-
-                    // THEN inject precompute statements after replacement
-                    // Find the Args::parse() statement index and insert after it
-                    // The parse() call is typically the first statement in main()
-                    let insert_idx = body_stmts
-                        .iter()
-                        .position(|s| s.to_string().contains("Args :: parse"))
-                        .map(|i| i + 1)
-                        .unwrap_or(0);
-                    for (offset, stmt) in precompute_stmts.into_iter().enumerate() {
-                        body_stmts.insert(insert_idx + offset, stmt);
-                    }
-                }
-
-                // Note: ArgumentParser-related statements are filtered in stmt_gen.rs
-                // parse_args() calls are transformed in stmt_gen.rs::codegen_assign_stmt
-            }
-
-            // DO NOT clear tracker yet - we need it for parameter type resolution
-            // It will be cleared after all functions are generated
-        }
+        // DEPYLER-0363/0424: Generate Args struct, Commands enum, inject precompute stmts
+        postprocess_argparser(ctx, &mut body_stmts);
 
         // DEPYLER-0425: Wrap handler functions with subcommand pattern matching
         // If this function accesses subcommand-specific fields, wrap body in pattern matching
