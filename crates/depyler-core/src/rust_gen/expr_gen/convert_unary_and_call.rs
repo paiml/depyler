@@ -160,273 +160,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             confidence = 0.90
         );
 
-        // DEPYLER-E0282-FIX: Handle Ok(chained_pyops) and Some(chained_pyops) type inference
-        // When generating Ok(expr) or Some(expr) where expr contains chained arithmetic operations
-        // like ((a).py_add(b)).py_add(c), Rust can't infer the intermediate types.
-        // Fix: Generate Ok({ let _r: T = expr; _r }) to provide explicit type annotation.
-        if self.ctx.type_mapper.nasa_mode && (func == "Ok" || func == "Some") && args.len() == 1 {
-            // Check if the argument has chained PyOps
-            if let Some(inner_expr) = get_wrapped_chained_pyops(&HirExpr::Call {
-                func: func.to_string(),
-                args: args.to_vec(),
-                kwargs: vec![],
-            }) {
-                // Determine the expected type from the return type context
-                let inner_type = self.ctx.current_return_type.as_ref().and_then(|rt| match rt {
-                    Type::Optional(inner) => Some(inner.as_ref()),
-                    _ => None,
-                });
-                // Also check for explicit type hints on the inner expression
-                let ty_tokens: Option<syn::Type> = match inner_type {
-                    Some(Type::Int) => Some(parse_quote! { i32 }),
-                    Some(Type::Float) => Some(parse_quote! { f64 }),
-                    _ => {
-                        // Fallback: check if inner expr is arithmetic, use i32 as default
-                        if matches!(inner_expr, HirExpr::Binary { .. }) {
-                            Some(parse_quote! { i32 })
-                        } else {
-                            None
-                        }
-                    }
-                };
-                if let Some(ty) = ty_tokens {
-                    let inner_tokens = inner_expr.to_rust_expr(self.ctx)?;
-                    let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
-                    return Ok(parse_quote! { #func_ident({ let _r: #ty = #inner_tokens; _r }) });
-                }
-            }
+        // CB-200 Batch 9: Early-return dispatchers extracted to helpers
+        if let Some(result) = self.try_convert_call_chained_pyops(func, args)? {
+            return Ok(result);
         }
-
-        // DEPYLER-0608: Transform calls to cmd_*/handle_* handlers in subcommand match arms
-        // When calling a handler with `args`, pass the extracted subcommand fields instead
-        // Pattern: cmd_list(args) → cmd_list(archive) (where archive is extracted in match pattern)
-        if self.ctx.in_subcommand_match_arm
-            && (func.starts_with("cmd_") || func.starts_with("handle_"))
-            && args.len() == 1
-            && matches!(&args[0], HirExpr::Var(v) if v == "args")
-        {
-            let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
-            let field_args: Vec<syn::Expr> = self
-                .ctx
-                .subcommand_match_fields
-                .iter()
-                .map(|f| {
-                    let field_ident = syn::Ident::new(f, proc_macro2::Span::call_site());
-                    parse_quote! { #field_ident }
-                })
-                .collect();
-            return Ok(parse_quote! { #func_ident(#(#field_args),*) });
+        if let Some(result) = self.try_convert_call_subcommand_handler(func, args)? {
+            return Ok(result);
         }
-
-        // DEPYLER-0382: Handle os.path.join(*parts) starred unpacking
-        if func == "__os_path_join_starred" {
-            if args.len() != 1 {
-                bail!("__os_path_join_starred expects exactly 1 argument");
-            }
-            let parts = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! {
-                if #parts.is_empty() {
-                    String::new()
-                } else {
-                    #parts.join(std::path::MAIN_SEPARATOR_STR)
-                }
-            });
+        if let Some(result) = self.try_convert_call_starred_unpacking(func, args)? {
+            return Ok(result);
         }
-
-        // DEPYLER-0382: Handle print(*items) starred unpacking
-        if func == "__print_starred" {
-            if args.len() != 1 {
-                bail!("__print_starred expects exactly 1 argument");
-            }
-            let items = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! {
-                {
-                    for item in #items {
-                        print!("{} ", item);
-                    }
-                    println!();
-                }
-            });
+        if let Some(result) = self.try_convert_call_special_constructors(func, args)? {
+            return Ok(result);
         }
-
-        // DEPYLER-REFACTOR-001 Phase 2.14: Removed redundant zeros/ones/full early handlers
-        // These are now handled by the final match block via convert_array_init_call
-        // which delegates to array_initialization module for consistent handling
-
-        // DEPYLER-0363: Handle ArgumentParser() → Skip for now, will be replaced with struct generation
-        // ArgumentParser pattern requires complex transformation:
-        // - Accumulate add_argument() calls
-        // - Generate #[derive(Parser)] struct
-        // - Replace parse_args() with Args::parse()
-        // For now, return unit to make code compile while transformation is implemented
-        if func.contains("ArgumentParser") {
-            // NOTE: Full argparse implementation requires generating Args struct with clap derives (tracked in DEPYLER-0363)
-            // For now, just return unit to allow compilation
-            return Ok(parse_quote! { () });
+        if let Some(result) = self.try_convert_call_iterator_builtins(func, args)? {
+            return Ok(result);
         }
-
-        // Handle classmethod cls(args) → Self::new(args)
-        if func == "cls" && self.ctx.is_classmethod {
-            let arg_exprs: Vec<syn::Expr> =
-                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
-            return Ok(parse_quote! { Self::new(#(#arg_exprs),*) });
+        if let Some(result) = self.try_convert_call_math_builtins(func, args)? {
+            return Ok(result);
         }
-
-        // Handle map() with lambda → convert to Rust iterator pattern
-        if func == "map" && args.len() >= 2 {
-            if let Some(result) = self.try_convert_map_with_zip(args)? {
-                return Ok(result);
-            }
-        }
-
-        // DEPYLER-0178: Handle filter() with lambda → convert to Rust iterator pattern
-        // DEPYLER-0754: Use .iter().cloned() instead of .into_iter() to produce Vec<T> not Vec<&T>
-        // When iterable is &Vec<T>, .into_iter() yields &T references, causing type mismatch.
-        // .iter().cloned() properly clones elements to produce owned iterator.
-        if func == "filter" && args.len() == 2 {
-            if let HirExpr::Lambda { params, body } = &args[0] {
-                if params.len() != 1 {
-                    bail!("filter() lambda must have exactly one parameter");
-                }
-                let iterable_expr = args[1].to_rust_expr(self.ctx)?;
-                // DEPYLER-0597: Use safe_ident to escape Rust keywords in lambda parameters
-                let param_ident = crate::rust_gen::keywords::safe_ident(&params[0]);
-
-                // DEPYLER-1053: Infer element type from iterable and add lambda param to var_types
-                // This enables type coercion in comparisons like `x != 0` where x is f64
-                let elem_type = self.infer_iterable_element_type(&args[1]);
-                let param_name = params[0].clone();
-                if let Some(ref elem_t) = elem_type {
-                    self.ctx.var_types.insert(param_name.clone(), elem_t.clone());
-                }
-
-                let body_expr = body.to_rust_expr(self.ctx)?;
-
-                // DEPYLER-1053: Remove lambda param from var_types to avoid polluting context
-                if elem_type.is_some() {
-                    self.ctx.var_types.remove(&param_name);
-                }
-
-                // DEPYLER-1053: Use |&x| pattern because filter() always receives &Item
-                // Even with .cloned(), filter's closure parameter is a reference to the owned value
-                return Ok(parse_quote! {
-                    #iterable_expr.iter().cloned().filter(|&#param_ident| #body_expr)
-                });
-            }
-        }
-
-        // DEPYLER-REFACTOR-001 Phase 2.18: Delegate sum calls to helper
-        if let Some(result) = self.try_convert_sum_call(func, args) {
-            return result;
-        }
-
-        // DEPYLER-0950: Handle max(generator_exp) → generator_exp.max().unwrap_or_default()
-        // Iterator::max() returns Option<T>, must unwrap for use in ranges/arithmetic
-        if func == "max" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
-            let gen_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #gen_expr.max().unwrap_or_default() });
-        }
-
-        // DEPYLER-0950: Handle min(generator_exp) → generator_exp.min().unwrap_or_default()
-        if func == "min" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
-            let gen_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #gen_expr.min().unwrap_or_default() });
-        }
-
-        // DEPYLER-REFACTOR-001: sorted() and reversed() handlers consolidated
-        // to final match block using convert_sorted_builtin/convert_reversed_builtin
-
-        // DEPYLER-0022: Handle memoryview(data) → data (identity/no-op)
-        // Rust byte slices (&[u8]) already provide memoryview functionality (zero-copy view)
-        // Python's memoryview provides a buffer interface - Rust slices are already references
-        if func == "memoryview" && args.len() == 1 {
-            return args[0].to_rust_expr(self.ctx);
-        }
-
-        // DEPYLER-REFACTOR-001 Phase 2.18: sum handlers removed - now handled by try_convert_sum_call
-
-        // DEPYLER-REFACTOR-001 Phase 2.19: Delegate min/max calls to helper
-        if let Some(result) = self.try_convert_minmax_call(func, args) {
-            return result;
-        }
-
-        // DEPYLER-0248: Handle abs(value) → (value).abs()
-        // DEPYLER-0815: Parens required for correct precedence (abs(n - 10) → (n - 10).abs())
-        if func == "abs" && args.len() == 1 {
-            let value_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { (#value_expr).abs() });
-        }
-
-        // DEPYLER-REFACTOR-001 Phase 2.20: Delegate any/all calls to helper
-        if let Some(result) = self.try_convert_any_all_call(func, args) {
-            return result;
-        }
-
-        // DEPYLER-0251: Handle round(value) → value.round() as i32
-        // DEPYLER-0357: Add `as i32` cast because Python round() returns int
-        // but Rust f64::round() returns f64
-        if func == "round" && args.len() == 1 {
-            let value_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #value_expr.round() as i32 });
-        }
-
-        // DEPYLER-0252: Handle pow(base, exp) → base.pow(exp as u32)
-        // Rust's pow() requires u32 exponent, so we cast
-        if func == "pow" && args.len() == 2 {
-            let base_expr = args[0].to_rust_expr(self.ctx)?;
-            let exp_expr = args[1].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #base_expr.pow(#exp_expr as u32) });
-        }
-
-        // DEPYLER-REFACTOR-001: chr() and ord() handlers consolidated
-        // to final match block using convert_chr_builtin/convert_ord_builtin
-
-        // DEPYLER-0255: Handle bool(value) → type-aware truthiness check
-        // DEPYLER-REFACTOR-001: Handles different types correctly
-        if func == "bool" && args.len() == 1 {
-            let arg = &args[0];
-            match arg {
-                // String literals: non-empty → true, empty → false
-                HirExpr::Literal(Literal::String(s)) => {
-                    let is_true = !s.is_empty();
-                    return Ok(parse_quote! { #is_true });
-                }
-                // Integer literals: non-zero → true, zero → false
-                HirExpr::Literal(Literal::Int(n)) => {
-                    let is_true = *n != 0;
-                    return Ok(parse_quote! { #is_true });
-                }
-                // Float literals: non-zero → true, zero → false
-                HirExpr::Literal(Literal::Float(f)) => {
-                    let is_true = *f != 0.0;
-                    return Ok(parse_quote! { #is_true });
-                }
-                // Bool literals: identity
-                HirExpr::Literal(Literal::Bool(b)) => {
-                    return Ok(parse_quote! { #b });
-                }
-                // Variables: check type
-                HirExpr::Var(var_name) => {
-                    let value_expr = arg.to_rust_expr(self.ctx)?;
-                    if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                        return match var_type {
-                            Type::String => Ok(parse_quote! { !#value_expr.is_empty() }),
-                            Type::Float => Ok(parse_quote! { #value_expr != 0.0 }),
-                            Type::List(_) | Type::Set(_) | Type::Dict(_, _) => {
-                                Ok(parse_quote! { !#value_expr.is_empty() })
-                            }
-                            _ => Ok(parse_quote! { #value_expr != 0 }),
-                        };
-                    }
-                    // Default for unknown variables: assume integer-like
-                    return Ok(parse_quote! { #value_expr != 0 });
-                }
-                // Other expressions: default to != 0
-                _ => {
-                    let value_expr = arg.to_rust_expr(self.ctx)?;
-                    return Ok(parse_quote! { #value_expr != 0 });
-                }
-            }
+        if let Some(result) = self.try_convert_call_bool_builtin(func, args)? {
+            return Ok(result);
         }
 
         // DEPYLER-REFACTOR-001 Phase 2.12: Delegate numeric type constructors to helper
@@ -1469,4 +1223,276 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     // DEPYLER-REFACTOR-001: Helper functions moved to collection_constructors module:
     // already_collected, is_range_expr, is_iterator_expr, is_csv_reader_var
+
+    // =========================================================================
+    // CB-200 Batch 9: Helpers extracted from convert_call to reduce complexity
+    // =========================================================================
+
+    /// DEPYLER-E0282-FIX: Handle Ok(chained_pyops) and Some(chained_pyops) type inference
+    fn try_convert_call_chained_pyops(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if self.ctx.type_mapper.nasa_mode && (func == "Ok" || func == "Some") && args.len() == 1 {
+            if let Some(inner_expr) = get_wrapped_chained_pyops(&HirExpr::Call {
+                func: func.to_string(),
+                args: args.to_vec(),
+                kwargs: vec![],
+            }) {
+                let inner_type = self.ctx.current_return_type.as_ref().and_then(|rt| match rt {
+                    Type::Optional(inner) => Some(inner.as_ref()),
+                    _ => None,
+                });
+                let ty_tokens: Option<syn::Type> = match inner_type {
+                    Some(Type::Int) => Some(parse_quote! { i32 }),
+                    Some(Type::Float) => Some(parse_quote! { f64 }),
+                    _ => {
+                        if matches!(inner_expr, HirExpr::Binary { .. }) {
+                            Some(parse_quote! { i32 })
+                        } else {
+                            None
+                        }
+                    }
+                };
+                if let Some(ty) = ty_tokens {
+                    let inner_tokens = inner_expr.to_rust_expr(self.ctx)?;
+                    let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+                    return Ok(Some(
+                        parse_quote! { #func_ident({ let _r: #ty = #inner_tokens; _r }) },
+                    ));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// DEPYLER-0608: Transform calls to cmd_*/handle_* handlers in subcommand match arms
+    fn try_convert_call_subcommand_handler(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if self.ctx.in_subcommand_match_arm
+            && (func.starts_with("cmd_") || func.starts_with("handle_"))
+            && args.len() == 1
+            && matches!(&args[0], HirExpr::Var(v) if v == "args")
+        {
+            let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+            let field_args: Vec<syn::Expr> = self
+                .ctx
+                .subcommand_match_fields
+                .iter()
+                .map(|f| {
+                    let field_ident = syn::Ident::new(f, proc_macro2::Span::call_site());
+                    parse_quote! { #field_ident }
+                })
+                .collect();
+            return Ok(Some(parse_quote! { #func_ident(#(#field_args),*) }));
+        }
+        Ok(None)
+    }
+
+    /// DEPYLER-0382: Handle starred unpacking patterns (__os_path_join_starred, __print_starred)
+    fn try_convert_call_starred_unpacking(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if func == "__os_path_join_starred" {
+            if args.len() != 1 {
+                bail!("__os_path_join_starred expects exactly 1 argument");
+            }
+            let parts = args[0].to_rust_expr(self.ctx)?;
+            return Ok(Some(parse_quote! {
+                if #parts.is_empty() {
+                    String::new()
+                } else {
+                    #parts.join(std::path::MAIN_SEPARATOR_STR)
+                }
+            }));
+        }
+        if func == "__print_starred" {
+            if args.len() != 1 {
+                bail!("__print_starred expects exactly 1 argument");
+            }
+            let items = args[0].to_rust_expr(self.ctx)?;
+            return Ok(Some(parse_quote! {
+                {
+                    for item in #items {
+                        print!("{} ", item);
+                    }
+                    println!();
+                }
+            }));
+        }
+        Ok(None)
+    }
+
+    /// Handle special constructors: ArgumentParser, cls(), map(), filter()
+    fn try_convert_call_special_constructors(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // DEPYLER-0363: Handle ArgumentParser()
+        if func.contains("ArgumentParser") {
+            return Ok(Some(parse_quote! { () }));
+        }
+        // Handle classmethod cls(args) → Self::new(args)
+        if func == "cls" && self.ctx.is_classmethod {
+            let arg_exprs: Vec<syn::Expr> =
+                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
+            return Ok(Some(parse_quote! { Self::new(#(#arg_exprs),*) }));
+        }
+        // Handle map() with lambda
+        if func == "map" && args.len() >= 2 {
+            if let Some(result) = self.try_convert_map_with_zip(args)? {
+                return Ok(Some(result));
+            }
+        }
+        // DEPYLER-0178: Handle filter() with lambda
+        if func == "filter" && args.len() == 2 {
+            if let Some(result) = self.try_convert_call_filter_lambda(args)? {
+                return Ok(Some(result));
+            }
+        }
+        Ok(None)
+    }
+
+    /// DEPYLER-0178: Handle filter() with lambda → Rust iterator pattern
+    fn try_convert_call_filter_lambda(
+        &mut self,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if let HirExpr::Lambda { params, body } = &args[0] {
+            if params.len() != 1 {
+                bail!("filter() lambda must have exactly one parameter");
+            }
+            let iterable_expr = args[1].to_rust_expr(self.ctx)?;
+            let param_ident = crate::rust_gen::keywords::safe_ident(&params[0]);
+
+            let elem_type = self.infer_iterable_element_type(&args[1]);
+            let param_name = params[0].clone();
+            if let Some(ref elem_t) = elem_type {
+                self.ctx.var_types.insert(param_name.clone(), elem_t.clone());
+            }
+
+            let body_expr = body.to_rust_expr(self.ctx)?;
+
+            if elem_type.is_some() {
+                self.ctx.var_types.remove(&param_name);
+            }
+
+            return Ok(Some(parse_quote! {
+                #iterable_expr.iter().cloned().filter(|&#param_ident| #body_expr)
+            }));
+        }
+        Ok(None)
+    }
+
+    /// Handle iterator builtins: sum, max/min(generator), memoryview, min/max delegated
+    fn try_convert_call_iterator_builtins(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // DEPYLER-REFACTOR-001 Phase 2.18: Delegate sum calls to helper
+        if let Some(result) = self.try_convert_sum_call(func, args) {
+            return result.map(Some);
+        }
+        // DEPYLER-0950: Handle max(generator_exp)
+        if func == "max" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
+            let gen_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(Some(parse_quote! { #gen_expr.max().unwrap_or_default() }));
+        }
+        // DEPYLER-0950: Handle min(generator_exp)
+        if func == "min" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
+            let gen_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(Some(parse_quote! { #gen_expr.min().unwrap_or_default() }));
+        }
+        // DEPYLER-0022: Handle memoryview(data) → data (identity/no-op)
+        if func == "memoryview" && args.len() == 1 {
+            return Ok(Some(args[0].to_rust_expr(self.ctx)?));
+        }
+        // DEPYLER-REFACTOR-001 Phase 2.19: Delegate min/max calls to helper
+        if let Some(result) = self.try_convert_minmax_call(func, args) {
+            return result.map(Some);
+        }
+        // DEPYLER-REFACTOR-001 Phase 2.20: Delegate any/all calls to helper
+        if let Some(result) = self.try_convert_any_all_call(func, args) {
+            return result.map(Some);
+        }
+        Ok(None)
+    }
+
+    /// Handle math builtins: abs, round, pow
+    fn try_convert_call_math_builtins(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // DEPYLER-0248: Handle abs(value)
+        if func == "abs" && args.len() == 1 {
+            let value_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(Some(parse_quote! { (#value_expr).abs() }));
+        }
+        // DEPYLER-0251: Handle round(value)
+        if func == "round" && args.len() == 1 {
+            let value_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(Some(parse_quote! { #value_expr.round() as i32 }));
+        }
+        // DEPYLER-0252: Handle pow(base, exp)
+        if func == "pow" && args.len() == 2 {
+            let base_expr = args[0].to_rust_expr(self.ctx)?;
+            let exp_expr = args[1].to_rust_expr(self.ctx)?;
+            return Ok(Some(parse_quote! { #base_expr.pow(#exp_expr as u32) }));
+        }
+        Ok(None)
+    }
+
+    /// DEPYLER-0255: Handle bool(value) → type-aware truthiness check
+    fn try_convert_call_bool_builtin(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if func != "bool" || args.len() != 1 {
+            return Ok(None);
+        }
+        let arg = &args[0];
+        match arg {
+            HirExpr::Literal(Literal::String(s)) => {
+                let is_true = !s.is_empty();
+                Ok(Some(parse_quote! { #is_true }))
+            }
+            HirExpr::Literal(Literal::Int(n)) => {
+                let is_true = *n != 0;
+                Ok(Some(parse_quote! { #is_true }))
+            }
+            HirExpr::Literal(Literal::Float(f)) => {
+                let is_true = *f != 0.0;
+                Ok(Some(parse_quote! { #is_true }))
+            }
+            HirExpr::Literal(Literal::Bool(b)) => Ok(Some(parse_quote! { #b })),
+            HirExpr::Var(var_name) => {
+                let value_expr = arg.to_rust_expr(self.ctx)?;
+                if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                    return match var_type {
+                        Type::String => Ok(Some(parse_quote! { !#value_expr.is_empty() })),
+                        Type::Float => Ok(Some(parse_quote! { #value_expr != 0.0 })),
+                        Type::List(_) | Type::Set(_) | Type::Dict(_, _) => {
+                            Ok(Some(parse_quote! { !#value_expr.is_empty() }))
+                        }
+                        _ => Ok(Some(parse_quote! { #value_expr != 0 })),
+                    };
+                }
+                Ok(Some(parse_quote! { #value_expr != 0 }))
+            }
+            _ => {
+                let value_expr = arg.to_rust_expr(self.ctx)?;
+                Ok(Some(parse_quote! { #value_expr != 0 }))
+            }
+        }
+    }
 }

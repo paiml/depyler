@@ -572,294 +572,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // DEPYLER-STDLIB-DATETIME: Handle datetime module functions
-            // datetime.datetime.now() → Local::now().naive_local()
-            // datetime.datetime.utcnow() → Utc::now().naive_utc()
-            // datetime.date.today() → Local::now().date_naive()
-            // DEPYLER-0594: Also handle "date" and "time" when imported directly
-            // (from datetime import date; date.today())
-            // DEPYLER-0188: Don't match module_name == "time" here - that's the time module!
-            // Only match "date" for `from datetime import date` pattern.
-            // The time module (import time; time.time()) is handled separately below.
-
-            // DEPYLER-1069: Handle date.min/max vs datetime.min/max specially
-            // date.min → DepylerDate(1, 1, 1), datetime.min → DepylerDateTime::new(1, 1, 1, 0, 0, 0, 0)
+            // CB-200 Batch 9: date/time min/max/today extracted to helpers
             if is_actually_imported
                 && (module_name == "datetime" || module_name == "date")
                 && (method == "min" || method == "max")
             {
-                let nasa_mode = self.ctx.type_mapper.nasa_mode;
-                if module_name == "date" {
-                    // date.min / date.max
-                    if nasa_mode {
-                        self.ctx.needs_depyler_date = true;
-                        return Ok(Some(if method == "min" {
-                            parse_quote! { DepylerDate::new(1, 1, 1) }
-                        } else {
-                            parse_quote! { DepylerDate::new(9999, 12, 31) }
-                        }));
-                    } else {
-                        self.ctx.needs_chrono = true;
-                        return Ok(Some(if method == "min" {
-                            parse_quote! { chrono::NaiveDate::MIN }
-                        } else {
-                            parse_quote! { chrono::NaiveDate::MAX }
-                        }));
-                    }
-                } else {
-                    // datetime.min / datetime.max
-                    if nasa_mode {
-                        self.ctx.needs_depyler_datetime = true;
-                        return Ok(Some(if method == "min" {
-                            parse_quote! { DepylerDateTime::new(1, 1, 1, 0, 0, 0, 0) }
-                        } else {
-                            parse_quote! { DepylerDateTime::new(9999, 12, 31, 23, 59, 59, 999999) }
-                        }));
-                    } else {
-                        self.ctx.needs_chrono = true;
-                        return Ok(Some(if method == "min" {
-                            parse_quote! { chrono::NaiveDateTime::MIN }
-                        } else {
-                            parse_quote! { chrono::NaiveDateTime::MAX }
-                        }));
-                    }
-                }
+                return self.try_convert_date_datetime_min_max(module_name, method);
             }
 
-            // DEPYLER-1069: Handle date.today() vs datetime.today() separately
-            // date.today() → DepylerDate::today(), datetime.today() → DepylerDateTime::today()
             if is_actually_imported
                 && (module_name == "datetime" || module_name == "date")
                 && method == "today"
                 && args.is_empty()
             {
-                let nasa_mode = self.ctx.type_mapper.nasa_mode;
-                if module_name == "date" {
-                    if nasa_mode {
-                        self.ctx.needs_depyler_date = true;
-                        return Ok(Some(parse_quote! { DepylerDate::today() }));
-                    } else {
-                        self.ctx.needs_chrono = true;
-                        return Ok(Some(parse_quote! { chrono::Local::now().date_naive() }));
-                    }
-                } else {
-                    // datetime.today()
-                    if nasa_mode {
-                        self.ctx.needs_depyler_datetime = true;
-                        return Ok(Some(parse_quote! { DepylerDateTime::today() }));
-                    } else {
-                        self.ctx.needs_chrono = true;
-                        return Ok(Some(parse_quote! { chrono::Local::now().naive_local() }));
-                    }
-                }
+                return self.try_convert_date_datetime_today(module_name);
             }
 
             if is_actually_imported && (module_name == "datetime" || module_name == "date") {
                 return self.try_convert_datetime_method(method, args);
             }
 
-            // DEPYLER-1069: Handle datetime.time class attributes (min, max)
-            // These are only valid for datetime.time class, not the time module
-            // time.min → (0, 0, 0, 0), time.max → (23, 59, 59, 999999)
             if is_actually_imported && module_name == "time" && (method == "min" || method == "max")
             {
-                let nasa_mode = self.ctx.type_mapper.nasa_mode;
-                if nasa_mode {
-                    // Return tuple (hour, minute, second, microsecond)
-                    return Ok(Some(if method == "min" {
-                        parse_quote! { (0u32, 0u32, 0u32, 0u32) }
-                    } else {
-                        parse_quote! { (23u32, 59u32, 59u32, 999999u32) }
-                    }));
-                } else {
-                    self.ctx.needs_chrono = true;
-                    return Ok(Some(if method == "min" {
-                        parse_quote! { chrono::NaiveTime::MIN }
-                    } else {
-                        parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).expect("invalid time") }
-                    }));
-                }
+                return self.try_convert_time_min_max(method);
             }
 
-            // DEPYLER-0595: Handle bytes class methods
-            // bytes.fromhex("aabbcc") → hex string to byte array
-            if is_actually_imported
-                && module_name == "bytes"
-                && method == "fromhex"
-                && args.len() == 1
-            {
-                let hex_str = args[0].to_rust_expr(self.ctx)?;
-                // Convert hex string to Vec<u8> using inline parsing
-                return Ok(Some(parse_quote! {
-                    (#hex_str).as_bytes()
-                        .chunks(2)
-                        .map(|c| u8::from_str_radix(std::str::from_utf8(c).expect("parse failed"), 16).expect("parse failed"))
-                        .collect::<Vec<u8>>()
-                }));
-            }
-
-            // DEPYLER-STDLIB-DECIMAL: Handle decimal module functions
-            // decimal.Decimal("123.45") → Decimal::from_str("123.45")
-            // Note: Decimal() constructor is handled separately in convert_call
-            if is_actually_imported && module_name == "decimal" {
-                return self.try_convert_decimal_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-JSON: Handle json module functions
-            // json.dumps(obj) → serde_json::to_string(&obj)
-            // json.loads(s) → serde_json::from_str(&s)
-            if is_actually_imported && module_name == "json" {
-                return stdlib_method_gen::convert_json_method(method, args, self.ctx);
-            }
-
-            // DEPYLER-STDLIB-RE: Regular expressions module
-            if is_actually_imported && module_name == "re" {
-                return stdlib_method_gen::convert_re_method(method, args, self.ctx);
-            }
-
-            // DEPYLER-STDLIB-STRING: String module utilities
-            if is_actually_imported && module_name == "string" {
-                return stdlib_method_gen::convert_string_method(method, args, self.ctx);
-            }
-
-            // DEPYLER-STDLIB-TIME: Time module
-            if is_actually_imported && module_name == "time" {
-                return stdlib_method_gen::convert_time_method(method, args, self.ctx);
-            }
-
-            // DEPYLER-STDLIB-SHUTIL: Shell utilities for file operations
-            // shutil.copy(src, dst) → std::fs::copy(src, dst)
-            // shutil.copy2(src, dst) → std::fs::copy(src, dst)
-            // shutil.move(src, dst) → std::fs::rename(src, dst)
-            if is_actually_imported && module_name == "shutil" {
-                return stdlib_method_gen::convert_shutil_method(method, args, self.ctx);
-            }
-
-            // DEPYLER-STDLIB-CSV: CSV file operations
-            // DEPYLER-0426: Pass kwargs for DictWriter(file, fieldnames=...)
-            if is_actually_imported && module_name == "csv" {
-                return self.try_convert_csv_method(method, args, kwargs);
-            }
-
-            // DEPYLER-0380: os module operations (getenv, etc.)
-            // Must be checked before os.path to handle non-path os functions
-            if is_actually_imported && module_name == "os" {
-                if let Some(result) = stdlib_method_gen::convert_os_method(method, args, self.ctx)?
+            // CB-200 Batch 9: stdlib module routing extracted to helper
+            if is_actually_imported {
+                if let Some(result) =
+                    self.try_convert_stdlib_module_dispatch(module_name, method, args, kwargs)?
                 {
                     return Ok(Some(result));
                 }
-                // Fall through to os.path handler if method not recognized
-            }
-
-            // DEPYLER-STDLIB-OSPATH: os.path file system operations
-            // Only match the actual module "os.path", not variables named "path"
-            // Variables named "path" are typically PathBuf instances from Path() constructor
-            if is_actually_imported && module_name == "os.path" {
-                return self.try_convert_os_path_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-BASE64: Base64 encoding/decoding operations
-            if is_actually_imported && module_name == "base64" {
-                return self.try_convert_base64_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-SECRETS: Cryptographically strong random operations
-            if is_actually_imported && module_name == "secrets" {
-                return self.try_convert_secrets_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-HASHLIB: Cryptographic hash functions
-            if is_actually_imported && module_name == "hashlib" {
-                return self.try_convert_hashlib_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-UUID: UUID generation (RFC 4122)
-            if is_actually_imported && module_name == "uuid" {
-                return self.try_convert_uuid_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-HMAC: HMAC authentication
-            if is_actually_imported && module_name == "hmac" {
-                return self.try_convert_hmac_method(method, args);
-            }
-
-            // DEPYLER-0430: platform module - system information
-            if is_actually_imported && module_name == "platform" {
-                return self.try_convert_platform_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-BINASCII: Binary/ASCII conversions
-            if is_actually_imported && module_name == "binascii" {
-                return self.try_convert_binascii_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-URLLIB-PARSE: URL parsing and encoding
-            if is_actually_imported && (module_name == "urllib.parse" || module_name == "parse") {
-                return self.try_convert_urllib_parse_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-FNMATCH: Unix shell-style pattern matching
-            if is_actually_imported && module_name == "fnmatch" {
-                return self.try_convert_fnmatch_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-SHLEX: Shell command line lexing
-            if is_actually_imported && module_name == "shlex" {
-                return self.try_convert_shlex_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-TEXTWRAP: Text wrapping and formatting
-            if is_actually_imported && module_name == "textwrap" {
-                return self.try_convert_textwrap_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-BISECT: Binary search for sorted sequences
-            if is_actually_imported && module_name == "bisect" {
-                return self.try_convert_bisect_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-HEAPQ: Heap queue algorithm (priority queue)
-            if is_actually_imported && module_name == "heapq" {
-                return self.try_convert_heapq_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-COPY: Shallow and deep copy operations
-            if is_actually_imported && module_name == "copy" {
-                return self.try_convert_copy_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-ITERTOOLS: Iterator combinatorics and lazy evaluation
-            if is_actually_imported && module_name == "itertools" {
-                return stdlib_method_gen::convert_itertools_method(method, args, self.ctx);
-            }
-
-            // DEPYLER-STDLIB-FUNCTOOLS: Higher-order functions
-            if is_actually_imported && module_name == "functools" {
-                return stdlib_method_gen::convert_functools_method(method, args, self.ctx);
-            }
-
-            // DEPYLER-STDLIB-WARNINGS: Warning control
-            if is_actually_imported && module_name == "warnings" {
-                return stdlib_method_gen::convert_warnings_method(method, args, self.ctx);
-            }
-
-            // DEPYLER-STDLIB-SYS: System-specific parameters and functions
-            if is_actually_imported && module_name == "sys" {
-                return self.try_convert_sys_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-PICKLE: Object serialization
-            if is_actually_imported && module_name == "pickle" {
-                return self.try_convert_pickle_method(method, args);
-            }
-
-            // DEPYLER-STDLIB-PPRINT: Pretty printing
-            if is_actually_imported && module_name == "pprint" {
-                return self.try_convert_pprint_method(method, args);
-            }
-
-            // DEPYLER-0424: Calendar module - date/time calculations
-            if is_actually_imported && module_name == "calendar" {
-                return self.try_convert_calendar_method(method, args);
             }
 
             // DEPYLER-0335 FIX #2: Get rust_path and rust_name before converting args (avoid borrow conflict)
@@ -937,6 +681,166 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 };
                 return Ok(Some(result));
             }
+        }
+        Ok(None)
+    }
+
+    // =========================================================================
+    // CB-200 Batch 9: Helpers extracted from try_convert_module_method
+    // =========================================================================
+
+    /// DEPYLER-1069: Handle date.min/max and datetime.min/max
+    fn try_convert_date_datetime_min_max(
+        &mut self,
+        module_name: &str,
+        method: &str,
+    ) -> Result<Option<syn::Expr>> {
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+        if module_name == "date" {
+            if nasa_mode {
+                self.ctx.needs_depyler_date = true;
+                return Ok(Some(if method == "min" {
+                    parse_quote! { DepylerDate::new(1, 1, 1) }
+                } else {
+                    parse_quote! { DepylerDate::new(9999, 12, 31) }
+                }));
+            } else {
+                self.ctx.needs_chrono = true;
+                return Ok(Some(if method == "min" {
+                    parse_quote! { chrono::NaiveDate::MIN }
+                } else {
+                    parse_quote! { chrono::NaiveDate::MAX }
+                }));
+            }
+        } else {
+            if nasa_mode {
+                self.ctx.needs_depyler_datetime = true;
+                return Ok(Some(if method == "min" {
+                    parse_quote! { DepylerDateTime::new(1, 1, 1, 0, 0, 0, 0) }
+                } else {
+                    parse_quote! { DepylerDateTime::new(9999, 12, 31, 23, 59, 59, 999999) }
+                }));
+            } else {
+                self.ctx.needs_chrono = true;
+                return Ok(Some(if method == "min" {
+                    parse_quote! { chrono::NaiveDateTime::MIN }
+                } else {
+                    parse_quote! { chrono::NaiveDateTime::MAX }
+                }));
+            }
+        }
+    }
+
+    /// DEPYLER-1069: Handle date.today() and datetime.today()
+    fn try_convert_date_datetime_today(
+        &mut self,
+        module_name: &str,
+    ) -> Result<Option<syn::Expr>> {
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+        if module_name == "date" {
+            if nasa_mode {
+                self.ctx.needs_depyler_date = true;
+                Ok(Some(parse_quote! { DepylerDate::today() }))
+            } else {
+                self.ctx.needs_chrono = true;
+                Ok(Some(parse_quote! { chrono::Local::now().date_naive() }))
+            }
+        } else {
+            if nasa_mode {
+                self.ctx.needs_depyler_datetime = true;
+                Ok(Some(parse_quote! { DepylerDateTime::today() }))
+            } else {
+                self.ctx.needs_chrono = true;
+                Ok(Some(parse_quote! { chrono::Local::now().naive_local() }))
+            }
+        }
+    }
+
+    /// DEPYLER-1069: Handle time.min and time.max
+    fn try_convert_time_min_max(
+        &mut self,
+        method: &str,
+    ) -> Result<Option<syn::Expr>> {
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+        if nasa_mode {
+            return Ok(Some(if method == "min" {
+                parse_quote! { (0u32, 0u32, 0u32, 0u32) }
+            } else {
+                parse_quote! { (23u32, 59u32, 59u32, 999999u32) }
+            }));
+        } else {
+            self.ctx.needs_chrono = true;
+            return Ok(Some(if method == "min" {
+                parse_quote! { chrono::NaiveTime::MIN }
+            } else {
+                parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).expect("invalid time") }
+            }));
+        }
+    }
+
+    /// CB-200 Batch 9: Stdlib module dispatch routing
+    fn try_convert_stdlib_module_dispatch(
+        &mut self,
+        module_name: &str,
+        method: &str,
+        args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
+    ) -> Result<Option<syn::Expr>> {
+        // DEPYLER-0595: bytes.fromhex
+        if module_name == "bytes" && method == "fromhex" && args.len() == 1 {
+            let hex_str = args[0].to_rust_expr(self.ctx)?;
+            return Ok(Some(parse_quote! {
+                (#hex_str).as_bytes()
+                    .chunks(2)
+                    .map(|c| u8::from_str_radix(std::str::from_utf8(c).expect("parse failed"), 16).expect("parse failed"))
+                    .collect::<Vec<u8>>()
+            }));
+        }
+        match module_name {
+            "decimal" => return self.try_convert_decimal_method(method, args),
+            "json" => return stdlib_method_gen::convert_json_method(method, args, self.ctx),
+            "re" => return stdlib_method_gen::convert_re_method(method, args, self.ctx),
+            "string" => return stdlib_method_gen::convert_string_method(method, args, self.ctx),
+            "time" => return stdlib_method_gen::convert_time_method(method, args, self.ctx),
+            "shutil" => return stdlib_method_gen::convert_shutil_method(method, args, self.ctx),
+            "csv" => return self.try_convert_csv_method(method, args, kwargs),
+            "os" => {
+                if let Some(result) =
+                    stdlib_method_gen::convert_os_method(method, args, self.ctx)?
+                {
+                    return Ok(Some(result));
+                }
+                // Fall through
+            }
+            "os.path" => return self.try_convert_os_path_method(method, args),
+            "base64" => return self.try_convert_base64_method(method, args),
+            "secrets" => return self.try_convert_secrets_method(method, args),
+            "hashlib" => return self.try_convert_hashlib_method(method, args),
+            "uuid" => return self.try_convert_uuid_method(method, args),
+            "hmac" => return self.try_convert_hmac_method(method, args),
+            "platform" => return self.try_convert_platform_method(method, args),
+            "binascii" => return self.try_convert_binascii_method(method, args),
+            "urllib.parse" | "parse" => return self.try_convert_urllib_parse_method(method, args),
+            "fnmatch" => return self.try_convert_fnmatch_method(method, args),
+            "shlex" => return self.try_convert_shlex_method(method, args),
+            "textwrap" => return self.try_convert_textwrap_method(method, args),
+            "bisect" => return self.try_convert_bisect_method(method, args),
+            "heapq" => return self.try_convert_heapq_method(method, args),
+            "copy" => return self.try_convert_copy_method(method, args),
+            "itertools" => {
+                return stdlib_method_gen::convert_itertools_method(method, args, self.ctx)
+            }
+            "functools" => {
+                return stdlib_method_gen::convert_functools_method(method, args, self.ctx)
+            }
+            "warnings" => {
+                return stdlib_method_gen::convert_warnings_method(method, args, self.ctx)
+            }
+            "sys" => return self.try_convert_sys_method(method, args),
+            "pickle" => return self.try_convert_pickle_method(method, args),
+            "pprint" => return self.try_convert_pprint_method(method, args),
+            "calendar" => return self.try_convert_calendar_method(method, args),
+            _ => {}
         }
         Ok(None)
     }

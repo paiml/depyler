@@ -315,387 +315,10 @@ pub(crate) fn codegen_expr_stmt(
     expr: &HirExpr,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
-    // DEPYLER-0363: Detect parser.add_argument(...) method calls
-    // Pattern: parser.add_argument("files", nargs="+", type=Path, action="store_true", help="...")
+    // CB-200 Batch 9: Delegate argparser method call handling to helper
     if let HirExpr::MethodCall { object, method, args, kwargs } = expr {
-        // DEPYLER-0581: Handle chained method calls like subparsers.add_parser(...).set_defaults(...)
-        // Pattern: subparsers.add_parser("step").set_defaults(func=cmd_step)
-        // This creates HIR: MethodCall { object: MethodCall { object: Var("subparsers"), method: "add_parser" }, method: "set_defaults" }
-        if method == "set_defaults" {
-            if let HirExpr::MethodCall {
-                object: inner_obj,
-                method: inner_method,
-                args: inner_args,
-                ..
-            } = object.as_ref()
-            {
-                if inner_method == "add_parser" {
-                    if let HirExpr::Var(subparsers_var) = inner_obj.as_ref() {
-                        if ctx.argparser_tracker.get_subparsers(subparsers_var).is_some() {
-                            // Register the subcommand and skip code generation
-                            if !inner_args.is_empty() {
-                                let command_name = extract_string_literal(&inner_args[0]);
-                                ctx.argparser_tracker.register_subcommand(
-                                    command_name,
-                                    crate::rust_gen::argparse_transform::SubcommandInfo {
-                                        name: extract_string_literal(&inner_args[0]),
-                                        help: None,
-                                        arguments: vec![],
-                                        subparsers_var: subparsers_var.clone(),
-                                    },
-                                );
-                            }
-                            return Ok(quote! {});
-                        }
-                    }
-                }
-            }
-        }
-
-        // DEPYLER-0394: Skip ALL parser method calls when using clap derive
-        // ArgumentParser methods that should be ignored:
-        // - add_argument() → accumulated into Args struct
-        // - add_argument_group() → not needed with clap (uses struct fields)
-        // - set_defaults() → not needed (use field defaults)
-        // - add_mutually_exclusive_group() → use clap group attributes
-        if let HirExpr::Var(var_name) = object.as_ref() {
-            // DEPYLER-0399: Check if this is a subcommand parser first (highest priority)
-            if let Some(subcommand_info) = ctx.argparser_tracker.get_subcommand_mut(var_name) {
-                // This is a subcommand parser - route add_argument to subcommand
-                if method == "add_argument" {
-                    // Extract argument details (same as main parser)
-                    if let Some(HirExpr::Literal(crate::hir::Literal::String(first_arg))) =
-                        args.first()
-                    {
-                        let mut arg = crate::rust_gen::argparse_transform::ArgParserArgument::new(
-                            first_arg.clone(),
-                        );
-
-                        // Check for second argument (long flag)
-                        if let Some(HirExpr::Literal(crate::hir::Literal::String(second_arg))) =
-                            args.get(1)
-                        {
-                            if second_arg.starts_with("--") {
-                                arg.long = Some(second_arg.clone());
-                            }
-                        }
-
-                        // Extract kwargs (same extraction logic as main parser)
-                        for (kw_name, kw_value) in kwargs {
-                            match kw_name.as_str() {
-                                "help" => {
-                                    if let HirExpr::Literal(crate::hir::Literal::String(help_val)) =
-                                        kw_value
-                                    {
-                                        arg.help = Some(help_val.clone());
-                                    }
-                                }
-                                "type" => {
-                                    if let HirExpr::Var(type_name) = kw_value {
-                                        match type_name.as_str() {
-                                            "str" => arg.arg_type = Some(crate::hir::Type::String),
-                                            "int" => arg.arg_type = Some(crate::hir::Type::Int),
-                                            "float" => arg.arg_type = Some(crate::hir::Type::Float),
-                                            "Path" => {
-                                                arg.arg_type = Some(crate::hir::Type::Custom(
-                                                    "PathBuf".to_string(),
-                                                ))
-                                            }
-                                            _ => {
-                                                // DEPYLER-0447: Track custom validator functions
-                                                // e.g., type=email_address → track "email_address"
-                                                ctx.validator_functions.insert(type_name.clone());
-                                            }
-                                        }
-                                    }
-                                }
-                                "action" => {
-                                    if let HirExpr::Literal(crate::hir::Literal::String(
-                                        action_val,
-                                    )) = kw_value
-                                    {
-                                        arg.action = Some(action_val.clone());
-                                    }
-                                }
-                                "required" => {
-                                    if let HirExpr::Literal(crate::hir::Literal::Bool(req)) =
-                                        kw_value
-                                    {
-                                        arg.required = Some(*req);
-                                    }
-                                }
-                                "nargs" => {
-                                    // DEPYLER-0485: Handle nargs for subcommand arguments
-                                    // Same logic as main parser (lines 336-348)
-                                    match kw_value {
-                                        HirExpr::Literal(crate::hir::Literal::String(
-                                            nargs_val,
-                                        )) => {
-                                            arg.nargs = Some(nargs_val.clone());
-                                        }
-                                        HirExpr::Literal(crate::hir::Literal::Int(n)) => {
-                                            arg.nargs = Some(n.to_string());
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-
-                        // DEPYLER-0930: Check for duplicate argument names before adding
-                        // This mirrors the fix in argparse_transform.rs for DEPYLER-0929
-                        // Without this check, E0416 "identifier bound more than once" occurs
-                        if !subcommand_info
-                            .arguments
-                            .iter()
-                            .any(|existing| existing.name == arg.name)
-                        {
-                            subcommand_info.arguments.push(arg);
-                        }
-                    }
-                    return Ok(quote! {});
-                }
-            }
-
-            // DEPYLER-0396: Check if this variable is a tracked ArgumentParser OR an argument group
-            // If it's a group, resolve to the parent parser (recursively for nested groups)
-            let parser_var = if ctx.argparser_tracker.get_parser(var_name).is_some() {
-                var_name.clone()
-            } else if let Some(parent_parser) = ctx.argparser_tracker.get_parser_for_group(var_name)
-            {
-                parent_parser // Already returns owned String
-            } else if ctx.argparser_tracker.get_subparsers(var_name).is_some() {
-                // DEPYLER-0456 Bug #1 FIX: Handle subparsers.add_parser() expression statements
-                // Don't early return here - let it fall through to add_parser handling at line ~435
-                var_name.clone()
-            } else {
-                // Not a parser, group, subparsers, or subcommand - fall through to normal code generation
-                let expr_tokens = expr.to_rust_expr(ctx)?;
-                return Ok(quote! { #expr_tokens; });
-            };
-
-            // DEPYLER-0456 Bug #1 FIX: Check for subparsers.add_parser() FIRST
-            // This must come before the parser check since subparsers variables are NOT in the parser list
-            if ctx.argparser_tracker.get_subparsers(&parser_var).is_some() && method == "add_parser"
-            {
-                // Handle subparsers.add_parser() expression statements
-                // Pattern: subparsers.add_parser("init", help="...")
-                if !args.is_empty() {
-                    let command_name = extract_string_literal(&args[0]);
-                    let help = extract_kwarg_string(kwargs, "help");
-
-                    // Register subcommand without a variable name (since it's not assigned)
-                    use crate::rust_gen::argparse_transform::SubcommandInfo;
-                    let subcommand_info = SubcommandInfo {
-                        name: command_name.clone(),
-                        help,
-                        arguments: vec![],
-                        subparsers_var: parser_var.clone(),
-                    };
-
-                    // Use the command name itself as the key (since there's no parser variable)
-                    ctx.argparser_tracker.register_subcommand(command_name, subcommand_info);
-                }
-                // Skip code generation for this statement
-                return Ok(quote! {});
-            }
-
-            // Check if this is a parser configuration method
-            if ctx.argparser_tracker.get_parser(&parser_var).is_some() {
-                match method.as_str() {
-                    "add_argument" => {
-                        // Process add_argument to extract argument details
-                        if let Some(_parser_info) =
-                            ctx.argparser_tracker.get_parser_mut(&parser_var)
-                        {
-                            // DEPYLER-0365 Phase 5: Extract argument names (can be multiple: "-o", "--output")
-                            // First arg is required, second is optional (for dual short+long flags)
-                            if let Some(HirExpr::Literal(crate::hir::Literal::String(first_arg))) =
-                                args.first()
-                            {
-                                let mut arg =
-                                    crate::rust_gen::argparse_transform::ArgParserArgument::new(
-                                        first_arg.clone(),
-                                    );
-
-                                // Check for second argument (long flag name in dual short+long pattern)
-                                if let Some(HirExpr::Literal(crate::hir::Literal::String(
-                                    second_arg,
-                                ))) = args.get(1)
-                                {
-                                    // Pattern: add_argument("-o", "--output")
-                                    // First is short, second is long
-                                    if second_arg.starts_with("--") {
-                                        arg.long = Some(second_arg.clone());
-                                    }
-                                }
-
-                                // DEPYLER-0364: Extract keyword arguments from HIR
-                                for (kw_name, kw_value) in kwargs {
-                                    match kw_name.as_str() {
-                                        "nargs" => {
-                                            // DEPYLER-0370: Handle both string and int nargs
-                                            match kw_value {
-                                                HirExpr::Literal(crate::hir::Literal::String(
-                                                    nargs_val,
-                                                )) => {
-                                                    arg.nargs = Some(nargs_val.clone());
-                                                }
-                                                HirExpr::Literal(crate::hir::Literal::Int(n)) => {
-                                                    arg.nargs = Some(n.to_string());
-                                                }
-                                                _ => {}
-                                            }
-                                        }
-                                        "type" => {
-                                            // DEPYLER-0367: Map Python types to Rust types
-                                            if let HirExpr::Var(type_name) = kw_value {
-                                                match type_name.as_str() {
-                                                    "str" => {
-                                                        arg.arg_type =
-                                                            Some(crate::hir::Type::String)
-                                                    }
-                                                    "int" => {
-                                                        arg.arg_type = Some(crate::hir::Type::Int)
-                                                    }
-                                                    "float" => {
-                                                        arg.arg_type = Some(crate::hir::Type::Float)
-                                                    }
-                                                    "Path" => {
-                                                        // Path needs to map to PathBuf
-                                                        arg.arg_type =
-                                                            Some(crate::hir::Type::Custom(
-                                                                "PathBuf".to_string(),
-                                                            ));
-                                                    }
-                                                    _ => {
-                                                        // DEPYLER-0447: Track custom validator functions
-                                                        // e.g., type=email_address → track "email_address"
-                                                        ctx.validator_functions
-                                                            .insert(type_name.clone());
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        "action" => {
-                                            if let HirExpr::Literal(crate::hir::Literal::String(
-                                                action_val,
-                                            )) = kw_value
-                                            {
-                                                arg.action = Some(action_val.clone());
-                                            }
-                                        }
-                                        "help" => {
-                                            if let HirExpr::Literal(crate::hir::Literal::String(
-                                                help_val,
-                                            )) = kw_value
-                                            {
-                                                arg.help = Some(help_val.clone());
-                                            }
-                                        }
-                                        "default" => {
-                                            arg.default = Some(kw_value.clone());
-                                        }
-                                        "required" => {
-                                            // DEPYLER-0367: Handle required=True/False
-                                            if let HirExpr::Literal(crate::hir::Literal::Bool(
-                                                req,
-                                            )) = kw_value
-                                            {
-                                                arg.required = Some(*req);
-                                            }
-                                        }
-                                        "dest" => {
-                                            // DEPYLER-0371: Handle dest="var_name"
-                                            if let HirExpr::Literal(crate::hir::Literal::String(
-                                                dest_name,
-                                            )) = kw_value
-                                            {
-                                                arg.dest = Some(dest_name.clone());
-                                            }
-                                        }
-                                        "metavar" => {
-                                            // DEPYLER-0372: Handle metavar="FILE"
-                                            if let HirExpr::Literal(crate::hir::Literal::String(
-                                                metavar_name,
-                                            )) = kw_value
-                                            {
-                                                arg.metavar = Some(metavar_name.clone());
-                                            }
-                                        }
-                                        "choices" => {
-                                            // DEPYLER-0373: Handle choices=["a", "b", "c"]
-                                            if let HirExpr::List(items) = kw_value {
-                                                let mut choices = Vec::new();
-                                                for item in items {
-                                                    if let HirExpr::Literal(
-                                                        crate::hir::Literal::String(s),
-                                                    ) = item
-                                                    {
-                                                        choices.push(s.clone());
-                                                    }
-                                                }
-                                                if !choices.is_empty() {
-                                                    arg.choices = Some(choices);
-                                                }
-                                            }
-                                        }
-                                        "const" => {
-                                            // DEPYLER-0374/0375: Handle const value
-                                            arg.const_value = Some(kw_value.clone());
-                                        }
-                                        _ => {
-                                            // Ignore other kwargs (e.g., prog, formatter_class)
-                                        }
-                                    }
-                                }
-
-                                _parser_info.add_argument(arg);
-                            }
-
-                            // Skip generating this statement - arguments will be in Args struct
-                            return Ok(quote! {});
-                        }
-                    }
-                    "add_argument_group" | "add_mutually_exclusive_group" | "set_defaults" => {
-                        // DEPYLER-0394: Skip these parser configuration methods
-                        // With clap derive, argument groups are handled by struct field organization
-                        // Mutually exclusive groups use #[group] attributes
-                        // Defaults use field default values
-                        return Ok(quote! {});
-                    }
-                    "add_parser" => {
-                        // DEPYLER-0456: Handle subparsers.add_parser() expression statements
-                        // Pattern: subparsers.add_parser("init", help="...")
-                        // Register the subcommand and skip code generation
-                        if ctx.argparser_tracker.get_subparsers(var_name).is_some() {
-                            // Extract command name and help text
-                            if !args.is_empty() {
-                                let command_name = extract_string_literal(&args[0]);
-                                let help = extract_kwarg_string(kwargs, "help");
-
-                                // Register subcommand without a variable name (since it's not assigned)
-                                use crate::rust_gen::argparse_transform::SubcommandInfo;
-                                let subcommand_info = SubcommandInfo {
-                                    name: command_name.clone(),
-                                    help,
-                                    arguments: vec![],
-                                    subparsers_var: var_name.clone(),
-                                };
-
-                                // Use the command name itself as the key (since there's no parser variable)
-                                ctx.argparser_tracker
-                                    .register_subcommand(command_name, subcommand_info);
-                            }
-                            return Ok(quote! {});
-                        }
-                    }
-                    _ => {
-                        // Other parser methods - fall through to normal code generation
-                    }
-                }
-            }
+        if let Some(result) = try_handle_argparser_expr_stmt(object, method, args, kwargs, expr, ctx)? {
+            return Ok(result);
         }
     }
 
@@ -708,6 +331,233 @@ pub(crate) fn codegen_expr_stmt(
         let expr_tokens = expr.to_rust_expr(ctx)?;
         Ok(quote! { #expr_tokens; })
     }
+}
+
+/// CB-200 Batch 9: Extract subcommand add_argument kwargs (shared between subcommand and main parser)
+fn extract_subcommand_add_argument_kwargs(
+    kwargs: &[(String, HirExpr)],
+    arg: &mut crate::rust_gen::argparse_transform::ArgParserArgument,
+    ctx: &mut CodeGenContext,
+) {
+    for (kw_name, kw_value) in kwargs {
+        match kw_name.as_str() {
+            "help" => {
+                if let HirExpr::Literal(crate::hir::Literal::String(help_val)) = kw_value {
+                    arg.help = Some(help_val.clone());
+                }
+            }
+            "type" => {
+                if let HirExpr::Var(type_name) = kw_value {
+                    match type_name.as_str() {
+                        "str" => arg.arg_type = Some(crate::hir::Type::String),
+                        "int" => arg.arg_type = Some(crate::hir::Type::Int),
+                        "float" => arg.arg_type = Some(crate::hir::Type::Float),
+                        "Path" => {
+                            arg.arg_type =
+                                Some(crate::hir::Type::Custom("PathBuf".to_string()))
+                        }
+                        _ => {
+                            ctx.validator_functions.insert(type_name.clone());
+                        }
+                    }
+                }
+            }
+            "action" => {
+                if let HirExpr::Literal(crate::hir::Literal::String(action_val)) = kw_value {
+                    arg.action = Some(action_val.clone());
+                }
+            }
+            "required" => {
+                if let HirExpr::Literal(crate::hir::Literal::Bool(req)) = kw_value {
+                    arg.required = Some(*req);
+                }
+            }
+            "nargs" => match kw_value {
+                HirExpr::Literal(crate::hir::Literal::String(nargs_val)) => {
+                    arg.nargs = Some(nargs_val.clone());
+                }
+                HirExpr::Literal(crate::hir::Literal::Int(n)) => {
+                    arg.nargs = Some(n.to_string());
+                }
+                _ => {}
+            },
+            "default" => {
+                arg.default = Some(kw_value.clone());
+            }
+            "dest" => {
+                if let HirExpr::Literal(crate::hir::Literal::String(dest_name)) = kw_value {
+                    arg.dest = Some(dest_name.clone());
+                }
+            }
+            "metavar" => {
+                if let HirExpr::Literal(crate::hir::Literal::String(metavar_name)) = kw_value {
+                    arg.metavar = Some(metavar_name.clone());
+                }
+            }
+            "choices" => {
+                if let HirExpr::List(items) = kw_value {
+                    let mut choices = Vec::new();
+                    for item in items {
+                        if let HirExpr::Literal(crate::hir::Literal::String(s)) = item {
+                            choices.push(s.clone());
+                        }
+                    }
+                    if !choices.is_empty() {
+                        arg.choices = Some(choices);
+                    }
+                }
+            }
+            "const" => {
+                arg.const_value = Some(kw_value.clone());
+            }
+            _ => {}
+        }
+    }
+}
+
+/// CB-200 Batch 9: Handle argparser-related expression statements
+fn try_handle_argparser_expr_stmt(
+    object: &HirExpr,
+    method: &str,
+    args: &[HirExpr],
+    kwargs: &[(String, HirExpr)],
+    expr: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Result<Option<proc_macro2::TokenStream>> {
+    // DEPYLER-0581: Handle chained set_defaults on add_parser
+    if method == "set_defaults" {
+        if let HirExpr::MethodCall {
+            object: inner_obj,
+            method: inner_method,
+            args: inner_args,
+            ..
+        } = object
+        {
+            if inner_method == "add_parser" {
+                if let HirExpr::Var(subparsers_var) = inner_obj.as_ref() {
+                    if ctx.argparser_tracker.get_subparsers(subparsers_var).is_some() {
+                        if !inner_args.is_empty() {
+                            let command_name = extract_string_literal(&inner_args[0]);
+                            ctx.argparser_tracker.register_subcommand(
+                                command_name,
+                                crate::rust_gen::argparse_transform::SubcommandInfo {
+                                    name: extract_string_literal(&inner_args[0]),
+                                    help: None,
+                                    arguments: vec![],
+                                    subparsers_var: subparsers_var.clone(),
+                                },
+                            );
+                        }
+                        return Ok(Some(quote! {}));
+                    }
+                }
+            }
+        }
+    }
+
+    if let HirExpr::Var(var_name) = object {
+        // DEPYLER-0399: Subcommand parser add_argument
+        if let Some(subcommand_info) = ctx.argparser_tracker.get_subcommand_mut(var_name) {
+            if method == "add_argument" {
+                if let Some(HirExpr::Literal(crate::hir::Literal::String(first_arg))) = args.first()
+                {
+                    let mut arg =
+                        crate::rust_gen::argparse_transform::ArgParserArgument::new(first_arg.clone());
+                    if let Some(HirExpr::Literal(crate::hir::Literal::String(second_arg))) = args.get(1)
+                    {
+                        if second_arg.starts_with("--") {
+                            arg.long = Some(second_arg.clone());
+                        }
+                    }
+                    extract_subcommand_add_argument_kwargs(kwargs, &mut arg, ctx);
+                    if !subcommand_info.arguments.iter().any(|existing| existing.name == arg.name) {
+                        subcommand_info.arguments.push(arg);
+                    }
+                }
+                return Ok(Some(quote! {}));
+            }
+        }
+
+        // Resolve parser variable
+        let parser_var = if ctx.argparser_tracker.get_parser(var_name).is_some() {
+            var_name.clone()
+        } else if let Some(parent_parser) = ctx.argparser_tracker.get_parser_for_group(var_name) {
+            parent_parser
+        } else if ctx.argparser_tracker.get_subparsers(var_name).is_some() {
+            var_name.clone()
+        } else {
+            let expr_tokens = expr.to_rust_expr(ctx)?;
+            return Ok(Some(quote! { #expr_tokens; }));
+        };
+
+        // Subparsers add_parser
+        if ctx.argparser_tracker.get_subparsers(&parser_var).is_some() && method == "add_parser" {
+            if !args.is_empty() {
+                let command_name = extract_string_literal(&args[0]);
+                let help = extract_kwarg_string(kwargs, "help");
+                use crate::rust_gen::argparse_transform::SubcommandInfo;
+                let subcommand_info = SubcommandInfo {
+                    name: command_name.clone(),
+                    help,
+                    arguments: vec![],
+                    subparsers_var: parser_var.clone(),
+                };
+                ctx.argparser_tracker.register_subcommand(command_name, subcommand_info);
+            }
+            return Ok(Some(quote! {}));
+        }
+
+        // Parser configuration methods
+        if ctx.argparser_tracker.get_parser(&parser_var).is_some() {
+            match method {
+                "add_argument" => {
+                    if let Some(parser_info) = ctx.argparser_tracker.get_parser_mut(&parser_var) {
+                        if let Some(HirExpr::Literal(crate::hir::Literal::String(first_arg))) =
+                            args.first()
+                        {
+                            let mut arg =
+                                crate::rust_gen::argparse_transform::ArgParserArgument::new(
+                                    first_arg.clone(),
+                                );
+                            if let Some(HirExpr::Literal(crate::hir::Literal::String(second_arg))) =
+                                args.get(1)
+                            {
+                                if second_arg.starts_with("--") {
+                                    arg.long = Some(second_arg.clone());
+                                }
+                            }
+                            extract_subcommand_add_argument_kwargs(kwargs, &mut arg, ctx);
+                            parser_info.add_argument(arg);
+                        }
+                        return Ok(Some(quote! {}));
+                    }
+                }
+                "add_argument_group" | "add_mutually_exclusive_group" | "set_defaults" => {
+                    return Ok(Some(quote! {}));
+                }
+                "add_parser" => {
+                    if ctx.argparser_tracker.get_subparsers(var_name).is_some() {
+                        if !args.is_empty() {
+                            let command_name = extract_string_literal(&args[0]);
+                            let help = extract_kwarg_string(kwargs, "help");
+                            use crate::rust_gen::argparse_transform::SubcommandInfo;
+                            let subcommand_info = SubcommandInfo {
+                                name: command_name.clone(),
+                                help,
+                                arguments: vec![],
+                                subparsers_var: var_name.clone(),
+                            };
+                            ctx.argparser_tracker
+                                .register_subcommand(command_name, subcommand_info);
+                        }
+                        return Ok(Some(quote! {}));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(None)
 }
 
 // ============================================================================
@@ -1882,238 +1732,166 @@ fn apply_truthiness_conversion(
         }
     }
 
-    // DEPYLER-0904: Handle self.* attribute access for class fields
-    // Python: if not self.heap (where heap is a list)
-    // Rust: if self.heap.is_empty() (Vec truthiness = non-empty)
+    // CB-200 Batch 9: Attribute access truthiness extracted to helper
     if let HirExpr::Attribute { value, attr } = condition {
         if let HirExpr::Var(obj_name) = value.as_ref() {
-            // Check for self.* access and use class_field_types
-            if obj_name == "self" {
-                if let Some(field_type) = ctx.class_field_types.get(attr) {
-                    return match field_type {
-                        // Already boolean - no conversion needed
-                        Type::Bool => cond_expr,
-
-                        // String/List/Dict/Set - check if empty
-                        Type::String | Type::List(_) | Type::Dict(_, _) | Type::Set(_) => {
-                            parse_quote! { !#cond_expr.is_empty() }
-                        }
-
-                        // Optional - check if Some
-                        Type::Optional(_) => {
-                            parse_quote! { #cond_expr.is_some() }
-                        }
-
-                        // Numeric types - check if non-zero
-                        Type::Int => {
-                            parse_quote! { #cond_expr != 0 }
-                        }
-                        Type::Float => {
-                            parse_quote! { #cond_expr != 0.0 }
-                        }
-
-                        // Unknown or other types - use as-is
-                        _ => cond_expr,
-                    };
-                }
-
-                // DEPYLER-0950: Fallback heuristic for self.* when field type is unknown
-                // Common String field names that need !.is_empty() check
-                let string_attr_names = [
-                    "email",
-                    "name",
-                    "text",
-                    "content",
-                    "message",
-                    "title",
-                    "description",
-                    "path",
-                    "url",
-                    "value",
-                    "data",
-                    "body",
-                    "subject",
-                    "address",
-                    "filename",
-                    "username",
-                    "password",
-                    "token",
-                    "key",
-                    "secret",
-                    "label",
-                    "output",
-                    "input",
-                    "stdout",
-                    "stderr",
-                    "error",
-                    "warning",
-                    "info",
-                    "debug",
-                ];
-                if string_attr_names.contains(&attr.as_str()) {
-                    return parse_quote! { !#cond_expr.is_empty() };
-                }
-
-                // DEPYLER-1319: Fallback for collection attribute names (heap, stack, queue, items, etc.)
-                // This matches the same heuristic used in apply_negated_truthiness at line 1761
-                // Uses centralized is_collection_attr_name from truthiness_helpers.rs
-                if is_collection_attr_name(attr) {
-                    return parse_quote! { !#cond_expr.is_empty() };
-                }
-            }
-
-            // Check if this is accessing an args variable from ArgumentParser
-            let is_args_var = ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                parser_info.args_var.as_ref().is_some_and(|args_var| args_var == obj_name)
-            });
-
-            if is_args_var {
-                // Check if this field is optional (Option<T> type, not boolean)
-                // DEPYLER-0722: Check both main parsers AND subcommands
-                // Helper closure to check if an argument is optional
-                let check_optional = |arg: &super::argparse_transform::ArgParserArgument| -> bool {
-                    let field_name = arg.rust_field_name();
-                    if field_name != *attr {
-                        return false;
-                    }
-
-                    // Argument is NOT an Option if it has action="store_true" or "store_false"
-                    if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
-                        return false;
-                    }
-
-                    // Argument is an Option<T> if: not required AND no default value AND not positional
-                    // Positional arguments are always required (Vec for nargs)
-                    // DEPYLER-0678: Exclude nargs='+' and nargs='*' which are Vec, not Option
-                    !arg.is_positional
-                        && !arg.required.unwrap_or(false)
-                        && arg.default.is_none()
-                        && !matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
-                };
-
-                // Check main parsers
-                let is_optional_in_parser = ctx
-                    .argparser_tracker
-                    .parsers
-                    .values()
-                    .any(|parser_info| parser_info.arguments.iter().any(&check_optional));
-
-                // DEPYLER-0722: Also check subcommands for optional fields
-                let is_optional_in_subcommand =
-                    ctx.argparser_tracker.subcommands.values().any(|subcommand_info| {
-                        subcommand_info.arguments.iter().any(&check_optional)
-                    });
-
-                let is_optional_field = is_optional_in_parser || is_optional_in_subcommand;
-
-                if is_optional_field {
-                    // DEPYLER-0108: Check if this field has been precomputed
-                    // to avoid borrow-after-move when Option is passed then checked
-                    if ctx.precomputed_option_fields.contains(attr) {
-                        let has_var_name = format!("has_{}", attr);
-                        let has_ident =
-                            syn::Ident::new(&has_var_name, proc_macro2::Span::call_site());
-                        return parse_quote! { #has_ident };
-                    }
-                    // Convert Option<T> to boolean using .is_some()
-                    return parse_quote! { #cond_expr.is_some() };
-                }
-
-                // DEPYLER-0678: Check if this field is a Vec from nargs='+' or nargs='*'
-                // Python: if args.files (where files has nargs='+')
-                // Rust: if !args.files.is_empty() (Vec truthiness = non-empty)
-                let is_vec_field = ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                    parser_info.arguments.iter().any(|arg| {
-                        let field_name = arg.rust_field_name();
-                        if field_name != *attr {
-                            return false;
-                        }
-                        // nargs='+' or nargs='*' creates Vec<T>
-                        matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
-                    })
-                });
-
-                if is_vec_field {
-                    // Convert Vec<T> to boolean using !.is_empty()
-                    return parse_quote! { !#cond_expr.is_empty() };
-                }
-
-                // DEPYLER-0455 #8: Check if this field is a String with a default value
-                // Python: if args.encoding (where encoding has default="utf-8")
-                // Rust: if !args.encoding.is_empty() (String cannot be used as bool)
-                let is_string_with_default =
-                    ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                        parser_info.arguments.iter().any(|arg| {
-                            let field_name = arg.rust_field_name();
-                            if field_name != *attr {
-                                return false;
-                            }
-
-                            // Check if:
-                            // 1. Has a default value (arg.default.is_some())
-                            // 2. Type is String (arg.arg_type.is_none() means default String type)
-                            // 3. Not a boolean action (store_true/store_false)
-                            arg.default.is_some()
-                                && arg.arg_type.is_none()
-                                && !matches!(
-                                    arg.action.as_deref(),
-                                    Some("store_true") | Some("store_false")
-                                )
-                        })
-                    });
-
-                if is_string_with_default {
-                    // Convert String to boolean using !.is_empty()
-                    // Note: This is technically redundant since default values are non-empty,
-                    // but it's semantically correct for Python truthiness
-                    return parse_quote! { !#cond_expr.is_empty() };
-                }
-            }
-
-            // DEPYLER-0950: Heuristic for common String attribute names
-            // Pattern: if obj.email, obj.name, obj.text, etc.
-            // These are typically String fields that need !.is_empty() check
-            let string_attr_names = [
-                "email",
-                "name",
-                "text",
-                "content",
-                "message",
-                "title",
-                "description",
-                "path",
-                "url",
-                "value",
-                "data",
-                "body",
-                "subject",
-                "address",
-                "filename",
-                "username",
-                "password",
-                "token",
-                "key",
-                "secret",
-                "label",
-                "output",
-                "input",
-                "stdout",
-                "stderr",
-                "error",
-                "warning",
-                "info",
-                "debug",
-            ];
-            if string_attr_names.contains(&attr.as_str()) {
-                return parse_quote! { !#cond_expr.is_empty() };
+            if let Some(result) =
+                apply_truthiness_attribute_access(obj_name, attr, cond_expr.clone(), ctx)
+            {
+                return result;
             }
         }
     }
 
+    // CB-200 Batch 9: Fallback checks extracted to helper
+    apply_truthiness_fallbacks(condition, cond_expr, ctx)
+}
+
+/// CB-200 Batch 9: Handle self.* and args.* attribute access for truthiness
+fn apply_truthiness_attribute_access(
+    obj_name: &str,
+    attr: &str,
+    cond_expr: syn::Expr,
+    ctx: &CodeGenContext,
+) -> Option<syn::Expr> {
+    // DEPYLER-0904: Handle self.* attribute access for class fields
+    if obj_name == "self" {
+        if let Some(result) = apply_truthiness_self_field(attr, cond_expr.clone(), ctx) {
+            return Some(result);
+        }
+    }
+
+    // Check if this is accessing an args variable from ArgumentParser
+    let is_args_var = ctx.argparser_tracker.parsers.values().any(|parser_info| {
+        parser_info.args_var.as_ref().is_some_and(|args_var| args_var == obj_name)
+    });
+
+    if is_args_var {
+        if let Some(result) = apply_truthiness_argparser_field(attr, cond_expr.clone(), ctx) {
+            return Some(result);
+        }
+    }
+
+    // DEPYLER-0950: Heuristic for common String attribute names
+    if is_common_string_attr_name(attr) {
+        return Some(parse_quote! { !#cond_expr.is_empty() });
+    }
+    None
+}
+
+/// Common string attribute names shared across self.* and obj.* heuristics
+fn is_common_string_attr_name(attr: &str) -> bool {
+    const STRING_ATTR_NAMES: &[&str] = &[
+        "email", "name", "text", "content", "message", "title", "description",
+        "path", "url", "value", "data", "body", "subject", "address", "filename",
+        "username", "password", "token", "key", "secret", "label", "output",
+        "input", "stdout", "stderr", "error", "warning", "info", "debug",
+    ];
+    STRING_ATTR_NAMES.contains(&attr)
+}
+
+/// DEPYLER-0904: Handle self.* field truthiness
+fn apply_truthiness_self_field(
+    attr: &str,
+    cond_expr: syn::Expr,
+    ctx: &CodeGenContext,
+) -> Option<syn::Expr> {
+    if let Some(field_type) = ctx.class_field_types.get(attr) {
+        return Some(match field_type {
+            Type::Bool => cond_expr,
+            Type::String | Type::List(_) | Type::Dict(_, _) | Type::Set(_) => {
+                parse_quote! { !#cond_expr.is_empty() }
+            }
+            Type::Optional(_) => parse_quote! { #cond_expr.is_some() },
+            Type::Int => parse_quote! { #cond_expr != 0 },
+            Type::Float => parse_quote! { #cond_expr != 0.0 },
+            _ => cond_expr,
+        });
+    }
+    if is_common_string_attr_name(attr) {
+        return Some(parse_quote! { !#cond_expr.is_empty() });
+    }
+    if is_collection_attr_name(attr) {
+        return Some(parse_quote! { !#cond_expr.is_empty() });
+    }
+    None
+}
+
+/// Handle ArgumentParser args.field truthiness checks
+fn apply_truthiness_argparser_field(
+    attr: &str,
+    cond_expr: syn::Expr,
+    ctx: &CodeGenContext,
+) -> Option<syn::Expr> {
+    // Check optional fields
+    let check_optional = |arg: &super::argparse_transform::ArgParserArgument| -> bool {
+        let field_name = arg.rust_field_name();
+        if field_name != attr {
+            return false;
+        }
+        if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+            return false;
+        }
+        !arg.is_positional
+            && !arg.required.unwrap_or(false)
+            && arg.default.is_none()
+            && !matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
+    };
+
+    let is_optional_in_parser = ctx
+        .argparser_tracker
+        .parsers
+        .values()
+        .any(|pi| pi.arguments.iter().any(&check_optional));
+    let is_optional_in_subcommand = ctx
+        .argparser_tracker
+        .subcommands
+        .values()
+        .any(|si| si.arguments.iter().any(&check_optional));
+
+    if is_optional_in_parser || is_optional_in_subcommand {
+        if ctx.precomputed_option_fields.contains(attr) {
+            let has_var_name = format!("has_{}", attr);
+            let has_ident = syn::Ident::new(&has_var_name, proc_macro2::Span::call_site());
+            return Some(parse_quote! { #has_ident });
+        }
+        return Some(parse_quote! { #cond_expr.is_some() });
+    }
+
+    // Check Vec fields (nargs='+' or nargs='*')
+    let is_vec_field = ctx.argparser_tracker.parsers.values().any(|pi| {
+        pi.arguments.iter().any(|arg| {
+            arg.rust_field_name() == attr
+                && matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
+        })
+    });
+    if is_vec_field {
+        return Some(parse_quote! { !#cond_expr.is_empty() });
+    }
+
+    // Check String with default value
+    let is_string_with_default = ctx.argparser_tracker.parsers.values().any(|pi| {
+        pi.arguments.iter().any(|arg| {
+            arg.rust_field_name() == attr
+                && arg.default.is_some()
+                && arg.arg_type.is_none()
+                && !matches!(arg.action.as_deref(), Some("store_true") | Some("store_false"))
+        })
+    });
+    if is_string_with_default {
+        return Some(parse_quote! { !#cond_expr.is_empty() });
+    }
+
+    None
+}
+
+/// CB-200 Batch 9: Fallback truthiness checks (method calls, option exprs, dict access)
+fn apply_truthiness_fallbacks(
+    condition: &HirExpr,
+    cond_expr: syn::Expr,
+    _ctx: &CodeGenContext,
+) -> syn::Expr {
     // DEPYLER-0455: Fallback - detect Option types by method call patterns
-    // DEPYLER-0519: Check for method calls that return Vec types (like groups())
-    // Python: `if match.groups():` checks if groups is non-empty
-    // Rust: `if !groups().is_empty()`
     if let HirExpr::MethodCall { method, .. } = condition {
         let vec_returning_methods =
             ["groups", "split", "split_whitespace", "splitlines", "findall"];
@@ -2122,22 +1900,16 @@ fn apply_truthiness_conversion(
         }
     }
 
-    // Check if this looks like an Option<T> based on common patterns:
-    // - Variable from `env::var(...).ok()` call
-    // - Method calls that return Option (dict.get(), etc.)
     if looks_like_option_expr(condition) {
         return parse_quote! { #cond_expr.is_some() };
     }
 
     // DEPYLER-0570: Fallback - check if the generated expression looks like dict access
-    // Pattern: something.get("key").cloned().unwrap_or_default()
-    // This returns serde_json::Value which doesn't coerce to bool
     let cond_str = quote::quote!(#cond_expr).to_string();
     if cond_str.contains(".get(") && cond_str.contains("unwrap_or_default") {
         return parse_quote! { #cond_expr.as_str().is_some_and(|s| !s.is_empty()) };
     }
 
-    // Not a variable or no type info - use as-is
     cond_expr
 }
 

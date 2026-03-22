@@ -1365,148 +1365,147 @@ pub fn preregister_subcommands_from_hir(
         kwargs.iter().find(|(k, _)| k == key).map(|(_, v)| extract_string_from_hir(v))
     }
 
+    // CB-200 Batch 9: Helper to handle add_parser() method calls in walk_expr
+    fn handle_add_parser_expr(
+        object: &HirExpr,
+        args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
+        tracker: &mut ArgParserTracker,
+    ) {
+        if let HirExpr::Var(subparsers_var) = object {
+            if tracker.get_subparsers(subparsers_var).is_some() {
+                if !args.is_empty() {
+                    let command_name = extract_string_from_hir(&args[0]);
+                    if command_name.is_empty() {
+                        emit_decision!(
+                            "argparse.subcommand.skipped.variable_name",
+                            "add_parser() called with non-literal expression"
+                        );
+                    } else {
+                        emit_decision!("argparse.subcommand.detected", &command_name);
+                        let help = extract_kwarg_string_from_hir(kwargs, "help");
+                        let subcommand_info = SubcommandInfo {
+                            name: command_name.clone(),
+                            help,
+                            arguments: vec![],
+                            subparsers_var: subparsers_var.clone(),
+                        };
+                        tracker.register_subcommand(command_name.clone(), subcommand_info);
+                        emit_decision!("argparse.subcommand.registered", &command_name);
+                    }
+                }
+            }
+        }
+    }
+
+    // CB-200 Batch 9: Helper to extract kwargs for add_argument in walk_expr
+    fn extract_add_argument_kwargs(
+        kwargs: &[(String, HirExpr)],
+        arg: &mut ArgParserArgument,
+    ) {
+        for (kw_name, kw_value) in kwargs {
+            match kw_name.as_str() {
+                "type" => {
+                    if let HirExpr::Var(type_name) = kw_value {
+                        match type_name.as_str() {
+                            "int" => arg.arg_type = Some(crate::hir::Type::Int),
+                            "float" => arg.arg_type = Some(crate::hir::Type::Float),
+                            "str" => arg.arg_type = Some(crate::hir::Type::String),
+                            "Path" => {
+                                arg.arg_type =
+                                    Some(crate::hir::Type::Custom("PathBuf".to_string()))
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                "action" => {
+                    if let HirExpr::Literal(crate::hir::Literal::String(action_val)) = kw_value {
+                        arg.action = Some(action_val.clone());
+                    }
+                }
+                "nargs" => match kw_value {
+                    HirExpr::Literal(crate::hir::Literal::String(nargs_val)) => {
+                        arg.nargs = Some(nargs_val.clone());
+                    }
+                    HirExpr::Literal(crate::hir::Literal::Int(n)) => {
+                        arg.nargs = Some(n.to_string());
+                    }
+                    _ => {}
+                },
+                "help" => {
+                    if let HirExpr::Literal(crate::hir::Literal::String(help_val)) = kw_value {
+                        arg.help = Some(help_val.clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // CB-200 Batch 9: Helper to handle add_argument() method calls in walk_expr
+    fn handle_add_argument_expr(
+        object: &HirExpr,
+        args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
+        tracker: &mut ArgParserTracker,
+    ) {
+        if let HirExpr::Var(parser_var) = object {
+            let cmd_name = tracker.subcommand_var_to_cmd.get(parser_var).cloned();
+            let lookup_key = cmd_name.as_deref().unwrap_or(parser_var);
+
+            if let Some(subcommand_info) = tracker.get_subcommand_mut(lookup_key) {
+                if let Some(first_arg) = args.first() {
+                    let arg_name = extract_string_from_hir(first_arg);
+                    let mut arg = ArgParserArgument::new(arg_name);
+
+                    if let Some(second_arg) = args.get(1) {
+                        let second_str = extract_string_from_hir(second_arg);
+                        if second_str.starts_with("--") {
+                            arg.long = Some(second_str);
+                        }
+                    }
+
+                    extract_add_argument_kwargs(kwargs, &mut arg);
+
+                    if !subcommand_info
+                        .arguments
+                        .iter()
+                        .any(|existing| existing.name == arg.name)
+                    {
+                        subcommand_info.arguments.push(arg);
+                    }
+                }
+            }
+        }
+    }
+
+    // CB-200 Batch 9: Helper to recurse into method call children
+    fn recurse_method_call(
+        object: &HirExpr,
+        args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
+        tracker: &mut ArgParserTracker,
+    ) {
+        walk_expr(object, tracker);
+        for arg in args {
+            walk_expr(arg, tracker);
+        }
+        for (_, val) in kwargs {
+            walk_expr(val, tracker);
+        }
+    }
+
     // Recursive walker for expressions
     fn walk_expr(expr: &HirExpr, tracker: &mut ArgParserTracker) {
         match expr {
             HirExpr::MethodCall { object, method, args, kwargs } if method == "add_parser" => {
-                // Check if this is a call on a subparsers variable
-                if let HirExpr::Var(subparsers_var) = object.as_ref() {
-                    if tracker.get_subparsers(subparsers_var).is_some() {
-                        // Extract command name and help text
-                        if !args.is_empty() {
-                            let command_name = extract_string_from_hir(&args[0]);
-                            // DEPYLER-0940: Skip registration if command name is empty
-                            // This occurs when add_parser() is called with a variable (e.g., in a loop)
-                            // instead of a string literal. Empty names would cause panic in format_ident!()
-                            if command_name.is_empty() {
-                                emit_decision!(
-                                    "argparse.subcommand.skipped.variable_name",
-                                    "add_parser() called with non-literal expression"
-                                );
-                            } else {
-                                emit_decision!("argparse.subcommand.detected", &command_name);
-                                let help = extract_kwarg_string_from_hir(kwargs, "help");
-
-                                // Register subcommand (use command name as key for expression statements)
-                                let subcommand_info = SubcommandInfo {
-                                    name: command_name.clone(),
-                                    help,
-                                    arguments: vec![],
-                                    subparsers_var: subparsers_var.clone(),
-                                };
-
-                                tracker.register_subcommand(command_name.clone(), subcommand_info);
-                                emit_decision!("argparse.subcommand.registered", &command_name);
-                            }
-                        }
-                    }
-                }
-                // Recurse into method call arguments
-                walk_expr(object, tracker);
-                for arg in args {
-                    walk_expr(arg, tracker);
-                }
-                for (_, val) in kwargs {
-                    walk_expr(val, tracker);
-                }
+                handle_add_parser_expr(object, args, kwargs, tracker);
+                recurse_method_call(object, args, kwargs, tracker);
             }
-            // DEPYLER-0822: Handle add_argument() calls to extract type info
-            // Pattern: top_parser.add_argument("n", type=int, ...)
             HirExpr::MethodCall { object, method, args, kwargs } if method == "add_argument" => {
-                // DEPYLER-0822: Handle add_argument() calls to extract type info
-                if let HirExpr::Var(parser_var) = object.as_ref() {
-                    // Try to find the subcommand - either directly by key, or via var_to_cmd mapping
-                    let cmd_name = tracker.subcommand_var_to_cmd.get(parser_var).cloned();
-                    let lookup_key = cmd_name.as_deref().unwrap_or(parser_var);
-
-                    // Check if this is a subcommand parser
-                    if let Some(subcommand_info) = tracker.get_subcommand_mut(lookup_key) {
-                        // Extract argument info
-                        if let Some(first_arg) = args.first() {
-                            let arg_name = extract_string_from_hir(first_arg);
-                            let mut arg = ArgParserArgument::new(arg_name);
-
-                            // Check for second argument (long flag name)
-                            if let Some(second_arg) = args.get(1) {
-                                let second_str = extract_string_from_hir(second_arg);
-                                if second_str.starts_with("--") {
-                                    arg.long = Some(second_str);
-                                }
-                            }
-
-                            // Extract type from kwargs
-                            for (kw_name, kw_value) in kwargs {
-                                match kw_name.as_str() {
-                                    "type" => {
-                                        if let HirExpr::Var(type_name) = kw_value {
-                                            match type_name.as_str() {
-                                                "int" => arg.arg_type = Some(crate::hir::Type::Int),
-                                                "float" => {
-                                                    arg.arg_type = Some(crate::hir::Type::Float)
-                                                }
-                                                "str" => {
-                                                    arg.arg_type = Some(crate::hir::Type::String)
-                                                }
-                                                "Path" => {
-                                                    arg.arg_type = Some(crate::hir::Type::Custom(
-                                                        "PathBuf".to_string(),
-                                                    ))
-                                                }
-                                                _ => {}
-                                            }
-                                        }
-                                    }
-                                    "action" => {
-                                        if let HirExpr::Literal(crate::hir::Literal::String(
-                                            action_val,
-                                        )) = kw_value
-                                        {
-                                            arg.action = Some(action_val.clone());
-                                        }
-                                    }
-                                    "nargs" => match kw_value {
-                                        HirExpr::Literal(crate::hir::Literal::String(
-                                            nargs_val,
-                                        )) => {
-                                            arg.nargs = Some(nargs_val.clone());
-                                        }
-                                        HirExpr::Literal(crate::hir::Literal::Int(n)) => {
-                                            arg.nargs = Some(n.to_string());
-                                        }
-                                        _ => {}
-                                    },
-                                    "help" => {
-                                        if let HirExpr::Literal(crate::hir::Literal::String(
-                                            help_val,
-                                        )) = kw_value
-                                        {
-                                            arg.help = Some(help_val.clone());
-                                        }
-                                    }
-                                    _ => {}
-                                }
-                            }
-
-                            // DEPYLER-0929: Check for duplicate argument names before adding
-                            // This can happen when preregister_subcommands_from_hir is called twice
-                            if !subcommand_info
-                                .arguments
-                                .iter()
-                                .any(|existing| existing.name == arg.name)
-                            {
-                                subcommand_info.arguments.push(arg);
-                            }
-                        }
-                    }
-                }
-                // Recurse
-                walk_expr(object, tracker);
-                for arg in args {
-                    walk_expr(arg, tracker);
-                }
-                for (_, val) in kwargs {
-                    walk_expr(val, tracker);
-                }
+                handle_add_argument_expr(object, args, kwargs, tracker);
+                recurse_method_call(object, args, kwargs, tracker);
             }
             // Recurse into all other expression types
             HirExpr::Binary { left, right, .. } => {
@@ -1525,13 +1524,7 @@ pub fn preregister_subcommands_from_hir(
                 }
             }
             HirExpr::MethodCall { object, args, kwargs, .. } => {
-                walk_expr(object, tracker);
-                for arg in args {
-                    walk_expr(arg, tracker);
-                }
-                for (_, val) in kwargs {
-                    walk_expr(val, tracker);
-                }
+                recurse_method_call(object, args, kwargs, tracker);
             }
             HirExpr::Attribute { value, .. } => {
                 walk_expr(value, tracker);
