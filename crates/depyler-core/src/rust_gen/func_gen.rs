@@ -25,189 +25,200 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
     use std::collections::HashSet;
     let mut fields: HashSet<String> = HashSet::new();
 
-    fn walk_expr(expr: &HirExpr, args_name: &str, fields: &mut HashSet<String>) {
-        match expr {
-            HirExpr::Attribute { value, attr } => {
-                // Check if this is args.X pattern
-                if let HirExpr::Var(name) = value.as_ref() {
-                    if name == args_name {
-                        fields.insert(attr.clone());
-                    }
-                }
-                walk_expr(value, args_name, fields);
-            }
-            HirExpr::Binary { left, right, .. } => {
-                walk_expr(left, args_name, fields);
-                walk_expr(right, args_name, fields);
-            }
-            HirExpr::Unary { operand, .. } => {
-                walk_expr(operand, args_name, fields);
-            }
-            HirExpr::Call { args: call_args, kwargs, .. } => {
-                // Note: func is Symbol, not Box<HirExpr>, so don't walk it
-                for arg in call_args {
-                    walk_expr(arg, args_name, fields);
-                }
-                for (_, kwarg_val) in kwargs {
-                    walk_expr(kwarg_val, args_name, fields);
-                }
-            }
-            HirExpr::MethodCall { object, args: method_args, kwargs, .. } => {
-                walk_expr(object, args_name, fields);
-                for arg in method_args {
-                    walk_expr(arg, args_name, fields);
-                }
-                for (_, kwarg_val) in kwargs {
-                    walk_expr(kwarg_val, args_name, fields);
-                }
-            }
-            HirExpr::List(elems) | HirExpr::Tuple(elems) | HirExpr::Set(elems) => {
-                for elem in elems {
-                    walk_expr(elem, args_name, fields);
-                }
-            }
-            HirExpr::Dict(items) => {
-                for (key, value) in items {
-                    walk_expr(key, args_name, fields);
-                    walk_expr(value, args_name, fields);
-                }
-            }
-            HirExpr::Index { base, index } => {
-                walk_expr(base, args_name, fields);
-                walk_expr(index, args_name, fields);
-            }
-            HirExpr::IfExpr { test, body, orelse } => {
-                walk_expr(test, args_name, fields);
-                walk_expr(body, args_name, fields);
-                walk_expr(orelse, args_name, fields);
-            }
-            HirExpr::FString { parts } => {
-                for part in parts {
-                    if let crate::hir::FStringPart::Expr(fstring_expr) = part {
-                        walk_expr(fstring_expr, args_name, fields);
-                    }
-                }
-            }
-            HirExpr::Slice { base, start, stop, step } => {
-                walk_expr(base, args_name, fields);
-                if let Some(s) = start {
-                    walk_expr(s, args_name, fields);
-                }
-                if let Some(s) = stop {
-                    walk_expr(s, args_name, fields);
-                }
-                if let Some(s) = step {
-                    walk_expr(s, args_name, fields);
-                }
-            }
-            HirExpr::ListComp { element, generators }
-            | HirExpr::SetComp { element, generators } => {
-                walk_expr(element, args_name, fields);
-                for gen in generators {
-                    walk_expr(&gen.iter, args_name, fields);
-                    for cond in &gen.conditions {
-                        walk_expr(cond, args_name, fields);
-                    }
-                }
-            }
-            HirExpr::DictComp { key, value, generators } => {
-                walk_expr(key, args_name, fields);
-                walk_expr(value, args_name, fields);
-                for gen in generators {
-                    walk_expr(&gen.iter, args_name, fields);
-                    for cond in &gen.conditions {
-                        walk_expr(cond, args_name, fields);
-                    }
-                }
-            }
-            HirExpr::Lambda { body, .. } => {
-                walk_expr(body, args_name, fields);
-            }
-            HirExpr::Borrow { expr: borrow_expr, .. } => {
-                walk_expr(borrow_expr, args_name, fields);
-            }
-            HirExpr::Yield { value: Some(v) } => {
-                walk_expr(v, args_name, fields);
-            }
-            HirExpr::Yield { value: None } => {}
-            HirExpr::Await { value } => {
-                walk_expr(value, args_name, fields);
-            }
-            _ => {}
-        }
-    }
-
-    fn walk_stmt(stmt: &HirStmt, args_name: &str, fields: &mut HashSet<String>) {
-        match stmt {
-            HirStmt::Expr(expr) => walk_expr(expr, args_name, fields),
-            HirStmt::Assign { value, .. } => walk_expr(value, args_name, fields),
-            HirStmt::Return(Some(expr)) => walk_expr(expr, args_name, fields),
-            HirStmt::If { condition, then_body, else_body } => {
-                walk_expr(condition, args_name, fields);
-                for s in then_body {
-                    walk_stmt(s, args_name, fields);
-                }
-                if let Some(else_stmts) = else_body {
-                    for s in else_stmts {
-                        walk_stmt(s, args_name, fields);
-                    }
-                }
-            }
-            HirStmt::While { condition, body } => {
-                walk_expr(condition, args_name, fields);
-                for s in body {
-                    walk_stmt(s, args_name, fields);
-                }
-            }
-            HirStmt::For { iter, body, .. } => {
-                walk_expr(iter, args_name, fields);
-                for s in body {
-                    walk_stmt(s, args_name, fields);
-                }
-            }
-            HirStmt::With { context, body, .. } => {
-                walk_expr(context, args_name, fields);
-                for s in body {
-                    walk_stmt(s, args_name, fields);
-                }
-            }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
-                for s in body {
-                    walk_stmt(s, args_name, fields);
-                }
-                for handler in handlers {
-                    for s in &handler.body {
-                        walk_stmt(s, args_name, fields);
-                    }
-                }
-                if let Some(else_stmts) = orelse {
-                    for s in else_stmts {
-                        walk_stmt(s, args_name, fields);
-                    }
-                }
-                if let Some(final_stmts) = finalbody {
-                    for s in final_stmts {
-                        walk_stmt(s, args_name, fields);
-                    }
-                }
-            }
-            HirStmt::FunctionDef { body, .. } => {
-                for s in body {
-                    walk_stmt(s, args_name, fields);
-                }
-            }
-            _ => {}
-        }
-    }
-
     for stmt in body {
-        walk_stmt(stmt, args_name, &mut fields);
+        walk_stmt_for_args(stmt, args_name, &mut fields);
     }
 
     // Sort for deterministic output
     let mut result: Vec<String> = fields.into_iter().collect();
     result.sort();
     result
+}
+
+/// Walk an expression tree collecting args.X field accesses.
+fn walk_expr_for_args(expr: &HirExpr, args_name: &str, fields: &mut std::collections::HashSet<String>) {
+    match expr {
+        HirExpr::Attribute { value, attr } => {
+            if let HirExpr::Var(name) = value.as_ref() {
+                if name == args_name {
+                    fields.insert(attr.clone());
+                }
+            }
+            walk_expr_for_args(value, args_name, fields);
+        }
+        HirExpr::Binary { left, right, .. } => {
+            walk_expr_for_args(left, args_name, fields);
+            walk_expr_for_args(right, args_name, fields);
+        }
+        HirExpr::Unary { operand, .. } => {
+            walk_expr_for_args(operand, args_name, fields);
+        }
+        HirExpr::Call { args: call_args, kwargs, .. } => {
+            for arg in call_args {
+                walk_expr_for_args(arg, args_name, fields);
+            }
+            for (_, kwarg_val) in kwargs {
+                walk_expr_for_args(kwarg_val, args_name, fields);
+            }
+        }
+        HirExpr::MethodCall { object, args: method_args, kwargs, .. } => {
+            walk_expr_for_args(object, args_name, fields);
+            for arg in method_args {
+                walk_expr_for_args(arg, args_name, fields);
+            }
+            for (_, kwarg_val) in kwargs {
+                walk_expr_for_args(kwarg_val, args_name, fields);
+            }
+        }
+        _ => walk_expr_for_args_collections(expr, args_name, fields),
+    }
+}
+
+/// Walk collection and compound expression types for args field accesses.
+fn walk_expr_for_args_collections(
+    expr: &HirExpr,
+    args_name: &str,
+    fields: &mut std::collections::HashSet<String>,
+) {
+    match expr {
+        HirExpr::List(elems) | HirExpr::Tuple(elems) | HirExpr::Set(elems) => {
+            for elem in elems {
+                walk_expr_for_args(elem, args_name, fields);
+            }
+        }
+        HirExpr::Dict(items) => {
+            for (key, value) in items {
+                walk_expr_for_args(key, args_name, fields);
+                walk_expr_for_args(value, args_name, fields);
+            }
+        }
+        HirExpr::Index { base, index } => {
+            walk_expr_for_args(base, args_name, fields);
+            walk_expr_for_args(index, args_name, fields);
+        }
+        HirExpr::IfExpr { test, body, orelse } => {
+            walk_expr_for_args(test, args_name, fields);
+            walk_expr_for_args(body, args_name, fields);
+            walk_expr_for_args(orelse, args_name, fields);
+        }
+        HirExpr::FString { parts } => {
+            for part in parts {
+                if let crate::hir::FStringPart::Expr(fstring_expr) = part {
+                    walk_expr_for_args(fstring_expr, args_name, fields);
+                }
+            }
+        }
+        HirExpr::Slice { base, start, stop, step } => {
+            walk_expr_for_args(base, args_name, fields);
+            if let Some(s) = start {
+                walk_expr_for_args(s, args_name, fields);
+            }
+            if let Some(s) = stop {
+                walk_expr_for_args(s, args_name, fields);
+            }
+            if let Some(s) = step {
+                walk_expr_for_args(s, args_name, fields);
+            }
+        }
+        HirExpr::ListComp { element, generators }
+        | HirExpr::SetComp { element, generators } => {
+            walk_expr_for_args(element, args_name, fields);
+            for gen in generators {
+                walk_expr_for_args(&gen.iter, args_name, fields);
+                for cond in &gen.conditions {
+                    walk_expr_for_args(cond, args_name, fields);
+                }
+            }
+        }
+        HirExpr::DictComp { key, value, generators } => {
+            walk_expr_for_args(key, args_name, fields);
+            walk_expr_for_args(value, args_name, fields);
+            for gen in generators {
+                walk_expr_for_args(&gen.iter, args_name, fields);
+                for cond in &gen.conditions {
+                    walk_expr_for_args(cond, args_name, fields);
+                }
+            }
+        }
+        HirExpr::Lambda { body, .. } => {
+            walk_expr_for_args(body, args_name, fields);
+        }
+        HirExpr::Borrow { expr: borrow_expr, .. } => {
+            walk_expr_for_args(borrow_expr, args_name, fields);
+        }
+        HirExpr::Yield { value: Some(v) } => {
+            walk_expr_for_args(v, args_name, fields);
+        }
+        HirExpr::Yield { value: None } => {}
+        HirExpr::Await { value } => {
+            walk_expr_for_args(value, args_name, fields);
+        }
+        _ => {}
+    }
+}
+
+/// Walk a statement tree collecting args.X field accesses.
+fn walk_stmt_for_args(stmt: &HirStmt, args_name: &str, fields: &mut std::collections::HashSet<String>) {
+    match stmt {
+        HirStmt::Expr(expr) => walk_expr_for_args(expr, args_name, fields),
+        HirStmt::Assign { value, .. } => walk_expr_for_args(value, args_name, fields),
+        HirStmt::Return(Some(expr)) => walk_expr_for_args(expr, args_name, fields),
+        HirStmt::If { condition, then_body, else_body } => {
+            walk_expr_for_args(condition, args_name, fields);
+            for s in then_body {
+                walk_stmt_for_args(s, args_name, fields);
+            }
+            if let Some(else_stmts) = else_body {
+                for s in else_stmts {
+                    walk_stmt_for_args(s, args_name, fields);
+                }
+            }
+        }
+        HirStmt::While { condition, body } => {
+            walk_expr_for_args(condition, args_name, fields);
+            for s in body {
+                walk_stmt_for_args(s, args_name, fields);
+            }
+        }
+        HirStmt::For { iter, body, .. } => {
+            walk_expr_for_args(iter, args_name, fields);
+            for s in body {
+                walk_stmt_for_args(s, args_name, fields);
+            }
+        }
+        HirStmt::With { context, body, .. } => {
+            walk_expr_for_args(context, args_name, fields);
+            for s in body {
+                walk_stmt_for_args(s, args_name, fields);
+            }
+        }
+        HirStmt::Try { body, handlers, orelse, finalbody } => {
+            for s in body {
+                walk_stmt_for_args(s, args_name, fields);
+            }
+            for handler in handlers {
+                for s in &handler.body {
+                    walk_stmt_for_args(s, args_name, fields);
+                }
+            }
+            if let Some(else_stmts) = orelse {
+                for s in else_stmts {
+                    walk_stmt_for_args(s, args_name, fields);
+                }
+            }
+            if let Some(final_stmts) = finalbody {
+                for s in final_stmts {
+                    walk_stmt_for_args(s, args_name, fields);
+                }
+            }
+        }
+        HirStmt::FunctionDef { body, .. } => {
+            for s in body {
+                walk_stmt_for_args(s, args_name, fields);
+            }
+        }
+        _ => {}
+    }
 }
 
 // DEPYLER-COVERAGE-95: stmt_always_returns moved to control_flow_analysis module
@@ -1239,8 +1250,6 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
                 || args.iter().any(|a| is_param_used_in_expr(param_name, a))
                 || kwargs.iter().any(|(_, v)| is_param_used_in_expr(param_name, v))
         }
-        // DEPYLER-0761: Must check kwargs too - parameter used in kwargs was being missed
-        // causing param to be renamed with underscore but body still using original name
         HirExpr::MethodCall { object, args, kwargs, .. } => {
             is_param_used_in_expr(param_name, object)
                 || args.iter().any(|a| is_param_used_in_expr(param_name, a))
@@ -1250,6 +1259,18 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
         HirExpr::Index { base, index } => {
             is_param_used_in_expr(param_name, base) || is_param_used_in_expr(param_name, index)
         }
+        HirExpr::DynamicCall { callee, args, kwargs } => {
+            is_param_used_in_expr(param_name, callee)
+                || args.iter().any(|a| is_param_used_in_expr(param_name, a))
+                || kwargs.iter().any(|(_, v)| is_param_used_in_expr(param_name, v))
+        }
+        _ => is_param_used_in_expr_extended(param_name, expr),
+    }
+}
+
+/// Check collection, comprehension, and other compound expression types for parameter usage.
+fn is_param_used_in_expr_extended(param_name: &str, expr: &HirExpr) -> bool {
+    match expr {
         HirExpr::Slice { base, start, stop, step } => {
             is_param_used_in_expr(param_name, base)
                 || start.as_ref().is_some_and(|e| is_param_used_in_expr(param_name, e))
@@ -1268,24 +1289,10 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
         HirExpr::Yield { value } => {
             value.as_ref().is_some_and(|e| is_param_used_in_expr(param_name, e))
         }
-        // DEPYLER-0761: Must check kwargs too for dynamic calls
-        HirExpr::DynamicCall { callee, args, kwargs } => {
-            is_param_used_in_expr(param_name, callee)
-                || args.iter().any(|a| is_param_used_in_expr(param_name, a))
-                || kwargs.iter().any(|(_, v)| is_param_used_in_expr(param_name, v))
-        }
         HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
             is_param_used_in_expr(param_name, iterable)
                 || is_param_used_in_expr(param_name, key_body)
                 || reverse_expr.as_ref().is_some_and(|e| is_param_used_in_expr(param_name, e))
-        }
-        // DEPYLER-0766: Check element, iterator, AND conditions for generator expressions
-        HirExpr::GeneratorExp { element, generators } => {
-            is_param_used_in_expr(param_name, element)
-                || generators.iter().any(|g| {
-                    is_param_used_in_expr(param_name, &g.iter)
-                        || g.conditions.iter().any(|cond| is_param_used_in_expr(param_name, cond))
-                })
         }
         HirExpr::NamedExpr { value, .. } => is_param_used_in_expr(param_name, value),
         HirExpr::List(items) | HirExpr::Tuple(items) => {
@@ -1301,8 +1308,16 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
                 || is_param_used_in_expr(param_name, orelse)
         }
         HirExpr::Lambda { body, .. } => is_param_used_in_expr(param_name, body),
-        // DEPYLER-0766: Check element, iterator, AND conditions for comprehensions
-        HirExpr::ListComp { element, generators, .. }
+        HirExpr::Await { value } => is_param_used_in_expr(param_name, value),
+        _ => is_param_used_in_comprehension(param_name, expr),
+    }
+}
+
+/// DEPYLER-0766: Check comprehension and generator expressions for parameter usage.
+fn is_param_used_in_comprehension(param_name: &str, expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::GeneratorExp { element, generators }
+        | HirExpr::ListComp { element, generators, .. }
         | HirExpr::SetComp { element, generators, .. } => {
             is_param_used_in_expr(param_name, element)
                 || generators.iter().any(|g| {
@@ -1310,7 +1325,6 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
                         || g.conditions.iter().any(|cond| is_param_used_in_expr(param_name, cond))
                 })
         }
-        // DEPYLER-0766: Check key, value, iterator, AND conditions for dict comprehensions
         HirExpr::DictComp { key, value, generators } => {
             is_param_used_in_expr(param_name, key)
                 || is_param_used_in_expr(param_name, value)
@@ -1319,7 +1333,6 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
                         || g.conditions.iter().any(|cond| is_param_used_in_expr(param_name, cond))
                 })
         }
-        HirExpr::Await { value } => is_param_used_in_expr(param_name, value),
         _ => false,
     }
 }

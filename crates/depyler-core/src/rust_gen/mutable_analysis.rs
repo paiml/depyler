@@ -222,6 +222,141 @@ pub(super) fn analyze_expr_for_mutations(
     }
 }
 
+/// DEPYLER-0596-FIX: Recursively find the innermost variable from nested index expressions.
+fn find_base_var_from_expr(expr: &HirExpr) -> Option<String> {
+    match expr {
+        HirExpr::Var(name) => Some(name.clone()),
+        HirExpr::Index { base, .. } => find_base_var_from_expr(base),
+        _ => None,
+    }
+}
+
+/// DEPYLER-0549: Check if a value expression matches csv reader/writer patterns.
+fn is_csv_pattern_match(value: &HirExpr) -> bool {
+    if let HirExpr::MethodCall { object, method, .. } = value {
+        if let HirExpr::Var(module) = object.as_ref() {
+            return module == "csv"
+                && (method.contains("Reader")
+                    || method.contains("reader")
+                    || method.contains("Writer")
+                    || method.contains("writer"));
+        }
+        false
+    } else if let HirExpr::Call { func, .. } = value {
+        func.contains("Reader")
+            || func.contains("Writer")
+            || func.contains("reader")
+            || func.contains("writer")
+    } else {
+        false
+    }
+}
+
+/// Handle assignment to a symbol target — track type, csv mutability, and redeclaration.
+fn analyze_symbol_assign(
+    name: &str,
+    value: &HirExpr,
+    declared: &mut HashSet<String>,
+    mutable: &mut HashSet<String>,
+    var_types: &mut HashMap<String, String>,
+) {
+    // Track variable type if assigned from class constructor
+    if let HirExpr::Call { func, .. } = value {
+        var_types.insert(name.to_string(), func.clone());
+    }
+
+    // DEPYLER-0549/0835: Mark csv readers/writers as mutable
+    let name_heuristic = name == "reader"
+        || name == "writer"
+        || name.contains("reader")
+        || name.contains("writer");
+    if name_heuristic || is_csv_pattern_match(value) {
+        mutable.insert(name.to_string());
+    }
+
+    if declared.contains(name) {
+        mutable.insert(name.to_string());
+    } else {
+        declared.insert(name.to_string());
+    }
+}
+
+/// DEPYLER-1217: Recursively handle tuple assignment targets.
+fn handle_tuple_target(
+    t: &AssignTarget,
+    declared: &mut HashSet<String>,
+    mutable: &mut HashSet<String>,
+) {
+    match t {
+        AssignTarget::Symbol(name) => {
+            if declared.contains(name) {
+                mutable.insert(name.clone());
+            } else {
+                declared.insert(name.clone());
+            }
+        }
+        AssignTarget::Index { base, .. } => {
+            if let Some(var_name) = find_base_var_from_expr(base.as_ref()) {
+                mutable.insert(var_name);
+            }
+        }
+        AssignTarget::Attribute { value, .. } => {
+            if let HirExpr::Var(var_name) = value.as_ref() {
+                mutable.insert(var_name.clone());
+            }
+        }
+        AssignTarget::Tuple(nested_targets) => {
+            for nested in nested_targets {
+                handle_tuple_target(nested, declared, mutable);
+            }
+        }
+    }
+}
+
+/// Analyze the target side of an assignment for mutability.
+fn analyze_assign_target(
+    target: &AssignTarget,
+    value: &HirExpr,
+    declared: &mut HashSet<String>,
+    mutable: &mut HashSet<String>,
+    var_types: &mut HashMap<String, String>,
+) {
+    match target {
+        AssignTarget::Symbol(name) => {
+            analyze_symbol_assign(name, value, declared, mutable, var_types);
+        }
+        AssignTarget::Tuple(targets) => {
+            for t in targets {
+                handle_tuple_target(t, declared, mutable);
+            }
+        }
+        AssignTarget::Attribute { value: attr_value, .. } => {
+            if let HirExpr::Var(var_name) = attr_value.as_ref() {
+                mutable.insert(var_name.clone());
+            }
+        }
+        AssignTarget::Index { base, .. } => {
+            if let Some(var_name) = find_base_var_from_expr(base.as_ref()) {
+                mutable.insert(var_name);
+            }
+        }
+    }
+}
+
+/// Recurse into a statement body, analyzing each statement for mutations.
+fn analyze_stmt_body(
+    body: &[HirStmt],
+    declared: &mut HashSet<String>,
+    mutable: &mut HashSet<String>,
+    var_types: &mut HashMap<String, String>,
+    mutating_methods: &HashMap<String, HashSet<String>>,
+    function_param_muts: &HashMap<String, Vec<bool>>,
+) {
+    for stmt in body {
+        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
+    }
+}
+
 /// Statement-level mutation analysis.
 ///
 /// Walks the HIR statement tree and identifies variables that need `mut`
@@ -237,281 +372,76 @@ pub(super) fn analyze_stmt(
 ) {
     match stmt {
         HirStmt::Assign { target, value, .. } => {
-            // Check if the value expression contains method calls that mutate variables
             analyze_expr_for_mutations(
-                value,
-                mutable,
-                var_types,
-                mutating_methods,
-                function_param_muts,
+                value, mutable, var_types, mutating_methods, function_param_muts,
             );
-
-            match target {
-                AssignTarget::Symbol(name) => {
-                    // Track variable type if assigned from class constructor
-                    if let HirExpr::Call { func, .. } = value {
-                        // Store the type (class name) for this variable
-                        var_types.insert(name.clone(), func.clone());
-                    }
-
-                    // DEPYLER-0549: Mark csv readers/writers as mutable
-                    // In Rust, csv::Reader and csv::Writer require &mut self for most operations
-                    // Detection: variable names or call patterns involving csv/reader/writer
-                    // DEPYLER-0835: Name heuristic should ALWAYS apply, not just as fallback
-                    let name_heuristic = name == "reader"
-                        || name == "writer"
-                        || name.contains("reader")
-                        || name.contains("writer");
-                    let pattern_match = if let HirExpr::MethodCall { object, method, .. } = value {
-                        // csv.DictReader() or csv.reader()
-                        if let HirExpr::Var(module) = object.as_ref() {
-                            module == "csv"
-                                && (method.contains("Reader")
-                                    || method.contains("reader")
-                                    || method.contains("Writer")
-                                    || method.contains("writer"))
-                        } else {
-                            false
-                        }
-                    } else if let HirExpr::Call { func, .. } = value {
-                        // DictReader(f) or csv.ReaderBuilder...
-                        func.contains("Reader")
-                            || func.contains("Writer")
-                            || func.contains("reader")
-                            || func.contains("writer")
-                    } else {
-                        false
-                    };
-                    let needs_csv_mut = name_heuristic || pattern_match;
-
-                    if needs_csv_mut {
-                        mutable.insert(name.clone());
-                    }
-
-                    if declared.contains(name) {
-                        // Variable is being reassigned - mark as mutable
-                        mutable.insert(name.clone());
-                    } else {
-                        // First declaration
-                        declared.insert(name.clone());
-                    }
-                }
-                AssignTarget::Tuple(targets) => {
-                    // DEPYLER-1217: Tuple assignment - recursively handle all target types
-                    // including Index targets (e.g., arr[i], arr[j] = arr[j], arr[i])
-                    fn handle_tuple_target(
-                        t: &AssignTarget,
-                        declared: &mut HashSet<String>,
-                        mutable: &mut HashSet<String>,
-                    ) {
-                        match t {
-                            AssignTarget::Symbol(name) => {
-                                if declared.contains(name) {
-                                    // Variable is being reassigned - mark as mutable
-                                    mutable.insert(name.clone());
-                                } else {
-                                    // First declaration
-                                    declared.insert(name.clone());
-                                }
-                            }
-                            AssignTarget::Index { base, .. } => {
-                                // Index assignment mutates the base
-                                // DEPYLER-0596-FIX: Handle nested index in tuple assignments
-                                fn find_base_var(expr: &HirExpr) -> Option<String> {
-                                    match expr {
-                                        HirExpr::Var(name) => Some(name.clone()),
-                                        HirExpr::Index { base, .. } => find_base_var(base),
-                                        _ => None,
-                                    }
-                                }
-                                if let Some(var_name) = find_base_var(base.as_ref()) {
-                                    mutable.insert(var_name);
-                                }
-                            }
-                            AssignTarget::Attribute { value, .. } => {
-                                // Attribute assignment mutates the base
-                                if let HirExpr::Var(var_name) = value.as_ref() {
-                                    mutable.insert(var_name.clone());
-                                }
-                            }
-                            AssignTarget::Tuple(nested_targets) => {
-                                // Recursively handle nested tuples
-                                for nested in nested_targets {
-                                    handle_tuple_target(nested, declared, mutable);
-                                }
-                            }
-                        }
-                    }
-                    for t in targets {
-                        handle_tuple_target(t, declared, mutable);
-                    }
-                }
-                AssignTarget::Attribute { value, .. } => {
-                    // DEPYLER-0235 FIX: Property writes require the base object to be mutable
-                    // e.g., `b.size = 20` requires `let mut b = ...`
-                    if let HirExpr::Var(var_name) = value.as_ref() {
-                        mutable.insert(var_name.clone());
-                    }
-                }
-                AssignTarget::Index { base, .. } => {
-                    // DEPYLER-0235 FIX: Index assignments also require mutability
-                    // e.g., `arr[i] = value` requires `let mut arr = ...`
-                    // DEPYLER-0596-FIX: Handle nested index (e.g., `d["a"]["b"] = v`)
-                    // by recursively finding the innermost variable
-                    fn find_base_var(expr: &HirExpr) -> Option<String> {
-                        match expr {
-                            HirExpr::Var(name) => Some(name.clone()),
-                            HirExpr::Index { base, .. } => find_base_var(base),
-                            _ => None,
-                        }
-                    }
-                    if let Some(var_name) = find_base_var(base.as_ref()) {
-                        mutable.insert(var_name);
-                    }
-                }
-            }
+            analyze_assign_target(target, value, declared, mutable, var_types);
         }
         HirStmt::Expr(expr) => {
-            // Check standalone expressions for method calls (e.g., numbers.push(4))
             analyze_expr_for_mutations(
-                expr,
-                mutable,
-                var_types,
-                mutating_methods,
-                function_param_muts,
+                expr, mutable, var_types, mutating_methods, function_param_muts,
             );
         }
         HirStmt::Return(Some(expr)) => {
             analyze_expr_for_mutations(
-                expr,
-                mutable,
-                var_types,
-                mutating_methods,
-                function_param_muts,
+                expr, mutable, var_types, mutating_methods, function_param_muts,
             );
         }
         HirStmt::If { condition, then_body, else_body, .. } => {
             analyze_expr_for_mutations(
-                condition,
-                mutable,
-                var_types,
-                mutating_methods,
-                function_param_muts,
+                condition, mutable, var_types, mutating_methods, function_param_muts,
             );
-            for stmt in then_body {
-                analyze_stmt(
-                    stmt,
-                    declared,
-                    mutable,
-                    var_types,
-                    mutating_methods,
-                    function_param_muts,
-                );
-            }
+            analyze_stmt_body(
+                then_body, declared, mutable, var_types, mutating_methods, function_param_muts,
+            );
             if let Some(else_stmts) = else_body {
-                for stmt in else_stmts {
-                    analyze_stmt(
-                        stmt,
-                        declared,
-                        mutable,
-                        var_types,
-                        mutating_methods,
-                        function_param_muts,
+                analyze_stmt_body(
+                    else_stmts, declared, mutable, var_types, mutating_methods, function_param_muts,
                     );
                 }
             }
         }
         HirStmt::While { condition, body, .. } => {
             analyze_expr_for_mutations(
-                condition,
-                mutable,
-                var_types,
-                mutating_methods,
-                function_param_muts,
+                condition, mutable, var_types, mutating_methods, function_param_muts,
             );
-            for stmt in body {
-                analyze_stmt(
-                    stmt,
-                    declared,
-                    mutable,
-                    var_types,
-                    mutating_methods,
-                    function_param_muts,
-                );
-            }
+            analyze_stmt_body(
+                body, declared, mutable, var_types, mutating_methods, function_param_muts,
+            );
         }
         HirStmt::For { body, .. } => {
-            for stmt in body {
-                analyze_stmt(
-                    stmt,
-                    declared,
-                    mutable,
-                    var_types,
-                    mutating_methods,
-                    function_param_muts,
-                );
-            }
+            analyze_stmt_body(
+                body, declared, mutable, var_types, mutating_methods, function_param_muts,
+            );
         }
         // DEPYLER-0549: Handle WITH statements - analyze body for mutations
         HirStmt::With { body, .. } => {
-            for stmt in body {
-                analyze_stmt(
-                    stmt,
-                    declared,
-                    mutable,
-                    var_types,
-                    mutating_methods,
-                    function_param_muts,
-                );
-            }
+            analyze_stmt_body(
+                body, declared, mutable, var_types, mutating_methods, function_param_muts,
+            );
         }
         // DEPYLER-0549: Handle Try - analyze all branches
         HirStmt::Try { body, handlers, orelse, finalbody, .. } => {
-            for stmt in body {
-                analyze_stmt(
-                    stmt,
-                    declared,
-                    mutable,
-                    var_types,
-                    mutating_methods,
+            analyze_stmt_body(
+                body, declared, mutable, var_types, mutating_methods, function_param_muts,
+            );
+            for handler in handlers {
+                analyze_stmt_body(
+                    &handler.body, declared, mutable, var_types, mutating_methods,
                     function_param_muts,
                 );
             }
-            for handler in handlers {
-                for stmt in &handler.body {
-                    analyze_stmt(
-                        stmt,
-                        declared,
-                        mutable,
-                        var_types,
-                        mutating_methods,
-                        function_param_muts,
-                    );
-                }
-            }
             if let Some(else_stmts) = orelse {
-                for stmt in else_stmts {
-                    analyze_stmt(
-                        stmt,
-                        declared,
-                        mutable,
-                        var_types,
-                        mutating_methods,
-                        function_param_muts,
-                    );
-                }
+                analyze_stmt_body(
+                    else_stmts, declared, mutable, var_types, mutating_methods,
+                    function_param_muts,
+                );
             }
             if let Some(final_stmts) = finalbody {
-                for stmt in final_stmts {
-                    analyze_stmt(
-                        stmt,
-                        declared,
-                        mutable,
-                        var_types,
-                        mutating_methods,
-                        function_param_muts,
-                    );
-                }
+                analyze_stmt_body(
+                    final_stmts, declared, mutable, var_types, mutating_methods,
+                    function_param_muts,
+                );
             }
         }
         _ => {}

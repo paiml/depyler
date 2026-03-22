@@ -535,129 +535,151 @@ pub fn is_dict_augassign_pattern(target: &crate::hir::AssignTarget, value: &HirE
 /// DEPYLER-0790: Check if a nested function is recursive (calls itself)
 /// Returns true if the function body contains a call to the function itself
 pub fn is_nested_function_recursive(name: &str, body: &[crate::hir::HirStmt]) -> bool {
-    use crate::hir::{HirExpr, HirStmt};
+    body.iter().any(|stmt| recursion_check_stmt(stmt, name))
+}
 
-    fn check_expr(expr: &HirExpr, name: &str) -> bool {
-        match expr {
-            // Direct call to the function by name - func is Symbol, not Box<HirExpr>
-            HirExpr::Call { func, args, kwargs } => {
-                if func == name {
-                    return true;
-                }
-                // Check args and kwargs recursively
-                args.iter().any(|a| check_expr(a, name))
-                    || kwargs.iter().any(|(_, v)| check_expr(v, name))
-            }
-            // Dynamic call - check callee expression
-            HirExpr::DynamicCall { callee, args, kwargs } => {
-                check_expr(callee, name)
-                    || args.iter().any(|a| check_expr(a, name))
-                    || kwargs.iter().any(|(_, v)| check_expr(v, name))
-            }
-            // Recurse into all expression types
-            HirExpr::Binary { left, right, .. } => {
-                check_expr(left, name) || check_expr(right, name)
-            }
-            HirExpr::Unary { operand, .. } => check_expr(operand, name),
-            HirExpr::MethodCall { object, args, kwargs, .. } => {
-                check_expr(object, name)
-                    || args.iter().any(|a| check_expr(a, name))
-                    || kwargs.iter().any(|(_, v)| check_expr(v, name))
-            }
-            HirExpr::Attribute { value, .. } => check_expr(value, name),
-            HirExpr::Index { base, index } => check_expr(base, name) || check_expr(index, name),
-            HirExpr::IfExpr { test, body, orelse } => {
-                check_expr(test, name) || check_expr(body, name) || check_expr(orelse, name)
-            }
-            HirExpr::List(items)
-            | HirExpr::Tuple(items)
-            | HirExpr::Set(items)
-            | HirExpr::FrozenSet(items) => items.iter().any(|i| check_expr(i, name)),
-            HirExpr::Dict(pairs) => {
-                pairs.iter().any(|(k, v)| check_expr(k, name) || check_expr(v, name))
-            }
-            HirExpr::ListComp { element, generators }
-            | HirExpr::SetComp { element, generators }
-            | HirExpr::GeneratorExp { element, generators } => {
-                check_expr(element, name)
-                    || generators.iter().any(|g| {
-                        check_expr(&g.iter, name)
-                            || g.conditions.iter().any(|c| check_expr(c, name))
-                    })
-            }
-            HirExpr::DictComp { key, value, generators } => {
-                check_expr(key, name)
-                    || check_expr(value, name)
-                    || generators.iter().any(|g| {
-                        check_expr(&g.iter, name)
-                            || g.conditions.iter().any(|c| check_expr(c, name))
-                    })
-            }
-            HirExpr::Lambda { body, .. } => check_expr(body, name),
-            HirExpr::Await { value } => check_expr(value, name),
-            HirExpr::Slice { base, start, stop, step } => {
-                check_expr(base, name)
-                    || start.as_ref().is_some_and(|e| check_expr(e, name))
-                    || stop.as_ref().is_some_and(|e| check_expr(e, name))
-                    || step.as_ref().is_some_and(|e| check_expr(e, name))
-            }
-            HirExpr::Borrow { expr, .. } => check_expr(expr, name),
-            HirExpr::FString { parts } => parts.iter().any(|p| {
-                if let crate::hir::FStringPart::Expr(e) = p {
-                    check_expr(e, name)
-                } else {
-                    false
-                }
-            }),
-            HirExpr::Yield { value } => value.as_ref().is_some_and(|e| check_expr(e, name)),
-            HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
-                check_expr(iterable, name)
-                    || check_expr(key_body, name)
-                    || reverse_expr.as_ref().is_some_and(|e| check_expr(e, name))
-            }
-            HirExpr::NamedExpr { value, .. } => check_expr(value, name),
-            _ => false,
+/// Check if an expression contains a recursive call to the named function.
+fn recursion_check_expr(expr: &crate::hir::HirExpr, name: &str) -> bool {
+    use crate::hir::HirExpr;
+    match expr {
+        HirExpr::Call { func, args, kwargs } => {
+            func == name
+                || args.iter().any(|a| recursion_check_expr(a, name))
+                || kwargs.iter().any(|(_, v)| recursion_check_expr(v, name))
         }
-    }
-
-    fn check_stmt(stmt: &HirStmt, name: &str) -> bool {
-        match stmt {
-            HirStmt::Expr(expr) | HirStmt::Return(Some(expr)) => check_expr(expr, name),
-            HirStmt::Assign { value, .. } => check_expr(value, name),
-            HirStmt::If { condition, then_body, else_body } => {
-                check_expr(condition, name)
-                    || then_body.iter().any(|s| check_stmt(s, name))
-                    || else_body.as_ref().is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
-            }
-            HirStmt::While { condition, body } => {
-                check_expr(condition, name) || body.iter().any(|s| check_stmt(s, name))
-            }
-            HirStmt::For { iter, body, .. } => {
-                check_expr(iter, name) || body.iter().any(|s| check_stmt(s, name))
-            }
-            HirStmt::With { context, body, .. } => {
-                check_expr(context, name) || body.iter().any(|s| check_stmt(s, name))
-            }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
-                body.iter().any(|s| check_stmt(s, name))
-                    || handlers.iter().any(|h| h.body.iter().any(|s| check_stmt(s, name)))
-                    || orelse.as_ref().is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
-                    || finalbody.as_ref().is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
-            }
-            HirStmt::FunctionDef { body, .. } => body.iter().any(|s| check_stmt(s, name)),
-            HirStmt::Block(stmts) => stmts.iter().any(|s| check_stmt(s, name)),
-            HirStmt::Assert { test, msg } => {
-                check_expr(test, name) || msg.as_ref().is_some_and(|m| check_expr(m, name))
-            }
-            HirStmt::Raise { exception, cause } => {
-                exception.as_ref().is_some_and(|e| check_expr(e, name))
-                    || cause.as_ref().is_some_and(|c| check_expr(c, name))
-            }
-            _ => false,
+        HirExpr::DynamicCall { callee, args, kwargs } => {
+            recursion_check_expr(callee, name)
+                || args.iter().any(|a| recursion_check_expr(a, name))
+                || kwargs.iter().any(|(_, v)| recursion_check_expr(v, name))
         }
+        HirExpr::Binary { left, right, .. } => {
+            recursion_check_expr(left, name) || recursion_check_expr(right, name)
+        }
+        HirExpr::Unary { operand, .. } => recursion_check_expr(operand, name),
+        HirExpr::MethodCall { object, args, kwargs, .. } => {
+            recursion_check_expr(object, name)
+                || args.iter().any(|a| recursion_check_expr(a, name))
+                || kwargs.iter().any(|(_, v)| recursion_check_expr(v, name))
+        }
+        HirExpr::Attribute { value, .. } => recursion_check_expr(value, name),
+        HirExpr::Index { base, index } => {
+            recursion_check_expr(base, name) || recursion_check_expr(index, name)
+        }
+        HirExpr::IfExpr { test, body, orelse } => {
+            recursion_check_expr(test, name)
+                || recursion_check_expr(body, name)
+                || recursion_check_expr(orelse, name)
+        }
+        _ => recursion_check_expr_collections(expr, name),
     }
+}
 
-    body.iter().any(|stmt| check_stmt(stmt, name))
+/// Check collection and compound expression types for recursive calls.
+fn recursion_check_expr_collections(expr: &crate::hir::HirExpr, name: &str) -> bool {
+    use crate::hir::HirExpr;
+    match expr {
+        HirExpr::List(items)
+        | HirExpr::Tuple(items)
+        | HirExpr::Set(items)
+        | HirExpr::FrozenSet(items) => items.iter().any(|i| recursion_check_expr(i, name)),
+        HirExpr::Dict(pairs) => {
+            pairs.iter().any(|(k, v)| recursion_check_expr(k, name) || recursion_check_expr(v, name))
+        }
+        HirExpr::ListComp { element, generators }
+        | HirExpr::SetComp { element, generators }
+        | HirExpr::GeneratorExp { element, generators } => {
+            recursion_check_expr(element, name)
+                || generators.iter().any(|g| {
+                    recursion_check_expr(&g.iter, name)
+                        || g.conditions.iter().any(|c| recursion_check_expr(c, name))
+                })
+        }
+        HirExpr::DictComp { key, value, generators } => {
+            recursion_check_expr(key, name)
+                || recursion_check_expr(value, name)
+                || generators.iter().any(|g| {
+                    recursion_check_expr(&g.iter, name)
+                        || g.conditions.iter().any(|c| recursion_check_expr(c, name))
+                })
+        }
+        HirExpr::Lambda { body, .. } => recursion_check_expr(body, name),
+        HirExpr::Await { value } => recursion_check_expr(value, name),
+        HirExpr::Slice { base, start, stop, step } => {
+            recursion_check_expr(base, name)
+                || start.as_ref().is_some_and(|e| recursion_check_expr(e, name))
+                || stop.as_ref().is_some_and(|e| recursion_check_expr(e, name))
+                || step.as_ref().is_some_and(|e| recursion_check_expr(e, name))
+        }
+        HirExpr::Borrow { expr, .. } => recursion_check_expr(expr, name),
+        HirExpr::FString { parts } => parts.iter().any(|p| {
+            if let crate::hir::FStringPart::Expr(e) = p {
+                recursion_check_expr(e, name)
+            } else {
+                false
+            }
+        }),
+        HirExpr::Yield { value } => value.as_ref().is_some_and(|e| recursion_check_expr(e, name)),
+        HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
+            recursion_check_expr(iterable, name)
+                || recursion_check_expr(key_body, name)
+                || reverse_expr.as_ref().is_some_and(|e| recursion_check_expr(e, name))
+        }
+        HirExpr::NamedExpr { value, .. } => recursion_check_expr(value, name),
+        _ => false,
+    }
+}
+
+/// Check if a statement contains a recursive call to the named function.
+fn recursion_check_stmt(stmt: &crate::hir::HirStmt, name: &str) -> bool {
+    use crate::hir::HirStmt;
+    match stmt {
+        HirStmt::Expr(expr) | HirStmt::Return(Some(expr)) => recursion_check_expr(expr, name),
+        HirStmt::Assign { value, .. } => recursion_check_expr(value, name),
+        HirStmt::If { condition, then_body, else_body } => {
+            recursion_check_expr(condition, name)
+                || then_body.iter().any(|s| recursion_check_stmt(s, name))
+                || else_body
+                    .as_ref()
+                    .is_some_and(|b| b.iter().any(|s| recursion_check_stmt(s, name)))
+        }
+        HirStmt::While { condition, body } => {
+            recursion_check_expr(condition, name)
+                || body.iter().any(|s| recursion_check_stmt(s, name))
+        }
+        HirStmt::For { iter, body, .. } => {
+            recursion_check_expr(iter, name)
+                || body.iter().any(|s| recursion_check_stmt(s, name))
+        }
+        HirStmt::With { context, body, .. } => {
+            recursion_check_expr(context, name)
+                || body.iter().any(|s| recursion_check_stmt(s, name))
+        }
+        HirStmt::Try { body, handlers, orelse, finalbody } => {
+            body.iter().any(|s| recursion_check_stmt(s, name))
+                || handlers
+                    .iter()
+                    .any(|h| h.body.iter().any(|s| recursion_check_stmt(s, name)))
+                || orelse
+                    .as_ref()
+                    .is_some_and(|b| b.iter().any(|s| recursion_check_stmt(s, name)))
+                || finalbody
+                    .as_ref()
+                    .is_some_and(|b| b.iter().any(|s| recursion_check_stmt(s, name)))
+        }
+        HirStmt::FunctionDef { body, .. } => {
+            body.iter().any(|s| recursion_check_stmt(s, name))
+        }
+        HirStmt::Block(stmts) => stmts.iter().any(|s| recursion_check_stmt(s, name)),
+        HirStmt::Assert { test, msg } => {
+            recursion_check_expr(test, name)
+                || msg.as_ref().is_some_and(|m| recursion_check_expr(m, name))
+        }
+        HirStmt::Raise { exception, cause } => {
+            exception.as_ref().is_some_and(|e| recursion_check_expr(e, name))
+                || cause.as_ref().is_some_and(|c| recursion_check_expr(c, name))
+        }
+        _ => false,
+    }
 }
 
 /// DEPYLER-0360: Extract the divisor (right operand) from a floor division expression

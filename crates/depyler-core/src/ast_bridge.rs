@@ -1807,6 +1807,117 @@ fn expr_calls_failing_function(
     }
 }
 
+/// DEPYLER-0834: Infer type from parameter name for unannotated Optional params (default=None).
+fn infer_optional_type_from_name(name: &str) -> Type {
+    let param_lower = name.to_lowercase();
+
+    if is_file_path_param(&param_lower) {
+        Type::String
+    } else if is_string_like_param(&param_lower) {
+        Type::String
+    } else if is_numeric_param(&param_lower) {
+        Type::Int
+    } else if is_boolean_param(&param_lower) {
+        Type::Bool
+    } else {
+        // DEPYLER-0744: Fallback to Unknown for return type unification
+        Type::Unknown
+    }
+}
+
+/// Check if a parameter name suggests a file/path type.
+fn is_file_path_param(param_lower: &str) -> bool {
+    param_lower.contains("file")
+        || param_lower.contains("path")
+        || param_lower.contains("output")
+        || param_lower.contains("input")
+        || param_lower.contains("dir")
+        || param_lower.contains("folder")
+}
+
+/// Check if a parameter name suggests a string type.
+fn is_string_like_param(param_lower: &str) -> bool {
+    param_lower.contains("name")
+        || param_lower.contains("title")
+        || param_lower.contains("text")
+        || param_lower.contains("message")
+        || param_lower.contains("content")
+        || param_lower.contains("label")
+        || param_lower.contains("description")
+        || param_lower.contains("prefix")
+        || param_lower.contains("suffix")
+        || param_lower.contains("format")
+        || param_lower == "value"
+        || param_lower.contains("column")
+        || param_lower.contains("key") && !param_lower.contains("keys")
+}
+
+/// Check if a parameter name suggests a numeric type.
+fn is_numeric_param(param_lower: &str) -> bool {
+    param_lower.contains("count")
+        || param_lower.contains("num")
+        || param_lower.contains("index")
+        || param_lower.contains("size")
+        || param_lower.contains("limit")
+        || param_lower.contains("max")
+        || param_lower.contains("min")
+        || param_lower.contains("port")
+        || param_lower.contains("timeout")
+        || param_lower.contains("depth")
+        || param_lower == "n"
+        || param_lower == "i"
+        || param_lower == "j"
+}
+
+/// Check if a parameter name suggests a boolean type.
+fn is_boolean_param(param_lower: &str) -> bool {
+    param_lower.contains("flag")
+        || param_lower.contains("enabled")
+        || param_lower.contains("verbose")
+        || param_lower.contains("debug")
+        || param_lower.contains("quiet")
+        || param_lower.contains("force")
+        || param_lower.starts_with("is_")
+        || param_lower.starts_with("has_")
+        || param_lower.starts_with("use_")
+        || param_lower.starts_with("allow_")
+}
+
+/// Resolve the type for a parameter with default=None based on its base type and name.
+fn resolve_optional_param_type(base_ty: Type, name: &str) -> Type {
+    match base_ty {
+        Type::Unknown => {
+            let inferred_type = infer_optional_type_from_name(name);
+            Type::Optional(Box::new(inferred_type))
+        }
+        Type::Optional(_) => {
+            // Already Optional<T>, don't double-wrap
+            base_ty
+        }
+        _ => {
+            // Wrap annotated type in Optional
+            Type::Optional(Box::new(base_ty))
+        }
+    }
+}
+
+/// DEPYLER-0457: Heuristic inference for unannotated required parameters.
+fn infer_required_param_type(base_ty: Type, name: &str) -> Type {
+    let param_lower = name.to_lowercase();
+    let is_likely_string = param_lower.contains("file")
+        || param_lower.contains("path")
+        || param_lower.contains("name")
+        || param_lower.contains("column")
+        || param_lower == "value"
+        || param_lower.contains("key");
+
+    if is_likely_string && !param_lower.contains("config") && !param_lower.contains("data") {
+        Type::String
+    } else {
+        base_ty
+    }
+}
+
 fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
     use crate::ast_bridge::converters::ExprConverter;
     let mut params = Vec::new();
@@ -1824,7 +1935,6 @@ fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
         let base_ty = if let Some(annotation) = &arg.def.annotation {
             TypeExtractor::extract_type(annotation)?
         } else {
-            // No annotation - will be refined based on default value below
             Type::Unknown
         };
 
@@ -1840,107 +1950,11 @@ fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
             None
         };
 
-        // DEPYLER-0457: Infer types for unannotated parameters
-        // DEPYLER-0744: Use Option<Unknown> for unannotated params with default=None
-        // This allows the return type inference to unify properly when the param is returned
+        // DEPYLER-0457/0744: Resolve final type based on default value and annotations
         let ty = if let Some(HirExpr::Literal(Literal::None)) = &default {
-            // Parameter has default=None, wrap type in Optional
-            match base_ty {
-                Type::Unknown => {
-                    // DEPYLER-0834: Apply name-based heuristics for Optional params too
-                    // When param has default=None but no type annotation, infer type from name
-                    // This prevents Option<serde_json::Value> which causes E0308/E0599 errors
-                    let param_lower = name.to_lowercase();
-
-                    let inferred_type = if param_lower.contains("file")
-                        || param_lower.contains("path")
-                        || param_lower.contains("output")
-                        || param_lower.contains("input")
-                        || param_lower.contains("dir")
-                        || param_lower.contains("folder")
-                    {
-                        // File/path parameters → Option<String>
-                        Type::String
-                    } else if param_lower.contains("name")
-                        || param_lower.contains("title")
-                        || param_lower.contains("text")
-                        || param_lower.contains("message")
-                        || param_lower.contains("content")
-                        || param_lower.contains("label")
-                        || param_lower.contains("description")
-                        || param_lower.contains("prefix")
-                        || param_lower.contains("suffix")
-                        || param_lower.contains("format")
-                        || param_lower == "value"
-                        || param_lower.contains("column")
-                        || param_lower.contains("key") && !param_lower.contains("keys")
-                    {
-                        // String-like parameters → Option<String>
-                        Type::String
-                    } else if param_lower.contains("count")
-                        || param_lower.contains("num")
-                        || param_lower.contains("index")
-                        || param_lower.contains("size")
-                        || param_lower.contains("limit")
-                        || param_lower.contains("max")
-                        || param_lower.contains("min")
-                        || param_lower.contains("port")
-                        || param_lower.contains("timeout")
-                        || param_lower.contains("depth")
-                        || param_lower == "n"
-                        || param_lower == "i"
-                        || param_lower == "j"
-                    {
-                        // Numeric parameters → Option<i64>
-                        Type::Int
-                    } else if param_lower.contains("flag")
-                        || param_lower.contains("enabled")
-                        || param_lower.contains("verbose")
-                        || param_lower.contains("debug")
-                        || param_lower.contains("quiet")
-                        || param_lower.contains("force")
-                        || param_lower.starts_with("is_")
-                        || param_lower.starts_with("has_")
-                        || param_lower.starts_with("use_")
-                        || param_lower.starts_with("allow_")
-                    {
-                        // Boolean parameters → Option<bool>
-                        Type::Bool
-                    } else {
-                        // DEPYLER-0744: Fallback to Unknown for return type unification
-                        Type::Unknown
-                    };
-
-                    Type::Optional(Box::new(inferred_type))
-                }
-                Type::Optional(_) => {
-                    // Already Optional<T>, don't double-wrap
-                    base_ty
-                }
-                _ => {
-                    // Wrap annotated type in Optional
-                    Type::Optional(Box::new(base_ty))
-                }
-            }
+            resolve_optional_param_type(base_ty, &name)
         } else if default.is_none() && matches!(base_ty, Type::Unknown) {
-            // DEPYLER-0457: Heuristic inference for unannotated required parameters
-            // Only infer String for parameters with names suggesting string types
-            let param_lower = name.to_lowercase();
-            let is_likely_string = param_lower.contains("file")
-                || param_lower.contains("path")
-                || param_lower.contains("name")
-                || param_lower.contains("column")
-                || param_lower == "value" // Common in filter functions
-                || param_lower.contains("key"); // But not "keys" plural
-
-            if is_likely_string && !param_lower.contains("config") && !param_lower.contains("data")
-            {
-                // Conservative inference: only for clearly string-like parameters
-                Type::String
-            } else {
-                // Keep as Unknown (→ serde_json::Value) for safety
-                base_ty
-            }
+            infer_required_param_type(base_ty, &name)
         } else {
             base_ty
         };
