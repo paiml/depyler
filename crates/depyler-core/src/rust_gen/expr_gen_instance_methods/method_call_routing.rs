@@ -61,122 +61,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(result);
         }
 
-        // DEPYLER-0931: Handle subprocess.Child methods (.wait(), .kill(), etc.)
-        // proc.wait() → proc.as_mut().unwrap().wait().ok().and_then(|s| s.code()).unwrap_or(-1)
-        // When proc is Option<Child>, we need to unwrap and extract exit code
-        if method == "wait" && args.is_empty() {
-            if let HirExpr::Var(var_name) = object {
-                if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                    let is_subprocess_child = matches!(
-                        var_type,
-                        Type::Custom(s) if s == "std::process::Child" || s == "Child"
-                    ) || matches!(
-                        var_type,
-                        Type::Optional(inner) if matches!(
-                            inner.as_ref(),
-                            Type::Custom(s) if s == "std::process::Child" || s == "Child"
-                        )
-                    );
-                    if is_subprocess_child {
-                        let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
-                        // Handle Option<Child> - unwrap, call wait, extract exit code
-                        if matches!(var_type, Type::Optional(_)) {
-                            return Ok(parse_quote! {
-                                #var_ident.as_mut().expect("value is None").wait().ok().and_then(|s| s.code()).unwrap_or(-1)
-                            });
-                        } else {
-                            return Ok(parse_quote! {
-                                #var_ident.wait().ok().and_then(|s| s.code()).unwrap_or(-1)
-                            });
-                        }
-                    }
-                }
-            }
+        // CB-200 Batch 14: Subprocess child, serde_json, asyncio, colorsys, class method dispatch
+        if let Some(result) = self.try_convert_subprocess_wait(object, method, args)? {
+            return Ok(result);
         }
 
-        // DEPYLER-0663/0969: Handle serde_json::Value method calls
         if self.is_serde_json_value_expr(object) || self.is_serde_json_value(object) {
             if let Some(result) = self.try_convert_serde_json_method(object, method, args)? {
                 return Ok(result);
             }
         }
 
-        // DEPYLER-0747: Handle asyncio module method calls
         if let Some(result) = self.try_convert_asyncio_method(object, method, args)? {
             return Ok(result);
         }
 
-        // DEPYLER-0912: Handle colorsys module method calls
         if let Some(result) = self.try_convert_colorsys_method(object, method, args)? {
             return Ok(result);
         }
 
-        // DEPYLER-0778: Handle dict.fromkeys(keys, default) class method
-        // dict.fromkeys(keys, default) → keys.iter().map(|k| (k.clone(), default)).collect()
-        if let HirExpr::Var(var_name) = object {
-            if var_name == "dict" && method == "fromkeys" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| arg.to_rust_expr(self.ctx))
-                    .collect::<Result<Vec<_>>>()?;
-
-                if arg_exprs.len() >= 2 {
-                    let keys_expr = &arg_exprs[0];
-                    let default_expr = &arg_exprs[1];
-                    return Ok(parse_quote! {
-                        #keys_expr.iter().map(|k| (k.clone(), #default_expr)).collect()
-                    });
-                } else if arg_exprs.len() == 1 {
-                    // dict.fromkeys(keys) with implicit None default
-                    let keys_expr = &arg_exprs[0];
-                    return Ok(parse_quote! {
-                        #keys_expr.iter().map(|k| (k.clone(), ())).collect()
-                    });
-                }
-            }
-        }
-
-        // DEPYLER-0933: Handle int.from_bytes(bytes, byteorder) class method
-        // int.from_bytes(bytes, "big") → i64::from_be_bytes(bytes.try_into().unwrap())
-        // int.from_bytes(bytes, "little") → i64::from_le_bytes(bytes.try_into().unwrap())
-        if let HirExpr::Var(var_name) = object {
-            if var_name == "int" && method == "from_bytes" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| arg.to_rust_expr(self.ctx))
-                    .collect::<Result<Vec<_>>>()?;
-
-                if arg_exprs.len() >= 2 {
-                    let bytes_expr = &arg_exprs[0];
-                    // Check if second arg is "big" or "little" string literal
-                    let is_big_endian = if let HirExpr::Literal(Literal::String(s)) = &args[1] {
-                        s == "big"
-                    } else {
-                        true // Default to big endian
-                    };
-
-                    if is_big_endian {
-                        return Ok(parse_quote! {
-                            i64::from_be_bytes({
-                                let mut arr = [0u8; 8];
-                                let bytes: &[u8] = #bytes_expr.as_ref();
-                                let start = 8usize.saturating_sub(bytes.len());
-                                arr[start..].copy_from_slice(bytes);
-                                arr
-                            })
-                        });
-                    } else {
-                        return Ok(parse_quote! {
-                            i64::from_le_bytes({
-                                let mut arr = [0u8; 8];
-                                let bytes: &[u8] = #bytes_expr.as_ref();
-                                arr[..bytes.len().min(8)].copy_from_slice(&bytes[..bytes.len().min(8)]);
-                                arr
-                            })
-                        });
-                    }
-                }
-            }
+        if let Some(result) = self.try_convert_class_method_call(object, method, args)? {
+            return Ok(result);
         }
 
         // DEPYLER-0558: Handle hasher methods (hexdigest, update) for incremental hashing
@@ -693,7 +598,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// CB-200 Batch 12: Handle serde_json::Value method calls
+    /// CB-200 Batch 12/14: Handle serde_json::Value method calls
     fn try_convert_serde_json_method(
         &mut self,
         object: &HirExpr,
@@ -704,6 +609,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let arg_exprs: Vec<syn::Expr> =
             args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
+        // CB-200 Batch 14: Try read-only methods first, then mutation methods
+        if let Some(result) = Self::try_serde_json_query(&object_expr, method, &arg_exprs, args)? {
+            return Ok(Some(result));
+        }
+        Self::try_serde_json_mutation(&object_expr, method, &arg_exprs, args)
+    }
+
+    /// CB-200 Batch 14: serde_json query/read methods (len, iter, is_none, get, keys, etc.)
+    fn try_serde_json_query(
+        object_expr: &syn::Expr,
+        method: &str,
+        arg_exprs: &[syn::Expr],
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
         match method {
             "len" if args.is_empty() => Ok(Some(parse_quote! {
                 #object_expr.as_array().map(|a| a.len()).unwrap_or_else(||
@@ -715,30 +634,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             })),
             "is_none" if args.is_empty() => Ok(Some(parse_quote! { #object_expr.is_null() })),
             "is_some" if args.is_empty() => Ok(Some(parse_quote! { !#object_expr.is_null() })),
-            "append" | "push" if args.len() == 1 => {
-                let arg = &arg_exprs[0];
-                Ok(Some(parse_quote! {
-                    #object_expr.as_array_mut().map(|a| a.push(serde_json::json!(#arg)))
-                }))
-            }
-            "pop" if args.is_empty() => Ok(Some(parse_quote! {
-                #object_expr.as_array_mut().and_then(|a| a.pop()).unwrap_or(serde_json::Value::Null)
-            })),
-            "pop_front" | "popleft" if args.is_empty() => Ok(Some(parse_quote! {
-                #object_expr.as_array_mut().and_then(|a| if a.is_empty() { None } else { Some(a.remove(0)) }).unwrap_or(serde_json::Value::Null)
-            })),
-            "push_back" if args.len() == 1 => {
-                let arg = &arg_exprs[0];
-                Ok(Some(parse_quote! {
-                    #object_expr.as_array_mut().map(|a| a.push(serde_json::json!(#arg)))
-                }))
-            }
-            "push_front" | "appendleft" if args.len() == 1 => {
-                let arg = &arg_exprs[0];
-                Ok(Some(parse_quote! {
-                    #object_expr.as_array_mut().map(|a| a.insert(0, serde_json::json!(#arg)))
-                }))
-            }
             "is_empty" if args.is_empty() => Ok(Some(parse_quote! {
                 #object_expr.as_array().map(|a| a.is_empty()).unwrap_or_else(||
                     #object_expr.as_object().map(|o| o.is_empty()).unwrap_or(true)
@@ -776,6 +671,45 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     #object_expr.as_object().map(|o| o.contains_key(#key)).unwrap_or(false)
                 }))
             }
+            "copy" | "clone" if args.is_empty() => {
+                Ok(Some(parse_quote! { #object_expr.clone() }))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// CB-200 Batch 14: serde_json mutation methods (append, push, pop, insert, remove, etc.)
+    fn try_serde_json_mutation(
+        object_expr: &syn::Expr,
+        method: &str,
+        arg_exprs: &[syn::Expr],
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        match method {
+            "append" | "push" if args.len() == 1 => {
+                let arg = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    #object_expr.as_array_mut().map(|a| a.push(serde_json::json!(#arg)))
+                }))
+            }
+            "pop" if args.is_empty() => Ok(Some(parse_quote! {
+                #object_expr.as_array_mut().and_then(|a| a.pop()).unwrap_or(serde_json::Value::Null)
+            })),
+            "pop_front" | "popleft" if args.is_empty() => Ok(Some(parse_quote! {
+                #object_expr.as_array_mut().and_then(|a| if a.is_empty() { None } else { Some(a.remove(0)) }).unwrap_or(serde_json::Value::Null)
+            })),
+            "push_back" if args.len() == 1 => {
+                let arg = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    #object_expr.as_array_mut().map(|a| a.push(serde_json::json!(#arg)))
+                }))
+            }
+            "push_front" | "appendleft" if args.len() == 1 => {
+                let arg = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    #object_expr.as_array_mut().map(|a| a.insert(0, serde_json::json!(#arg)))
+                }))
+            }
             "insert" if args.len() == 2 => {
                 let key = &arg_exprs[0];
                 let val = &arg_exprs[1];
@@ -793,9 +727,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 { if let Some(a) = #object_expr.as_array_mut() { a.clear() }
                   else if let Some(o) = #object_expr.as_object_mut() { o.clear() } }
             })),
-            "copy" | "clone" if args.is_empty() => {
-                Ok(Some(parse_quote! { #object_expr.clone() }))
-            }
             "extend" if args.len() == 1 => {
                 let other = &arg_exprs[0];
                 Ok(Some(parse_quote! {
@@ -1092,5 +1023,124 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
         Ok(None)
+    }
+
+    /// CB-200 Batch 14: Handle subprocess.Child .wait() method
+    fn try_convert_subprocess_wait(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        if method != "wait" || !args.is_empty() {
+            return Ok(None);
+        }
+        let HirExpr::Var(var_name) = object else {
+            return Ok(None);
+        };
+        let Some(var_type) = self.ctx.var_types.get(var_name) else {
+            return Ok(None);
+        };
+        let is_subprocess_child = matches!(
+            var_type,
+            Type::Custom(s) if s == "std::process::Child" || s == "Child"
+        ) || matches!(
+            var_type,
+            Type::Optional(inner) if matches!(
+                inner.as_ref(),
+                Type::Custom(s) if s == "std::process::Child" || s == "Child"
+            )
+        );
+        if !is_subprocess_child {
+            return Ok(None);
+        }
+        let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+        if matches!(var_type, Type::Optional(_)) {
+            Ok(Some(parse_quote! {
+                #var_ident.as_mut().expect("value is None").wait().ok().and_then(|s| s.code()).unwrap_or(-1)
+            }))
+        } else {
+            Ok(Some(parse_quote! {
+                #var_ident.wait().ok().and_then(|s| s.code()).unwrap_or(-1)
+            }))
+        }
+    }
+
+    /// CB-200 Batch 14: Handle dict.fromkeys and int.from_bytes class methods
+    fn try_convert_class_method_call(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let HirExpr::Var(var_name) = object else {
+            return Ok(None);
+        };
+        if var_name == "dict" && method == "fromkeys" {
+            return self.try_convert_dict_fromkeys(args);
+        }
+        if var_name == "int" && method == "from_bytes" {
+            return self.try_convert_int_from_bytes(args);
+        }
+        Ok(None)
+    }
+
+    /// CB-200 Batch 14: dict.fromkeys(keys, default) class method
+    fn try_convert_dict_fromkeys(&mut self, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+        if arg_exprs.len() >= 2 {
+            let keys_expr = &arg_exprs[0];
+            let default_expr = &arg_exprs[1];
+            Ok(Some(parse_quote! {
+                #keys_expr.iter().map(|k| (k.clone(), #default_expr)).collect()
+            }))
+        } else if arg_exprs.len() == 1 {
+            let keys_expr = &arg_exprs[0];
+            Ok(Some(parse_quote! {
+                #keys_expr.iter().map(|k| (k.clone(), ())).collect()
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// CB-200 Batch 14: int.from_bytes(bytes, byteorder) class method
+    fn try_convert_int_from_bytes(&mut self, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+        if arg_exprs.len() < 2 {
+            return Ok(None);
+        }
+        let bytes_expr = &arg_exprs[0];
+        let is_big_endian = if let HirExpr::Literal(Literal::String(s)) = &args[1] {
+            s == "big"
+        } else {
+            true
+        };
+        if is_big_endian {
+            Ok(Some(parse_quote! {
+                i64::from_be_bytes({
+                    let mut arr = [0u8; 8];
+                    let bytes: &[u8] = #bytes_expr.as_ref();
+                    let start = 8usize.saturating_sub(bytes.len());
+                    arr[start..].copy_from_slice(bytes);
+                    arr
+                })
+            }))
+        } else {
+            Ok(Some(parse_quote! {
+                i64::from_le_bytes({
+                    let mut arr = [0u8; 8];
+                    let bytes: &[u8] = #bytes_expr.as_ref();
+                    arr[..bytes.len().min(8)].copy_from_slice(&bytes[..bytes.len().min(8)]);
+                    arr
+                })
+            }))
+        }
     }
 }

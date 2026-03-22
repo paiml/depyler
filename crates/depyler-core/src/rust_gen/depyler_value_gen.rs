@@ -16,7 +16,37 @@ use quote::quote;
 /// Returns a TokenStream containing the complete DepylerValue type definition
 /// with all necessary trait implementations for Python-compatible heterogeneous
 /// dictionary values.
+///
+/// CB-200 Batch 14: Decomposed into category dispatchers to reduce complexity.
 pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
+    let enum_and_core = gen_enum_and_core_traits();
+    let methods = gen_depyler_methods();
+    let index_impls = gen_index_impls();
+    let from_impls = gen_from_impls();
+    let arithmetic = gen_arithmetic_ops();
+    let iterators = gen_iterator_impls();
+    let ordering = gen_ordering_impls();
+    let cross_type_cmp = gen_cross_type_comparisons();
+    let helpers = gen_helper_functions();
+    let py_traits = gen_py_traits();
+    let py_string_methods = gen_py_string_methods();
+    quote! {
+        #enum_and_core
+        #methods
+        #index_impls
+        #from_impls
+        #arithmetic
+        #iterators
+        #ordering
+        #cross_type_cmp
+        #helpers
+        #py_traits
+        #py_string_methods
+    }
+}
+
+/// CB-200 Batch 14: Generate enum definition + PartialEq, Eq, Hash, Display
+fn gen_enum_and_core_traits() -> proc_macro2::TokenStream {
     quote! {
             /// Sum type for heterogeneous dictionary values (Python fidelity)
             /// DEPYLER-1040b: Now implements Hash + Eq to support non-string dict keys
@@ -93,7 +123,12 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                     }
                 }
             }
+    }
+}
 
+/// CB-200 Batch 14: Generate DepylerValue inherent methods (len, is_empty, get, insert, etc.)
+fn gen_depyler_methods() -> proc_macro2::TokenStream {
+    quote! {
             impl DepylerValue {
                 /// Get length of string, list, or dict
                 /// DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables
@@ -413,8 +448,12 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                         );
                     }
                 }
-            }
+    }
+}
 
+/// CB-200 Batch 14: Generate Index/IndexMut implementations
+fn gen_index_impls() -> proc_macro2::TokenStream {
+    quote! {
             impl std::ops::Index<usize> for DepylerValue {
                 type Output = DepylerValue;
                 fn index(&self, _dv_idx: usize) -> &Self::Output {
@@ -469,6 +508,12 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                 }
             }
 
+    }
+}
+
+/// CB-200 Batch 14: Generate From<T> implementations for DepylerValue
+fn gen_from_impls() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-1051: From<T> implementations for seamless value creation
             // Enables: let x: DepylerValue = 42.into();
             impl From<i64> for DepylerValue {
@@ -612,6 +657,12 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                 fn from(v: DepylerValue) -> Self { v.to_bool() }
             }
 
+    }
+}
+
+/// CB-200 Batch 14: Generate arithmetic operator implementations (Add, Sub, Mul, Div, Rem, Neg, Not, Bit*)
+fn gen_arithmetic_ops() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-1051: Arithmetic operations for DepylerValue
             // Enables: let result = x + y; where x, y are DepylerValue
             // DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables
@@ -927,6 +978,12 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                 }
             }
 
+    }
+}
+
+/// CB-200 Batch 14: Generate IntoIterator implementations
+fn gen_iterator_impls() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-1046: IntoIterator for DepylerValue to allow `for x in value` syntax
             // Python behavior:
             // - list: iterate over elements
@@ -968,6 +1025,12 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                 }
             }
 
+    }
+}
+
+/// CB-200 Batch 14: Generate PartialOrd and Ord implementations
+fn gen_ordering_impls() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-1062: PartialOrd for DepylerValue to support min/max builtins
             // Uses total ordering for f64 (NaN sorts as greater than all other values)
             impl std::cmp::PartialOrd for DepylerValue {
@@ -1000,6 +1063,12 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                 }
             }
 
+    }
+}
+
+/// CB-200 Batch 14: Generate cross-type comparison implementations (PartialOrd/PartialEq for primitives)
+fn gen_cross_type_comparisons() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-99MODE-E0308-P2: Cross-type comparisons for DepylerValue
             // Enables: if depyler_val > 5 (without explicit conversion)
             // This fixes ~25% of E0308 errors from NASA mode type coercion mismatches
@@ -1162,6 +1231,12 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                 }
             }
 
+    }
+}
+
+/// CB-200 Batch 14: Generate helper functions (depyler_min, depyler_max) and PyTruthy trait
+fn gen_helper_functions() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-1062: Safe min helper that handles f64 NaN correctly
             // Python: min(1.0, float('nan')) returns 1.0 (NaN is "ignored")
             pub fn depyler_min<T: std::cmp::PartialOrd>(a: T, b: T) -> T {
@@ -1280,6 +1355,12 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                 }
             }
 
+    }
+}
+
+/// CB-200 Batch 14: Generate Python arithmetic/index traits (PyAdd, PySub, PyMul, PyDiv, PyMod, PyIndex)
+fn gen_py_traits() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-1104: PyAdd trait for Python addition semantics
             // Handles cross-type promotion (int + float = float, str + str = str concat)
             pub trait PyAdd<Rhs = Self> {
@@ -2229,6 +2310,12 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                 }
             }
 
+    }
+}
+
+/// CB-200 Batch 14: Generate PyStringMethods trait and implementations
+fn gen_py_string_methods() -> proc_macro2::TokenStream {
+    quote! {
             // DEPYLER-1118: PyStringMethods trait for Python string method parity
             // Maps Python string methods to their Rust equivalents:
             // - str.lower() -> to_lowercase()

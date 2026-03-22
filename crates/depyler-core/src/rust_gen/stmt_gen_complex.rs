@@ -65,97 +65,10 @@ pub(crate) fn codegen_try_stmt(
     // Empty list means bare except (catches all exceptions)
     ctx.enter_try_scope(handled_types.clone());
 
-    // DEPYLER-0360: Check for floor division with ZeroDivisionError handler BEFORE generating try_stmts
-    let has_zero_div_handler =
-        handlers.iter().any(|h| h.exception_type.as_deref() == Some("ZeroDivisionError"));
-
-    if has_zero_div_handler && body.len() == 1 {
-        if let HirStmt::Return(Some(expr)) = &body[0] {
-            if contains_floor_div(expr) {
-                // Extract divisor from floor division
-                let divisor_expr = extract_divisor_from_floor_div(expr)?;
-                let divisor_tokens = divisor_expr.to_rust_expr(ctx)?;
-
-                // Find ZeroDivisionError handler
-                let zero_div_handler_idx = handlers
-                    .iter()
-                    .position(|h| h.exception_type.as_deref() == Some("ZeroDivisionError"))
-                    .unwrap();
-
-                // Generate handler body
-                ctx.enter_scope();
-                // DEPYLER-0360: Ensure return keyword is included in handler
-                let old_is_final = ctx.is_final_statement;
-                ctx.is_final_statement = false;
-                let handler_stmts: Vec<_> = handlers[zero_div_handler_idx]
-                    .body
-                    .iter()
-                    .map(|s| s.to_rust_tokens(ctx))
-                    .collect::<Result<Vec<_>>>()?;
-                ctx.is_final_statement = old_is_final;
-                ctx.exit_scope();
-
-                // Generate try block expression (with params shadowing)
-                let floor_div_result = expr.to_rust_expr(ctx)?;
-
-                // DEPYLER-0333: Exit try block scope
-                ctx.exit_exception_scope();
-
-                // Generate: if divisor == 0 { handler } else { floor_div_result }
-                if let Some(finalbody) = finalbody {
-                    ctx.enter_scope();
-                    let finally_stmts: Vec<_> = finalbody
-                        .iter()
-                        .map(|s| s.to_rust_tokens(ctx))
-                        .collect::<Result<Vec<_>>>()?;
-                    ctx.exit_scope();
-
-                    // DEPYLER-1161: Wrap floor div result in Ok() when function returns Result
-                    return if ctx.current_function_can_fail {
-                        Ok(quote! {
-                            {
-                                if #divisor_tokens == 0 {
-                                    #(#handler_stmts)*
-                                } else {
-                                    return Ok(#floor_div_result);
-                                }
-                                #(#finally_stmts)*
-                            }
-                        })
-                    } else {
-                        Ok(quote! {
-                            {
-                                if #divisor_tokens == 0 {
-                                    #(#handler_stmts)*
-                                } else {
-                                    return #floor_div_result;
-                                }
-                                #(#finally_stmts)*
-                            }
-                        })
-                    };
-                } else {
-                    // DEPYLER-1161: Wrap floor div result in Ok() when function returns Result
-                    return if ctx.current_function_can_fail {
-                        Ok(quote! {
-                            if #divisor_tokens == 0 {
-                                #(#handler_stmts)*
-                            } else {
-                                return Ok(#floor_div_result);
-                            }
-                        })
-                    } else {
-                        Ok(quote! {
-                            if #divisor_tokens == 0 {
-                                #(#handler_stmts)*
-                            } else {
-                                return #floor_div_result;
-                            }
-                        })
-                    };
-                }
-            }
-        }
+    // CB-200 Batch 14: Check for floor division with ZeroDivisionError handler
+    if let Some(result) = try_codegen_zero_div_pattern(body, handlers, finalbody, ctx)? {
+        ctx.exit_exception_scope();
+        return Ok(result);
     }
 
     // Convert try body to statements
@@ -522,6 +435,83 @@ pub(crate) fn codegen_try_stmt(
                 })
             }
         }
+    }
+}
+
+/// CB-200 Batch 14: Handle try/except with floor division and ZeroDivisionError handler
+fn try_codegen_zero_div_pattern(
+    body: &[HirStmt],
+    handlers: &[ExceptHandler],
+    finalbody: &Option<Vec<HirStmt>>,
+    ctx: &mut CodeGenContext,
+) -> Result<Option<proc_macro2::TokenStream>> {
+    let has_zero_div_handler =
+        handlers.iter().any(|h| h.exception_type.as_deref() == Some("ZeroDivisionError"));
+
+    if !has_zero_div_handler || body.len() != 1 {
+        return Ok(None);
+    }
+
+    let HirStmt::Return(Some(expr)) = &body[0] else {
+        return Ok(None);
+    };
+
+    if !contains_floor_div(expr) {
+        return Ok(None);
+    }
+
+    let divisor_expr = extract_divisor_from_floor_div(expr)?;
+    let divisor_tokens = divisor_expr.to_rust_expr(ctx)?;
+
+    let zero_div_handler_idx = handlers
+        .iter()
+        .position(|h| h.exception_type.as_deref() == Some("ZeroDivisionError"))
+        .unwrap();
+
+    ctx.enter_scope();
+    let old_is_final = ctx.is_final_statement;
+    ctx.is_final_statement = false;
+    let handler_stmts: Vec<_> = handlers[zero_div_handler_idx]
+        .body
+        .iter()
+        .map(|s| s.to_rust_tokens(ctx))
+        .collect::<Result<Vec<_>>>()?;
+    ctx.is_final_statement = old_is_final;
+    ctx.exit_scope();
+
+    let floor_div_result = expr.to_rust_expr(ctx)?;
+
+    let return_expr = if ctx.current_function_can_fail {
+        quote! { return Ok(#floor_div_result); }
+    } else {
+        quote! { return #floor_div_result; }
+    };
+
+    if let Some(finalbody) = finalbody {
+        ctx.enter_scope();
+        let finally_stmts: Vec<_> = finalbody
+            .iter()
+            .map(|s| s.to_rust_tokens(ctx))
+            .collect::<Result<Vec<_>>>()?;
+        ctx.exit_scope();
+        Ok(Some(quote! {
+            {
+                if #divisor_tokens == 0 {
+                    #(#handler_stmts)*
+                } else {
+                    #return_expr
+                }
+                #(#finally_stmts)*
+            }
+        }))
+    } else {
+        Ok(Some(quote! {
+            if #divisor_tokens == 0 {
+                #(#handler_stmts)*
+            } else {
+                #return_expr
+            }
+        }))
     }
 }
 

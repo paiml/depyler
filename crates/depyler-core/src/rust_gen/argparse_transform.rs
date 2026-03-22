@@ -1578,14 +1578,9 @@ pub fn preregister_subcommands_from_hir(
         }
     }
 
-    // Recursive walker for statements
-    fn walk_stmt(stmt: &HirStmt, tracker: &mut ArgParserTracker) {
+    // CB-200 Batch 14: Handle control flow statements (if/while/for)
+    fn walk_control_flow_stmt(stmt: &HirStmt, tracker: &mut ArgParserTracker) {
         match stmt {
-            HirStmt::Expr(expr) => walk_expr(expr, tracker),
-            HirStmt::Assign { target, value, type_annotation: _ } => {
-                handle_assign_stmt(target, value, tracker);
-            }
-            HirStmt::Return(Some(expr)) => walk_expr(expr, tracker),
             HirStmt::If { condition, then_body, else_body } => {
                 walk_expr(condition, tracker);
                 walk_stmts(then_body, tracker);
@@ -1599,6 +1594,21 @@ pub fn preregister_subcommands_from_hir(
             }
             HirStmt::For { body, .. } => {
                 walk_stmts(body, tracker);
+            }
+            _ => {}
+        }
+    }
+
+    // Recursive walker for statements
+    fn walk_stmt(stmt: &HirStmt, tracker: &mut ArgParserTracker) {
+        match stmt {
+            HirStmt::Expr(expr) => walk_expr(expr, tracker),
+            HirStmt::Assign { target, value, type_annotation: _ } => {
+                handle_assign_stmt(target, value, tracker);
+            }
+            HirStmt::Return(Some(expr)) => walk_expr(expr, tracker),
+            HirStmt::If { .. } | HirStmt::While { .. } | HirStmt::For { .. } => {
+                walk_control_flow_stmt(stmt, tracker);
             }
             HirStmt::Try { body, handlers, orelse, finalbody } => {
                 walk_try_stmt(body, handlers, orelse, finalbody, tracker);

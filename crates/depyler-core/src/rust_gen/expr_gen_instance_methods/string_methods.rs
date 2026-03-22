@@ -20,30 +20,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         arg_exprs: &[syn::Expr],
         hir_args: &[HirExpr],
     ) -> Result<syn::Expr> {
-        // DEPYLER-0564: Convert serde_json::Value to &str for string method calls
-        // Check both HIR pattern and Rust expression pattern
-        let needs_json_conversion = self.needs_value_to_string_conversion(hir_object)
-            || self.rust_expr_needs_value_conversion(object_expr);
-
-        // DEPYLER-1064: Extract string from DepylerValue before calling string methods
-        let is_depyler_var = if let HirExpr::Var(var_name) = hir_object {
-            self.ctx.type_mapper.nasa_mode
-                && self.ctx.var_types.get(var_name).is_some_and(|t| {
-                    matches!(t, Type::Unknown)
-                        || matches!(t, Type::Custom(n) if n == "Any" || n == "object")
-                })
-        } else {
-            false
-        };
-
-        let obj = if needs_json_conversion {
-            parse_quote! { #object_expr.as_str().unwrap_or_default() }
-        } else if is_depyler_var {
-            // Extract string from DepylerValue using to_string()
-            parse_quote! { #object_expr.to_string() }
-        } else {
-            object_expr.clone()
-        };
+        // CB-200 Batch 14: Compute the effective object expression with type-aware conversion
+        let obj = self.compute_string_method_receiver(hir_object, object_expr);
 
         match method {
             "upper" => self.str_upper(hir_object, &obj, arg_exprs),
@@ -90,6 +68,33 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "hex" => self.str_hex(object_expr, arg_exprs),
             "format" => self.str_format(object_expr, arg_exprs),
             _ => bail!("Unknown string method: {}", method),
+        }
+    }
+
+    // CB-200 Batch 14: Compute the effective receiver for string method calls
+    // Handles serde_json::Value and DepylerValue type conversions
+    fn compute_string_method_receiver(&self, hir_object: &HirExpr, object_expr: &syn::Expr) -> syn::Expr {
+        // DEPYLER-0564: Convert serde_json::Value to &str for string method calls
+        let needs_json_conversion = self.needs_value_to_string_conversion(hir_object)
+            || self.rust_expr_needs_value_conversion(object_expr);
+
+        // DEPYLER-1064: Extract string from DepylerValue before calling string methods
+        let is_depyler_var = if let HirExpr::Var(var_name) = hir_object {
+            self.ctx.type_mapper.nasa_mode
+                && self.ctx.var_types.get(var_name).is_some_and(|t| {
+                    matches!(t, Type::Unknown)
+                        || matches!(t, Type::Custom(n) if n == "Any" || n == "object")
+                })
+        } else {
+            false
+        };
+
+        if needs_json_conversion {
+            parse_quote! { #object_expr.as_str().unwrap_or_default() }
+        } else if is_depyler_var {
+            parse_quote! { #object_expr.to_string() }
+        } else {
+            object_expr.clone()
         }
     }
 

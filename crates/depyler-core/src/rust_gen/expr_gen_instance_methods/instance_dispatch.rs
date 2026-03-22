@@ -78,177 +78,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-DUNDER-CALL-FIX: Translate Python dunder methods to Rust equivalents
         let method = Self::translate_dunder(method);
 
+        // CB-200 Batch 14: Deque-specific methods (must come before list methods)
+        if let Some(result) = self.try_convert_deque_method(object, object_expr, method, arg_exprs, hir_args, kwargs)? {
+            return Ok(result);
+        }
+
         // Fallback to method name dispatch
         match method {
-            // DEPYLER-0742: Deque-specific methods (must come before list methods)
-            // DEPYLER-1165: Auto-box for VecDeque<DepylerValue>
-            "appendleft" => {
-                if arg_exprs.len() != 1 {
-                    bail!("appendleft() requires exactly one argument");
-                }
-                let arg = &arg_exprs[0];
-
-                // DEPYLER-1165: Check if deque has DepylerValue element type
-                let is_deque_depyler_value = if let HirExpr::Var(var_name) = object {
-                    if let Some(Type::Custom(type_str)) = self.ctx.var_types.get(var_name) {
-                        type_str.contains("VecDeque") && type_str.contains("DepylerValue")
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                };
-
-                if is_deque_depyler_value && self.ctx.type_mapper.nasa_mode {
-                    // Wrap argument in DepylerValue based on argument type
-                    let wrapped_arg: syn::Expr = if !hir_args.is_empty() {
-                        match &hir_args[0] {
-                            HirExpr::Literal(Literal::Int(_)) => {
-                                parse_quote! { DepylerValue::Int(#arg as i64) }
-                            }
-                            HirExpr::Literal(Literal::Float(_)) => {
-                                parse_quote! { DepylerValue::Float(#arg as f64) }
-                            }
-                            HirExpr::Literal(Literal::String(_)) => {
-                                parse_quote! { DepylerValue::Str(#arg.to_string()) }
-                            }
-                            HirExpr::Literal(Literal::Bool(_)) => {
-                                parse_quote! { DepylerValue::Bool(#arg) }
-                            }
-                            HirExpr::Var(name) => match self.ctx.var_types.get(name) {
-                                Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
-                                Some(Type::Float) => {
-                                    parse_quote! { DepylerValue::Float(#arg as f64) }
-                                }
-                                Some(Type::String) => {
-                                    parse_quote! { DepylerValue::Str(#arg.to_string()) }
-                                }
-                                Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
-                                _ => parse_quote! { DepylerValue::from(#arg) },
-                            },
-                            _ => parse_quote! { DepylerValue::from(#arg) },
-                        }
-                    } else {
-                        parse_quote! { DepylerValue::from(#arg) }
-                    };
-                    self.ctx.needs_depyler_value_enum = true;
-                    Ok(parse_quote! { #object_expr.push_front(#wrapped_arg) })
-                } else {
-                    Ok(parse_quote! { #object_expr.push_front(#arg) })
-                }
-            }
-            "popleft" => {
-                if !arg_exprs.is_empty() {
-                    bail!("popleft() takes no arguments");
-                }
-                // DEPYLER-1186: Add .expect() to match Python's raise on empty deque
-                // Python raises IndexError if deque is empty, so we panic with expect()
-                Ok(parse_quote! { #object_expr.pop_front().expect("popleft from empty deque") })
-            }
-            // DEPYLER-1187: Handle extendleft for deque
-            // Python's deque.extendleft(iterable) adds each element to the front
-            // The final order is reversed from the input (first element ends up deepest)
-            "extendleft" => {
-                if arg_exprs.len() != 1 {
-                    bail!("extendleft() requires exactly one argument");
-                }
-                let arg = &arg_exprs[0];
-                // Implement as: for each element in reversed input, push_front
-                // Using into_iter().rev() to reverse the input first
-                Ok(parse_quote! {
-                    for __item in #arg.into_iter().rev() {
-                        #object_expr.push_front(__item);
-                    }
-                })
-            }
-
-            // DEPYLER-0742: Handle append/pop for deque vs list
-            // DEPYLER-1165: Auto-box for VecDeque<DepylerValue>
-            "append" => {
-                if self.is_deque_expr(object) {
-                    if arg_exprs.len() != 1 {
-                        bail!("append() requires exactly one argument");
-                    }
-                    let arg = &arg_exprs[0];
-
-                    // DEPYLER-1165: Check if deque has DepylerValue element type
-                    let is_deque_depyler_value = if let HirExpr::Var(var_name) = object {
-                        if let Some(Type::Custom(type_str)) = self.ctx.var_types.get(var_name) {
-                            type_str.contains("VecDeque") && type_str.contains("DepylerValue")
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    };
-
-                    if is_deque_depyler_value && self.ctx.type_mapper.nasa_mode {
-                        // Wrap argument in DepylerValue based on argument type
-                        let wrapped_arg: syn::Expr = if !hir_args.is_empty() {
-                            match &hir_args[0] {
-                                HirExpr::Literal(Literal::Int(_)) => {
-                                    parse_quote! { DepylerValue::Int(#arg as i64) }
-                                }
-                                HirExpr::Literal(Literal::Float(_)) => {
-                                    parse_quote! { DepylerValue::Float(#arg as f64) }
-                                }
-                                HirExpr::Literal(Literal::String(_)) => {
-                                    parse_quote! { DepylerValue::Str(#arg.to_string()) }
-                                }
-                                HirExpr::Literal(Literal::Bool(_)) => {
-                                    parse_quote! { DepylerValue::Bool(#arg) }
-                                }
-                                HirExpr::Var(name) => match self.ctx.var_types.get(name) {
-                                    Some(Type::Int) => {
-                                        parse_quote! { DepylerValue::Int(#arg as i64) }
-                                    }
-                                    Some(Type::Float) => {
-                                        parse_quote! { DepylerValue::Float(#arg as f64) }
-                                    }
-                                    Some(Type::String) => {
-                                        parse_quote! { DepylerValue::Str(#arg.to_string()) }
-                                    }
-                                    Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
-                                    _ => parse_quote! { DepylerValue::from(#arg) },
-                                },
-                                _ => parse_quote! { DepylerValue::from(#arg) },
-                            }
-                        } else {
-                            parse_quote! { DepylerValue::from(#arg) }
-                        };
-                        self.ctx.needs_depyler_value_enum = true;
-                        Ok(parse_quote! { #object_expr.push_back(#wrapped_arg) })
-                    } else {
-                        Ok(parse_quote! { #object_expr.push_back(#arg) })
-                    }
-                } else {
-                    self.convert_list_method(
-                        object_expr,
-                        object,
-                        method,
-                        arg_exprs,
-                        hir_args,
-                        kwargs,
-                    )
-                }
-            }
-            "pop" => {
-                if self.is_deque_expr(object) {
-                    if !arg_exprs.is_empty() {
-                        bail!("deque.pop() does not accept an index argument");
-                    }
-                    Ok(parse_quote! { #object_expr.pop_back().unwrap_or_default() })
-                } else {
-                    self.convert_list_method(
-                        object_expr,
-                        object,
-                        method,
-                        arg_exprs,
-                        hir_args,
-                        kwargs,
-                    )
-                }
-            }
 
             // List methods (remaining)
             "extend" | "insert" | "remove" | "index" | "copy" | "clear" | "reverse" | "sort" => {
@@ -841,5 +677,113 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
         Ok(None)
+    }
+
+    // CB-200 Batch 14: Wrap a single argument in DepylerValue based on HIR type information
+    fn wrap_arg_in_depyler_value(
+        &self,
+        arg: &syn::Expr,
+        hir_args: &[HirExpr],
+    ) -> syn::Expr {
+        if !hir_args.is_empty() {
+            match &hir_args[0] {
+                HirExpr::Literal(Literal::Int(_)) => {
+                    parse_quote! { DepylerValue::Int(#arg as i64) }
+                }
+                HirExpr::Literal(Literal::Float(_)) => {
+                    parse_quote! { DepylerValue::Float(#arg as f64) }
+                }
+                HirExpr::Literal(Literal::String(_)) => {
+                    parse_quote! { DepylerValue::Str(#arg.to_string()) }
+                }
+                HirExpr::Literal(Literal::Bool(_)) => {
+                    parse_quote! { DepylerValue::Bool(#arg) }
+                }
+                HirExpr::Var(name) => match self.ctx.var_types.get(name) {
+                    Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
+                    Some(Type::Float) => parse_quote! { DepylerValue::Float(#arg as f64) },
+                    Some(Type::String) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                    Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
+                    _ => parse_quote! { DepylerValue::from(#arg) },
+                },
+                _ => parse_quote! { DepylerValue::from(#arg) },
+            }
+        } else {
+            parse_quote! { DepylerValue::from(#arg) }
+        }
+    }
+
+    // CB-200 Batch 14: Check if deque has DepylerValue element type
+    fn is_deque_depyler_value(&self, object: &HirExpr) -> bool {
+        if let HirExpr::Var(var_name) = object {
+            if let Some(Type::Custom(type_str)) = self.ctx.var_types.get(var_name) {
+                return type_str.contains("VecDeque") && type_str.contains("DepylerValue");
+            }
+        }
+        false
+    }
+
+    // CB-200 Batch 14: Handle deque-specific methods (appendleft, popleft, extendleft, append, pop)
+    fn try_convert_deque_method(
+        &mut self,
+        object: &HirExpr,
+        object_expr: &syn::Expr,
+        method: &str,
+        arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
+    ) -> Result<Option<syn::Expr>> {
+        match method {
+            "appendleft" => {
+                if arg_exprs.len() != 1 {
+                    bail!("appendleft() requires exactly one argument");
+                }
+                let arg = &arg_exprs[0];
+                if self.is_deque_depyler_value(object) && self.ctx.type_mapper.nasa_mode {
+                    let wrapped_arg = self.wrap_arg_in_depyler_value(arg, hir_args);
+                    self.ctx.needs_depyler_value_enum = true;
+                    Ok(Some(parse_quote! { #object_expr.push_front(#wrapped_arg) }))
+                } else {
+                    Ok(Some(parse_quote! { #object_expr.push_front(#arg) }))
+                }
+            }
+            "popleft" => {
+                if !arg_exprs.is_empty() {
+                    bail!("popleft() takes no arguments");
+                }
+                Ok(Some(parse_quote! { #object_expr.pop_front().expect("popleft from empty deque") }))
+            }
+            "extendleft" => {
+                if arg_exprs.len() != 1 {
+                    bail!("extendleft() requires exactly one argument");
+                }
+                let arg = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    for __item in #arg.into_iter().rev() {
+                        #object_expr.push_front(__item);
+                    }
+                }))
+            }
+            "append" if self.is_deque_expr(object) => {
+                if arg_exprs.len() != 1 {
+                    bail!("append() requires exactly one argument");
+                }
+                let arg = &arg_exprs[0];
+                if self.is_deque_depyler_value(object) && self.ctx.type_mapper.nasa_mode {
+                    let wrapped_arg = self.wrap_arg_in_depyler_value(arg, hir_args);
+                    self.ctx.needs_depyler_value_enum = true;
+                    Ok(Some(parse_quote! { #object_expr.push_back(#wrapped_arg) }))
+                } else {
+                    Ok(Some(parse_quote! { #object_expr.push_back(#arg) }))
+                }
+            }
+            "pop" if self.is_deque_expr(object) => {
+                if !arg_exprs.is_empty() {
+                    bail!("deque.pop() does not accept an index argument");
+                }
+                Ok(Some(parse_quote! { #object_expr.pop_back().unwrap_or_default() }))
+            }
+            _ => Ok(None),
+        }
     }
 }
