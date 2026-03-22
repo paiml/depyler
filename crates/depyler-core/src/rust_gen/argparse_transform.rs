@@ -1558,6 +1558,33 @@ pub fn preregister_subcommands_from_hir(
         walk_expr(value, tracker);
     }
 
+    // CB-200 Batch 12: Helper to walk a slice of statements
+    fn walk_stmts(stmts: &[HirStmt], tracker: &mut ArgParserTracker) {
+        for s in stmts {
+            walk_stmt(s, tracker);
+        }
+    }
+
+    // CB-200 Batch 12: Helper to walk Try statement children
+    fn walk_try_stmt(
+        body: &[HirStmt],
+        handlers: &[crate::hir::ExceptHandler],
+        orelse: &Option<Vec<HirStmt>>,
+        finalbody: &Option<Vec<HirStmt>>,
+        tracker: &mut ArgParserTracker,
+    ) {
+        walk_stmts(body, tracker);
+        for handler in handlers {
+            walk_stmts(&handler.body, tracker);
+        }
+        if let Some(orelse_stmts) = orelse {
+            walk_stmts(orelse_stmts, tracker);
+        }
+        if let Some(final_stmts) = finalbody {
+            walk_stmts(final_stmts, tracker);
+        }
+    }
+
     // Recursive walker for statements
     fn walk_stmt(stmt: &HirStmt, tracker: &mut ArgParserTracker) {
         match stmt {
@@ -1568,47 +1595,22 @@ pub fn preregister_subcommands_from_hir(
             HirStmt::Return(Some(expr)) => walk_expr(expr, tracker),
             HirStmt::If { condition, then_body, else_body } => {
                 walk_expr(condition, tracker);
-                for s in then_body {
-                    walk_stmt(s, tracker);
-                }
+                walk_stmts(then_body, tracker);
                 if let Some(else_stmts) = else_body {
-                    for s in else_stmts {
-                        walk_stmt(s, tracker);
-                    }
+                    walk_stmts(else_stmts, tracker);
                 }
             }
             HirStmt::While { condition, body } => {
                 walk_expr(condition, tracker);
-                for s in body {
-                    walk_stmt(s, tracker);
-                }
+                walk_stmts(body, tracker);
             }
             HirStmt::For { body, .. } => {
-                for s in body {
-                    walk_stmt(s, tracker);
-                }
+                walk_stmts(body, tracker);
             }
             HirStmt::Try { body, handlers, orelse, finalbody } => {
-                for s in body {
-                    walk_stmt(s, tracker);
-                }
-                for handler in handlers {
-                    for s in &handler.body {
-                        walk_stmt(s, tracker);
-                    }
-                }
-                if let Some(orelse_stmts) = orelse {
-                    for s in orelse_stmts {
-                        walk_stmt(s, tracker);
-                    }
-                }
-                if let Some(final_stmts) = finalbody {
-                    for s in final_stmts {
-                        walk_stmt(s, tracker);
-                    }
-                }
+                walk_try_stmt(body, handlers, orelse, finalbody, tracker);
             }
-            _ => {} // Other statement types don't contain add_parser() calls
+            _ => {}
         }
     }
 

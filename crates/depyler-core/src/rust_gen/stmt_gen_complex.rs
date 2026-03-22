@@ -46,125 +46,16 @@ pub(crate) fn codegen_try_stmt(
         confidence = 0.80
     );
 
-    // DEPYLER-0681: Variable hoisting for try/except blocks
-    // Variables assigned in try/except blocks need to be accessible after the block.
-    // In Python, variables defined in try/except escape their scope. In Rust, they don't.
-    // We hoist variable declarations before the try block to fix this.
-    let try_vars = extract_toplevel_assigned_symbols(body);
-    let handler_vars: std::collections::HashSet<String> =
-        handlers.iter().flat_map(|h| extract_toplevel_assigned_symbols(&h.body)).collect();
-
-    // Variables assigned in try body that might be assigned in handlers too (common pattern)
-    // or any variable assigned in try that's not just a loop variable
-    let hoisted_try_vars: Vec<String> =
-        try_vars.union(&handler_vars).filter(|v| !ctx.is_declared(v)).cloned().collect();
-
-    // Generate hoisted variable declarations
-    let mut hoisted_decls = Vec::new();
-    for var_name in &hoisted_try_vars {
-        let var_ident = safe_ident(var_name);
-
-        // Find the variable's type from the first assignment in either try block or handlers
-        let var_type = find_variable_type(var_name, body)
-            .or_else(|| handlers.iter().find_map(|h| find_variable_type(var_name, &h.body)));
-
-        if let Some(ty) = var_type {
-            // DEPYLER-0931: Check if type implements Default
-            // Types like std::process::Child don't implement Default, so wrap in Option
-            let needs_option_wrap = matches!(
-                &ty,
-                Type::Custom(s) if s == "std::process::Child" || s == "Child"
-            );
-
-            if needs_option_wrap {
-                // Wrap non-Default types in Option
-                let opt_type = Type::Optional(Box::new(ty.clone()));
-                let rust_type = ctx.type_mapper.map_type(&opt_type);
-                let syn_type = rust_type_to_syn(&rust_type)?;
-                hoisted_decls.push(quote! { let mut #var_ident: #syn_type = None; });
-                ctx.var_types.insert(var_name.clone(), opt_type);
-            } else {
-                let rust_type = ctx.type_mapper.map_type(&ty);
-                let syn_type = rust_type_to_syn(&rust_type)?;
-                // DEPYLER-0931: Initialize with Default::default() to prevent E0381
-                // Variables hoisted from try/except must be initialized because the try block might fail
-                // before assignment, and we need a valid state for the except block (or after).
-                // This also allows closure capturing by reference.
-                hoisted_decls.push(quote! { let mut #var_ident: #syn_type = Default::default(); });
-                ctx.var_types.insert(var_name.clone(), ty);
-            }
-        } else {
-            // No type annotation - DEPYLER-0931: Default to Option<serde_json::Value>
-            // This ensures we have a safe container for whatever value is assigned
-            // and handles the "uninitialized" state via None.
-            let value_type = crate::hir::Type::Custom("serde_json::Value".to_string());
-            let opt_type = crate::hir::Type::Optional(Box::new(value_type));
-
-            ctx.var_types.insert(var_name.clone(), opt_type);
-            hoisted_decls.push(quote! { let mut #var_ident: Option<serde_json::Value> = None; });
-
-            // DEPYLER-0455 #2: Track hoisted inference vars
-            ctx.hoisted_inference_vars.insert(var_name.clone());
-        }
-
-        // Declare variable in outer scope so it's accessible after try block
-        ctx.declare_var(var_name);
-    }
+    // CB-200 Batch 12: Hoist variable declarations for try/except blocks
+    let hoisted_decls = generate_hoisted_try_decls(body, handlers, ctx)?;
 
     // DEPYLER-0578: Detect json.load(sys.stdin) pattern with exit handler
-    // Pattern: try { data = json.load(sys.stdin) } except JSONDecodeError as e: { print; exit }
-    // This pattern assigns a variable that must be accessible AFTER the try/except block
-    // Generate: let data = match serde_json::from_reader(...) { Ok(d) => d, Err(e) => { handler } };
     if let Some(result) = try_generate_json_stdin_match(body, handlers, finalbody, ctx)? {
         return Ok(result);
     }
 
-    // DEPYLER-0358: Detect simple try-except pattern for optimization
-    // Pattern: try { return int(str_var) } except ValueError { return literal }
-    // We can simplify this to: s.parse::<i32>().unwrap_or(literal)
-    // DEPYLER-0359: Exclude patterns with exception binding (except E as e:)
-    // Those need proper match with Err(e) binding
-    let simple_pattern_info = if body.len() == 1
-        && handlers.len() == 1
-        && handlers[0].body.len() == 1
-        && handlers[0].name.is_none()
-    // No exception variable binding
-    {
-        // Check if handler body is a Return statement with a simple value
-        match &handlers[0].body[0] {
-            // Direct literal: return 42, return "error", etc.
-            HirStmt::Return(Some(HirExpr::Literal(lit))) => Some((
-                (match lit {
-                    Literal::Int(n) => n.to_string(),
-                    Literal::Float(f) => f.to_string(),
-                    Literal::String(s) => format!("\"{}\"", s),
-                    Literal::Bool(b) => b.to_string(),
-                    _ => "Default::default()".to_string(),
-                })
-                .to_string(),
-                handlers[0].exception_type.clone(),
-            )),
-            // Unary negation: return -1, return -42, etc.
-            HirStmt::Return(Some(HirExpr::Unary { op, operand })) => {
-                if let HirExpr::Literal(lit) = &**operand {
-                    match (op, lit) {
-                        (crate::hir::UnaryOp::Neg, Literal::Int(n)) => {
-                            Some((format!("-{}", n), handlers[0].exception_type.clone()))
-                        }
-                        (crate::hir::UnaryOp::Neg, Literal::Float(f)) => {
-                            Some((format!("-{}", f), handlers[0].exception_type.clone()))
-                        }
-                        _ => None,
-                    }
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        }
-    } else {
-        None
-    };
+    // CB-200 Batch 12: Detect simple try-except pattern for optimization
+    let simple_pattern_info = detect_simple_try_except_pattern(body, handlers);
 
     // DEPYLER-0333: Extract handled exception types for scope tracking
     let handled_types: Vec<String> =
@@ -631,6 +522,97 @@ pub(crate) fn codegen_try_stmt(
                 })
             }
         }
+    }
+}
+
+/// CB-200 Batch 12: Generate hoisted variable declarations for try/except blocks
+fn generate_hoisted_try_decls(
+    body: &[HirStmt],
+    handlers: &[ExceptHandler],
+    ctx: &mut CodeGenContext,
+) -> Result<Vec<proc_macro2::TokenStream>> {
+    let try_vars = extract_toplevel_assigned_symbols(body);
+    let handler_vars: std::collections::HashSet<String> =
+        handlers.iter().flat_map(|h| extract_toplevel_assigned_symbols(&h.body)).collect();
+
+    let hoisted_try_vars: Vec<String> =
+        try_vars.union(&handler_vars).filter(|v| !ctx.is_declared(v)).cloned().collect();
+
+    let mut hoisted_decls = Vec::new();
+    for var_name in &hoisted_try_vars {
+        let var_ident = safe_ident(var_name);
+
+        let var_type = find_variable_type(var_name, body)
+            .or_else(|| handlers.iter().find_map(|h| find_variable_type(var_name, &h.body)));
+
+        if let Some(ty) = var_type {
+            let needs_option_wrap = matches!(
+                &ty,
+                Type::Custom(s) if s == "std::process::Child" || s == "Child"
+            );
+
+            if needs_option_wrap {
+                let opt_type = Type::Optional(Box::new(ty.clone()));
+                let rust_type = ctx.type_mapper.map_type(&opt_type);
+                let syn_type = rust_type_to_syn(&rust_type)?;
+                hoisted_decls.push(quote! { let mut #var_ident: #syn_type = None; });
+                ctx.var_types.insert(var_name.clone(), opt_type);
+            } else {
+                let rust_type = ctx.type_mapper.map_type(&ty);
+                let syn_type = rust_type_to_syn(&rust_type)?;
+                hoisted_decls.push(quote! { let mut #var_ident: #syn_type = Default::default(); });
+                ctx.var_types.insert(var_name.clone(), ty);
+            }
+        } else {
+            let value_type = crate::hir::Type::Custom("serde_json::Value".to_string());
+            let opt_type = crate::hir::Type::Optional(Box::new(value_type));
+            ctx.var_types.insert(var_name.clone(), opt_type);
+            hoisted_decls.push(quote! { let mut #var_ident: Option<serde_json::Value> = None; });
+            ctx.hoisted_inference_vars.insert(var_name.clone());
+        }
+
+        ctx.declare_var(var_name);
+    }
+    Ok(hoisted_decls)
+}
+
+/// CB-200 Batch 12: Detect simple try-except pattern for unwrap_or optimization
+fn detect_simple_try_except_pattern(
+    body: &[HirStmt],
+    handlers: &[ExceptHandler],
+) -> Option<(String, Option<String>)> {
+    if body.len() != 1 || handlers.len() != 1 || handlers[0].body.len() != 1 || handlers[0].name.is_some() {
+        return None;
+    }
+
+    match &handlers[0].body[0] {
+        HirStmt::Return(Some(HirExpr::Literal(lit))) => Some((
+            (match lit {
+                Literal::Int(n) => n.to_string(),
+                Literal::Float(f) => f.to_string(),
+                Literal::String(s) => format!("\"{}\"", s),
+                Literal::Bool(b) => b.to_string(),
+                _ => "Default::default()".to_string(),
+            })
+            .to_string(),
+            handlers[0].exception_type.clone(),
+        )),
+        HirStmt::Return(Some(HirExpr::Unary { op, operand })) => {
+            if let HirExpr::Literal(lit) = &**operand {
+                match (op, lit) {
+                    (crate::hir::UnaryOp::Neg, Literal::Int(n)) => {
+                        Some((format!("-{}", n), handlers[0].exception_type.clone()))
+                    }
+                    (crate::hir::UnaryOp::Neg, Literal::Float(f)) => {
+                        Some((format!("-{}", f), handlers[0].exception_type.clone()))
+                    }
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        }
+        _ => None,
     }
 }
 

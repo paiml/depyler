@@ -160,125 +160,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
-        // DEPYLER-GH208: Handle is_none/is_some on &mut Option<T> parameters
-        // When a parameter with Optional type is mutated, it becomes &mut Option<T>.
-        // is_none()/is_some() work via auto-deref, but we generate explicit code for clarity.
-        // Also handle method calls on the Option's inner value (e.g., datetime methods).
-        if let HirExpr::Var(var_name) = object {
-            if self.ctx.mut_option_params.contains(var_name) {
-                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
-                match method {
-                    "is_none" if args.is_empty() => {
-                        return Ok(parse_quote! { #var_ident.is_none() });
-                    }
-                    "is_some" if args.is_empty() => {
-                        return Ok(parse_quote! { #var_ident.is_some() });
-                    }
-                    // For other methods on Option inner value, unwrap first
-                    _ => {
-                        // Check if this is a method that should be called on the inner value
-                        // Common datetime methods that need unwrapping
-                        let needs_unwrap = matches!(
-                            method,
-                            "year"
-                                | "month"
-                                | "day"
-                                | "hour"
-                                | "minute"
-                                | "second"
-                                | "weekday"
-                                | "isoweekday"
-                                | "timestamp"
-                                | "date"
-                                | "time"
-                                | "replace"
-                                | "strftime"
-                                | "isoformat"
-                        );
-                        if needs_unwrap {
-                            let method_ident =
-                                syn::Ident::new(method, proc_macro2::Span::call_site());
-                            let arg_exprs: Vec<syn::Expr> = args
-                                .iter()
-                                .map(|arg| arg.to_rust_expr(self.ctx))
-                                .collect::<Result<Vec<_>>>()?;
-                            if arg_exprs.is_empty() {
-                                return Ok(
-                                    parse_quote! { #var_ident.as_ref().expect("value is None").#method_ident() },
-                                );
-                            } else {
-                                return Ok(
-                                    parse_quote! { #var_ident.as_ref().expect("value is None").#method_ident(#(#arg_exprs),*) },
-                                );
-                            }
-                        }
-                    }
-                }
-            }
+        // DEPYLER-GH208: Handle method calls on &mut Option<T> parameters
+        if let Some(result) = self.try_convert_mut_option_method(object, method, args)? {
+            return Ok(result);
         }
 
         // DEPYLER-0964: Handle method calls on &mut Option<HashMap<K, V>> parameters
-        // When a parameter is Dict[K,V] with default None, it becomes &mut Option<HashMap>
-        // Method calls need to unwrap the Option first:
-        // - memo.get(k) → memo.as_ref().unwrap().get(&k)
-        // - memo.insert(k, v) → memo.as_mut().unwrap().insert(k, v)
-        // - memo.contains_key(k) → memo.as_ref().unwrap().contains_key(&k)
-        if let HirExpr::Var(var_name) = object {
-            if self.ctx.mut_option_dict_params.contains(var_name) {
-                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
-                match method {
-                    "get" => {
-                        if args.is_empty() {
-                            // dict.get() with no args - shouldn't happen for dict but handle gracefully
-                            return Ok(
-                                parse_quote! { #var_ident.as_ref().expect("value is None").get() },
-                            );
-                        }
-                        let key_expr = args[0].to_rust_expr(self.ctx)?;
-                        // Check if we need default value (2-arg form)
-                        if args.len() > 1 {
-                            let default_expr = args[1].to_rust_expr(self.ctx)?;
-                            return Ok(parse_quote! {
-                                #var_ident.as_ref().expect("value is None").get(&#key_expr).cloned().unwrap_or(#default_expr)
-                            });
-                        } else {
-                            // Single arg form - return Option<&V>
-                            return Ok(parse_quote! {
-                                #var_ident.as_ref().expect("value is None").get(&#key_expr).cloned()
-                            });
-                        }
-                    }
-                    "contains_key" | "__contains__" => {
-                        if !args.is_empty() {
-                            let key_expr = args[0].to_rust_expr(self.ctx)?;
-                            return Ok(parse_quote! {
-                                #var_ident.as_ref().expect("value is None").contains_key(&#key_expr)
-                            });
-                        }
-                    }
-                    "keys" if args.is_empty() => {
-                        return Ok(
-                            parse_quote! { #var_ident.as_ref().expect("value is None").keys() },
-                        );
-                    }
-                    "values" if args.is_empty() => {
-                        return Ok(
-                            parse_quote! { #var_ident.as_ref().expect("value is None").values() },
-                        );
-                    }
-                    "items" if args.is_empty() => {
-                        return Ok(
-                            parse_quote! { #var_ident.as_ref().expect("value is None").iter() },
-                        );
-                    }
-                    "len" if args.is_empty() => {
-                        return Ok(
-                            parse_quote! { #var_ident.as_ref().expect("value is None").len() as i32 },
-                        );
-                    }
-                    _ => {} // Fall through to other handlers
-                }
-            }
+        if let Some(result) = self.try_convert_mut_option_dict_method(object, method, args)? {
+            return Ok(result);
         }
 
         // DEPYLER-0108: Handle is_some/is_none on precomputed argparse Option fields
@@ -351,368 +240,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
-        // DEPYLER-0663: Handle serde_json::Value method calls
-        // serde_json::Value doesn't have direct .len(), .iter(), .is_none(), .is_some() methods
-        // We need to convert them to the appropriate serde_json::Value method chains
-        // DEPYLER-0969: H₃ Error Cascade Prevention - comprehensive method coverage
-        // This prevents E0599 cascades when Type::Unknown maps to serde_json::Value
+        // DEPYLER-0663/0969: Handle serde_json::Value method calls
         if self.is_serde_json_value_expr(object) || self.is_serde_json_value(object) {
-            let object_expr = object.to_rust_expr(self.ctx)?;
-            let arg_exprs: Vec<syn::Expr> =
-                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
-            match method {
-                // value.len() → value.as_array().map(|a| a.len()).unwrap_or_else(|| value.as_object().map(|o| o.len()).unwrap_or(0))
-                "len" if args.is_empty() => {
-                    return Ok(parse_quote! {
-                        #object_expr.as_array().map(|a| a.len()).unwrap_or_else(||
-                            #object_expr.as_object().map(|o| o.len()).unwrap_or(0)
-                        ) as i32
-                    });
-                }
-                // value.iter() → value.as_array().into_iter().flatten()
-                "iter" if args.is_empty() => {
-                    return Ok(parse_quote! {
-                        #object_expr.as_array().into_iter().flatten()
-                    });
-                }
-                // value.is_none() → value.is_null()
-                "is_none" if args.is_empty() => {
-                    return Ok(parse_quote! { #object_expr.is_null() });
-                }
-                // value.is_some() → !value.is_null()
-                "is_some" if args.is_empty() => {
-                    return Ok(parse_quote! { !#object_expr.is_null() });
-                }
-                // DEPYLER-0969: H₃ - List-like methods for serde_json::Value arrays
-                // value.append(x) → value.as_array_mut().unwrap().push(x.into())
-                "append" | "push" if args.len() == 1 => {
-                    let arg = &arg_exprs[0];
-                    return Ok(parse_quote! {
-                        #object_expr.as_array_mut().map(|a| a.push(serde_json::json!(#arg)))
-                    });
-                }
-                // value.pop() → value.as_array_mut().and_then(|a| a.pop())
-                "pop" if args.is_empty() => {
-                    return Ok(parse_quote! {
-                        #object_expr.as_array_mut().and_then(|a| a.pop()).unwrap_or(serde_json::Value::Null)
-                    });
-                }
-                // value.pop_front/popleft() → value.as_array_mut().and_then(|a| if a.is_empty() { None } else { Some(a.remove(0)) })
-                "pop_front" | "popleft" if args.is_empty() => {
-                    return Ok(parse_quote! {
-                        #object_expr.as_array_mut().and_then(|a| if a.is_empty() { None } else { Some(a.remove(0)) }).unwrap_or(serde_json::Value::Null)
-                    });
-                }
-                // value.push_back(x) → value.as_array_mut().map(|a| a.push(x.into()))
-                "push_back" if args.len() == 1 => {
-                    let arg = &arg_exprs[0];
-                    return Ok(parse_quote! {
-                        #object_expr.as_array_mut().map(|a| a.push(serde_json::json!(#arg)))
-                    });
-                }
-                // value.push_front(x) → value.as_array_mut().map(|a| a.insert(0, x.into()))
-                "push_front" | "appendleft" if args.len() == 1 => {
-                    let arg = &arg_exprs[0];
-                    return Ok(parse_quote! {
-                        #object_expr.as_array_mut().map(|a| a.insert(0, serde_json::json!(#arg)))
-                    });
-                }
-                // value.is_empty() → value.as_array().map(|a| a.is_empty()).unwrap_or(true)
-                "is_empty" if args.is_empty() => {
-                    return Ok(parse_quote! {
-                        #object_expr.as_array().map(|a| a.is_empty()).unwrap_or_else(||
-                            #object_expr.as_object().map(|o| o.is_empty()).unwrap_or(true)
-                        )
-                    });
-                }
-                // DEPYLER-0969: H₃ - Dict-like methods for serde_json::Value objects
-                // value.get(key) → value.get(key)
-                "get" if !args.is_empty() => {
-                    let key = &arg_exprs[0];
-                    if args.len() > 1 {
-                        let default = &arg_exprs[1];
-                        return Ok(parse_quote! {
-                            #object_expr.get(#key).cloned().unwrap_or(serde_json::json!(#default))
-                        });
-                    }
-                    return Ok(parse_quote! { #object_expr.get(#key).cloned() });
-                }
-                // value.keys() → value.as_object().into_iter().flat_map(|o| o.keys())
-                "keys" if args.is_empty() => {
-                    return Ok(parse_quote! {
-                        #object_expr.as_object().into_iter().flat_map(|o| o.keys().cloned()).collect::<Vec<_>>()
-                    });
-                }
-                // value.values() → value.as_object().into_iter().flat_map(|o| o.values())
-                "values" if args.is_empty() => {
-                    return Ok(parse_quote! {
-                        #object_expr.as_object().into_iter().flat_map(|o| o.values().cloned()).collect::<Vec<_>>()
-                    });
-                }
-                // value.items() → value.as_object().into_iter().flat_map(|o| o.iter())
-                "items" if args.is_empty() => {
-                    return Ok(parse_quote! {
-                        #object_expr.as_object().into_iter().flat_map(|o| o.iter().map(|(k, v)| (k.clone(), v.clone()))).collect::<Vec<_>>()
-                    });
-                }
-                // value.contains(x) → value.as_array().map(|a| a.contains(&x.into())).unwrap_or(false)
-                "contains" if args.len() == 1 => {
-                    let arg = &arg_exprs[0];
-                    return Ok(parse_quote! {
-                        #object_expr.as_array().map(|a| a.iter().any(|v| v == &serde_json::json!(#arg))).unwrap_or(false)
-                    });
-                }
-                // value.contains_key(k) → value.as_object().map(|o| o.contains_key(k)).unwrap_or(false)
-                "contains_key" | "__contains__" if args.len() == 1 => {
-                    let key = &arg_exprs[0];
-                    return Ok(parse_quote! {
-                        #object_expr.as_object().map(|o| o.contains_key(#key)).unwrap_or(false)
-                    });
-                }
-                // value.insert(k, v) → value.as_object_mut().map(|o| o.insert(k, v.into()))
-                "insert" if args.len() == 2 => {
-                    let key = &arg_exprs[0];
-                    let val = &arg_exprs[1];
-                    return Ok(parse_quote! {
-                        #object_expr.as_object_mut().map(|o| o.insert(#key.to_string(), serde_json::json!(#val)))
-                    });
-                }
-                // value.remove(k) → value.as_object_mut().and_then(|o| o.remove(k))
-                "remove" if args.len() == 1 => {
-                    let key = &arg_exprs[0];
-                    return Ok(parse_quote! {
-                        #object_expr.as_object_mut().and_then(|o| o.remove(#key))
-                    });
-                }
-                // value.clear() → value.as_array_mut().map(|a| a.clear())
-                "clear" if args.is_empty() => {
-                    return Ok(parse_quote! {
-                        { if let Some(a) = #object_expr.as_array_mut() { a.clear() }
-                          else if let Some(o) = #object_expr.as_object_mut() { o.clear() } }
-                    });
-                }
-                // value.copy() / value.clone() → value.clone()
-                "copy" | "clone" if args.is_empty() => {
-                    return Ok(parse_quote! { #object_expr.clone() });
-                }
-                // value.extend(other) → merge JSON values
-                "extend" if args.len() == 1 => {
-                    let other = &arg_exprs[0];
-                    return Ok(parse_quote! {
-                        { if let (Some(a1), Some(a2)) = (#object_expr.as_array_mut(), #other.as_array()) {
-                            a1.extend(a2.iter().cloned());
-                        } else if let (Some(o1), Some(o2)) = (#object_expr.as_object_mut(), #other.as_object()) {
-                            for (k, v) in o2 { o1.insert(k.clone(), v.clone()); }
-                        } }
-                    });
-                }
-                // value.add(x) → for sets, use array push
-                "add" if args.len() == 1 => {
-                    let arg = &arg_exprs[0];
-                    return Ok(parse_quote! {
-                        #object_expr.as_array_mut().map(|a| if !a.iter().any(|v| v == &serde_json::json!(#arg)) { a.push(serde_json::json!(#arg)) })
-                    });
-                }
-                // value.discard(x) → for sets, remove if present
-                "discard" if args.len() == 1 => {
-                    let arg = &arg_exprs[0];
-                    return Ok(parse_quote! {
-                        #object_expr.as_array_mut().map(|a| a.retain(|v| v != &serde_json::json!(#arg)))
-                    });
-                }
-                _ => {} // Fall through to other handlers
+            if let Some(result) = self.try_convert_serde_json_method(object, method, args)? {
+                return Ok(result);
             }
         }
 
         // DEPYLER-0747: Handle asyncio module method calls
-        // asyncio.sleep(secs) → tokio::time::sleep(Duration) or std::thread::sleep in NASA mode
-        // asyncio.run(coro) → tokio runtime block_on or direct call in NASA mode
-        if let HirExpr::Var(module) = object {
-            if module == "asyncio" {
-                let nasa_mode = self.ctx.type_mapper.nasa_mode;
-                if !nasa_mode {
-                    self.ctx.needs_tokio = true;
-                }
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| arg.to_rust_expr(self.ctx))
-                    .collect::<Result<Vec<_>>>()?;
-                match method {
-                    "sleep" => {
-                        if nasa_mode {
-                            // DEPYLER-1024: Use std::thread::sleep in NASA mode
-                            if let Some(arg) = arg_exprs.first() {
-                                return Ok(parse_quote! {
-                                    std::thread::sleep(std::time::Duration::from_secs_f64(#arg as f64))
-                                });
-                            }
-                            return Ok(parse_quote! {
-                                std::thread::sleep(std::time::Duration::from_secs(0))
-                            });
-                        } else {
-                            if let Some(arg) = arg_exprs.first() {
-                                return Ok(parse_quote! {
-                                    tokio::time::sleep(std::time::Duration::from_secs_f64(#arg as f64))
-                                });
-                            }
-                            return Ok(parse_quote! {
-                                tokio::time::sleep(std::time::Duration::from_secs(0))
-                            });
-                        }
-                    }
-                    "run" => {
-                        if nasa_mode {
-                            // DEPYLER-1024: Just call the function directly in NASA mode
-                            if let Some(arg) = arg_exprs.first() {
-                                return Ok(parse_quote! { #arg });
-                            }
-                        } else if let Some(arg) = arg_exprs.first() {
-                            return Ok(parse_quote! {
-                                tokio::runtime::Runtime::new().expect("operation failed").block_on(#arg)
-                            });
-                        }
-                    }
-                    _ => {} // Fall through for other asyncio methods
-                }
-            }
+        if let Some(result) = self.try_convert_asyncio_method(object, method, args)? {
+            return Ok(result);
         }
 
         // DEPYLER-0912: Handle colorsys module method calls
-        // colorsys.rgb_to_hsv(r, g, b) → inline HSV conversion
-        // colorsys.hsv_to_rgb(h, s, v) → inline RGB conversion
-        if let HirExpr::Var(module) = object {
-            if module == "colorsys" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| arg.to_rust_expr(self.ctx))
-                    .collect::<Result<Vec<_>>>()?;
-                match method {
-                    "rgb_to_hsv" if arg_exprs.len() == 3 => {
-                        let r = &arg_exprs[0];
-                        let g = &arg_exprs[1];
-                        let b = &arg_exprs[2];
-                        // Python colorsys.rgb_to_hsv formula
-                        return Ok(parse_quote! {
-                            {
-                                let (r, g, b) = (#r as f64, #g as f64, #b as f64);
-                                let max_c = r.max(g).max(b);
-                                let min_c = r.min(g).min(b);
-                                let v = max_c;
-                                if min_c == max_c {
-                                    (0.0, 0.0, v)
-                                } else {
-                                    let s = (max_c - min_c) / max_c;
-                                    let rc = (max_c - r) / (max_c - min_c);
-                                    let gc = (max_c - g) / (max_c - min_c);
-                                    let bc = (max_c - b) / (max_c - min_c);
-                                    let h = if r == max_c {
-                                        bc - gc
-                                    } else if g == max_c {
-                                        2.0 + rc - bc
-                                    } else {
-                                        4.0 + gc - rc
-                                    };
-                                    let h = (h / 6.0) % 1.0;
-                                    let h = if h < 0.0 { h + 1.0 } else { h };
-                                    (h, s, v)
-                                }
-                            }
-                        });
-                    }
-                    "hsv_to_rgb" if arg_exprs.len() == 3 => {
-                        let h = &arg_exprs[0];
-                        let s = &arg_exprs[1];
-                        let v = &arg_exprs[2];
-                        // Python colorsys.hsv_to_rgb formula
-                        return Ok(parse_quote! {
-                            {
-                                let (h, s, v) = (#h as f64, #s as f64, #v as f64);
-                                if s == 0.0 {
-                                    (v, v, v)
-                                } else {
-                                    let i = (h * 6.0).floor();
-                                    let f = (h * 6.0) - i;
-                                    let p = v * (1.0 - s);
-                                    let q = v * (1.0 - s * f);
-                                    let t = v * (1.0 - s * (1.0 - f));
-                                    let i = i as i32 % 6;
-                                    match i {
-                                        0 => (v, t, p),
-                                        1 => (q, v, p),
-                                        2 => (p, v, t),
-                                        3 => (p, q, v),
-                                        4 => (t, p, v),
-                                        _ => (v, p, q),
-                                    }
-                                }
-                            }
-                        });
-                    }
-                    "rgb_to_hls" if arg_exprs.len() == 3 => {
-                        let r = &arg_exprs[0];
-                        let g = &arg_exprs[1];
-                        let b = &arg_exprs[2];
-                        // Python colorsys.rgb_to_hls formula
-                        return Ok(parse_quote! {
-                            {
-                                let (r, g, b) = (#r as f64, #g as f64, #b as f64);
-                                let max_c = r.max(g).max(b);
-                                let min_c = r.min(g).min(b);
-                                let l = (min_c + max_c) / 2.0;
-                                if min_c == max_c {
-                                    (0.0, l, 0.0)
-                                } else {
-                                    let s = if l <= 0.5 {
-                                        (max_c - min_c) / (max_c + min_c)
-                                    } else {
-                                        (max_c - min_c) / (2.0 - max_c - min_c)
-                                    };
-                                    let rc = (max_c - r) / (max_c - min_c);
-                                    let gc = (max_c - g) / (max_c - min_c);
-                                    let bc = (max_c - b) / (max_c - min_c);
-                                    let h = if r == max_c {
-                                        bc - gc
-                                    } else if g == max_c {
-                                        2.0 + rc - bc
-                                    } else {
-                                        4.0 + gc - rc
-                                    };
-                                    let h = (h / 6.0) % 1.0;
-                                    let h = if h < 0.0 { h + 1.0 } else { h };
-                                    (h, l, s)
-                                }
-                            }
-                        });
-                    }
-                    "hls_to_rgb" if arg_exprs.len() == 3 => {
-                        let h = &arg_exprs[0];
-                        let l = &arg_exprs[1];
-                        let s = &arg_exprs[2];
-                        // Python colorsys.hls_to_rgb formula
-                        return Ok(parse_quote! {
-                            {
-                                let (h, l, s) = (#h as f64, #l as f64, #s as f64);
-                                if s == 0.0 {
-                                    (l, l, l)
-                                } else {
-                                    let m2 = if l <= 0.5 { l * (1.0 + s) } else { l + s - (l * s) };
-                                    let m1 = 2.0 * l - m2;
-                                    let _v = |hue: f64| {
-                                        let hue = hue % 1.0;
-                                        let hue = if hue < 0.0 { hue + 1.0 } else { hue };
-                                        if hue < 1.0/6.0 { m1 + (m2 - m1) * hue * 6.0 }
-                                        else if hue < 0.5 { m2 }
-                                        else if hue < 2.0/3.0 { m1 + (m2 - m1) * (2.0/3.0 - hue) * 6.0 }
-                                        else { m1 }
-                                    };
-                                    (_v(h + 1.0/3.0), _v(h), _v(h - 1.0/3.0))
-                                }
-                            }
-                        });
-                    }
-                    _ => {} // Fall through for other colorsys methods
-                }
-            }
+        if let Some(result) = self.try_convert_colorsys_method(object, method, args)? {
+            return Ok(result);
         }
 
         // DEPYLER-0778: Handle dict.fromkeys(keys, default) class method
@@ -1181,5 +723,428 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Some methods like sort(key=func) need to preserve keyword argument names
         // For other methods, they can merge kwargs as positional if needed
         self.convert_instance_method(object, &object_expr, method, &arg_exprs, args, kwargs)
+    }
+
+    /// CB-200 Batch 12: Handle method calls on &mut Option<T> parameters
+    fn try_convert_mut_option_method(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let HirExpr::Var(var_name) = object else {
+            return Ok(None);
+        };
+        if !self.ctx.mut_option_params.contains(var_name) {
+            return Ok(None);
+        }
+
+        let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+        match method {
+            "is_none" if args.is_empty() => Ok(Some(parse_quote! { #var_ident.is_none() })),
+            "is_some" if args.is_empty() => Ok(Some(parse_quote! { #var_ident.is_some() })),
+            _ => {
+                let needs_unwrap = matches!(
+                    method,
+                    "year"
+                        | "month"
+                        | "day"
+                        | "hour"
+                        | "minute"
+                        | "second"
+                        | "weekday"
+                        | "isoweekday"
+                        | "timestamp"
+                        | "date"
+                        | "time"
+                        | "replace"
+                        | "strftime"
+                        | "isoformat"
+                );
+                if needs_unwrap {
+                    let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                    let arg_exprs: Vec<syn::Expr> = args
+                        .iter()
+                        .map(|arg| arg.to_rust_expr(self.ctx))
+                        .collect::<Result<Vec<_>>>()?;
+                    if arg_exprs.is_empty() {
+                        Ok(Some(
+                            parse_quote! { #var_ident.as_ref().expect("value is None").#method_ident() },
+                        ))
+                    } else {
+                        Ok(Some(
+                            parse_quote! { #var_ident.as_ref().expect("value is None").#method_ident(#(#arg_exprs),*) },
+                        ))
+                    }
+                } else {
+                    Ok(None)
+                }
+            }
+        }
+    }
+
+    /// CB-200 Batch 12: Handle method calls on &mut Option<HashMap<K, V>> parameters
+    fn try_convert_mut_option_dict_method(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let HirExpr::Var(var_name) = object else {
+            return Ok(None);
+        };
+        if !self.ctx.mut_option_dict_params.contains(var_name) {
+            return Ok(None);
+        }
+
+        let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+        match method {
+            "get" => {
+                if args.is_empty() {
+                    return Ok(Some(
+                        parse_quote! { #var_ident.as_ref().expect("value is None").get() },
+                    ));
+                }
+                let key_expr = args[0].to_rust_expr(self.ctx)?;
+                if args.len() > 1 {
+                    let default_expr = args[1].to_rust_expr(self.ctx)?;
+                    Ok(Some(parse_quote! {
+                        #var_ident.as_ref().expect("value is None").get(&#key_expr).cloned().unwrap_or(#default_expr)
+                    }))
+                } else {
+                    Ok(Some(parse_quote! {
+                        #var_ident.as_ref().expect("value is None").get(&#key_expr).cloned()
+                    }))
+                }
+            }
+            "contains_key" | "__contains__" if !args.is_empty() => {
+                let key_expr = args[0].to_rust_expr(self.ctx)?;
+                Ok(Some(parse_quote! {
+                    #var_ident.as_ref().expect("value is None").contains_key(&#key_expr)
+                }))
+            }
+            "keys" if args.is_empty() => Ok(Some(
+                parse_quote! { #var_ident.as_ref().expect("value is None").keys() },
+            )),
+            "values" if args.is_empty() => Ok(Some(
+                parse_quote! { #var_ident.as_ref().expect("value is None").values() },
+            )),
+            "items" if args.is_empty() => Ok(Some(
+                parse_quote! { #var_ident.as_ref().expect("value is None").iter() },
+            )),
+            "len" if args.is_empty() => Ok(Some(
+                parse_quote! { #var_ident.as_ref().expect("value is None").len() as i32 },
+            )),
+            _ => Ok(None),
+        }
+    }
+
+    /// CB-200 Batch 12: Handle serde_json::Value method calls
+    fn try_convert_serde_json_method(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let object_expr = object.to_rust_expr(self.ctx)?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
+
+        match method {
+            "len" if args.is_empty() => Ok(Some(parse_quote! {
+                #object_expr.as_array().map(|a| a.len()).unwrap_or_else(||
+                    #object_expr.as_object().map(|o| o.len()).unwrap_or(0)
+                ) as i32
+            })),
+            "iter" if args.is_empty() => Ok(Some(parse_quote! {
+                #object_expr.as_array().into_iter().flatten()
+            })),
+            "is_none" if args.is_empty() => Ok(Some(parse_quote! { #object_expr.is_null() })),
+            "is_some" if args.is_empty() => Ok(Some(parse_quote! { !#object_expr.is_null() })),
+            "append" | "push" if args.len() == 1 => {
+                let arg = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    #object_expr.as_array_mut().map(|a| a.push(serde_json::json!(#arg)))
+                }))
+            }
+            "pop" if args.is_empty() => Ok(Some(parse_quote! {
+                #object_expr.as_array_mut().and_then(|a| a.pop()).unwrap_or(serde_json::Value::Null)
+            })),
+            "pop_front" | "popleft" if args.is_empty() => Ok(Some(parse_quote! {
+                #object_expr.as_array_mut().and_then(|a| if a.is_empty() { None } else { Some(a.remove(0)) }).unwrap_or(serde_json::Value::Null)
+            })),
+            "push_back" if args.len() == 1 => {
+                let arg = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    #object_expr.as_array_mut().map(|a| a.push(serde_json::json!(#arg)))
+                }))
+            }
+            "push_front" | "appendleft" if args.len() == 1 => {
+                let arg = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    #object_expr.as_array_mut().map(|a| a.insert(0, serde_json::json!(#arg)))
+                }))
+            }
+            "is_empty" if args.is_empty() => Ok(Some(parse_quote! {
+                #object_expr.as_array().map(|a| a.is_empty()).unwrap_or_else(||
+                    #object_expr.as_object().map(|o| o.is_empty()).unwrap_or(true)
+                )
+            })),
+            "get" if !args.is_empty() => {
+                let key = &arg_exprs[0];
+                if args.len() > 1 {
+                    let default = &arg_exprs[1];
+                    Ok(Some(parse_quote! {
+                        #object_expr.get(#key).cloned().unwrap_or(serde_json::json!(#default))
+                    }))
+                } else {
+                    Ok(Some(parse_quote! { #object_expr.get(#key).cloned() }))
+                }
+            }
+            "keys" if args.is_empty() => Ok(Some(parse_quote! {
+                #object_expr.as_object().into_iter().flat_map(|o| o.keys().cloned()).collect::<Vec<_>>()
+            })),
+            "values" if args.is_empty() => Ok(Some(parse_quote! {
+                #object_expr.as_object().into_iter().flat_map(|o| o.values().cloned()).collect::<Vec<_>>()
+            })),
+            "items" if args.is_empty() => Ok(Some(parse_quote! {
+                #object_expr.as_object().into_iter().flat_map(|o| o.iter().map(|(k, v)| (k.clone(), v.clone()))).collect::<Vec<_>>()
+            })),
+            "contains" if args.len() == 1 => {
+                let arg = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    #object_expr.as_array().map(|a| a.iter().any(|v| v == &serde_json::json!(#arg))).unwrap_or(false)
+                }))
+            }
+            "contains_key" | "__contains__" if args.len() == 1 => {
+                let key = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    #object_expr.as_object().map(|o| o.contains_key(#key)).unwrap_or(false)
+                }))
+            }
+            "insert" if args.len() == 2 => {
+                let key = &arg_exprs[0];
+                let val = &arg_exprs[1];
+                Ok(Some(parse_quote! {
+                    #object_expr.as_object_mut().map(|o| o.insert(#key.to_string(), serde_json::json!(#val)))
+                }))
+            }
+            "remove" if args.len() == 1 => {
+                let key = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    #object_expr.as_object_mut().and_then(|o| o.remove(#key))
+                }))
+            }
+            "clear" if args.is_empty() => Ok(Some(parse_quote! {
+                { if let Some(a) = #object_expr.as_array_mut() { a.clear() }
+                  else if let Some(o) = #object_expr.as_object_mut() { o.clear() } }
+            })),
+            "copy" | "clone" if args.is_empty() => {
+                Ok(Some(parse_quote! { #object_expr.clone() }))
+            }
+            "extend" if args.len() == 1 => {
+                let other = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    { if let (Some(a1), Some(a2)) = (#object_expr.as_array_mut(), #other.as_array()) {
+                        a1.extend(a2.iter().cloned());
+                    } else if let (Some(o1), Some(o2)) = (#object_expr.as_object_mut(), #other.as_object()) {
+                        for (k, v) in o2 { o1.insert(k.clone(), v.clone()); }
+                    } }
+                }))
+            }
+            "add" if args.len() == 1 => {
+                let arg = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    #object_expr.as_array_mut().map(|a| if !a.iter().any(|v| v == &serde_json::json!(#arg)) { a.push(serde_json::json!(#arg)) })
+                }))
+            }
+            "discard" if args.len() == 1 => {
+                let arg = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    #object_expr.as_array_mut().map(|a| a.retain(|v| v != &serde_json::json!(#arg)))
+                }))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// CB-200 Batch 12: Handle asyncio module method calls
+    fn try_convert_asyncio_method(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let HirExpr::Var(module) = object else {
+            return Ok(None);
+        };
+        if module != "asyncio" {
+            return Ok(None);
+        }
+
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+        if !nasa_mode {
+            self.ctx.needs_tokio = true;
+        }
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        match method {
+            "sleep" => {
+                if nasa_mode {
+                    if let Some(arg) = arg_exprs.first() {
+                        return Ok(Some(parse_quote! {
+                            std::thread::sleep(std::time::Duration::from_secs_f64(#arg as f64))
+                        }));
+                    }
+                    return Ok(Some(parse_quote! {
+                        std::thread::sleep(std::time::Duration::from_secs(0))
+                    }));
+                }
+                if let Some(arg) = arg_exprs.first() {
+                    return Ok(Some(parse_quote! {
+                        tokio::time::sleep(std::time::Duration::from_secs_f64(#arg as f64))
+                    }));
+                }
+                Ok(Some(parse_quote! {
+                    tokio::time::sleep(std::time::Duration::from_secs(0))
+                }))
+            }
+            "run" => {
+                if nasa_mode {
+                    if let Some(arg) = arg_exprs.first() {
+                        return Ok(Some(parse_quote! { #arg }));
+                    }
+                } else if let Some(arg) = arg_exprs.first() {
+                    return Ok(Some(parse_quote! {
+                        tokio::runtime::Runtime::new().expect("operation failed").block_on(#arg)
+                    }));
+                }
+                Ok(None)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// CB-200 Batch 12: Handle colorsys module method calls
+    fn try_convert_colorsys_method(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let HirExpr::Var(module) = object else {
+            return Ok(None);
+        };
+        if module != "colorsys" {
+            return Ok(None);
+        }
+
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        match method {
+            "rgb_to_hsv" if arg_exprs.len() == 3 => {
+                let (r, g, b) = (&arg_exprs[0], &arg_exprs[1], &arg_exprs[2]);
+                Ok(Some(parse_quote! {
+                    {
+                        let (r, g, b) = (#r as f64, #g as f64, #b as f64);
+                        let max_c = r.max(g).max(b);
+                        let min_c = r.min(g).min(b);
+                        let v = max_c;
+                        if min_c == max_c {
+                            (0.0, 0.0, v)
+                        } else {
+                            let s = (max_c - min_c) / max_c;
+                            let rc = (max_c - r) / (max_c - min_c);
+                            let gc = (max_c - g) / (max_c - min_c);
+                            let bc = (max_c - b) / (max_c - min_c);
+                            let h = if r == max_c { bc - gc }
+                                    else if g == max_c { 2.0 + rc - bc }
+                                    else { 4.0 + gc - rc };
+                            let h = (h / 6.0) % 1.0;
+                            let h = if h < 0.0 { h + 1.0 } else { h };
+                            (h, s, v)
+                        }
+                    }
+                }))
+            }
+            "hsv_to_rgb" if arg_exprs.len() == 3 => {
+                let (h, s, v) = (&arg_exprs[0], &arg_exprs[1], &arg_exprs[2]);
+                Ok(Some(parse_quote! {
+                    {
+                        let (h, s, v) = (#h as f64, #s as f64, #v as f64);
+                        if s == 0.0 {
+                            (v, v, v)
+                        } else {
+                            let i = (h * 6.0).floor();
+                            let f = (h * 6.0) - i;
+                            let p = v * (1.0 - s);
+                            let q = v * (1.0 - s * f);
+                            let t = v * (1.0 - s * (1.0 - f));
+                            let i = i as i32 % 6;
+                            match i {
+                                0 => (v, t, p), 1 => (q, v, p), 2 => (p, v, t),
+                                3 => (p, q, v), 4 => (t, p, v), _ => (v, p, q),
+                            }
+                        }
+                    }
+                }))
+            }
+            "rgb_to_hls" if arg_exprs.len() == 3 => {
+                let (r, g, b) = (&arg_exprs[0], &arg_exprs[1], &arg_exprs[2]);
+                Ok(Some(parse_quote! {
+                    {
+                        let (r, g, b) = (#r as f64, #g as f64, #b as f64);
+                        let max_c = r.max(g).max(b);
+                        let min_c = r.min(g).min(b);
+                        let l = (min_c + max_c) / 2.0;
+                        if min_c == max_c {
+                            (0.0, l, 0.0)
+                        } else {
+                            let s = if l <= 0.5 { (max_c - min_c) / (max_c + min_c) }
+                                    else { (max_c - min_c) / (2.0 - max_c - min_c) };
+                            let rc = (max_c - r) / (max_c - min_c);
+                            let gc = (max_c - g) / (max_c - min_c);
+                            let bc = (max_c - b) / (max_c - min_c);
+                            let h = if r == max_c { bc - gc }
+                                    else if g == max_c { 2.0 + rc - bc }
+                                    else { 4.0 + gc - rc };
+                            let h = (h / 6.0) % 1.0;
+                            let h = if h < 0.0 { h + 1.0 } else { h };
+                            (h, l, s)
+                        }
+                    }
+                }))
+            }
+            "hls_to_rgb" if arg_exprs.len() == 3 => {
+                let (h, l, s) = (&arg_exprs[0], &arg_exprs[1], &arg_exprs[2]);
+                Ok(Some(parse_quote! {
+                    {
+                        let (h, l, s) = (#h as f64, #l as f64, #s as f64);
+                        if s == 0.0 {
+                            (l, l, l)
+                        } else {
+                            let m2 = if l <= 0.5 { l * (1.0 + s) } else { l + s - (l * s) };
+                            let m1 = 2.0 * l - m2;
+                            let _v = |hue: f64| {
+                                let hue = hue % 1.0;
+                                let hue = if hue < 0.0 { hue + 1.0 } else { hue };
+                                if hue < 1.0/6.0 { m1 + (m2 - m1) * hue * 6.0 }
+                                else if hue < 0.5 { m2 }
+                                else if hue < 2.0/3.0 { m1 + (m2 - m1) * (2.0/3.0 - hue) * 6.0 }
+                                else { m1 }
+                            };
+                            (_v(h + 1.0/3.0), _v(h), _v(h - 1.0/3.0))
+                        }
+                    }
+                }))
+            }
+            _ => Ok(None),
+        }
     }
 }

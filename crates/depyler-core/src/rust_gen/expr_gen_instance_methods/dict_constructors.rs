@@ -138,6 +138,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 || return_needs_depyler_value
                 || has_non_string_keys)
         {
+            return self.convert_dict_nasa_depyler_value(items, has_non_string_keys);
+        }
+
+        // DEPYLER-0560: When inside json!() context (nested dict), use json!() macro
+        if in_json_context {
+            return self.convert_dict_json_context(items);
+        }
+
+        // DEPYLER-0560: When return type is HashMap<String, serde_json::Value>,
+        // build HashMap with json!() wrapped values
+        if !nasa_mode && (has_mixed_types || return_needs_json) {
+            return self.convert_dict_mixed_json(items);
+        }
+
+        // Homogeneous dict: use HashMap
+        self.convert_dict_homogeneous(items, nasa_mode)
+    }
+
+    /// CB-200 Batch 12: NASA-mode dict with DepylerValue wrapping
+    fn convert_dict_nasa_depyler_value(
+        &mut self,
+        items: &[(HirExpr, HirExpr)],
+        has_non_string_keys: bool,
+    ) -> Result<syn::Expr> {
             self.ctx.needs_hashmap = true;
             self.ctx.needs_depyler_value_enum = true;
 
@@ -455,12 +479,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         map
                     }
                 })
-            };
-        }
+            }
+    }
 
-        // DEPYLER-0560: When inside json!() context (nested dict), use json!() macro
-        // This produces serde_json::Value which is what nested contexts expect
-        if in_json_context {
+    /// CB-200 Batch 12: Dict in json!() context
+    fn convert_dict_json_context(
+        &mut self,
+        items: &[(HirExpr, HirExpr)],
+    ) -> Result<syn::Expr> {
             self.ctx.needs_serde_json = true;
             let mut entries = Vec::new();
             for (key, value) in items {
@@ -471,17 +497,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let val_expr = value.to_rust_expr(self.ctx)?;
                 entries.push(quote! { #key_str: #val_expr });
             }
-            return Ok(parse_quote! {
+            Ok(parse_quote! {
                 serde_json::json!({
                     #(#entries),*
                 })
-            });
-        }
+            })
+    }
 
-        // DEPYLER-0560: When return type is HashMap<String, serde_json::Value>,
-        // build HashMap with json!() wrapped values (NOT a raw json!() object)
-        // DEPYLER-1023: Skip in NASA mode (handled above with String conversion)
-        if !nasa_mode && (has_mixed_types || return_needs_json) {
+    /// CB-200 Batch 12: Dict with mixed types or JSON return type (non-NASA)
+    fn convert_dict_mixed_json(
+        &mut self,
+        items: &[(HirExpr, HirExpr)],
+    ) -> Result<syn::Expr> {
             self.ctx.needs_serde_json = true;
             self.ctx.needs_hashmap = true;
 
@@ -514,16 +541,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 });
             }
 
-            return Ok(parse_quote! {
+            Ok(parse_quote! {
                 {
                     let mut map = std::collections::HashMap::new();
                     #(#insert_stmts)*
                     map
                 }
-            });
-        }
+            })
+    }
 
-        // Homogeneous dict: use HashMap
+    /// CB-200 Batch 12: Homogeneous dict (standard HashMap)
+    fn convert_dict_homogeneous(
+        &mut self,
+        items: &[(HirExpr, HirExpr)],
+        nasa_mode: bool,
+    ) -> Result<syn::Expr> {
         self.ctx.needs_hashmap = true;
 
         // DEPYLER-0740: Detect if any dict value is None
