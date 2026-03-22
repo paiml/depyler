@@ -2382,7 +2382,32 @@ results
 #[doc = r" Simple string split(NASA mode alternative to regex split)"] pub fn split(pattern: & str, text: & str) -> Vec<String>{
     text.split(pattern).map(| s | s.to_string()).collect()
 }
-} #[derive(Debug, Clone)] pub struct TicTacToe {
+}
+
+/// Helper: safe 1D index into a Vec<String> (transpiler indexing pattern).
+fn _safe_index_1d(base: &[String], idx: i32) -> String {
+    let _idx = idx as isize;
+    if _idx < 0 {
+        base[base.len().wrapping_sub((-_idx) as usize)].clone()
+    } else {
+        base[_idx as usize].clone()
+    }
+}
+
+/// Helper: safe 2D index into board (transpiler indexing pattern).
+fn _safe_index_2d(board: &[Vec<String>], row: i32, col: i32) -> String {
+    let row_vec = {
+        let _idx = row as isize;
+        if _idx < 0 {
+            board[board.len().wrapping_sub((-_idx) as usize)].clone()
+        } else {
+            board[_idx as usize].clone()
+        }
+    };
+    _safe_index_1d(&row_vec, col)
+}
+
+#[derive(Debug, Clone)] pub struct TicTacToe {
     pub board: Vec<Vec<String>>, pub current_player: String
 }
 impl TicTacToe {
@@ -2429,398 +2454,56 @@ else {
    
 }
 pub fn check_winner(&self) -> Option<String>{
-    for row in self.board.clone() {
-    if {
-    let _base = & row;
-    let _idx  = (0) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} == {
-    let _base = & row;
-    let _idx  = (1) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} && {
-    let _base = & row;
-    let _idx  = (1) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} == {
-    let _base = & row;
-    let _idx  = (2) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} && {
-    let _base = & row;
-    let _idx  = (2) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} != " ".to_string() {
-    return Some({ let _base = & row;
-    let _idx  = (0) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-});
-    };
-    };
-    for col in 0..3 {
-    if {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (0) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (col) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} == {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (1) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (col) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} && {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (1) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (col) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} == {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (2) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (col) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} && {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (2) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (col) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} != " ".to_string() {
-    return Some({ let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (0) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (col) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-});
-    };
-    };
-    if {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (0) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (0) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} == {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (1) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (1) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} && {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (1) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (1) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} == {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (2) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (2) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} && {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (2) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (2) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} != " ".to_string() {
-    return Some({ let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (0) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (0) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-});
-    };
-    if {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (0) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (2) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} == {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (1) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (1) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} && {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (1) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (1) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} == {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (2) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (0) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} && {
-    let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (2) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (0) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-} != " ".to_string() {
-    return Some({ let _base = & {
-    let _base = &self.board.clone();
-    let _idx  = (0) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-};
-    let _idx  = (2) as isize;
-    if _idx<0 {
-    _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
-}
-else {
-    _base [_idx as usize].clone()
-}
-});
-    };
+    if let Some(winner) = self._check_rows() {
+        return Some(winner);
+    }
+    if let Some(winner) = self._check_columns() {
+        return Some(winner);
+    }
+    if let Some(winner) = self._check_main_diagonal() {
+        return Some(winner);
+    }
+    if let Some(winner) = self._check_anti_diagonal() {
+        return Some(winner);
+    }
     return None;
-   
+
+}
+fn _check_rows(&self) -> Option<String> {
+    for row in self.board.clone() {
+    if _safe_index_1d(&row, 0) == _safe_index_1d(&row, 1)
+        && _safe_index_1d(&row, 1) == _safe_index_1d(&row, 2)
+        && _safe_index_1d(&row, 2) != " ".to_string() {
+    return Some(_safe_index_1d(&row, 0));
+    };
+    };
+    None
+}
+fn _check_columns(&self) -> Option<String> {
+    for col in 0..3 {
+    if _safe_index_2d(&self.board.clone(), 0, col) == _safe_index_2d(&self.board.clone(), 1, col)
+        && _safe_index_2d(&self.board.clone(), 1, col) == _safe_index_2d(&self.board.clone(), 2, col)
+        && _safe_index_2d(&self.board.clone(), 2, col) != " ".to_string() {
+    return Some(_safe_index_2d(&self.board.clone(), 0, col));
+    };
+    };
+    None
+}
+fn _check_main_diagonal(&self) -> Option<String> {
+    if _safe_index_2d(&self.board.clone(), 0, 0) == _safe_index_2d(&self.board.clone(), 1, 1)
+        && _safe_index_2d(&self.board.clone(), 1, 1) == _safe_index_2d(&self.board.clone(), 2, 2)
+        && _safe_index_2d(&self.board.clone(), 2, 2) != " ".to_string() {
+    return Some(_safe_index_2d(&self.board.clone(), 0, 0));
+    };
+    None
+}
+fn _check_anti_diagonal(&self) -> Option<String> {
+    if _safe_index_2d(&self.board.clone(), 0, 2) == _safe_index_2d(&self.board.clone(), 1, 1)
+        && _safe_index_2d(&self.board.clone(), 1, 1) == _safe_index_2d(&self.board.clone(), 2, 0)
+        && _safe_index_2d(&self.board.clone(), 2, 0) != " ".to_string() {
+    return Some(_safe_index_2d(&self.board.clone(), 0, 2));
+    };
+    None
 }
 pub fn is_board_full(&self) -> bool {
     for row in self.board.clone() {

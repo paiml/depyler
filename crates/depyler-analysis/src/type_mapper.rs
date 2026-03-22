@@ -224,269 +224,9 @@ impl TypeMapper {
                 // For V1, we don't map function types directly
                 RustType::Unsupported("function".to_string())
             }
-            PythonType::Custom(name) => {
-                // Check if this is a single uppercase letter (type parameter)
-                if name.len() == 1 && name.chars().next().unwrap().is_uppercase() {
-                    RustType::TypeParam(name.clone())
-                } else {
-                    // Handle common typing imports when used without parameters
-                    // DEPYLER-0718: Use serde_json::Value for bare Dict/List to enable
-                    // single-shot compilation. TypeParam("V"/"T") requires generics declaration
-                    // which isn't generated, causing E0412 "cannot find type" errors.
-                    // DEPYLER-1015: Use unknown_fallback() for NASA mode compatibility
-                    match name.as_str() {
-                        // DEPYLER-1318 DICT UNIFICATION: Use String keys for bare Dict type
-                        // Aligns with type_tokens.rs - 99% of Python dict keys are strings
-                        "Dict" => RustType::HashMap(
-                            Box::new(RustType::String),        // String keys
-                            Box::new(self.unknown_fallback()), // DepylerValue values
-                        ),
-                        // DEPYLER-0609: Handle both "List" (typing import) and "list" (builtin)
-                        // DEPYLER-0718/1015: Use fallback for bare List (no type params)
-                        "List" | "list" => RustType::Vec(Box::new(self.unknown_fallback())),
-                        // DEPYLER-1401: Sequence[T] -> Vec<T> (abstract sequence type)
-                        // Python's typing.Sequence maps to Vec for compatibility
-                        // Deref coercion allows &Vec<T> -> &[T] at call sites
-                        "Sequence" => RustType::Vec(Box::new(self.unknown_fallback())),
-                        // DEPYLER-1040b: Use DepylerValue for sets too
-                        "Set" => RustType::HashSet(Box::new(self.unknown_fallback())),
-                        // DEPYLER-0379: Handle generic tuple annotation
-                        // Python `-> tuple` (without type parameters) maps to empty Rust tuple `()`
-                        // This is a fallback - ideally type should be inferred from return value
-                        "tuple" => RustType::Tuple(vec![]),
-                        // DEPYLER-0525/DEPYLER-0608: File-like objects that implement Write trait
-                        // Map to mutable reference to impl Write for parameter positions
-                        // This allows both File and Stdout to be passed as arguments
-                        "File" => RustType::Reference {
-                            lifetime: None,
-                            mutable: true,
-                            inner: Box::new(RustType::Custom("impl std::io::Write".to_string())),
-                        },
-                        // DEPYLER-0580: argparse.Namespace maps to Args struct in clap
-                        // Python: def cmd_step(args: argparse.Namespace) → Rust: fn cmd_step(args: Args)
-                        "Namespace" | "argparse.Namespace" => RustType::Custom("Args".to_string()),
-                        // DEPYLER-0584: Python bytes type maps to Vec<u8>
-                        "bytes" => RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8))),
-                        // DEPYLER-0674: Python bytearray type maps to Vec<u8>
-                        "bytearray" => {
-                            RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8)))
-                        }
-                        // DEPYLER-0734: Python Callable type maps to impl Fn
-                        "Callable" | "typing.Callable" | "callable" => {
-                            RustType::Custom("impl Fn()".to_string())
-                        }
-                        // DEPYLER-0589/1015: Python Any type maps to fallback
-                        // Both typing.Any and bare 'any' need to be handled
-                        "Any" | "typing.Any" | "any" => self.unknown_fallback(),
-                        // DEPYLER-0628/1015: Python object type maps to fallback
-                        // Python's base object type needs dynamic typing in Rust
-                        "object" | "builtins.object" => self.unknown_fallback(),
-                        // DEPYLER-0592/1025: Python datetime module types
-                        // NASA mode: use std::time types; otherwise use chrono
-                        "date" | "datetime.date" => {
-                            if self.nasa_mode {
-                                // DEPYLER-1066: Use DepylerDate struct instead of raw tuple
-                                // This provides .day(), .month(), .year() methods
-                                RustType::Custom("DepylerDate".to_string())
-                            } else {
-                                RustType::Custom("chrono::NaiveDate".to_string())
-                            }
-                        }
-                        "datetime" | "datetime.datetime" => {
-                            if self.nasa_mode {
-                                // DEPYLER-1067: Use DepylerDateTime struct instead of SystemTime
-                                RustType::Custom("DepylerDateTime".to_string())
-                            } else {
-                                RustType::Custom("chrono::NaiveDateTime".to_string())
-                            }
-                        }
-                        "time" | "datetime.time" => {
-                            if self.nasa_mode {
-                                RustType::Custom("(u32, u32, u32)".to_string()) // (hour, min, sec)
-                            } else {
-                                RustType::Custom("chrono::NaiveTime".to_string())
-                            }
-                        }
-                        "timedelta" | "datetime.timedelta" => {
-                            if self.nasa_mode {
-                                // DEPYLER-1068: Use DepylerTimeDelta struct instead of Duration
-                                RustType::Custom("DepylerTimeDelta".to_string())
-                            } else {
-                                RustType::Custom("chrono::Duration".to_string())
-                            }
-                        }
-                        // DEPYLER-197: Python Path types map to std::path::PathBuf
-                        // pathlib.Path → PathBuf (owned path, can be modified)
-                        // Path alone also maps to PathBuf for consistency
-                        "Path" | "pathlib.Path" | "PurePath" | "pathlib.PurePath" => {
-                            RustType::Custom("std::path::PathBuf".to_string())
-                        }
-                        // DEPYLER-0597: Python exception types map to Rust error types
-                        // OSError maps to std::io::Error for file/system operations
-                        "OSError" | "IOError" | "FileNotFoundError" | "PermissionError" => {
-                            RustType::Custom("std::io::Error".to_string())
-                        }
-                        // General Python exceptions map to Box<dyn std::error::Error>
-                        // Using Box<dyn Error> since it doesn't require external crates
-                        "Exception"
-                        | "BaseException"
-                        | "ValueError"
-                        | "TypeError"
-                        | "KeyError"
-                        | "IndexError"
-                        | "RuntimeError"
-                        | "AttributeError"
-                        | "NotImplementedError"
-                        | "AssertionError"
-                        | "StopIteration"
-                        | "ZeroDivisionError"
-                        | "OverflowError"
-                        | "ArithmeticError" => {
-                            RustType::Custom("Box<dyn std::error::Error>".to_string())
-                        }
-                        // DEPYLER-0742/1185: Python collections.deque maps to std::collections::VecDeque
-                        // VecDeque is the Rust equivalent of Python's deque (double-ended queue)
-                        // DEPYLER-1185: Default to i32 instead of DepylerValue for untyped deques
-                        // This matches set() behavior and avoids E0308 type mismatches
-                        "deque" | "collections.deque" | "Deque" => {
-                            RustType::Custom("std::collections::VecDeque<i32>".to_string())
-                        }
-                        // DEPYLER-0742: Python Counter maps to HashMap (for now)
-                        // A proper Counter implementation would need a wrapper type
-                        "Counter" | "collections.Counter" => RustType::HashMap(
-                            Box::new(RustType::String),
-                            Box::new(RustType::Primitive(PrimitiveType::I32)),
-                        ),
-                        _ => RustType::Custom(name.clone()),
-                    }
-                }
-            }
+            PythonType::Custom(name) => self.map_custom_type(name),
             PythonType::TypeVar(name) => RustType::TypeParam(name.clone()),
-            PythonType::Generic { base, params } => {
-                // Map generic types like MyClass<T> to appropriate Rust types
-                match base.as_str() {
-                    "List" if params.len() == 1 => {
-                        RustType::Vec(Box::new(self.map_type(&params[0])))
-                    }
-                    // DEPYLER-1401: Sequence[T] -> Vec<T>
-                    // Python's typing.Sequence maps to Vec for compatibility
-                    "Sequence" if params.len() == 1 => {
-                        RustType::Vec(Box::new(self.map_type(&params[0])))
-                    }
-                    "Dict" if params.len() == 2 => RustType::HashMap(
-                        Box::new(self.map_type(&params[0])),
-                        Box::new(self.map_type(&params[1])),
-                    ),
-                    // DEPYLER-0742: deque[T] -> VecDeque<T>
-                    // Python's collections.deque with type parameter
-                    "deque" | "collections.deque" | "Deque" if params.len() == 1 => {
-                        let inner_type = self.map_type(&params[0]);
-                        RustType::Custom(format!(
-                            "std::collections::VecDeque<{}>",
-                            inner_type.to_rust_string()
-                        ))
-                    }
-                    // DEPYLER-0188: Generator[YieldType, SendType, ReturnType] -> impl Iterator<Item=YieldType>
-                    // Python generators map to Rust iterators for idiomatic code
-                    "Generator" if !params.is_empty() => {
-                        let yield_type = self.map_type(&params[0]);
-                        RustType::Custom(format!(
-                            "impl Iterator<Item={}>",
-                            yield_type.to_rust_string()
-                        ))
-                    }
-                    // DEPYLER-0188: Iterator[YieldType] -> impl Iterator<Item=YieldType>
-                    "Iterator" if params.len() == 1 => {
-                        let yield_type = self.map_type(&params[0]);
-                        RustType::Custom(format!(
-                            "impl Iterator<Item={}>",
-                            yield_type.to_rust_string()
-                        ))
-                    }
-                    // DEPYLER-0188: Iterable[T] -> impl IntoIterator<Item=T>
-                    "Iterable" if params.len() == 1 => {
-                        let item_type = self.map_type(&params[0]);
-                        RustType::Custom(format!(
-                            "impl IntoIterator<Item={}>",
-                            item_type.to_rust_string()
-                        ))
-                    }
-                    // DEPYLER-0734: Callable[[T1, T2, ...], R] -> impl Fn(T1, T2, ...) -> R
-                    // Python Callable types map to impl Fn for ergonomic closures without boxing
-                    // This allows passing closures directly without Box::new() wrapping
-                    // DEPYLER-0846: Detect nested Callable types and use &dyn Fn to avoid E0666
-                    "Callable" if params.len() == 2 => {
-                        // params[0] is the parameter list type (may be Tuple, List, or single type)
-                        // params[1] is the return type
-                        let param_types = match &params[0] {
-                            PythonType::Tuple(inner) => inner
-                                .iter()
-                                .map(|t| self.map_type(t).to_rust_string())
-                                .collect::<Vec<_>>(),
-                            PythonType::List(inner) => {
-                                // Single param list: [[T]] -> [T]
-                                vec![self.map_type(inner).to_rust_string()]
-                            }
-                            PythonType::None => vec![], // Empty param list
-                            PythonType::Unknown => vec![], // Empty param list from []
-                            _ => vec![self.map_type(&params[0]).to_rust_string()],
-                        };
-                        let return_type = self.map_type(&params[1]);
-                        let return_str = return_type.to_rust_string();
-
-                        // DEPYLER-0846: Check if any param or return type contains impl Fn
-                        // If so, we can't use impl Fn (E0666 nested impl Trait not allowed)
-                        // Convert ALL impl Fn to &dyn Fn for proper higher-order function support
-                        let has_nested_fn = param_types.iter().any(|s| s.contains("impl Fn"))
-                            || return_str.contains("impl Fn");
-
-                        // DEPYLER-0734: Format: impl Fn(T1, T2) -> R or impl Fn() for None return
-                        // DEPYLER-0846: Use &dyn Fn for nested Callable types, and convert inner impl Fn too
-                        let (fn_prefix, fixed_params, fixed_return) = if has_nested_fn {
-                            // Convert all impl Fn to &dyn Fn recursively
-                            let fixed_params: Vec<String> = param_types
-                                .iter()
-                                .map(|s| s.replace("impl Fn", "&dyn Fn"))
-                                .collect();
-                            let fixed_return = return_str.replace("impl Fn", "&dyn Fn");
-                            ("&dyn Fn", fixed_params, fixed_return)
-                        } else {
-                            ("impl Fn", param_types.clone(), return_str.clone())
-                        };
-                        let fn_str =
-                            if fixed_return == "()" || matches!(params[1], PythonType::None) {
-                                format!("{}({})", fn_prefix, fixed_params.join(", "))
-                            } else {
-                                format!(
-                                    "{}({}) -> {}",
-                                    fn_prefix,
-                                    fixed_params.join(", "),
-                                    fixed_return
-                                )
-                            };
-                        RustType::Custom(fn_str)
-                    }
-                    "Callable" if params.is_empty() => {
-                        // DEPYLER-0734: Bare Callable without parameters -> impl Fn()
-                        RustType::Custom("impl Fn()".to_string())
-                    }
-                    // DEPYLER-0845: type[T] -> std::marker::PhantomData<T>
-                    // Python's type[T] represents a class object that instantiates to T.
-                    // Rust doesn't have runtime type objects, so we use PhantomData<T>
-                    // to carry the type parameter without storing any data.
-                    "type" if params.len() == 1 => {
-                        let inner_type = self.map_type(&params[0]);
-                        RustType::Custom(format!(
-                            "std::marker::PhantomData<{}>",
-                            inner_type.to_rust_string()
-                        ))
-                    }
-                    _ => RustType::Generic {
-                        base: base.clone(),
-                        params: params.iter().map(|t| self.map_type(t)).collect(),
-                    },
-                }
-            }
+            PythonType::Generic { base, params } => self.map_generic_type(base, params),
             PythonType::Union(types) => {
                 // For now, map Union to an enum or use dynamic typing
                 if types.len() == 2 && types.iter().any(|t| matches!(t, PythonType::None)) {
@@ -597,6 +337,231 @@ impl TypeMapper {
             ConstGeneric::Parameter(name) => RustConstGeneric::Parameter(name.clone()),
             ConstGeneric::Expression(expr) => RustConstGeneric::Expression(expr.clone()),
         }
+    }
+
+    /// Map a Python custom type name to the corresponding Rust type
+    fn map_custom_type(&self, name: &str) -> RustType {
+        // Check if this is a single uppercase letter (type parameter)
+        if name.len() == 1 && name.chars().next().unwrap().is_uppercase() {
+            return RustType::TypeParam(name.to_string());
+        }
+        // Handle common typing imports when used without parameters
+        // DEPYLER-0718: Use serde_json::Value for bare Dict/List to enable
+        // single-shot compilation. TypeParam("V"/"T") requires generics declaration
+        // which isn't generated, causing E0412 "cannot find type" errors.
+        // DEPYLER-1015: Use unknown_fallback() for NASA mode compatibility
+        match name {
+            // DEPYLER-1318 DICT UNIFICATION: Use String keys for bare Dict type
+            // Aligns with type_tokens.rs - 99% of Python dict keys are strings
+            "Dict" => RustType::HashMap(
+                Box::new(RustType::String),        // String keys
+                Box::new(self.unknown_fallback()), // DepylerValue values
+            ),
+            // DEPYLER-0609: Handle both "List" (typing import) and "list" (builtin)
+            // DEPYLER-0718/1015: Use fallback for bare List (no type params)
+            "List" | "list" => RustType::Vec(Box::new(self.unknown_fallback())),
+            // DEPYLER-1401: Sequence[T] -> Vec<T> (abstract sequence type)
+            "Sequence" => RustType::Vec(Box::new(self.unknown_fallback())),
+            // DEPYLER-1040b: Use DepylerValue for sets too
+            "Set" => RustType::HashSet(Box::new(self.unknown_fallback())),
+            // DEPYLER-0379: Handle generic tuple annotation
+            "tuple" => RustType::Tuple(vec![]),
+            // DEPYLER-0525/DEPYLER-0608: File-like objects that implement Write trait
+            "File" => RustType::Reference {
+                lifetime: None,
+                mutable: true,
+                inner: Box::new(RustType::Custom("impl std::io::Write".to_string())),
+            },
+            // DEPYLER-0580: argparse.Namespace maps to Args struct in clap
+            "Namespace" | "argparse.Namespace" => RustType::Custom("Args".to_string()),
+            // DEPYLER-0584: Python bytes type maps to Vec<u8>
+            "bytes" => RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8))),
+            // DEPYLER-0674: Python bytearray type maps to Vec<u8>
+            "bytearray" => RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8))),
+            // DEPYLER-0734: Python Callable type maps to impl Fn
+            "Callable" | "typing.Callable" | "callable" => {
+                RustType::Custom("impl Fn()".to_string())
+            }
+            // DEPYLER-0589/1015: Python Any type maps to fallback
+            "Any" | "typing.Any" | "any" => self.unknown_fallback(),
+            // DEPYLER-0628/1015: Python object type maps to fallback
+            "object" | "builtins.object" => self.unknown_fallback(),
+            // DEPYLER-0592/1025: Python datetime module types
+            "date" | "datetime.date" => self.map_date_type(),
+            "datetime" | "datetime.datetime" => self.map_datetime_type(),
+            "time" | "datetime.time" => self.map_time_type(),
+            "timedelta" | "datetime.timedelta" => self.map_timedelta_type(),
+            // DEPYLER-197: Python Path types map to std::path::PathBuf
+            "Path" | "pathlib.Path" | "PurePath" | "pathlib.PurePath" => {
+                RustType::Custom("std::path::PathBuf".to_string())
+            }
+            // DEPYLER-0597: Python exception types map to Rust error types
+            "OSError" | "IOError" | "FileNotFoundError" | "PermissionError" => {
+                RustType::Custom("std::io::Error".to_string())
+            }
+            // General Python exceptions map to Box<dyn std::error::Error>
+            "Exception" | "BaseException" | "ValueError" | "TypeError"
+            | "KeyError" | "IndexError" | "RuntimeError" | "AttributeError"
+            | "NotImplementedError" | "AssertionError" | "StopIteration"
+            | "ZeroDivisionError" | "OverflowError" | "ArithmeticError" => {
+                RustType::Custom("Box<dyn std::error::Error>".to_string())
+            }
+            // DEPYLER-0742/1185: Python collections.deque maps to std::collections::VecDeque
+            "deque" | "collections.deque" | "Deque" => {
+                RustType::Custom("std::collections::VecDeque<i32>".to_string())
+            }
+            // DEPYLER-0742: Python Counter maps to HashMap
+            "Counter" | "collections.Counter" => RustType::HashMap(
+                Box::new(RustType::String),
+                Box::new(RustType::Primitive(PrimitiveType::I32)),
+            ),
+            _ => RustType::Custom(name.to_string()),
+        }
+    }
+
+    fn map_date_type(&self) -> RustType {
+        if self.nasa_mode {
+            RustType::Custom("DepylerDate".to_string())
+        } else {
+            RustType::Custom("chrono::NaiveDate".to_string())
+        }
+    }
+
+    fn map_datetime_type(&self) -> RustType {
+        if self.nasa_mode {
+            RustType::Custom("DepylerDateTime".to_string())
+        } else {
+            RustType::Custom("chrono::NaiveDateTime".to_string())
+        }
+    }
+
+    fn map_time_type(&self) -> RustType {
+        if self.nasa_mode {
+            RustType::Custom("(u32, u32, u32)".to_string())
+        } else {
+            RustType::Custom("chrono::NaiveTime".to_string())
+        }
+    }
+
+    fn map_timedelta_type(&self) -> RustType {
+        if self.nasa_mode {
+            RustType::Custom("DepylerTimeDelta".to_string())
+        } else {
+            RustType::Custom("chrono::Duration".to_string())
+        }
+    }
+
+    /// Map a Python generic type (e.g., List[int], Dict[str, int]) to the corresponding Rust type
+    fn map_generic_type(&self, base: &str, params: &[PythonType]) -> RustType {
+        match base {
+            "List" if params.len() == 1 => {
+                RustType::Vec(Box::new(self.map_type(&params[0])))
+            }
+            // DEPYLER-1401: Sequence[T] -> Vec<T>
+            "Sequence" if params.len() == 1 => {
+                RustType::Vec(Box::new(self.map_type(&params[0])))
+            }
+            "Dict" if params.len() == 2 => RustType::HashMap(
+                Box::new(self.map_type(&params[0])),
+                Box::new(self.map_type(&params[1])),
+            ),
+            // DEPYLER-0742: deque[T] -> VecDeque<T>
+            "deque" | "collections.deque" | "Deque" if params.len() == 1 => {
+                let inner_type = self.map_type(&params[0]);
+                RustType::Custom(format!(
+                    "std::collections::VecDeque<{}>",
+                    inner_type.to_rust_string()
+                ))
+            }
+            // DEPYLER-0188: Generator[YieldType, SendType, ReturnType] -> impl Iterator<Item=YieldType>
+            "Generator" if !params.is_empty() => {
+                let yield_type = self.map_type(&params[0]);
+                RustType::Custom(format!(
+                    "impl Iterator<Item={}>",
+                    yield_type.to_rust_string()
+                ))
+            }
+            // DEPYLER-0188: Iterator[YieldType] -> impl Iterator<Item=YieldType>
+            "Iterator" if params.len() == 1 => {
+                let yield_type = self.map_type(&params[0]);
+                RustType::Custom(format!(
+                    "impl Iterator<Item={}>",
+                    yield_type.to_rust_string()
+                ))
+            }
+            // DEPYLER-0188: Iterable[T] -> impl IntoIterator<Item=T>
+            "Iterable" if params.len() == 1 => {
+                let item_type = self.map_type(&params[0]);
+                RustType::Custom(format!(
+                    "impl IntoIterator<Item={}>",
+                    item_type.to_rust_string()
+                ))
+            }
+            // DEPYLER-0734/0846: Callable[[T1, T2, ...], R] -> impl Fn(T1, T2, ...) -> R
+            "Callable" if params.len() == 2 => self.map_callable_type(params),
+            "Callable" if params.is_empty() => {
+                RustType::Custom("impl Fn()".to_string())
+            }
+            // DEPYLER-0845: type[T] -> std::marker::PhantomData<T>
+            "type" if params.len() == 1 => {
+                let inner_type = self.map_type(&params[0]);
+                RustType::Custom(format!(
+                    "std::marker::PhantomData<{}>",
+                    inner_type.to_rust_string()
+                ))
+            }
+            _ => RustType::Generic {
+                base: base.to_string(),
+                params: params.iter().map(|t| self.map_type(t)).collect(),
+            },
+        }
+    }
+
+    /// Map a Python Callable[[T1, T2], R] to impl Fn(T1, T2) -> R or &dyn Fn for nested cases
+    fn map_callable_type(&self, params: &[PythonType]) -> RustType {
+        // params[0] is the parameter list type (may be Tuple, List, or single type)
+        // params[1] is the return type
+        let param_types = match &params[0] {
+            PythonType::Tuple(inner) => inner
+                .iter()
+                .map(|t| self.map_type(t).to_rust_string())
+                .collect::<Vec<_>>(),
+            PythonType::List(inner) => {
+                vec![self.map_type(inner).to_rust_string()]
+            }
+            PythonType::None => vec![],
+            PythonType::Unknown => vec![],
+            _ => vec![self.map_type(&params[0]).to_rust_string()],
+        };
+        let return_type = self.map_type(&params[1]);
+        let return_str = return_type.to_rust_string();
+
+        // DEPYLER-0846: Check if any param or return type contains impl Fn
+        let has_nested_fn = param_types.iter().any(|s| s.contains("impl Fn"))
+            || return_str.contains("impl Fn");
+
+        // DEPYLER-0846: Use &dyn Fn for nested Callable types
+        let (fn_prefix, fixed_params, fixed_return) = if has_nested_fn {
+            let fixed_params: Vec<String> = param_types
+                .iter()
+                .map(|s| s.replace("impl Fn", "&dyn Fn"))
+                .collect();
+            let fixed_return = return_str.replace("impl Fn", "&dyn Fn");
+            ("&dyn Fn", fixed_params, fixed_return)
+        } else {
+            ("impl Fn", param_types.clone(), return_str.clone())
+        };
+        let fn_str = if fixed_return == "()" || matches!(params[1], PythonType::None) {
+            format!("{}({})", fn_prefix, fixed_params.join(", "))
+        } else {
+            format!(
+                "{}({}) -> {}",
+                fn_prefix,
+                fixed_params.join(", "),
+                fixed_return
+            )
+        };
+        RustType::Custom(fn_str)
     }
 }
 

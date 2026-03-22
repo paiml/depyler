@@ -1151,6 +1151,70 @@ impl<'a> ExprConverter<'a> {
         // Map Python collection methods to Rust equivalents
         match method {
             // List/Deque methods
+            "append" | "appendleft" | "popleft" => {
+                self.convert_list_deque_method(object, method, args, &object_expr, &arg_exprs)
+            }
+            // Remove dispatches to set or list
+            "remove" => self.convert_remove_method(object, &object_expr, &arg_exprs),
+            // Set methods
+            "add" | "discard" => {
+                self.convert_set_method(method, &object_expr, &arg_exprs)
+            }
+            // Clear (shared by list/set/dict)
+            "clear" => {
+                if !arg_exprs.is_empty() {
+                    bail!("clear() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.clear() })
+            }
+            // Pop dispatches to set/deque/list
+            "pop" => self.convert_pop_method(object, &object_expr, &arg_exprs),
+            // String methods - DEPYLER-0413
+            "upper" | "lower" | "strip" | "lstrip" | "rstrip"
+            | "startswith" | "endswith" | "split" | "join" | "replace"
+            | "find" | "rfind" | "isdigit" | "isalpha" | "isalnum" => {
+                self.convert_string_method(method, args, &object_expr, &arg_exprs)
+            }
+            // DEPYLER-0200/DEPYLER-0960: String/Dict contains method
+            "__contains__" | "contains" => {
+                self.convert_contains_method(object, args, &object_expr)
+            }
+            // DEPYLER-0613: Semaphore/Mutex method mappings
+            "acquire" => Ok(parse_quote! { #object_expr.lock().is_ok() }),
+            "release" => Ok(parse_quote! { () }),
+            // DEPYLER-0613: List/Dict copy method
+            "copy" => {
+                if !arg_exprs.is_empty() {
+                    bail!("copy() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.clone() })
+            }
+            // DEPYLER-0613: Dict contains_key
+            "contains_key" => {
+                if arg_exprs.len() != 1 {
+                    bail!("contains_key() requires exactly one argument");
+                }
+                let key = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.contains(&#key) })
+            }
+            // DEPYLER-1125: Dict get(key, default)
+            "get" => self.convert_dict_get_method(args, &object_expr, &arg_exprs),
+            // Generic method call fallback
+            _ => self.convert_fallback_method(method, object_expr, arg_exprs),
+        }
+    }
+
+    // ---- List/Deque method helpers ----
+
+    fn convert_list_deque_method(
+        &self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        match method {
             "append" => {
                 if arg_exprs.len() != 1 {
                     bail!("append() requires exactly one argument");
@@ -1168,38 +1232,7 @@ impl<'a> ExprConverter<'a> {
                 };
 
                 if is_vec_depyler_value {
-                    let wrapped_arg: syn::Expr = if !args.is_empty() {
-                        match &args[0] {
-                            HirExpr::Literal(Literal::Int(_)) => {
-                                parse_quote! { DepylerValue::Int(#arg as i64) }
-                            }
-                            HirExpr::Literal(Literal::Float(_)) => {
-                                parse_quote! { DepylerValue::Float(#arg as f64) }
-                            }
-                            HirExpr::Literal(Literal::String(_)) => {
-                                parse_quote! { DepylerValue::Str(#arg.to_string()) }
-                            }
-                            HirExpr::Literal(Literal::Bool(_)) => {
-                                parse_quote! { DepylerValue::Bool(#arg) }
-                            }
-                            HirExpr::Var(name) => match self.param_types.get(name) {
-                                Some(Type::Int) => {
-                                    parse_quote! { DepylerValue::Int(#arg as i64) }
-                                }
-                                Some(Type::Float) => {
-                                    parse_quote! { DepylerValue::Float(#arg as f64) }
-                                }
-                                Some(Type::String) => {
-                                    parse_quote! { DepylerValue::Str(#arg.to_string()) }
-                                }
-                                Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
-                                _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
-                            },
-                            _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
-                        }
-                    } else {
-                        parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) }
-                    };
+                    let wrapped_arg = self.wrap_depyler_value_arg(args, arg);
                     return Ok(parse_quote! { #object_expr.push(#wrapped_arg) });
                 }
 
@@ -1210,7 +1243,6 @@ impl<'a> ExprConverter<'a> {
                     Ok(parse_quote! { #object_expr.push(#arg) })
                 }
             }
-            // DEPYLER-0742: Deque-specific methods
             "appendleft" => {
                 if arg_exprs.len() != 1 {
                     bail!("appendleft() requires exactly one argument");
@@ -1224,39 +1256,94 @@ impl<'a> ExprConverter<'a> {
                 }
                 Ok(parse_quote! { #object_expr.pop_front() })
             }
-            "remove" => {
-                if arg_exprs.len() != 1 {
-                    bail!("remove() requires exactly one argument");
-                }
-                let arg = &arg_exprs[0];
-                if self.is_set_expr(object) {
-                    let is_str_lit =
-                        matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
-                    if is_str_lit {
-                        Ok(parse_quote! {
-                            if !#object_expr.remove(#arg) {
-                                panic!("KeyError: element not in set");
-                            }
-                        })
-                    } else {
-                        Ok(parse_quote! {
-                            if !#object_expr.remove(&#arg) {
-                                panic!("KeyError: element not in set");
-                            }
-                        })
-                    }
-                } else {
-                    Ok(parse_quote! {
-                        if let Some(pos) = #object_expr.iter().position(|x| x == &#arg) {
-                            #object_expr.remove(pos);
-                        } else {
-                            panic!("ValueError: list.remove(x): x not in list");
-                        }
-                    })
-                }
-            }
+            _ => unreachable!(),
+        }
+    }
 
-            // Set methods
+    /// Wrap an argument in the appropriate DepylerValue variant based on HIR type
+    fn wrap_depyler_value_arg(&self, args: &[HirExpr], arg: &syn::Expr) -> syn::Expr {
+        if !args.is_empty() {
+            match &args[0] {
+                HirExpr::Literal(Literal::Int(_)) => {
+                    parse_quote! { DepylerValue::Int(#arg as i64) }
+                }
+                HirExpr::Literal(Literal::Float(_)) => {
+                    parse_quote! { DepylerValue::Float(#arg as f64) }
+                }
+                HirExpr::Literal(Literal::String(_)) => {
+                    parse_quote! { DepylerValue::Str(#arg.to_string()) }
+                }
+                HirExpr::Literal(Literal::Bool(_)) => {
+                    parse_quote! { DepylerValue::Bool(#arg) }
+                }
+                HirExpr::Var(name) => match self.param_types.get(name) {
+                    Some(Type::Int) => {
+                        parse_quote! { DepylerValue::Int(#arg as i64) }
+                    }
+                    Some(Type::Float) => {
+                        parse_quote! { DepylerValue::Float(#arg as f64) }
+                    }
+                    Some(Type::String) => {
+                        parse_quote! { DepylerValue::Str(#arg.to_string()) }
+                    }
+                    Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
+                    _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
+                },
+                _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
+            }
+        } else {
+            parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) }
+        }
+    }
+
+    // ---- Remove method helper ----
+
+    fn convert_remove_method(
+        &self,
+        object: &HirExpr,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        if arg_exprs.len() != 1 {
+            bail!("remove() requires exactly one argument");
+        }
+        let arg = &arg_exprs[0];
+        if self.is_set_expr(object) {
+            let is_str_lit =
+                matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
+            if is_str_lit {
+                Ok(parse_quote! {
+                    if !#object_expr.remove(#arg) {
+                        panic!("KeyError: element not in set");
+                    }
+                })
+            } else {
+                Ok(parse_quote! {
+                    if !#object_expr.remove(&#arg) {
+                        panic!("KeyError: element not in set");
+                    }
+                })
+            }
+        } else {
+            Ok(parse_quote! {
+                if let Some(pos) = #object_expr.iter().position(|x| x == &#arg) {
+                    #object_expr.remove(pos);
+                } else {
+                    panic!("ValueError: list.remove(x): x not in list");
+                }
+            })
+        }
+    }
+
+    // ---- Set method helpers ----
+
+    fn convert_set_method(
+        &self,
+        method: &str,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        match method {
             "add" => {
                 if arg_exprs.len() != 1 {
                     bail!("add() requires exactly one argument");
@@ -1277,38 +1364,63 @@ impl<'a> ExprConverter<'a> {
                     Ok(parse_quote! { #object_expr.remove(&#arg) })
                 }
             }
-            "clear" => {
-                if !arg_exprs.is_empty() {
-                    bail!("clear() takes no arguments");
-                }
-                Ok(parse_quote! { #object_expr.clear() })
-            }
-            "pop" => {
-                if self.is_set_expr(object) {
-                    if !arg_exprs.is_empty() {
-                        bail!("pop() takes no arguments");
-                    }
-                    Ok(parse_quote! {
-                        #object_expr.iter().next().cloned().map(|x| {
-                            #object_expr.remove(&x);
-                            x
-                        }).expect("pop from empty set")
-                    })
-                } else if self.is_deque_expr(object) {
-                    if arg_exprs.is_empty() {
-                        Ok(parse_quote! { #object_expr.pop_back().unwrap_or_default() })
-                    } else {
-                        bail!("deque.pop() does not accept an index argument");
-                    }
-                } else if arg_exprs.is_empty() {
-                    Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
-                } else {
-                    let idx = &arg_exprs[0];
-                    Ok(parse_quote! { #object_expr.remove(#idx as usize) })
-                }
-            }
+            _ => unreachable!(),
+        }
+    }
 
-            // String methods - DEPYLER-0413
+    // ---- Pop method helper ----
+
+    fn convert_pop_method(
+        &self,
+        object: &HirExpr,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        if self.is_set_expr(object) {
+            if !arg_exprs.is_empty() {
+                bail!("pop() takes no arguments");
+            }
+            Ok(parse_quote! {
+                #object_expr.iter().next().cloned().map(|x| {
+                    #object_expr.remove(&x);
+                    x
+                }).expect("pop from empty set")
+            })
+        } else if self.is_deque_expr(object) {
+            if arg_exprs.is_empty() {
+                Ok(parse_quote! { #object_expr.pop_back().unwrap_or_default() })
+            } else {
+                bail!("deque.pop() does not accept an index argument");
+            }
+        } else if arg_exprs.is_empty() {
+            Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
+        } else {
+            let idx = &arg_exprs[0];
+            Ok(parse_quote! { #object_expr.remove(#idx as usize) })
+        }
+    }
+
+    // ---- String method helpers ----
+
+    /// Convert a HIR string argument to a syn::Expr, using LitStr for string literals
+    fn convert_hir_string_arg(&self, arg: &HirExpr) -> Result<syn::Expr> {
+        match arg {
+            HirExpr::Literal(Literal::String(s)) => {
+                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                Ok(parse_quote! { #lit })
+            }
+            _ => self.convert(arg),
+        }
+    }
+
+    fn convert_string_method(
+        &self,
+        method: &str,
+        args: &[HirExpr],
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        match method {
             "upper" => {
                 if !arg_exprs.is_empty() {
                     bail!("upper() takes no arguments");
@@ -1343,60 +1455,17 @@ impl<'a> ExprConverter<'a> {
                 if args.len() != 1 {
                     bail!("startswith() requires exactly one argument");
                 }
-                let prefix: syn::Expr = match &args[0] {
-                    HirExpr::Literal(Literal::String(s)) => {
-                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                        parse_quote! { #lit }
-                    }
-                    _ => self.convert(&args[0])?,
-                };
+                let prefix = self.convert_hir_string_arg(&args[0])?;
                 Ok(parse_quote! { #object_expr.starts_with(#prefix) })
             }
             "endswith" => {
                 if args.len() != 1 {
                     bail!("endswith() requires exactly one argument");
                 }
-                let suffix: syn::Expr = match &args[0] {
-                    HirExpr::Literal(Literal::String(s)) => {
-                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                        parse_quote! { #lit }
-                    }
-                    _ => self.convert(&args[0])?,
-                };
+                let suffix = self.convert_hir_string_arg(&args[0])?;
                 Ok(parse_quote! { #object_expr.ends_with(#suffix) })
             }
-            "split" => {
-                if args.is_empty() {
-                    Ok(
-                        parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() },
-                    )
-                } else if args.len() == 1 {
-                    let sep: syn::Expr = match &args[0] {
-                        HirExpr::Literal(Literal::String(s)) => {
-                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                            parse_quote! { #lit }
-                        }
-                        _ => self.convert(&args[0])?,
-                    };
-                    Ok(
-                        parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
-                    )
-                } else if args.len() == 2 {
-                    let sep: syn::Expr = match &args[0] {
-                        HirExpr::Literal(Literal::String(s)) => {
-                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                            parse_quote! { #lit }
-                        }
-                        _ => self.convert(&args[0])?,
-                    };
-                    let maxsplit = self.convert(&args[1])?;
-                    Ok(
-                        parse_quote! { #object_expr.splitn((#maxsplit + 1) as usize, #sep).map(|s| s.to_string()).collect::<Vec<String>>() },
-                    )
-                } else {
-                    bail!("split() requires 0-2 arguments");
-                }
-            }
+            "split" => self.convert_split_method(args, object_expr),
             "join" => {
                 if arg_exprs.len() != 1 {
                     bail!("join() requires exactly one argument");
@@ -1408,46 +1477,22 @@ impl<'a> ExprConverter<'a> {
                 if args.len() != 2 {
                     bail!("replace() requires exactly two arguments");
                 }
-                let old: syn::Expr = match &args[0] {
-                    HirExpr::Literal(Literal::String(s)) => {
-                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                        parse_quote! { #lit }
-                    }
-                    _ => self.convert(&args[0])?,
-                };
-                let new: syn::Expr = match &args[1] {
-                    HirExpr::Literal(Literal::String(s)) => {
-                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                        parse_quote! { #lit }
-                    }
-                    _ => self.convert(&args[1])?,
-                };
+                let old = self.convert_hir_string_arg(&args[0])?;
+                let new = self.convert_hir_string_arg(&args[1])?;
                 Ok(parse_quote! { #object_expr.replace(#old, #new) })
             }
             "find" => {
                 if args.len() != 1 {
                     bail!("find() requires exactly one argument");
                 }
-                let substring: syn::Expr = match &args[0] {
-                    HirExpr::Literal(Literal::String(s)) => {
-                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                        parse_quote! { #lit }
-                    }
-                    _ => self.convert(&args[0])?,
-                };
+                let substring = self.convert_hir_string_arg(&args[0])?;
                 Ok(parse_quote! { #object_expr.find(#substring).map(|i| i as i64).unwrap_or(-1) })
             }
             "rfind" => {
                 if args.len() != 1 {
                     bail!("rfind() requires exactly one argument");
                 }
-                let substring: syn::Expr = match &args[0] {
-                    HirExpr::Literal(Literal::String(s)) => {
-                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                        parse_quote! { #lit }
-                    }
-                    _ => self.convert(&args[0])?,
-                };
+                let substring = self.convert_hir_string_arg(&args[0])?;
                 Ok(parse_quote! { #object_expr.rfind(#substring).map(|i| i as i64).unwrap_or(-1) })
             }
             "isdigit" => {
@@ -1474,126 +1519,149 @@ impl<'a> ExprConverter<'a> {
                     parse_quote! { !#object_expr.is_empty() && #object_expr.chars().all(|c| c.is_alphanumeric()) },
                 )
             }
-
-            // DEPYLER-0200/DEPYLER-0960: String/Dict contains method
-            "__contains__" | "contains" => {
-                if args.len() != 1 {
-                    bail!("contains() requires exactly one argument");
-                }
-
-                let is_dict_like = match object {
-                    HirExpr::Var(name) => {
-                        let n = name.as_str();
-                        n.contains("dict")
-                            || n.contains("map")
-                            || n.contains("data")
-                            || n == "result"
-                            || n == "config"
-                            || n == "settings"
-                            || n == "params"
-                            || n == "options"
-                            || n == "env"
-                            || n == "d"
-                            || n == "m"
-                            || n == "cache"
-                    }
-                    HirExpr::Call { func, .. } => {
-                        func.contains("dict")
-                            || func.contains("json")
-                            || func.contains("config")
-                            || func.contains("result")
-                            || func.contains("load")
-                    }
-                    _ => false,
-                };
-
-                if is_dict_like {
-                    let key = self.convert(&args[0])?;
-                    Ok(parse_quote! { #object_expr.contains_key(&#key) })
-                } else {
-                    let pattern: syn::Expr = match &args[0] {
-                        HirExpr::Literal(Literal::String(s)) => {
-                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                            parse_quote! { #lit }
-                        }
-                        _ => {
-                            let arg = self.convert(&args[0])?;
-                            parse_quote! { &*#arg }
-                        }
-                    };
-                    Ok(parse_quote! { #object_expr.contains(#pattern) })
-                }
-            }
-
-            // DEPYLER-0613: Semaphore/Mutex method mappings
-            "acquire" => Ok(parse_quote! { #object_expr.lock().is_ok() }),
-            "release" => Ok(parse_quote! { () }),
-
-            // DEPYLER-0613: List/Dict copy method
-            "copy" => {
-                if !arg_exprs.is_empty() {
-                    bail!("copy() takes no arguments");
-                }
-                Ok(parse_quote! { #object_expr.clone() })
-            }
-
-            // DEPYLER-0613: Dict contains_key
-            "contains_key" => {
-                if arg_exprs.len() != 1 {
-                    bail!("contains_key() requires exactly one argument");
-                }
-                let key = &arg_exprs[0];
-                Ok(parse_quote! { #object_expr.contains(&#key) })
-            }
-
-            // DEPYLER-1125: Dict get(key, default)
-            "get" => {
-                if arg_exprs.len() == 1 {
-                    let key = &arg_exprs[0];
-                    Ok(parse_quote! { #object_expr.get(&#key).cloned() })
-                } else if arg_exprs.len() == 2 {
-                    let key = &arg_exprs[0];
-                    let default = &arg_exprs[1];
-                    let is_str_literal = matches!(&args[1], HirExpr::Literal(Literal::String(_)));
-                    if is_str_literal {
-                        Ok(
-                            parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| (#default).to_string()) },
-                        )
-                    } else {
-                        Ok(
-                            parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| #default) },
-                        )
-                    }
-                } else {
-                    bail!("get() requires 1 or 2 arguments");
-                }
-            }
-
-            // Generic method call fallback
-            _ => {
-                if method.is_empty() {
-                    bail!("Empty method name in method call");
-                }
-                let is_valid_ident = method
-                    .starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
-                    && method.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
-                if !is_valid_ident {
-                    bail!("Invalid method name '{}' - not a valid Rust identifier", method);
-                }
-
-                let safe_object_expr: syn::Expr = if matches!(object_expr, syn::Expr::Cast(_)) {
-                    parse_quote! { (#object_expr) }
-                } else {
-                    object_expr.clone()
-                };
-
-                if syn::parse_str::<syn::Ident>(method).is_err() {
-                    let method_ident = syn::Ident::new_raw(method, proc_macro2::Span::call_site());
-                    return Ok(parse_quote! { #safe_object_expr.#method_ident(#(#arg_exprs),*) });
-                }
-                let method_ident = make_ident(method);
-                Ok(parse_quote! { #safe_object_expr.#method_ident(#(#arg_exprs),*) })
-            }
+            _ => unreachable!(),
         }
+    }
+
+    fn convert_split_method(
+        &self,
+        args: &[HirExpr],
+        object_expr: &syn::Expr,
+    ) -> Result<syn::Expr> {
+        if args.is_empty() {
+            Ok(
+                parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() },
+            )
+        } else if args.len() == 1 {
+            let sep = self.convert_hir_string_arg(&args[0])?;
+            Ok(
+                parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
+            )
+        } else if args.len() == 2 {
+            let sep = self.convert_hir_string_arg(&args[0])?;
+            let maxsplit = self.convert(&args[1])?;
+            Ok(
+                parse_quote! { #object_expr.splitn((#maxsplit + 1) as usize, #sep).map(|s| s.to_string()).collect::<Vec<String>>() },
+            )
+        } else {
+            bail!("split() requires 0-2 arguments");
+        }
+    }
+
+    // ---- Contains method helper ----
+
+    fn convert_contains_method(
+        &self,
+        object: &HirExpr,
+        args: &[HirExpr],
+        object_expr: &syn::Expr,
+    ) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("contains() requires exactly one argument");
+        }
+
+        let is_dict_like = match object {
+            HirExpr::Var(name) => {
+                let n = name.as_str();
+                n.contains("dict")
+                    || n.contains("map")
+                    || n.contains("data")
+                    || n == "result"
+                    || n == "config"
+                    || n == "settings"
+                    || n == "params"
+                    || n == "options"
+                    || n == "env"
+                    || n == "d"
+                    || n == "m"
+                    || n == "cache"
+            }
+            HirExpr::Call { func, .. } => {
+                func.contains("dict")
+                    || func.contains("json")
+                    || func.contains("config")
+                    || func.contains("result")
+                    || func.contains("load")
+            }
+            _ => false,
+        };
+
+        if is_dict_like {
+            let key = self.convert(&args[0])?;
+            Ok(parse_quote! { #object_expr.contains_key(&#key) })
+        } else {
+            let pattern: syn::Expr = match &args[0] {
+                HirExpr::Literal(Literal::String(s)) => {
+                    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                    parse_quote! { #lit }
+                }
+                _ => {
+                    let arg = self.convert(&args[0])?;
+                    parse_quote! { &*#arg }
+                }
+            };
+            Ok(parse_quote! { #object_expr.contains(#pattern) })
+        }
+    }
+
+    // ---- Dict get method helper ----
+
+    fn convert_dict_get_method(
+        &self,
+        args: &[HirExpr],
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        if arg_exprs.len() == 1 {
+            let key = &arg_exprs[0];
+            Ok(parse_quote! { #object_expr.get(&#key).cloned() })
+        } else if arg_exprs.len() == 2 {
+            let key = &arg_exprs[0];
+            let default = &arg_exprs[1];
+            let is_str_literal = matches!(&args[1], HirExpr::Literal(Literal::String(_)));
+            if is_str_literal {
+                Ok(
+                    parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| (#default).to_string()) },
+                )
+            } else {
+                Ok(
+                    parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| #default) },
+                )
+            }
+        } else {
+            bail!("get() requires 1 or 2 arguments");
+        }
+    }
+
+    // ---- Fallback method helper ----
+
+    fn convert_fallback_method(
+        &self,
+        method: &str,
+        object_expr: syn::Expr,
+        arg_exprs: Vec<syn::Expr>,
+    ) -> Result<syn::Expr> {
+        if method.is_empty() {
+            bail!("Empty method name in method call");
+        }
+        let is_valid_ident = method
+            .starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+            && method.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+        if !is_valid_ident {
+            bail!("Invalid method name '{}' - not a valid Rust identifier", method);
+        }
+
+        let safe_object_expr: syn::Expr = if matches!(object_expr, syn::Expr::Cast(_)) {
+            parse_quote! { (#object_expr) }
+        } else {
+            object_expr.clone()
+        };
+
+        if syn::parse_str::<syn::Ident>(method).is_err() {
+            let method_ident = syn::Ident::new_raw(method, proc_macro2::Span::call_site());
+            return Ok(parse_quote! { #safe_object_expr.#method_ident(#(#arg_exprs),*) });
+        }
+        let method_ident = make_ident(method);
+        Ok(parse_quote! { #safe_object_expr.#method_ident(#(#arg_exprs),*) })
     }
 }

@@ -621,8 +621,17 @@ fn register_syntax_templates(registry: &mut FixTemplateRegistry) {
 // ============================================
 
 fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
-    // === E0599: No method found patterns ===
+    register_e0599_method_not_found_patterns(registry);
+    register_e0308_type_mismatch_patterns(registry);
+    register_e0277_trait_bound_patterns(registry);
+    register_e0609_field_access_patterns(registry);
+    register_e0282_type_inference_patterns(registry);
+    register_misc_error_patterns(registry);
+    register_additional_transpiler_patterns(registry);
+}
 
+/// E0599: No method found patterns (patterns 1-9)
+fn register_e0599_method_not_found_patterns(registry: &mut FixTemplateRegistry) {
     // Pattern 1: datetime methods on tuples (hour, minute, second)
     registry.register(
         FixTemplate::builder(
@@ -803,9 +812,10 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
         .with_priority(80)
         .build(),
     );
+}
 
-    // === E0308: Type mismatch patterns ===
-
+/// E0308: Type mismatch patterns (patterns 10-12)
+fn register_e0308_type_mismatch_patterns(registry: &mut FixTemplateRegistry) {
     // Pattern 10: Vec to &[T] conversion
     registry.register(
         FixTemplate::builder(
@@ -874,9 +884,10 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
         .with_priority(85)
         .build(),
     );
+}
 
-    // === E0277: Trait not implemented patterns ===
-
+/// E0277: Trait not implemented patterns (patterns 13-15)
+fn register_e0277_trait_bound_patterns(registry: &mut FixTemplateRegistry) {
     // Pattern 13: AsRef<OsStr> not implemented
     registry.register(
         FixTemplate::builder(
@@ -937,9 +948,10 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
         .with_priority(80)
         .build(),
     );
+}
 
-    // === E0609: No field on type patterns ===
-
+/// E0609: No field on type patterns (patterns 16-17)
+fn register_e0609_field_access_patterns(registry: &mut FixTemplateRegistry) {
     // Pattern 16: No field on tuple
     registry.register(
         FixTemplate::builder(
@@ -981,9 +993,10 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
         .with_priority(80)
         .build(),
     );
+}
 
-    // === E0282: Type annotation needed patterns ===
-
+/// E0282: Type annotation needed patterns (patterns 18-19)
+fn register_e0282_type_inference_patterns(registry: &mut FixTemplateRegistry) {
     // Pattern 18: Cannot infer type
     registry.register(
         FixTemplate::builder(
@@ -1030,9 +1043,10 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
         .with_priority(90)
         .build(),
     );
+}
 
-    // === E0061: Wrong argument count patterns ===
-
+/// E0061, E0605, E0369, E0600, E0425 patterns (patterns 20-24)
+fn register_misc_error_patterns(registry: &mut FixTemplateRegistry) {
     // Pattern 20: This function takes N arguments
     registry.register(
         FixTemplate::builder(
@@ -1050,8 +1064,6 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
         .with_priority(85)
         .build(),
     );
-
-    // === E0605: Invalid cast patterns ===
 
     // Pattern 21: Non-primitive cast
     registry.register(
@@ -1074,8 +1086,6 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
         .build(),
     );
 
-    // === E0369: Binary operation not applicable patterns ===
-
     // Pattern 22: Cannot apply binary operation
     registry.register(
         FixTemplate::builder(
@@ -1096,8 +1106,6 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
         .with_priority(80)
         .build(),
     );
-
-    // === E0600: Unary operation not applicable patterns ===
 
     // Pattern 23: Cannot apply unary operator
     registry.register(
@@ -1120,8 +1128,6 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
         .build(),
     );
 
-    // === E0425: Unresolved name patterns ===
-
     // Pattern 24: Not found in this scope
     registry.register(
         FixTemplate::builder(
@@ -1139,9 +1145,10 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
         .with_priority(85)
         .build(),
     );
+}
 
-    // === Additional common transpiler patterns ===
-
+/// Additional common transpiler patterns (patterns 25-35)
+fn register_additional_transpiler_patterns(registry: &mut FixTemplateRegistry) {
     // Pattern 25: PyOps trait missing
     registry.register(
         FixTemplate::builder(
