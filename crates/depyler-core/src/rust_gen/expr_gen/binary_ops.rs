@@ -996,7 +996,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         })
     }
 
-    /// DEPYLER-REFACTOR-001 Phase 2.8: Extracted multiplication operator helper
+    /// DEPYLER-REFACTOR-001 Phase 2.7: Extracted multiplication operator helper
     ///
     /// Handles Python multiplication with type-aware behavior:
     /// - String repetition: "abc" * 3 → "abc".repeat(3)
@@ -1012,190 +1012,179 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         right_expr: syn::Expr,
         op: BinOp,
     ) -> Result<syn::Expr> {
-        // DEPYLER-0302: String repetition
-        // DEPYLER-0908: Resolved false positive when variable could be either string or int
-        // ONLY use .repeat() when one side is DEFINITELY a string LITERAL
-        // Variables are NEVER treated as strings for multiplication because:
-        // 1. var_types can have stale type info from different branches
-        // 2. It's safer to generate `*` which will fail at compile time if wrong
-        //    than to generate `.repeat()` which produces wrong semantics silently
+        if let Some(result) = self.try_string_repeat(left, right, &left_expr, &right_expr) {
+            return Ok(result);
+        }
+
+        if let Some(result) = self.try_bytes_repeat(left, right, &left_expr, &right_expr) {
+            return Ok(result);
+        }
+
+        if let Some(result) = self.try_array_creation(left, right, &left_expr, &right_expr)? {
+            return Ok(result);
+        }
+
+        self.convert_mul_numpy_or_default(left, right, left_expr, right_expr, op)
+    }
+
+    fn try_string_repeat(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Option<syn::Expr> {
         let left_is_string_literal = matches!(left, HirExpr::Literal(Literal::String(_)));
         let right_is_string_literal = matches!(right, HirExpr::Literal(Literal::String(_)));
         let left_is_int_literal = matches!(left, HirExpr::Literal(Literal::Int(_)));
         let right_is_int_literal = matches!(right, HirExpr::Literal(Literal::Int(_)));
 
-        // DEPYLER-0908: Only trust literals, not variable type inference
-        // This is conservative but correct - produces compile error rather than wrong behavior
         if left_is_string_literal && right_is_int_literal {
-            return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
+            return Some(parse_quote! { #left_expr.repeat(#right_expr as usize) });
         } else if left_is_int_literal && right_is_string_literal {
-            return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
+            return Some(parse_quote! { #right_expr.repeat(#left_expr as usize) });
         }
 
-        // DEPYLER-0950: String literal * int variable (e.g., "=" * width)
-        // Safe because string literal is definite, and we verify int variable type
-        let right_is_int_var_from_type = if let HirExpr::Var(sym) = right {
-            matches!(self.ctx.var_types.get(sym), Some(crate::hir::Type::Int))
-        } else {
-            false
-        };
-        let left_is_int_var_from_type = if let HirExpr::Var(sym) = left {
-            matches!(self.ctx.var_types.get(sym), Some(crate::hir::Type::Int))
-        } else {
-            false
-        };
+        let right_is_int_var_from_type = is_int_typed_var(right, self.ctx);
+        let left_is_int_var_from_type = is_int_typed_var(left, self.ctx);
 
         if left_is_string_literal && right_is_int_var_from_type {
-            return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
+            return Some(parse_quote! { #left_expr.repeat(#right_expr as usize) });
         } else if left_is_int_var_from_type && right_is_string_literal {
-            return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
+            return Some(parse_quote! { #right_expr.repeat(#left_expr as usize) });
         }
 
-        // For variable * literal patterns, check if variable is DEFINITELY not numeric
-        // by looking for clear string method calls in its lineage
-        let left_is_string_var = if let HirExpr::Var(sym) = left {
-            // Only consider it string if we see string-specific patterns
-            // NOT from var_types which can be stale across branches
-            let name = sym.as_str();
-            name == "text" || name == "s" || name == "line" || name.ends_with("_str")
-        } else {
-            false
-        };
-        let right_is_string_var = if let HirExpr::Var(sym) = right {
-            let name = sym.as_str();
-            name == "text" || name == "s" || name == "line" || name.ends_with("_str")
-        } else {
-            false
-        };
+        let left_is_string_var = is_string_named_var(left);
+        let right_is_string_var = is_string_named_var(right);
 
-        // Variable * int literal - only use repeat if variable name strongly suggests string
         if left_is_string_var && right_is_int_literal {
-            return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
+            return Some(parse_quote! { #left_expr.repeat(#right_expr as usize) });
         } else if left_is_int_literal && right_is_string_var {
-            return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
+            return Some(parse_quote! { #right_expr.repeat(#left_expr as usize) });
         }
 
-        // DEPYLER-0950: String var * int var - use explicit type annotations from context
-        // This is safer than arbitrary inference because param types come from annotations
-        let right_is_int_var = if let HirExpr::Var(sym) = right {
-            matches!(self.ctx.var_types.get(sym), Some(crate::hir::Type::Int))
-        } else {
-            false
-        };
-        let left_is_int_var = if let HirExpr::Var(sym) = left {
-            matches!(self.ctx.var_types.get(sym), Some(crate::hir::Type::Int))
-        } else {
-            false
-        };
-
-        // String-named var * int-typed var → use .repeat()
+        let right_is_int_var = is_int_typed_var(right, self.ctx);
+        let left_is_int_var = is_int_typed_var(left, self.ctx);
         if left_is_string_var && right_is_int_var {
-            return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
+            return Some(parse_quote! { #left_expr.repeat(#right_expr as usize) });
         } else if left_is_int_var && right_is_string_var {
-            return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
+            return Some(parse_quote! { #right_expr.repeat(#left_expr as usize) });
         }
 
-        // DEPYLER-0817: Byte string repetition
-        // Python: b"hello" * n → Rust: b"hello".repeat(n as usize)
-        // Returns Vec<u8> which matches Python bytes behavior
+        None
+    }
+
+    fn try_bytes_repeat(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Option<syn::Expr> {
         let left_is_bytes = matches!(left, HirExpr::Literal(Literal::Bytes(_)));
         let right_is_bytes = matches!(right, HirExpr::Literal(Literal::Bytes(_)));
-        if left_is_bytes && right_is_int_literal {
-            return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
-        } else if left_is_int_literal && right_is_bytes {
-            return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
-        }
+        let left_is_int_literal = matches!(left, HirExpr::Literal(Literal::Int(_)));
+        let right_is_int_literal = matches!(right, HirExpr::Literal(Literal::Int(_)));
 
-        // Array creation: [value] * n or n * [value]
-        // DEPYLER-1129: Always use Vec for consistency with PyMul trait
+        if left_is_bytes && right_is_int_literal {
+            Some(parse_quote! { #left_expr.repeat(#right_expr as usize) })
+        } else if left_is_int_literal && right_is_bytes {
+            Some(parse_quote! { #right_expr.repeat(#left_expr as usize) })
+        } else {
+            None
+        }
+    }
+
+    fn try_array_creation(
+        &mut self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Result<Option<syn::Expr>> {
         match (left, right) {
-            // Pattern: [x] * n (any size → Vec)
             (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size)))
                 if elts.len() == 1 && *size > 0 =>
             {
                 let elem = elts[0].to_rust_expr(self.ctx)?;
                 let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
-                Ok(parse_quote! { vec![#elem; #size_lit] })
+                Ok(Some(parse_quote! { vec![#elem; #size_lit] }))
             }
-            // Pattern: n * [x] (any size → Vec)
             (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
                 if elts.len() == 1 && *size > 0 =>
             {
                 let elem = elts[0].to_rust_expr(self.ctx)?;
                 let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
-                Ok(parse_quote! { vec![#elem; #size_lit] })
+                Ok(Some(parse_quote! { vec![#elem; #size_lit] }))
             }
-            // DEPYLER-0579: Pattern: [x] * var (variable size → Vec)
-            // Example: [0.0] * n_params → vec![0.0; n_params as usize]
             (HirExpr::List(elts), HirExpr::Var(_)) if elts.len() == 1 => {
                 let elem = elts[0].to_rust_expr(self.ctx)?;
-                Ok(parse_quote! { vec![#elem; #right_expr as usize] })
+                Ok(Some(parse_quote! { vec![#elem; #right_expr as usize] }))
             }
-            // DEPYLER-0579: Pattern: var * [x] (variable size → Vec)
             (HirExpr::Var(_), HirExpr::List(elts)) if elts.len() == 1 => {
                 let elem = elts[0].to_rust_expr(self.ctx)?;
-                Ok(parse_quote! { vec![#elem; #left_expr as usize] })
+                Ok(Some(parse_quote! { vec![#elem; #left_expr as usize] }))
             }
-            // DEPYLER-0794: Pattern: [x] * expr (any expression for size → Vec)
-            // Example: [True] * (limit + 1) → vec![true; (limit + 1) as usize]
-            // Note: Parentheses needed because `as` has lower precedence than arithmetic
             (HirExpr::List(elts), _) if elts.len() == 1 => {
                 let elem = elts[0].to_rust_expr(self.ctx)?;
-                Ok(parse_quote! { vec![#elem; (#right_expr) as usize] })
+                Ok(Some(parse_quote! { vec![#elem; (#right_expr) as usize] }))
             }
-            // DEPYLER-0794: Pattern: expr * [x] (any expression for size → Vec)
             (_, HirExpr::List(elts)) if elts.len() == 1 => {
                 let elem = elts[0].to_rust_expr(self.ctx)?;
-                Ok(parse_quote! { vec![#elem; (#left_expr) as usize] })
+                Ok(Some(parse_quote! { vec![#elem; (#left_expr) as usize] }))
             }
-            // DEPYLER-0926: Vector-Vector multiplication for trueno
-            // trueno Vector doesn't implement Mul trait, use method call instead
-            _ if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
-                Ok(parse_quote! { #left_expr.mul(&#right_expr).expect("multiplication overflow") })
-            }
-            // DEPYLER-0926: Vector-scalar multiplication for trueno
-            // trueno Vector has scale() method for scalar multiplication
-            _ if self.is_numpy_array_expr(left) && self.expr_returns_float(right) => {
-                Ok(parse_quote! { #left_expr.scale(#right_expr as f32).expect("scale failed") })
-            }
-            // DEPYLER-0926: scalar-Vector multiplication for trueno (commutative)
-            _ if self.expr_returns_float(left) && self.is_numpy_array_expr(right) => {
-                Ok(parse_quote! { #right_expr.scale(#left_expr as f32).expect("scale failed") })
-            }
-            // DEPYLER-0928: Vector * integer - convert integer to f32 for scale()
-            _ if self.is_numpy_array_expr(left)
-                && matches!(right, HirExpr::Literal(Literal::Int(_))) =>
-            {
-                Ok(parse_quote! { #left_expr.scale(#right_expr as f32).expect("scale failed") })
-            }
-            // DEPYLER-0928: integer * Vector - convert integer to f32 for scale()
-            _ if matches!(left, HirExpr::Literal(Literal::Int(_)))
-                && self.is_numpy_array_expr(right) =>
-            {
-                Ok(parse_quote! { #right_expr.scale(#left_expr as f32).expect("scale failed") })
-            }
-            // Default multiplication
-            _ => {
-                let rust_op = convert_binop(op)?;
-                // DEPYLER-0582: Coerce int to float if operating with float
-                let left_coerced = self.coerce_int_to_float_if_needed(left_expr, left, right);
-                let right_coerced = self.coerce_int_to_float_if_needed(right_expr, right, left);
-
-                // DEPYLER-1109: Universal PyOps Dispatch for multiplication
-                // In NASA mode, use PyOps trait methods for ALL arithmetic operations
-                // This delegates type coercion to Rust's trait system (robust, compiled)
-                // instead of transpiler logic (complex, brittle)
-                if self.ctx.type_mapper.nasa_mode {
-                    // Use .py_mul() for all multiplication - traits handle i32*f64, etc.
-                    return Ok(parse_quote! { #left_coerced.py_mul(#right_coerced) });
-                }
-
-                // DEPYLER-0582: Wrap operands in parens if they have lower precedence
-                let left_wrapped = precedence::parenthesize_if_lower_precedence(left_coerced, op);
-                let right_wrapped = precedence::parenthesize_if_lower_precedence(right_coerced, op);
-                Ok(parse_quote! { #left_wrapped #rust_op #right_wrapped })
-            }
+            _ => Ok(None),
         }
+    }
+
+    fn convert_mul_numpy_or_default(
+        &mut self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+        op: BinOp,
+    ) -> Result<syn::Expr> {
+        if let Some(result) = self.try_numpy_mul(left, right, &left_expr, &right_expr) {
+            return Ok(result);
+        }
+
+        let rust_op = convert_binop(op)?;
+        let left_coerced = self.coerce_int_to_float_if_needed(left_expr, left, right);
+        let right_coerced = self.coerce_int_to_float_if_needed(right_expr, right, left);
+
+        if self.ctx.type_mapper.nasa_mode {
+            return Ok(parse_quote! { #left_coerced.py_mul(#right_coerced) });
+        }
+
+        let left_wrapped = precedence::parenthesize_if_lower_precedence(left_coerced, op);
+        let right_wrapped = precedence::parenthesize_if_lower_precedence(right_coerced, op);
+        Ok(parse_quote! { #left_wrapped #rust_op #right_wrapped })
+    }
+
+    fn try_numpy_mul(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Option<syn::Expr> {
+        if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) {
+            return Some(parse_quote! { #left_expr.mul(&#right_expr).expect("multiplication overflow") });
+        }
+        if self.is_numpy_array_expr(left) && self.expr_returns_float(right) {
+            return Some(parse_quote! { #left_expr.scale(#right_expr as f32).expect("scale failed") });
+        }
+        if self.expr_returns_float(left) && self.is_numpy_array_expr(right) {
+            return Some(parse_quote! { #right_expr.scale(#left_expr as f32).expect("scale failed") });
+        }
+        if self.is_numpy_array_expr(left) && matches!(right, HirExpr::Literal(Literal::Int(_))) {
+            return Some(parse_quote! { #left_expr.scale(#right_expr as f32).expect("scale failed") });
+        }
+        if matches!(left, HirExpr::Literal(Literal::Int(_))) && self.is_numpy_array_expr(right) {
+            return Some(parse_quote! { #right_expr.scale(#left_expr as f32).expect("scale failed") });
+        }
+        None
     }
 
     /// DEPYLER-REFACTOR-001 Phase 2.8: Extracted addition operator helper
@@ -1720,5 +1709,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! { &*#left_expr }
             }
         }
+    }
+}
+
+fn is_int_typed_var(expr: &HirExpr, ctx: &crate::rust_gen::context::CodeGenContext) -> bool {
+    if let HirExpr::Var(sym) = expr {
+        matches!(ctx.var_types.get(sym), Some(crate::hir::Type::Int))
+    } else {
+        false
+    }
+}
+
+fn is_string_named_var(expr: &HirExpr) -> bool {
+    if let HirExpr::Var(sym) = expr {
+        let name = sym.as_str();
+        name == "text" || name == "s" || name == "line" || name.ends_with("_str")
+    } else {
+        false
     }
 }

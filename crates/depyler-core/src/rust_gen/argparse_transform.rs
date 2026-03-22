@@ -642,218 +642,13 @@ pub fn generate_args_struct(
     tracker: &ArgParserTracker,
 ) -> proc_macro2::TokenStream {
     use quote::quote;
-    use syn::parse_quote;
 
-    // Generate struct fields from arguments
     let mut fields: Vec<proc_macro2::TokenStream> = parser_info
         .arguments
         .iter()
-        .map(|arg| {
-            // DEPYLER-1120: Use safe_ident to escape Rust keywords like 'type'
-            let field_name = safe_ident(&arg.rust_field_name());
-
-            // DEPYLER-0367: Determine if field should be Option<T>
-            let base_type_str = arg.rust_type();
-
-            // Don't wrap in Option if:
-            // - Already Option (nargs="?")
-            // - Has a default value (will use default_value attribute)
-            // - Is required=True
-            // - Is positional
-            // - Has action with implicit default (store_true/false/count → bool/u8)
-            // - Has nargs="+" (required, 1 or more)
-            // - DEPYLER-0368: Has action="append" (Vec handles absence as empty)
-            // - DEPYLER-0375: Has action="store_const" (bool with implicit default)
-            let has_implicit_default = matches!(
-                arg.action.as_deref(),
-                Some("store_true")
-                    | Some("store_false")
-                    | Some("count")
-                    | Some("append")
-                    | Some("store_const")
-            );
-            // DEPYLER-0370: nargs="+" or nargs=N (specific number) are required
-            let is_required_nargs = arg.nargs.as_deref() == Some("+")
-                || arg.nargs.as_deref().map(|s| s.parse::<usize>().is_ok()).unwrap_or(false);
-
-            let field_type: syn::Type = if !arg.is_positional
-                && arg.required != Some(true)
-                && arg.default.is_none()
-                && !base_type_str.starts_with("Option<")
-                && !has_implicit_default
-                && !is_required_nargs
-            {
-                // Wrap in Option for optional flags
-                syn::parse_str(&format!("Option<{}>", base_type_str))
-                    .unwrap_or_else(|_| parse_quote! { Option<String> })
-            } else {
-                syn::parse_str(&base_type_str).unwrap_or_else(|_| parse_quote! { String })
-            };
-
-            // Generate clap attributes
-            let mut attrs = vec![];
-
-            if !arg.is_positional {
-                // DEPYLER-0365 Phase 5 + DEPYLER-0371: Proper flag detection with dest support
-                // Three cases:
-                // 1. Both short and long: "-o" + "--output" → #[arg(short = 'o', long)]
-                // 2. Long only: "--debug" → #[arg(long)]
-                // 3. Short only: "-v" → #[arg(short = 'v')]
-                // DEPYLER-0371: If dest is present, use long = "flag_name"
-
-                if let Some(long) = &arg.long {
-                    // Case 1: Both short and long flags
-                    let short_str = arg.name.trim_start_matches('-');
-                    if let Some(short) = short_str.chars().next() {
-                        // DEPYLER-0371: If dest is present, specify long name explicitly
-                        if arg.dest.is_some() {
-                            let long_name = long.trim_start_matches("--");
-                            attrs.push(quote! {
-                                #[arg(short = #short, long = #long_name)]
-                            });
-                        } else {
-                            attrs.push(quote! {
-                                #[arg(short = #short, long)]
-                            });
-                        }
-                    }
-                } else if arg.name.starts_with("--") {
-                    // Case 2: Long flag only (--debug)
-                    // DEPYLER-0371: If dest is present, specify long name explicitly
-                    if arg.dest.is_some() {
-                        let long_name = arg.name.trim_start_matches("--");
-                        attrs.push(quote! {
-                            #[arg(long = #long_name)]
-                        });
-                    } else {
-                        attrs.push(quote! {
-                            #[arg(long)]
-                        });
-                    }
-                } else {
-                    // Case 3: Short flag only (-v)
-                    let short_str = arg.name.trim_start_matches('-');
-                    if let Some(short) = short_str.chars().next() {
-                        attrs.push(quote! {
-                            #[arg(short = #short)]
-                        });
-                    }
-                }
-            }
-
-            // DEPYLER-0367: Add default value if present
-            if let Some(crate::hir::HirExpr::Literal(lit)) = arg.default.as_ref() {
-                // Convert HIR literal to string for default_value attribute
-                let default_str_opt = match lit {
-                    crate::hir::Literal::Int(n) => Some(n.to_string()),
-                    crate::hir::Literal::Float(f) => Some(f.to_string()),
-                    crate::hir::Literal::String(s) => Some(s.clone()),
-                    crate::hir::Literal::Bool(b) => Some(b.to_string()),
-                    _ => None, // Skip complex defaults
-                };
-                if let Some(default_str) = default_str_opt {
-                    attrs.push(quote! {
-                        #[arg(default_value = #default_str)]
-                    });
-                }
-            }
-
-            // DEPYLER-0374: Add default_missing_value for const + nargs="?"
-            if arg.nargs.as_deref() == Some("?") && arg.const_value.is_some() {
-                if let Some(crate::hir::HirExpr::Literal(lit)) = arg.const_value.as_ref() {
-                    let const_str_opt = match lit {
-                        crate::hir::Literal::Int(n) => Some(n.to_string()),
-                        crate::hir::Literal::Float(f) => Some(f.to_string()),
-                        crate::hir::Literal::String(s) => Some(s.clone()),
-                        crate::hir::Literal::Bool(b) => Some(b.to_string()),
-                        _ => None,
-                    };
-                    if let Some(const_str) = const_str_opt {
-                        attrs.push(quote! {
-                            #[arg(default_missing_value = #const_str, num_args = 0..=1)]
-                        });
-                    }
-                }
-            }
-
-            // DEPYLER-0370: Add num_args for nargs=N (specific number)
-            if let Some(nargs_str) = arg.nargs.as_deref() {
-                if let Ok(n) = nargs_str.parse::<usize>() {
-                    // Create a literal integer token
-                    let n_lit = syn::LitInt::new(&format!("{}", n), proc_macro2::Span::call_site());
-                    attrs.push(quote! {
-                        #[arg(num_args = #n_lit)]
-                    });
-                }
-            }
-
-            // DEPYLER-0372: Add value_name for metavar
-            if let Some(ref metavar) = arg.metavar {
-                attrs.push(quote! {
-                    #[arg(value_name = #metavar)]
-                });
-            }
-
-            // DEPYLER-0373: Add value_parser for choices
-            if let Some(ref choices) = arg.choices {
-                let choice_strs: Vec<_> = choices.iter().collect();
-                attrs.push(quote! {
-                    #[arg(value_parser = [#(#choice_strs),*])]
-                });
-            }
-
-            // DEPYLER-0378: Add action attributes for special actions
-            match arg.action.as_deref() {
-                Some("count") => {
-                    attrs.push(quote! {
-                        #[arg(action = clap::ArgAction::Count)]
-                    });
-                }
-                Some("store_true") => {
-                    attrs.push(quote! {
-                        #[arg(action = clap::ArgAction::SetTrue)]
-                    });
-                }
-                Some("store_false") => {
-                    attrs.push(quote! {
-                        #[arg(action = clap::ArgAction::SetFalse)]
-                    });
-                }
-                _ => {}
-            }
-
-            // DEPYLER-0369/0375: Add default_value_t for store_false/store_const
-            if arg.action.as_deref() == Some("store_false") {
-                // store_false means default is true, becomes false when present
-                attrs.push(quote! {
-                    #[arg(default_value_t = true)]
-                });
-            } else if arg.action.as_deref() == Some("store_const") && arg.const_value.is_some() {
-                // store_const: default is false, becomes const value when present
-                if let Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Bool(_val))) =
-                    arg.const_value.as_ref()
-                {
-                    attrs.push(quote! {
-                        #[arg(default_value_t = false)]
-                    });
-                }
-            }
-
-            // Add help text if present
-            if let Some(ref help_text) = arg.help {
-                attrs.push(quote! {
-                    #[doc = #help_text]
-                });
-            }
-
-            quote! {
-                #(#attrs)*
-                #field_name: #field_type
-            }
-        })
+        .map(|arg| generate_arg_field(arg))
         .collect();
 
-    // DEPYLER-0399: Add command field if subcommands exist
     if tracker.has_subcommands() {
         fields.push(quote! {
             #[command(subcommand)]
@@ -861,7 +656,222 @@ pub fn generate_args_struct(
         });
     }
 
-    // Generate command-level attributes
+    let command_attrs = generate_command_attrs(parser_info);
+
+    quote! {
+        #[derive(clap::Parser)]
+        #(#command_attrs)*
+        struct Args {
+            #(#fields),*
+        }
+    }
+}
+
+fn generate_arg_field(arg: &ArgInfo) -> proc_macro2::TokenStream {
+    use quote::quote;
+    use syn::parse_quote;
+
+    let field_name = safe_ident(&arg.rust_field_name());
+    let field_type = determine_field_type(arg);
+
+    let mut attrs = vec![];
+    generate_flag_attrs(arg, &mut attrs);
+    generate_default_attrs(arg, &mut attrs);
+    generate_nargs_attrs(arg, &mut attrs);
+    generate_metavar_choices_attrs(arg, &mut attrs);
+    generate_action_attrs(arg, &mut attrs);
+    generate_default_value_t_attrs(arg, &mut attrs);
+
+    if let Some(ref help_text) = arg.help {
+        attrs.push(quote! {
+            #[doc = #help_text]
+        });
+    }
+
+    quote! {
+        #(#attrs)*
+        #field_name: #field_type
+    }
+}
+
+fn determine_field_type(arg: &ArgInfo) -> syn::Type {
+    use syn::parse_quote;
+
+    let base_type_str = arg.rust_type();
+
+    let has_implicit_default = matches!(
+        arg.action.as_deref(),
+        Some("store_true")
+            | Some("store_false")
+            | Some("count")
+            | Some("append")
+            | Some("store_const")
+    );
+    let is_required_nargs = arg.nargs.as_deref() == Some("+")
+        || arg.nargs.as_deref().map(|s| s.parse::<usize>().is_ok()).unwrap_or(false);
+
+    if !arg.is_positional
+        && arg.required != Some(true)
+        && arg.default.is_none()
+        && !base_type_str.starts_with("Option<")
+        && !has_implicit_default
+        && !is_required_nargs
+    {
+        syn::parse_str(&format!("Option<{}>", base_type_str))
+            .unwrap_or_else(|_| parse_quote! { Option<String> })
+    } else {
+        syn::parse_str(&base_type_str).unwrap_or_else(|_| parse_quote! { String })
+    }
+}
+
+fn generate_flag_attrs(arg: &ArgInfo, attrs: &mut Vec<proc_macro2::TokenStream>) {
+    use quote::quote;
+
+    if arg.is_positional {
+        return;
+    }
+
+    if let Some(long) = &arg.long {
+        let short_str = arg.name.trim_start_matches('-');
+        if let Some(short) = short_str.chars().next() {
+            if arg.dest.is_some() {
+                let long_name = long.trim_start_matches("--");
+                attrs.push(quote! {
+                    #[arg(short = #short, long = #long_name)]
+                });
+            } else {
+                attrs.push(quote! {
+                    #[arg(short = #short, long)]
+                });
+            }
+        }
+    } else if arg.name.starts_with("--") {
+        if arg.dest.is_some() {
+            let long_name = arg.name.trim_start_matches("--");
+            attrs.push(quote! {
+                #[arg(long = #long_name)]
+            });
+        } else {
+            attrs.push(quote! {
+                #[arg(long)]
+            });
+        }
+    } else {
+        let short_str = arg.name.trim_start_matches('-');
+        if let Some(short) = short_str.chars().next() {
+            attrs.push(quote! {
+                #[arg(short = #short)]
+            });
+        }
+    }
+}
+
+fn literal_to_string(lit: &crate::hir::Literal) -> Option<String> {
+    match lit {
+        crate::hir::Literal::Int(n) => Some(n.to_string()),
+        crate::hir::Literal::Float(f) => Some(f.to_string()),
+        crate::hir::Literal::String(s) => Some(s.clone()),
+        crate::hir::Literal::Bool(b) => Some(b.to_string()),
+        _ => None,
+    }
+}
+
+fn generate_default_attrs(arg: &ArgInfo, attrs: &mut Vec<proc_macro2::TokenStream>) {
+    use quote::quote;
+
+    if let Some(crate::hir::HirExpr::Literal(lit)) = arg.default.as_ref() {
+        if let Some(default_str) = literal_to_string(lit) {
+            attrs.push(quote! {
+                #[arg(default_value = #default_str)]
+            });
+        }
+    }
+
+    if arg.nargs.as_deref() == Some("?") && arg.const_value.is_some() {
+        if let Some(crate::hir::HirExpr::Literal(lit)) = arg.const_value.as_ref() {
+            if let Some(const_str) = literal_to_string(lit) {
+                attrs.push(quote! {
+                    #[arg(default_missing_value = #const_str, num_args = 0..=1)]
+                });
+            }
+        }
+    }
+}
+
+fn generate_nargs_attrs(arg: &ArgInfo, attrs: &mut Vec<proc_macro2::TokenStream>) {
+    use quote::quote;
+
+    if let Some(nargs_str) = arg.nargs.as_deref() {
+        if let Ok(n) = nargs_str.parse::<usize>() {
+            let n_lit = syn::LitInt::new(&format!("{}", n), proc_macro2::Span::call_site());
+            attrs.push(quote! {
+                #[arg(num_args = #n_lit)]
+            });
+        }
+    }
+}
+
+fn generate_metavar_choices_attrs(arg: &ArgInfo, attrs: &mut Vec<proc_macro2::TokenStream>) {
+    use quote::quote;
+
+    if let Some(ref metavar) = arg.metavar {
+        attrs.push(quote! {
+            #[arg(value_name = #metavar)]
+        });
+    }
+
+    if let Some(ref choices) = arg.choices {
+        let choice_strs: Vec<_> = choices.iter().collect();
+        attrs.push(quote! {
+            #[arg(value_parser = [#(#choice_strs),*])]
+        });
+    }
+}
+
+fn generate_action_attrs(arg: &ArgInfo, attrs: &mut Vec<proc_macro2::TokenStream>) {
+    use quote::quote;
+
+    match arg.action.as_deref() {
+        Some("count") => {
+            attrs.push(quote! {
+                #[arg(action = clap::ArgAction::Count)]
+            });
+        }
+        Some("store_true") => {
+            attrs.push(quote! {
+                #[arg(action = clap::ArgAction::SetTrue)]
+            });
+        }
+        Some("store_false") => {
+            attrs.push(quote! {
+                #[arg(action = clap::ArgAction::SetFalse)]
+            });
+        }
+        _ => {}
+    }
+}
+
+fn generate_default_value_t_attrs(arg: &ArgInfo, attrs: &mut Vec<proc_macro2::TokenStream>) {
+    use quote::quote;
+
+    if arg.action.as_deref() == Some("store_false") {
+        attrs.push(quote! {
+            #[arg(default_value_t = true)]
+        });
+    } else if arg.action.as_deref() == Some("store_const") && arg.const_value.is_some() {
+        if let Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Bool(_val))) =
+            arg.const_value.as_ref()
+        {
+            attrs.push(quote! {
+                #[arg(default_value_t = false)]
+            });
+        }
+    }
+}
+
+fn generate_command_attrs(parser_info: &ArgParserInfo) -> Vec<proc_macro2::TokenStream> {
+    use quote::quote;
+
     let mut command_attrs = vec![];
     if let Some(ref desc) = parser_info.description {
         command_attrs.push(quote! {
@@ -873,15 +883,7 @@ pub fn generate_args_struct(
             #[command(after_help = #epilog)]
         });
     }
-
-    // Generate the struct
-    quote! {
-        #[derive(clap::Parser)]
-        #(#command_attrs)*
-        struct Args {
-            #(#fields),*
-        }
-    }
+    command_attrs
 }
 
 /// DEPYLER-0425: Analyze which subcommand fields are accessed in a function
