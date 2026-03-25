@@ -1,5 +1,13 @@
 # Sovereign CI — calls reusable workflow from paiml/.github
 # Change once in paiml/.github → applies to all repos
+#
+# Jobs provided by sovereign-ci.yml:
+#   test: cargo test --lib (self-hosted clean-room)
+#   lint: cargo clippy --all-targets -- -D warnings + cargo fmt --check
+#   coverage: cargo llvm-cov + codecov upload
+#   security: cargo audit (ubuntu-latest, continue-on-error)
+#   provenance: SLSA attest-build-provenance
+#   gate: aggregates test+lint results
 name: CI
 
 on:
