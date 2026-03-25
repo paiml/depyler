@@ -1,0 +1,21 @@
+# Nightly Benchmarks — criterion performance tracking
+# Calls sovereign-ci.yml with run_benchmarks: true
+name: Nightly Bench
+
+on:
+  schedule:
+    - cron: "30 5 * * *"  # 05:30 UTC (after nightly builds at 04:00)
+  workflow_dispatch:
+
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    uses: paiml/.github/.github/workflows/sovereign-ci.yml@main
+    with:
+      repo: ${{ github.event.repository.name }}
+      run_benchmarks: true
+    secrets: inherit
+
