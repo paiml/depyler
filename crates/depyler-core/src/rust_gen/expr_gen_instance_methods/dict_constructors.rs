@@ -241,7 +241,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     // CB-200 Batch 13: Wrap value expression in DepylerValue variant
-    fn wrap_depyler_value(&self, value: &HirExpr, val_expr: &syn::Expr) -> Result<syn::Expr> {
+    fn wrap_depyler_value(&mut self, value: &HirExpr, val_expr: &syn::Expr) -> Result<syn::Expr> {
         Ok(match value {
             HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#val_expr as i64) },
             HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#val_expr as f64) },
@@ -350,7 +350,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     // CB-200 Batch 13: Wrap list elements in DepylerValue
-    fn wrap_depyler_list_value(&self, elts: &[HirExpr], _val_expr: &syn::Expr) -> Result<syn::Expr> {
+    fn wrap_depyler_list_value(&mut self, elts: &[HirExpr], _val_expr: &syn::Expr) -> Result<syn::Expr> {
         let wrapped_elements: Vec<syn::Expr> = elts
             .iter()
             .map(|elem| {

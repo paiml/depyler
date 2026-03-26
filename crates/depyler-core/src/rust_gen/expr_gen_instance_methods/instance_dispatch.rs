@@ -41,12 +41,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // CB-200 Batch 13: Datetime methods
-        if let Some(result) = self.try_convert_datetime_method(object, object_expr, method, arg_exprs, hir_args)? {
+        if let Some(result) = self.try_convert_datetime_instance_method(object, object_expr, method, arg_exprs, hir_args)? {
             return Ok(result);
         }
 
         // CB-200 Batch 13: CSV methods
-        if let Some(result) = Self::try_convert_csv_method(object_expr, method, arg_exprs)? {
+        if let Some(result) = Self::try_convert_csv_instance_method(object_expr, method, arg_exprs)? {
             return Ok(result);
         }
 
@@ -437,7 +437,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     // CB-200 Batch 13: Handle datetime instance methods
-    fn try_convert_datetime_method(
+    fn try_convert_datetime_instance_method(
         &mut self,
         object: &HirExpr,
         object_expr: &syn::Expr,
@@ -506,8 +506,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    // CB-200 Batch 13: Handle CSV methods
-    fn try_convert_csv_method(
+    // CB-200 Batch 13: Handle CSV instance methods
+    fn try_convert_csv_instance_method(
         object_expr: &syn::Expr,
         method: &str,
         arg_exprs: &[syn::Expr],

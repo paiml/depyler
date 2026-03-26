@@ -457,25 +457,26 @@ fn try_handle_argparser_expr_stmt(
 
     if let HirExpr::Var(var_name) = object {
         // DEPYLER-0399: Subcommand parser add_argument
-        if let Some(subcommand_info) = ctx.argparser_tracker.get_subcommand_mut(var_name) {
-            if method == "add_argument" {
-                if let Some(HirExpr::Literal(crate::hir::Literal::String(first_arg))) = args.first()
+        let is_subcommand = ctx.argparser_tracker.get_subcommand_mut(var_name).is_some();
+        if is_subcommand && method == "add_argument" {
+            if let Some(HirExpr::Literal(crate::hir::Literal::String(first_arg))) = args.first()
+            {
+                let mut arg =
+                    crate::rust_gen::argparse_transform::ArgParserArgument::new(first_arg.clone());
+                if let Some(HirExpr::Literal(crate::hir::Literal::String(second_arg))) = args.get(1)
                 {
-                    let mut arg =
-                        crate::rust_gen::argparse_transform::ArgParserArgument::new(first_arg.clone());
-                    if let Some(HirExpr::Literal(crate::hir::Literal::String(second_arg))) = args.get(1)
-                    {
-                        if second_arg.starts_with("--") {
-                            arg.long = Some(second_arg.clone());
-                        }
+                    if second_arg.starts_with("--") {
+                        arg.long = Some(second_arg.clone());
                     }
-                    extract_subcommand_add_argument_kwargs(kwargs, &mut arg, ctx);
+                }
+                extract_subcommand_add_argument_kwargs(kwargs, &mut arg, ctx);
+                if let Some(subcommand_info) = ctx.argparser_tracker.get_subcommand_mut(var_name) {
                     if !subcommand_info.arguments.iter().any(|existing| existing.name == arg.name) {
                         subcommand_info.arguments.push(arg);
                     }
                 }
-                return Ok(Some(quote! {}));
             }
+            return Ok(Some(quote! {}));
         }
 
         // Resolve parser variable
@@ -511,26 +512,26 @@ fn try_handle_argparser_expr_stmt(
         if ctx.argparser_tracker.get_parser(&parser_var).is_some() {
             match method {
                 "add_argument" => {
-                    if let Some(parser_info) = ctx.argparser_tracker.get_parser_mut(&parser_var) {
-                        if let Some(HirExpr::Literal(crate::hir::Literal::String(first_arg))) =
-                            args.first()
+                    if let Some(HirExpr::Literal(crate::hir::Literal::String(first_arg))) =
+                        args.first()
+                    {
+                        let mut arg =
+                            crate::rust_gen::argparse_transform::ArgParserArgument::new(
+                                first_arg.clone(),
+                            );
+                        if let Some(HirExpr::Literal(crate::hir::Literal::String(second_arg))) =
+                            args.get(1)
                         {
-                            let mut arg =
-                                crate::rust_gen::argparse_transform::ArgParserArgument::new(
-                                    first_arg.clone(),
-                                );
-                            if let Some(HirExpr::Literal(crate::hir::Literal::String(second_arg))) =
-                                args.get(1)
-                            {
-                                if second_arg.starts_with("--") {
-                                    arg.long = Some(second_arg.clone());
-                                }
+                            if second_arg.starts_with("--") {
+                                arg.long = Some(second_arg.clone());
                             }
-                            extract_subcommand_add_argument_kwargs(kwargs, &mut arg, ctx);
+                        }
+                        extract_subcommand_add_argument_kwargs(kwargs, &mut arg, ctx);
+                        if let Some(parser_info) = ctx.argparser_tracker.get_parser_mut(&parser_var) {
                             parser_info.add_argument(arg);
                         }
-                        return Ok(Some(quote! {}));
                     }
+                    return Ok(Some(quote! {}));
                 }
                 "add_argument_group" | "add_mutually_exclusive_group" | "set_defaults" => {
                     return Ok(Some(quote! {}));
@@ -683,8 +684,9 @@ fn try_codegen_return_tuple_wrap(
             let mut wrapped_elems = Vec::with_capacity(elts.len());
             for (i, elem) in elts.iter().enumerate() {
                 let elem_expr = elem.to_rust_expr(ctx)?;
+                let elem_tokens = elem_expr.to_token_stream();
                 let expected_type = elem_types.get(i);
-                let wrapped = wrap_return_tuple_element(elem, &elem_expr, expected_type, ctx);
+                let wrapped = wrap_return_tuple_element(elem, &elem_tokens, expected_type, ctx);
                 wrapped_elems.push(wrapped);
             }
             return Ok(Some(quote! { return (#(#wrapped_elems),*); }));
@@ -1848,8 +1850,9 @@ pub(crate) fn codegen_if_stmt(
 
     // DEPYLER-0399: Detect subcommand dispatch pattern and convert to match
     if ctx.argparser_tracker.has_subcommands() {
+        let else_slice = else_body.as_deref().unwrap_or(&[]);
         if let Some(match_stmt) =
-            try_generate_subcommand_match(condition, then_body, else_body, ctx)?
+            try_generate_subcommand_match(condition, then_body, else_slice, ctx)?
         {
             return Ok(match_stmt);
         }
@@ -3695,7 +3698,7 @@ fn try_subcommand_assign(
         .map(|sp| sp.dest_field.clone())
         .unwrap_or_else(|| "command".to_string());
 
-    let cmd_name = is_subcommand_check(value, &dest_field, ctx)?;
+    let cmd_name = is_subcommand_check(value, &dest_field, ctx).ok()?;
     if cmd_name.is_empty() {
         return None;
     }
@@ -4807,7 +4810,7 @@ fn infer_nasa_nonempty_list_type(
 
 /// CB-200 Batch 16: Infer type for list comprehension in NASA mode
 fn infer_nasa_listcomp_type(
-    generators: &[crate::hir::Comprehension],
+    generators: &[crate::hir::HirComprehension],
     ctx: &CodeGenContext,
 ) -> (Option<proc_macro2::TokenStream>, bool) {
     let inferred_type = generators.first().and_then(|gen| {

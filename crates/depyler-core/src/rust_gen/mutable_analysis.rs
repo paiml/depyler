@@ -397,8 +397,7 @@ pub(super) fn analyze_stmt(
             if let Some(else_stmts) = else_body {
                 analyze_stmt_body(
                     else_stmts, declared, mutable, var_types, mutating_methods, function_param_muts,
-                    );
-                }
+                );
             }
         }
         HirStmt::While { condition, body, .. } => {

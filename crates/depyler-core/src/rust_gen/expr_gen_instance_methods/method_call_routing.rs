@@ -369,8 +369,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
-        if let Some(mapping) = self.ctx.imported_modules.get(module_name) {
-            if let Some(result) = self.try_mapped_module_method(mapping, method, args)? {
+        if let Some(mapping) = self.ctx.imported_modules.get(module_name).cloned() {
+            if let Some(result) = self.try_mapped_module_method(&mapping, method, args)? {
                 return Ok(Some(result));
             }
         }

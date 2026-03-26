@@ -2686,7 +2686,7 @@ fn infer_attribute_type_with_env(
 /// CB-200 Batch 10: Infer type for ListComp with environment (loop variable binding).
 fn infer_listcomp_type_with_env(
     element: &HirExpr,
-    generators: &[crate::hir::Comprehension],
+    generators: &[crate::hir::HirComprehension],
     var_types: &std::collections::HashMap<String, Type>,
 ) -> Type {
     let mut extended_env = var_types.clone();
@@ -3607,7 +3607,7 @@ fn infer_type_from_binary_usage(
 fn infer_type_from_comprehension_usage(
     param_name: &str,
     element: &HirExpr,
-    generators: &[crate::hir::Comprehension],
+    generators: &[crate::hir::HirComprehension],
     check_iter: bool,
 ) -> Option<Type> {
     if let Some(ty) = infer_type_from_expr_usage(param_name, element) {

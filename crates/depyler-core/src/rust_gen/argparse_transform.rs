@@ -38,6 +38,9 @@ use crate::hir::{HirExpr, Type};
 use crate::rust_gen::keywords::safe_ident;
 use std::collections::HashMap;
 
+/// Type alias for backward compatibility — `ArgInfo` was renamed to `ArgParserArgument`.
+type ArgInfo = ArgParserArgument;
+
 /// Convert HIR Type to Rust type string for argparse arguments
 ///
 /// # DEPYLER-0364: Type Mapping
@@ -1027,7 +1030,7 @@ impl<'a> FieldAccessWalker<'a> {
     }
 
     /// CB-200: Walk comprehension generators (shared by ListComp, SetComp, DictComp, GeneratorExp).
-    fn walk_expr_generators(&mut self, generators: &[crate::hir::Comprehension]) {
+    fn walk_expr_generators(&mut self, generators: &[crate::hir::HirComprehension]) {
         for gen in generators {
             self.walk_expr(&gen.iter);
             for cond in &gen.conditions {

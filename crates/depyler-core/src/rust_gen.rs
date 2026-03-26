@@ -17,13 +17,16 @@ mod expr_gen;
 mod expr_gen_instance_methods; // DEPYLER-COVERAGE-95: Instance method handlers split from expr_gen
 mod format;
 pub mod func_gen; // DEPYLER-0518: Made public for type inference from lifetime_analysis
+#[path = "rust_gen/func_gen_helpers.rs"]
 pub mod func_gen_helpers; // DEPYLER-COVERAGE-95: Extracted pure helpers for testability
+#[path = "rust_gen/func_gen_inference.rs"]
 mod func_gen_inference; // DEPYLER-COVERAGE-95: Advanced function codegen helpers split from func_gen
 mod generator_gen;
 mod import_gen;
 pub mod keywords; // DEPYLER-0023: Centralized keyword escaping
 pub mod numpy_gen; // Phase 3: NumPy→Trueno codegen
 mod stmt_gen;
+#[path = "rust_gen/stmt_gen_complex.rs"]
 mod stmt_gen_complex; // DEPYLER-COVERAGE-95: Complex statement handlers split from stmt_gen
 mod type_gen;
 

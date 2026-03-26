@@ -553,7 +553,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         use crate::module_mapper::ConstructorPattern;
         let constructor_pattern = self.ctx.imported_modules.values().find_map(|module| {
             let type_name = path_parts.last()?;
-            module.constructor_patterns.get(*type_name)
+            module.constructor_patterns.get(*type_name).cloned()
         });
 
         // DEPYLER-1004: serde_json special handling
@@ -573,7 +573,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(parse_quote! { #path::new(#(#args),*) })
                 }
             }
-            Some(ConstructorPattern::Method(method)) => {
+            Some(ConstructorPattern::Method(ref method)) => {
                 let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
                 if args.is_empty() {
                     Ok(parse_quote! { #path::#method_ident() })

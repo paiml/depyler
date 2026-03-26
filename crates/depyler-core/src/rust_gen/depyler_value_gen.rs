@@ -450,6 +450,7 @@ fn gen_depyler_methods() -> proc_macro2::TokenStream {
                 }
     }
 }
+}
 
 /// CB-200 Batch 14: Generate Index/IndexMut implementations
 fn gen_index_impls() -> proc_macro2::TokenStream {
