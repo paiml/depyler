@@ -1,73 +1,117 @@
-//! Contract trait enforcement -- compiler verifies provable-contracts trait compliance.
-//!
-//! Generated via provable-contracts Section 23 trait enforcement.
-//!
-//! Each `impl` below uses reference scalar implementations. The compile-time
-//! check proves the trait signatures are satisfiable. If the contract traits
-//! ever change shape, this file fails to compile.
-//!
-//! Run with: `cargo test --test contract_traits`
+//! Contract-trait enforcement — compiler verifies bound functions exist.
+//! Section 23 of provable-contracts spec.
 
-use provable_contracts::traits::{ActivationKernelV1, SoftmaxKernelV1};
+use provable_contracts::traits::*;
 
-/// Marker struct for reference scalar kernel implementations.
-struct ReferenceKernels;
+struct DepylerKernels;
 
-// ---------------------------------------------------------------------------
-// SoftmaxKernelV1 -- numerically stable softmax
-// ---------------------------------------------------------------------------
-impl SoftmaxKernelV1 for ReferenceKernels {
+impl SoftmaxKernelV1 for DepylerKernels {
     fn softmax(&self, x: &[f32]) -> Vec<f32> {
-        if x.is_empty() {
-            return vec![];
-        }
         let max = x.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-        let exps: Vec<f32> = x.iter().map(|&xi| (xi - max).exp()).collect();
+        let exps: Vec<f32> = x.iter().map(|v| (v - max).exp()).collect();
         let sum: f32 = exps.iter().sum();
-        exps.iter().map(|&e| e / sum).collect()
+        exps.iter().map(|e| e / sum).collect()
     }
 }
 
-// ---------------------------------------------------------------------------
-// ActivationKernelV1 -- gelu, relu, silu
-// ---------------------------------------------------------------------------
-impl ActivationKernelV1 for ReferenceKernels {
+impl ActivationKernelV1 for DepylerKernels {
     fn gelu(&self, x: f32) -> Vec<f32> {
-        let inner = (2.0_f32 / std::f32::consts::PI).sqrt() * (x + 0.044715 * x * x * x);
-        vec![0.5 * x * (1.0 + inner.tanh())]
+        vec![0.5 * x * (1.0 + (0.7978845608 * (x + 0.044715 * x.powi(3))).tanh())]
     }
+    fn relu(&self, x: f32) -> Vec<f32> { vec![x.max(0.0)] }
+    fn silu(&self, x: f32) -> Vec<f32> { vec![x / (1.0 + (-x).exp())] }
+}
 
-    fn relu(&self, x: f32) -> Vec<f32> {
-        vec![x.max(0.0)]
-    }
+impl SiluKernelV1 for DepylerKernels {
+    fn sigmoid(&self, x: &[f32]) -> Vec<f32> { x.iter().map(|v| 1.0 / (1.0 + (-v).exp())).collect() }
+    fn silu(&self, x: &[f32]) -> Vec<f32> { x.iter().map(|v| v / (1.0 + (-v).exp())).collect() }
+}
 
-    fn silu(&self, x: f32) -> Vec<f32> {
-        vec![x / (1.0 + (-x).exp())]
+impl RmsnormKernelV1 for DepylerKernels {
+    fn rmsnorm(&self, x: &[f32]) -> Vec<f32> {
+        let rms = (x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32).sqrt();
+        x.iter().map(|v| v / (rms + 1e-5)).collect()
     }
 }
 
-// ---------------------------------------------------------------------------
-// Compile-time enforcement test
-// ---------------------------------------------------------------------------
+impl LayernormKernelV1 for DepylerKernels {
+    fn layernorm(&self, x: &[f32], gamma: &[f32]) -> Vec<f32> {
+        let mean = x.iter().sum::<f32>() / x.len() as f32;
+        let var = x.iter().map(|v| (v - mean).powi(2)).sum::<f32>() / x.len() as f32;
+        let std = (var + 1e-5).sqrt();
+        x.iter().enumerate().map(|(i, v)| ((v - mean) / std) * gamma.get(i).copied().unwrap_or(1.0)).collect()
+    }
+    fn statistics(&self, x: &[f32]) -> Vec<f32> {
+        let mean = x.iter().sum::<f32>() / x.len() as f32;
+        let var = x.iter().map(|v| (v - mean).powi(2)).sum::<f32>() / x.len() as f32;
+        vec![mean, var]
+    }
+}
+
+impl CrossEntropyKernelV1 for DepylerKernels {
+    fn cross_entropy(&self, targets: &[f32], logits: &[f32]) -> Vec<f32> {
+        let log_sm = CrossEntropyKernelV1::log_softmax(self, logits);
+        let loss = -targets.iter().zip(log_sm.iter()).map(|(t, l)| t * l).sum::<f32>();
+        vec![loss]
+    }
+    fn log_softmax(&self, x: &[f32]) -> Vec<f32> {
+        let max = x.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        let lse = x.iter().map(|v| (v - max).exp()).sum::<f32>().ln();
+        x.iter().map(|v| v - max - lse).collect()
+    }
+}
+
+impl SwigluKernelV1 for DepylerKernels {
+    fn silu(&self, x: &[f32]) -> Vec<f32> { x.iter().map(|v| v / (1.0 + (-v).exp())).collect() }
+    fn swiglu(&self, x: &[f32], w: &[f32], v: &[f32], _b: &[f32], _c: &[f32]) -> Vec<f32> {
+        let gate: Vec<f32> = x.iter().zip(w.iter()).map(|(xi, wi)| xi * wi).collect();
+        let silu: Vec<f32> = gate.iter().map(|g| g / (1.0 + (-g).exp())).collect();
+        let val: Vec<f32> = x.iter().zip(v.iter()).map(|(xi, vi)| xi * vi).collect();
+        silu.iter().zip(val.iter()).map(|(s, v)| s * v).collect()
+    }
+}
+
 #[test]
-fn contract_traits_compile() {
-    let k = ReferenceKernels;
+fn softmax_sums_to_one() {
+    let k = DepylerKernels;
+    let out = SoftmaxKernelV1::softmax(&k, &[1.0, 2.0, 3.0]);
+    assert!((out.iter().sum::<f32>() - 1.0).abs() < 1e-6);
+}
 
-    // SoftmaxKernelV1: verify normalization invariant
-    let out = k.softmax(&[1.0, 2.0, 3.0]);
-    let sum: f32 = out.iter().sum();
-    assert!((sum - 1.0).abs() < 1e-6, "softmax must sum to 1.0");
+#[test]
+fn activation_properties() {
+    let k = DepylerKernels;
+    assert!(ActivationKernelV1::gelu(&k, 0.0)[0].abs() < 1e-6);
+    assert!(ActivationKernelV1::relu(&k, -1.0)[0] == 0.0);
+    assert!(ActivationKernelV1::silu(&k, 0.0)[0].abs() < 1e-6);
+}
 
-    // ActivationKernelV1: verify basic properties
-    let gelu_zero = k.gelu(0.0);
-    assert!(gelu_zero[0].abs() < 1e-6, "GELU(0) = 0");
+#[test]
+fn sigmoid_range() {
+    let k = DepylerKernels;
+    let out = SiluKernelV1::sigmoid(&k, &[-10.0, 0.0, 10.0]);
+    assert!(out.iter().all(|v| *v > 0.0 && *v < 1.0));
+}
 
-    let relu_neg = k.relu(-1.0);
-    assert_eq!(relu_neg[0], 0.0, "ReLU(-1) = 0");
+#[test]
+fn rmsnorm_unit_rms() {
+    let k = DepylerKernels;
+    let out = RmsnormKernelV1::rmsnorm(&k, &[3.0, 4.0]);
+    let rms = (out.iter().map(|v| v * v).sum::<f32>() / out.len() as f32).sqrt();
+    assert!((rms - 1.0).abs() < 0.01);
+}
 
-    let relu_pos = k.relu(2.0);
-    assert_eq!(relu_pos[0], 2.0, "ReLU(2) = 2");
+#[test]
+fn layernorm_zero_mean() {
+    let k = DepylerKernels;
+    let out = LayernormKernelV1::layernorm(&k, &[1.0, 2.0, 3.0, 4.0], &[1.0, 1.0, 1.0, 1.0]);
+    let mean: f32 = out.iter().sum::<f32>() / out.len() as f32;
+    assert!(mean.abs() < 1e-5);
+}
 
-    let silu_zero = k.silu(0.0);
-    assert!(silu_zero[0].abs() < 1e-6, "SiLU(0) = 0");
+#[test]
+fn cross_entropy_positive() {
+    let k = DepylerKernels;
+    let loss = CrossEntropyKernelV1::cross_entropy(&k, &[1.0, 0.0, 0.0], &[2.0, 1.0, 0.1]);
+    assert!(loss[0] > 0.0);
 }
