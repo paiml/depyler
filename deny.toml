@@ -15,6 +15,7 @@ ignore = [
     { id = "RUSTSEC-2024-0436", reason = "paste: transitive via simba/nalgebra/parquet, use pastey when upstream migrates" },
     { id = "RUSTSEC-2025-0119", reason = "number_prefix: transitive via indicatif, no replacement available" },
     { id = "RUSTSEC-2025-0141", reason = "bincode: transitive, widely used, no drop-in replacement" },
+    { id = "RUSTSEC-2026-0002", reason = "lru 0.12.5: transitive via ratatui, fixed in 0.16 but ratatui pins 0.12" },
 ]
 
 [licenses]
