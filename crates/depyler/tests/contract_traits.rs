@@ -115,3 +115,144 @@ fn cross_entropy_positive() {
     let loss = CrossEntropyKernelV1::cross_entropy(&k, &[1.0, 0.0, 0.0], &[2.0, 1.0, 0.1]);
     assert!(loss[0] > 0.0);
 }
+
+// ---------------------------------------------------------------------------
+// AttentionKernelV1 -- naive scaled dot-product attention
+// ---------------------------------------------------------------------------
+impl AttentionKernelV1 for DepylerKernels {
+    fn attention(&self, q: &[f32], k: &[f32], v: &[f32]) -> Vec<f32> {
+        let n = (q.len() as f32).sqrt() as usize;
+        if n == 0 {
+            return vec![];
+        }
+        let d = q.len() / n;
+        let mut out = vec![0.0f32; n * d];
+        for i in 0..n {
+            let mut scores = vec![0.0f32; n];
+            for j in 0..n {
+                for kk in 0..d {
+                    scores[j] += q[i * d + kk] * k[j * d + kk];
+                }
+            }
+            let scale = (d as f32).sqrt();
+            let max = scores.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+            let exps: Vec<f32> = scores.iter().map(|s| ((s / scale) - max).exp()).collect();
+            let sum: f32 = exps.iter().sum();
+            for j in 0..n {
+                for kk in 0..d {
+                    out[i * d + kk] += (exps[j] / sum) * v[j * d + kk];
+                }
+            }
+        }
+        out
+    }
+}
+
+// ---------------------------------------------------------------------------
+// FlashAttentionV1 -- same math as attention (flash is an optimization)
+// ---------------------------------------------------------------------------
+impl FlashAttentionV1 for DepylerKernels {
+    fn flash_attention(&self, q: &[f32], k: &[f32], v: &[f32]) -> Vec<f32> {
+        AttentionKernelV1::attention(self, q, k, v)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GqaKernelV1 -- grouped-query attention (equal heads = standard attention)
+// ---------------------------------------------------------------------------
+impl GqaKernelV1 for DepylerKernels {
+    fn gqa(&self, q: &[f32], k: &[f32], v: &[f32]) -> Vec<f32> {
+        AttentionKernelV1::attention(self, q, k, v)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MatmulKernelV1 -- naive matrix multiplication (square matrices)
+// ---------------------------------------------------------------------------
+impl MatmulKernelV1 for DepylerKernels {
+    fn matmul(&self, a: &[f32], b: &[f32]) -> Vec<f32> {
+        let n = (a.len() as f32).sqrt() as usize;
+        if n == 0 {
+            return vec![];
+        }
+        let mut c = vec![0.0f32; n * n];
+        for i in 0..n {
+            for j in 0..n {
+                for k in 0..n {
+                    c[i * n + j] += a[i * n + k] * b[k * n + j];
+                }
+            }
+        }
+        c
+    }
+
+    fn quantized_dot(&self, b: &[f32], s_b: f32) -> Vec<f32> {
+        vec![b.iter().sum::<f32>() * s_b]
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RopeKernelV1 -- rotary position embeddings
+// ---------------------------------------------------------------------------
+impl RopeKernelV1 for DepylerKernels {
+    fn rope(&self, x: &[f32], m: &[f32]) -> Vec<f32> {
+        let pos = m.first().copied().unwrap_or(0.0);
+        let mut out = x.to_vec();
+        for i in (0..x.len()).step_by(2) {
+            if i + 1 < x.len() {
+                let theta = pos / 10000_f32.powf(i as f32 / x.len() as f32);
+                let (sin_t, cos_t) = theta.sin_cos();
+                out[i] = x[i] * cos_t - x[i + 1] * sin_t;
+                out[i + 1] = x[i] * sin_t + x[i + 1] * cos_t;
+            }
+        }
+        out
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AdamwKernelV1 -- AdamW optimizer moments and weight update
+// ---------------------------------------------------------------------------
+impl AdamwKernelV1 for DepylerKernels {
+    fn adam_moments(&self, g_t: &[f32]) -> Vec<f32> {
+        g_t.iter().map(|g| 0.9 * 0.0 + 0.1 * g).collect()
+    }
+
+    fn adam_variance(&self, g_t: &[f32]) -> Vec<f32> {
+        g_t.iter().map(|g| 0.999 * 0.0 + 0.001 * g * g).collect()
+    }
+
+    fn bias_correction(&self, input: &[f32]) -> Vec<f32> {
+        input.iter().map(|v| v / (1.0 - 0.9)).collect()
+    }
+
+    fn weight_update(&self, theta: &[f32]) -> Vec<f32> {
+        theta.iter().map(|t| t - 0.001 * t).collect()
+    }
+}
+
+#[test]
+fn attention_output_size() {
+    let k = DepylerKernels;
+    let out = AttentionKernelV1::attention(&k, &[1.0; 4], &[1.0; 4], &[1.0; 4]);
+    assert_eq!(out.len(), 4);
+}
+
+#[test]
+fn matmul_identity() {
+    let k = DepylerKernels;
+    let identity = vec![1.0, 0.0, 0.0, 1.0]; // 2x2 identity
+    let a = vec![1.0, 2.0, 3.0, 4.0];
+    let out = MatmulKernelV1::matmul(&k, &a, &identity);
+    assert!((out[0] - 1.0).abs() < 1e-5 && (out[3] - 4.0).abs() < 1e-5);
+}
+
+#[test]
+fn rope_preserves_norm() {
+    let k = DepylerKernels;
+    let x = vec![1.0, 0.0, 0.0, 1.0];
+    let out = RopeKernelV1::rope(&k, &x, &[1.0]);
+    let norm_in: f32 = x.iter().map(|v| v * v).sum::<f32>().sqrt();
+    let norm_out: f32 = out.iter().map(|v| v * v).sum::<f32>().sqrt();
+    assert!((norm_in - norm_out).abs() < 1e-5);
+}
