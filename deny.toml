@@ -8,7 +8,14 @@ all-features = false
 no-default-features = false
 
 [advisories]
-ignore = []
+ignore = [
+    # Unmaintained transitive deps with no available fix.
+    # Reviewed 2026-03-26 — all are deep transitive, no direct usage.
+    { id = "RUSTSEC-2024-0384", reason = "instant: transitive via web-time, no replacement available" },
+    { id = "RUSTSEC-2024-0436", reason = "paste: transitive via simba/nalgebra/parquet, use pastey when upstream migrates" },
+    { id = "RUSTSEC-2025-0119", reason = "number_prefix: transitive via indicatif, no replacement available" },
+    { id = "RUSTSEC-2025-0141", reason = "bincode: transitive, widely used, no drop-in replacement" },
+]
 
 [licenses]
 allow = [
@@ -26,6 +33,8 @@ allow = [
     "0BSD",
     "CC0-1.0",
     "MPL-2.0",
+    "CDLA-Permissive-2.0",
+    "MIT-0",
 ]
 confidence-threshold = 0.8
 
@@ -39,3 +48,6 @@ unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = []
+
+[sources.allow-org]
+github = ["paiml"]
