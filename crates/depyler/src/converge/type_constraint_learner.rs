@@ -99,6 +99,9 @@ pub fn parse_e0308_constraint(
     source_file: &Path,
     line: usize,
 ) -> Option<TypeConstraint> {
+    // Contract: configuration-v1.yaml precondition (pv codegen)
+    contract_pre_configuration!(error_message.as_bytes());
+
     // Pattern 1: "expected `X`, found `Y`"
     if let Some((expected, found)) = extract_expected_found(error_message) {
         // Try to extract variable name from error message

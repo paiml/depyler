@@ -400,12 +400,20 @@ impl TypeMapper {
                 RustType::Custom("std::io::Error".to_string())
             }
             // General Python exceptions map to Box<dyn std::error::Error>
-            "Exception" | "BaseException" | "ValueError" | "TypeError"
-            | "KeyError" | "IndexError" | "RuntimeError" | "AttributeError"
-            | "NotImplementedError" | "AssertionError" | "StopIteration"
-            | "ZeroDivisionError" | "OverflowError" | "ArithmeticError" => {
-                RustType::Custom("Box<dyn std::error::Error>".to_string())
-            }
+            "Exception"
+            | "BaseException"
+            | "ValueError"
+            | "TypeError"
+            | "KeyError"
+            | "IndexError"
+            | "RuntimeError"
+            | "AttributeError"
+            | "NotImplementedError"
+            | "AssertionError"
+            | "StopIteration"
+            | "ZeroDivisionError"
+            | "OverflowError"
+            | "ArithmeticError" => RustType::Custom("Box<dyn std::error::Error>".to_string()),
             // DEPYLER-0742/1185: Python collections.deque maps to std::collections::VecDeque
             "deque" | "collections.deque" | "Deque" => {
                 RustType::Custom("std::collections::VecDeque<i32>".to_string())
@@ -454,13 +462,9 @@ impl TypeMapper {
     /// Map a Python generic type (e.g., List[int], Dict[str, int]) to the corresponding Rust type
     fn map_generic_type(&self, base: &str, params: &[PythonType]) -> RustType {
         match base {
-            "List" if params.len() == 1 => {
-                RustType::Vec(Box::new(self.map_type(&params[0])))
-            }
+            "List" if params.len() == 1 => RustType::Vec(Box::new(self.map_type(&params[0]))),
             // DEPYLER-1401: Sequence[T] -> Vec<T>
-            "Sequence" if params.len() == 1 => {
-                RustType::Vec(Box::new(self.map_type(&params[0])))
-            }
+            "Sequence" if params.len() == 1 => RustType::Vec(Box::new(self.map_type(&params[0]))),
             "Dict" if params.len() == 2 => RustType::HashMap(
                 Box::new(self.map_type(&params[0])),
                 Box::new(self.map_type(&params[1])),
@@ -476,32 +480,21 @@ impl TypeMapper {
             // DEPYLER-0188: Generator[YieldType, SendType, ReturnType] -> impl Iterator<Item=YieldType>
             "Generator" if !params.is_empty() => {
                 let yield_type = self.map_type(&params[0]);
-                RustType::Custom(format!(
-                    "impl Iterator<Item={}>",
-                    yield_type.to_rust_string()
-                ))
+                RustType::Custom(format!("impl Iterator<Item={}>", yield_type.to_rust_string()))
             }
             // DEPYLER-0188: Iterator[YieldType] -> impl Iterator<Item=YieldType>
             "Iterator" if params.len() == 1 => {
                 let yield_type = self.map_type(&params[0]);
-                RustType::Custom(format!(
-                    "impl Iterator<Item={}>",
-                    yield_type.to_rust_string()
-                ))
+                RustType::Custom(format!("impl Iterator<Item={}>", yield_type.to_rust_string()))
             }
             // DEPYLER-0188: Iterable[T] -> impl IntoIterator<Item=T>
             "Iterable" if params.len() == 1 => {
                 let item_type = self.map_type(&params[0]);
-                RustType::Custom(format!(
-                    "impl IntoIterator<Item={}>",
-                    item_type.to_rust_string()
-                ))
+                RustType::Custom(format!("impl IntoIterator<Item={}>", item_type.to_rust_string()))
             }
             // DEPYLER-0734/0846: Callable[[T1, T2, ...], R] -> impl Fn(T1, T2, ...) -> R
             "Callable" if params.len() == 2 => self.map_callable_type(params),
-            "Callable" if params.is_empty() => {
-                RustType::Custom("impl Fn()".to_string())
-            }
+            "Callable" if params.is_empty() => RustType::Custom("impl Fn()".to_string()),
             // DEPYLER-0845: type[T] -> std::marker::PhantomData<T>
             "type" if params.len() == 1 => {
                 let inner_type = self.map_type(&params[0]);
@@ -522,10 +515,9 @@ impl TypeMapper {
         // params[0] is the parameter list type (may be Tuple, List, or single type)
         // params[1] is the return type
         let param_types = match &params[0] {
-            PythonType::Tuple(inner) => inner
-                .iter()
-                .map(|t| self.map_type(t).to_rust_string())
-                .collect::<Vec<_>>(),
+            PythonType::Tuple(inner) => {
+                inner.iter().map(|t| self.map_type(t).to_rust_string()).collect::<Vec<_>>()
+            }
             PythonType::List(inner) => {
                 vec![self.map_type(inner).to_rust_string()]
             }
@@ -537,15 +529,13 @@ impl TypeMapper {
         let return_str = return_type.to_rust_string();
 
         // DEPYLER-0846: Check if any param or return type contains impl Fn
-        let has_nested_fn = param_types.iter().any(|s| s.contains("impl Fn"))
-            || return_str.contains("impl Fn");
+        let has_nested_fn =
+            param_types.iter().any(|s| s.contains("impl Fn")) || return_str.contains("impl Fn");
 
         // DEPYLER-0846: Use &dyn Fn for nested Callable types
         let (fn_prefix, fixed_params, fixed_return) = if has_nested_fn {
-            let fixed_params: Vec<String> = param_types
-                .iter()
-                .map(|s| s.replace("impl Fn", "&dyn Fn"))
-                .collect();
+            let fixed_params: Vec<String> =
+                param_types.iter().map(|s| s.replace("impl Fn", "&dyn Fn")).collect();
             let fixed_return = return_str.replace("impl Fn", "&dyn Fn");
             ("&dyn Fn", fixed_params, fixed_return)
         } else {
@@ -554,12 +544,7 @@ impl TypeMapper {
         let fn_str = if fixed_return == "()" || matches!(params[1], PythonType::None) {
             format!("{}({})", fn_prefix, fixed_params.join(", "))
         } else {
-            format!(
-                "{}({}) -> {}",
-                fn_prefix,
-                fixed_params.join(", "),
-                fixed_return
-            )
+            format!("{}({}) -> {}", fn_prefix, fixed_params.join(", "), fixed_return)
         };
         RustType::Custom(fn_str)
     }

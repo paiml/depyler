@@ -38,6 +38,11 @@ use std::fs;
 use std::path::PathBuf;
 
 // Essential modules only
+
+// Contract assertions from YAML (pv codegen)
+#[macro_use]
+#[allow(unused_macros)]
+mod generated_contracts;
 pub mod cli_shim;
 pub mod compile_cmd;
 pub mod converge;

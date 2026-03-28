@@ -18,13 +18,21 @@ impl ActivationKernelV1 for DepylerKernels {
     fn gelu(&self, x: f32) -> Vec<f32> {
         vec![0.5 * x * (1.0 + (0.7978845608 * (x + 0.044715 * x.powi(3))).tanh())]
     }
-    fn relu(&self, x: f32) -> Vec<f32> { vec![x.max(0.0)] }
-    fn silu(&self, x: f32) -> Vec<f32> { vec![x / (1.0 + (-x).exp())] }
+    fn relu(&self, x: f32) -> Vec<f32> {
+        vec![x.max(0.0)]
+    }
+    fn silu(&self, x: f32) -> Vec<f32> {
+        vec![x / (1.0 + (-x).exp())]
+    }
 }
 
 impl SiluKernelV1 for DepylerKernels {
-    fn sigmoid(&self, x: &[f32]) -> Vec<f32> { x.iter().map(|v| 1.0 / (1.0 + (-v).exp())).collect() }
-    fn silu(&self, x: &[f32]) -> Vec<f32> { x.iter().map(|v| v / (1.0 + (-v).exp())).collect() }
+    fn sigmoid(&self, x: &[f32]) -> Vec<f32> {
+        x.iter().map(|v| 1.0 / (1.0 + (-v).exp())).collect()
+    }
+    fn silu(&self, x: &[f32]) -> Vec<f32> {
+        x.iter().map(|v| v / (1.0 + (-v).exp())).collect()
+    }
 }
 
 impl RmsnormKernelV1 for DepylerKernels {
@@ -39,7 +47,10 @@ impl LayernormKernelV1 for DepylerKernels {
         let mean = x.iter().sum::<f32>() / x.len() as f32;
         let var = x.iter().map(|v| (v - mean).powi(2)).sum::<f32>() / x.len() as f32;
         let std = (var + 1e-5).sqrt();
-        x.iter().enumerate().map(|(i, v)| ((v - mean) / std) * gamma.get(i).copied().unwrap_or(1.0)).collect()
+        x.iter()
+            .enumerate()
+            .map(|(i, v)| ((v - mean) / std) * gamma.get(i).copied().unwrap_or(1.0))
+            .collect()
     }
     fn statistics(&self, x: &[f32]) -> Vec<f32> {
         let mean = x.iter().sum::<f32>() / x.len() as f32;
@@ -62,7 +73,9 @@ impl CrossEntropyKernelV1 for DepylerKernels {
 }
 
 impl SwigluKernelV1 for DepylerKernels {
-    fn silu(&self, x: &[f32]) -> Vec<f32> { x.iter().map(|v| v / (1.0 + (-v).exp())).collect() }
+    fn silu(&self, x: &[f32]) -> Vec<f32> {
+        x.iter().map(|v| v / (1.0 + (-v).exp())).collect()
+    }
     fn swiglu(&self, x: &[f32], w: &[f32], v: &[f32], _b: &[f32], _c: &[f32]) -> Vec<f32> {
         let gate: Vec<f32> = x.iter().zip(w.iter()).map(|(xi, wi)| xi * wi).collect();
         let silu: Vec<f32> = gate.iter().map(|g| g / (1.0 + (-g).exp())).collect();
