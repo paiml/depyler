@@ -9,4 +9,8 @@
 // Verus-style specification comments use function call syntax in doc comments,
 // which triggers the doc_markdown lint. These are formal specs, not regular docs.
 #[allow(clippy::doc_markdown)]
+// Contract assertions from YAML (pv codegen)
+#[macro_use]
+#[allow(unused_macros)]
+mod generated_contracts;
 pub mod verification_specs;
