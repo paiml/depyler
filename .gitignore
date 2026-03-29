@@ -233,3 +233,4 @@ benchmarks/rust/*.exe
 .pmat/coverage-cache.json
 .pmat-work.toml
 .pmat-work/
+src/generated_contracts.rs
