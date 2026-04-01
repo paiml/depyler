@@ -449,6 +449,8 @@ impl ModuleMapper {
                     ("TemporaryDirectory".to_string(), "TempDir".to_string()),
                     ("mkstemp".to_string(), "tempfile".to_string()),
                     ("mkdtemp".to_string(), "tempdir".to_string()),
+                    // GH-201: SpooledTemporaryFile → tempfile::SpooledTempFile
+                    ("SpooledTemporaryFile".to_string(), "SpooledTempFile".to_string()),
                 ]),
                 // DEPYLER-0493: Specify constructor patterns for tempfile types
                 constructor_patterns: HashMap::from([
@@ -460,6 +462,8 @@ impl ModuleMapper {
                     ("tempfile".to_string(), ConstructorPattern::Function),
                     // tempdir() is a function → call directly (no ::new)
                     ("tempdir".to_string(), ConstructorPattern::Function),
+                    // GH-201: SpooledTempFile → ::new(max_size)
+                    ("SpooledTempFile".to_string(), ConstructorPattern::New),
                 ]),
             },
         );
@@ -1163,6 +1167,439 @@ impl ModuleMapper {
                     ("closing".to_string(), "".to_string()),
                     ("suppress".to_string(), "".to_string()),
                     ("nullcontext".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // =================================================================
+        // GH-204: E0433 Systematic Import Resolution
+        // Add mappings for modules already handled inline by method dispatch
+        // These prevent E0433 by either (a) suppressing bad `use` statements
+        // or (b) mapping to correct Rust paths.
+        // =================================================================
+
+        // shutil → std::fs (handled inline by convert_shutil_method)
+        module_map.insert(
+            "shutil".to_string(),
+            ModuleMapping {
+                rust_path: "std::fs".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("copy".to_string(), "copy".to_string()),
+                    ("copy2".to_string(), "copy".to_string()),
+                    ("copytree".to_string(), "".to_string()),
+                    ("rmtree".to_string(), "remove_dir_all".to_string()),
+                    ("move".to_string(), "rename".to_string()),
+                    ("which".to_string(), "".to_string()),
+                    ("disk_usage".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // time → std::time (handled inline by convert_time_method)
+        module_map.insert(
+            "time".to_string(),
+            ModuleMapping {
+                rust_path: "std".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("sleep".to_string(), "thread::sleep".to_string()),
+                    ("time".to_string(), "time::SystemTime::now".to_string()),
+                    ("monotonic".to_string(), "time::Instant::now".to_string()),
+                    ("perf_counter".to_string(), "time::Instant::now".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // string → (handled inline by convert_string_method)
+        module_map.insert(
+            "string".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("ascii_lowercase".to_string(), "".to_string()),
+                    ("ascii_uppercase".to_string(), "".to_string()),
+                    ("digits".to_string(), "".to_string()),
+                    ("punctuation".to_string(), "".to_string()),
+                    ("whitespace".to_string(), "".to_string()),
+                    ("ascii_letters".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // glob → std::fs (handled inline or via glob crate)
+        module_map.insert(
+            "glob".to_string(),
+            ModuleMapping {
+                rust_path: "glob".to_string(),
+                is_external: true,
+                version: Some("0.3".to_string()),
+                item_map: HashMap::from([
+                    ("glob".to_string(), "glob".to_string()),
+                    ("iglob".to_string(), "glob".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // copy → (handled inline by convert_copy_method)
+        module_map.insert(
+            "copy".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("copy".to_string(), "".to_string()),     // .clone()
+                    ("deepcopy".to_string(), "".to_string()),  // .clone()
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // enum → (uses Rust native enum, no import needed)
+        module_map.insert(
+            "enum".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("Enum".to_string(), "".to_string()),
+                    ("IntEnum".to_string(), "".to_string()),
+                    ("auto".to_string(), "".to_string()),
+                    ("unique".to_string(), "".to_string()),
+                    ("Flag".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // dataclasses → (uses Rust struct, no import needed)
+        module_map.insert(
+            "dataclasses".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("dataclass".to_string(), "".to_string()),
+                    ("field".to_string(), "".to_string()),
+                    ("asdict".to_string(), "".to_string()),
+                    ("astuple".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // abc → (uses Rust trait, no import needed)
+        module_map.insert(
+            "abc".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("ABC".to_string(), "".to_string()),
+                    ("ABCMeta".to_string(), "".to_string()),
+                    ("abstractmethod".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // textwrap → (handled inline by convert_textwrap_method)
+        module_map.insert(
+            "textwrap".to_string(),
+            ModuleMapping {
+                rust_path: "textwrap".to_string(),
+                is_external: true,
+                version: Some("0.16".to_string()),
+                item_map: HashMap::from([
+                    ("fill".to_string(), "fill".to_string()),
+                    ("wrap".to_string(), "wrap".to_string()),
+                    ("dedent".to_string(), "dedent".to_string()),
+                    ("indent".to_string(), "indent".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // fnmatch → (handled inline by convert_fnmatch_method)
+        module_map.insert(
+            "fnmatch".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("fnmatch".to_string(), "".to_string()),
+                    ("fnmatchcase".to_string(), "".to_string()),
+                    ("filter".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // platform → (handled inline by convert_platform_method)
+        module_map.insert(
+            "platform".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("system".to_string(), "".to_string()),
+                    ("node".to_string(), "".to_string()),
+                    ("machine".to_string(), "".to_string()),
+                    ("python_version".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // secrets → (handled inline by convert_secrets_method)
+        module_map.insert(
+            "secrets".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("token_hex".to_string(), "".to_string()),
+                    ("token_bytes".to_string(), "".to_string()),
+                    ("token_urlsafe".to_string(), "".to_string()),
+                    ("randbelow".to_string(), "".to_string()),
+                    ("choice".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // bisect → (handled inline by convert_bisect_method)
+        module_map.insert(
+            "bisect".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("bisect_left".to_string(), "".to_string()),
+                    ("bisect_right".to_string(), "".to_string()),
+                    ("bisect".to_string(), "".to_string()),
+                    ("insort".to_string(), "".to_string()),
+                    ("insort_left".to_string(), "".to_string()),
+                    ("insort_right".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // heapq → (handled inline by convert_heapq_method)
+        module_map.insert(
+            "heapq".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("heappush".to_string(), "".to_string()),
+                    ("heappop".to_string(), "".to_string()),
+                    ("heapify".to_string(), "".to_string()),
+                    ("nlargest".to_string(), "".to_string()),
+                    ("nsmallest".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // pickle → (handled inline by convert_pickle_method)
+        module_map.insert(
+            "pickle".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("dumps".to_string(), "".to_string()),
+                    ("loads".to_string(), "".to_string()),
+                    ("dump".to_string(), "".to_string()),
+                    ("load".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // pprint → (handled inline by convert_pprint_method)
+        module_map.insert(
+            "pprint".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("pprint".to_string(), "".to_string()),
+                    ("pformat".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // warnings → (handled inline by convert_warnings_method)
+        module_map.insert(
+            "warnings".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("warn".to_string(), "".to_string()),
+                    ("filterwarnings".to_string(), "".to_string()),
+                    ("simplefilter".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // calendar → (handled inline by convert_calendar_method)
+        module_map.insert(
+            "calendar".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("month".to_string(), "".to_string()),
+                    ("calendar".to_string(), "".to_string()),
+                    ("isleap".to_string(), "".to_string()),
+                    ("monthrange".to_string(), "".to_string()),
+                    ("weekday".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // signal → std (handled at a very basic level)
+        module_map.insert(
+            "signal".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("signal".to_string(), "".to_string()),
+                    ("SIGINT".to_string(), "".to_string()),
+                    ("SIGTERM".to_string(), "".to_string()),
+                    ("SIG_DFL".to_string(), "".to_string()),
+                    ("SIG_IGN".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // atexit → no direct equivalent
+        module_map.insert(
+            "atexit".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("register".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // socket → std::net
+        module_map.insert(
+            "socket".to_string(),
+            ModuleMapping {
+                rust_path: "std::net".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("socket".to_string(), "TcpStream".to_string()),
+                    ("AF_INET".to_string(), "".to_string()),
+                    ("SOCK_STREAM".to_string(), "".to_string()),
+                    ("SOCK_DGRAM".to_string(), "".to_string()),
+                    ("gethostname".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // http / http.server → (typically handled via actix/hyper in Rust)
+        module_map.insert(
+            "http".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("HTTPStatus".to_string(), "".to_string()),
+                    ("server".to_string(), "".to_string()),
+                    ("client".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // xml.etree.ElementTree → (handled via module alias dispatch)
+        module_map.insert(
+            "xml.etree.ElementTree".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("parse".to_string(), "".to_string()),
+                    ("fromstring".to_string(), "".to_string()),
+                    ("tostring".to_string(), "".to_string()),
+                    ("Element".to_string(), "".to_string()),
+                    ("SubElement".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // zipfile → zip crate
+        module_map.insert(
+            "zipfile".to_string(),
+            ModuleMapping {
+                rust_path: "zip".to_string(),
+                is_external: true,
+                version: Some("0.6".to_string()),
+                item_map: HashMap::from([
+                    ("ZipFile".to_string(), "ZipArchive".to_string()),
+                    ("is_zipfile".to_string(), "".to_string()),
+                ]),
+                constructor_patterns: HashMap::from([(
+                    "ZipArchive".to_string(),
+                    ConstructorPattern::Method("new".to_string()),
+                )]),
+            },
+        );
+
+        // gzip → flate2 crate
+        module_map.insert(
+            "gzip".to_string(),
+            ModuleMapping {
+                rust_path: "flate2".to_string(),
+                is_external: true,
+                version: Some("1.0".to_string()),
+                item_map: HashMap::from([
+                    ("open".to_string(), "read::GzDecoder".to_string()),
+                    ("compress".to_string(), "write::GzEncoder".to_string()),
+                    ("decompress".to_string(), "read::GzDecoder".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },

@@ -379,9 +379,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     ) -> Result<Option<syn::Expr>> {
         // DEPYLER-0493: Handle constructor patterns for imported types
         if let HirExpr::Var(module_name) = object {
-            if let Some(result) =
-                self.try_convert_constructor_pattern(module_name, method, args)?
-            {
+            if let Some(result) = self.try_convert_constructor_pattern(module_name, method, args)? {
                 return Ok(Some(result));
             }
         }
@@ -430,13 +428,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let path = Self::build_rust_path_from_str(&rust_path_str);
 
         // Convert arguments
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         // GH-204: Handle collections module constructors specially
-        if let Some(result) = self.try_convert_collection_constructor(module_name, method, &arg_exprs)? {
+        if let Some(result) =
+            self.try_convert_collection_constructor(module_name, method, &arg_exprs)?
+        {
             return Ok(Some(result));
         }
 
@@ -450,8 +448,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             ConstructorPattern::Method(method_name) => {
-                let method_ident =
-                    syn::Ident::new(&method_name, proc_macro2::Span::call_site());
+                let method_ident = syn::Ident::new(&method_name, proc_macro2::Span::call_site());
                 if arg_exprs.is_empty() {
                     parse_quote! { #path::#method_ident() }
                 } else {
@@ -498,21 +495,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(None);
         }
         match method {
-            "Counter" => Ok(Some(
-                crate::rust_gen::collection_constructors::convert_counter_builtin(
+            "Counter" => {
+                Ok(Some(crate::rust_gen::collection_constructors::convert_counter_builtin(
                     self.ctx, arg_exprs,
-                )?,
-            )),
-            "deque" => Ok(Some(
-                crate::rust_gen::collection_constructors::convert_deque_builtin(
+                )?))
+            }
+            "deque" => Ok(Some(crate::rust_gen::collection_constructors::convert_deque_builtin(
+                self.ctx, arg_exprs,
+            )?)),
+            "defaultdict" => {
+                Ok(Some(crate::rust_gen::collection_constructors::convert_defaultdict_builtin(
                     self.ctx, arg_exprs,
-                )?,
-            )),
-            "defaultdict" => Ok(Some(
-                crate::rust_gen::collection_constructors::convert_defaultdict_builtin(
-                    self.ctx, arg_exprs,
-                )?,
-            )),
+                )?))
+            }
             _ => Ok(None),
         }
     }
@@ -663,10 +658,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         };
 
         // Convert args
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         // DEPYLER-0335 FIX #2: Special handling for math module functions (use method syntax)
         if module_name == "math" && !arg_exprs.is_empty() {
@@ -764,10 +757,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-1069: Handle date.today() and datetime.today()
-    fn try_convert_date_datetime_today(
-        &mut self,
-        module_name: &str,
-    ) -> Result<Option<syn::Expr>> {
+    fn try_convert_date_datetime_today(&mut self, module_name: &str) -> Result<Option<syn::Expr>> {
         let nasa_mode = self.ctx.type_mapper.nasa_mode;
         if module_name == "date" {
             if nasa_mode {
@@ -789,10 +779,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-1069: Handle time.min and time.max
-    fn try_convert_time_min_max(
-        &mut self,
-        method: &str,
-    ) -> Result<Option<syn::Expr>> {
+    fn try_convert_time_min_max(&mut self, method: &str) -> Result<Option<syn::Expr>> {
         let nasa_mode = self.ctx.type_mapper.nasa_mode;
         if nasa_mode {
             return Ok(Some(if method == "min" {
@@ -837,8 +824,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "shutil" => return stdlib_method_gen::convert_shutil_method(method, args, self.ctx),
             "csv" => return self.try_convert_csv_method(method, args, kwargs),
             "os" => {
-                if let Some(result) =
-                    stdlib_method_gen::convert_os_method(method, args, self.ctx)?
+                if let Some(result) = stdlib_method_gen::convert_os_method(method, args, self.ctx)?
                 {
                     return Ok(Some(result));
                 }
@@ -872,8 +858,33 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "pickle" => return self.try_convert_pickle_method(method, args),
             "pprint" => return self.try_convert_pprint_method(method, args),
             "calendar" => return self.try_convert_calendar_method(method, args),
+            // GH-201: Handle tempfile module methods not covered by constructor patterns
+            "tempfile" => {
+                return self.try_convert_tempfile_method(method, args);
+            }
             _ => {}
         }
         Ok(None)
+    }
+
+    /// GH-201: Handle tempfile module method calls
+    /// Maps Python tempfile functions to Rust equivalents
+    fn try_convert_tempfile_method(
+        &mut self,
+        method: &str,
+        _args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        self.ctx.needs_tempfile = true;
+        match method {
+            // tempfile.gettempdir() → std::env::temp_dir().to_string_lossy().to_string()
+            "gettempdir" => {
+                Ok(Some(parse_quote! { std::env::temp_dir().to_string_lossy().to_string() }))
+            }
+            // tempfile.TemporaryFile() → tempfile::tempfile().expect("...")
+            "TemporaryFile" => {
+                Ok(Some(parse_quote! { tempfile::tempfile().expect("operation failed") }))
+            }
+            _ => Ok(None),
+        }
     }
 }

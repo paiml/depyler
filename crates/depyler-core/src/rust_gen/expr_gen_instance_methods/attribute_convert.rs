@@ -41,12 +41,50 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
-        // DEPYLER-0200: Handle os.environ direct access
+        // DEPYLER-0200/GH-200: Handle os module attribute access
         if let HirExpr::Var(var_name) = value {
-            if var_name == "os" && attr == "environ" {
-                return Ok(parse_quote! {
-                    std::env::vars().collect::<std::collections::HashMap<String, String>>()
-                });
+            if var_name == "os" {
+                match attr {
+                    "environ" => {
+                        return Ok(parse_quote! {
+                            std::env::vars().collect::<std::collections::HashMap<String, String>>()
+                        });
+                    }
+                    // GH-200: os.sep → std::path::MAIN_SEPARATOR_STR
+                    "sep" => {
+                        return Ok(parse_quote! { std::path::MAIN_SEPARATOR_STR });
+                    }
+                    // GH-200: os.name → "posix" / "nt" (compile-time constant)
+                    "name" => {
+                        return Ok(parse_quote! {
+                            if cfg!(target_family = "unix") { "posix" } else { "nt" }
+                        });
+                    }
+                    // GH-200: os.linesep → platform line separator
+                    "linesep" => {
+                        return Ok(parse_quote! {
+                            if cfg!(target_family = "windows") { "\r\n" } else { "\n" }
+                        });
+                    }
+                    // GH-200: os.devnull → /dev/null or NUL
+                    "devnull" => {
+                        return Ok(parse_quote! {
+                            if cfg!(target_family = "windows") { "NUL" } else { "/dev/null" }
+                        });
+                    }
+                    // GH-200: os.curdir, os.pardir, os.extsep, os.altsep, os.pathsep
+                    "curdir" => return Ok(parse_quote! { "." }),
+                    "pardir" => return Ok(parse_quote! { ".." }),
+                    "extsep" => return Ok(parse_quote! { "." }),
+                    "pathsep" => {
+                        return Ok(parse_quote! {
+                            if cfg!(target_family = "windows") { ";" } else { ":" }
+                        });
+                    }
+                    // GH-200: os.path → just suppress, handled by method call dispatch
+                    "path" => {}
+                    _ => {}
+                }
             }
         }
 
@@ -286,9 +324,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         if is_likely_tempfile && attr == "name" {
             let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
-            return Ok(Some(
-                parse_quote! { #var_ident.path().to_string_lossy().to_string() },
-            ));
+            return Ok(Some(parse_quote! { #var_ident.path().to_string_lossy().to_string() }));
         }
 
         // DEPYLER-0551: Handle os.stat_result attributes
@@ -305,11 +341,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// CB-200 Batch 12: Handle os.stat_result attributes (st_size, st_mtime, etc.)
-    fn try_convert_stat_attribute(
-        &self,
-        var_name: &str,
-        attr: &str,
-    ) -> Result<Option<syn::Expr>> {
+    fn try_convert_stat_attribute(&self, var_name: &str, attr: &str) -> Result<Option<syn::Expr>> {
         let is_likely_stats =
             var_name == "stats" || var_name == "stat" || var_name.ends_with("_stats");
         if !is_likely_stats {
@@ -458,9 +490,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "octdigits" => Ok(parse_quote! { "01234567" }),
             "punctuation" => Ok(parse_quote! { "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~" }),
             "whitespace" => Ok(parse_quote! { " \t\n\r\x0b\x0c" }),
-            "printable" => {
-                Ok(parse_quote! { "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ \t\n\r\x0b\x0c" })
-            }
+            "printable" => Ok(
+                parse_quote! { "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ \t\n\r\x0b\x0c" },
+            ),
             _ => bail!("string.{} is not a recognized constant", attr),
         }
     }
@@ -494,11 +526,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let platform = "darwin";
                 #[cfg(target_os = "windows")]
                 let platform = "win32";
-                #[cfg(not(any(
-                    target_os = "linux",
-                    target_os = "macos",
-                    target_os = "windows"
-                )))]
+                #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
                 let platform = "unknown";
                 Ok(parse_quote! { #platform.to_string() })
             }

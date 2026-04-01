@@ -230,15 +230,39 @@ pub(super) fn generate_import_tokens(
             continue;
         }
 
-        // DEPYLER-0593: Skip os/os.path module aliases
-        // These modules are handled specially in expr_gen.rs (try_convert_os_path_method)
-        // Generating `use std as os;` breaks the module recognition
-        // DEPYLER-0691: Also skip sys module aliases since we use fully qualified std::env, std::process paths
-        if import.alias.as_deref() == Some("os")
-            || import.alias.as_deref() == Some("os_path")
-            || import.alias.as_deref() == Some("sys")
-        {
-            continue;
+        // DEPYLER-0593: Skip module aliases for modules handled inline
+        // These modules are handled specially in expr_gen.rs with fully qualified paths
+        // Generating `use std as os;` or `use std as time;` breaks module recognition
+        // GH-204: Extended to cover all inline-handled modules
+        if let Some(alias) = import.alias.as_deref() {
+            if matches!(
+                alias,
+                "os" | "os_path"
+                    | "sys"
+                    | "time"
+                    | "shutil"
+                    | "string"
+                    | "copy"
+                    | "fnmatch"
+                    | "platform"
+                    | "secrets"
+                    | "bisect"
+                    | "heapq"
+                    | "pickle"
+                    | "pprint"
+                    | "warnings"
+                    | "calendar"
+                    | "signal"
+                    | "atexit"
+                    | "socket"
+                    | "http"
+                    | "enum"
+                    | "dataclasses"
+                    | "abc"
+                    | "textwrap"
+            ) {
+                continue;
+            }
         }
 
         // Create unique key from path + alias
