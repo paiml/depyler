@@ -8578,6 +8578,56 @@ fn test_cov95_convert_str_conversion_from_float() {
     assert!(code.contains("fn") || code.contains("to_string"));
 }
 
+// GH-226: str(val) must not generate .unwrap() when val comes from dict.get(key, default)
+#[test]
+fn test_gh226_str_dict_get_with_default_no_unwrap() {
+    let code = transpile(
+        r#"def test_dict(data: dict) -> str:
+    val = data.get("key", "default")
+    return str(val)"#,
+    );
+    // The generated code should use .to_string() without .unwrap() or .expect()
+    assert!(code.contains("to_string"), "should contain to_string: {code}");
+    // Must NOT contain unwrap() on the str() conversion line
+    // The unwrap_or in the dict.get line is fine, but val.unwrap() is wrong
+    assert!(
+        !code.contains("(val).unwrap()"),
+        "GH-226: str(val) should not generate (val).unwrap() for dict.get with default: {code}"
+    );
+    assert!(
+        !code.contains("(val).expect("),
+        "GH-226: str(val) should not generate (val).expect() for dict.get with default: {code}"
+    );
+}
+
+#[test]
+fn test_gh226_str_dict_get_with_default_inline() {
+    let code = transpile(
+        r#"def test_inline(data: dict) -> str:
+    return str(data.get("key", "default"))"#,
+    );
+    assert!(code.contains("to_string"), "should contain to_string: {code}");
+    // The unwrap_or is part of the dict.get, not a spurious unwrap on the str() result
+    assert!(
+        !code.contains(".expect("),
+        "GH-226: inline str(dict.get(k, d)) should not generate .expect(): {code}"
+    );
+}
+
+#[test]
+fn test_gh226_str_dict_get_without_default_is_option() {
+    let code = transpile(
+        r#"def test_no_default(data: dict) -> str:
+    val = data.get("key")
+    if val is not None:
+        return str(val)
+    return ""
+"#,
+    );
+    // This case val IS optional (no default), so .expect() is acceptable
+    assert!(code.contains("to_string"), "should contain to_string: {code}");
+}
+
 // === convert_bool_cast ===
 
 #[test]

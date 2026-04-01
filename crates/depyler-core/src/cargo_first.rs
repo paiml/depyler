@@ -259,6 +259,7 @@ pub fn compile_with_cargo(
     rust_code: &str,
     cargo_toml: Option<&str>,
 ) -> Result<CheckResult> {
+    contract_pre_ownership_invariant!();
     // Generate comprehensive Cargo.toml with common dependencies
     // that are used by the Python->Rust module mappings
     let default_toml = format!(

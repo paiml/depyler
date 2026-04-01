@@ -162,6 +162,7 @@ impl TypeMapper {
     }
 
     pub fn map_type(&self, py_type: &PythonType) -> RustType {
+        contract_pre_type_map!();
         // CITL: Trace Python→Rust type mapping decision
         trace_decision!(
             category = DecisionCategory::TypeMapping,

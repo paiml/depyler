@@ -26,6 +26,7 @@ pub struct StmtConverter;
 
 impl StmtConverter {
     pub fn convert(stmt: ast::Stmt) -> Result<HirStmt> {
+        contract_pre_statement_equivalence!();
         match stmt {
             ast::Stmt::Assign(a) => Self::convert_assign(a),
             ast::Stmt::AnnAssign(a) => Self::convert_ann_assign(a),
@@ -222,6 +223,7 @@ impl StmtConverter {
     }
 
     fn convert_with(w: ast::StmtWith) -> Result<HirStmt> {
+        contract_pre_drop_safety!();
         // Handle multiple context managers by recursive nesting:
         // `with A as a, B as b: body` becomes `with A as a: with B as b: body`
         if w.items.is_empty() {
@@ -370,6 +372,7 @@ pub struct ExprConverter;
 
 impl ExprConverter {
     pub fn convert(expr: ast::Expr) -> Result<HirExpr> {
+        contract_pre_expression_equivalence!();
         match expr {
             ast::Expr::Constant(c) => Self::convert_constant(c),
             ast::Expr::Name(n) => Self::convert_name(n),
@@ -428,6 +431,7 @@ impl ExprConverter {
     }
 
     fn convert_binop_expr(b: ast::ExprBinOp) -> Result<HirExpr> {
+        contract_pre_numeric_semantics!();
         let op = convert_binop(&b.op)?;
         let left = Box::new(Self::convert(*b.left)?);
         let right = Box::new(Self::convert(*b.right)?);
@@ -604,6 +608,7 @@ impl ExprConverter {
     }
 
     fn convert_subscript(s: ast::ExprSubscript) -> Result<HirExpr> {
+        contract_pre_bounds_safety!();
         let base = Box::new(Self::convert(*s.value)?);
 
         // Check if the slice is actually a slice expression or a simple index
@@ -762,6 +767,7 @@ impl ExprConverter {
     }
 
     fn convert_list_comp(lc: ast::ExprListComp) -> Result<HirExpr> {
+        contract_pre_comprehension_equivalence!();
         // DEPYLER-0504: Support multiple generators (flattened comprehensions)
         // Convert element expression
         let element = Box::new(Self::convert(*lc.elt)?);

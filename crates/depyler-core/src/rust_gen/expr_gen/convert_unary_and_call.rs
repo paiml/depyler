@@ -239,10 +239,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// CB-200 Batch 10: Convert kwargs for user-defined class constructors.
-    fn convert_class_kwargs(
-        &mut self,
-        kwargs: &[(String, HirExpr)],
-    ) -> Result<Vec<syn::Expr>> {
+    fn convert_class_kwargs(&mut self, kwargs: &[(String, HirExpr)]) -> Result<Vec<syn::Expr>> {
         kwargs
             .iter()
             .map(|(name, value)| {
@@ -290,13 +287,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match func {
             "set" => Some(self.convert_set_constructor(arg_exprs)),
             "frozenset" => Some(self.convert_frozenset_constructor(arg_exprs)),
-            "Counter" if !is_user_class => Some(self.convert_counter_builtin(all_hir_args, arg_exprs)),
+            "Counter" if !is_user_class => {
+                Some(self.convert_counter_builtin(all_hir_args, arg_exprs))
+            }
             "defaultdict" if !is_user_class => Some(self.convert_defaultdict_builtin(arg_exprs)),
             "dict" if !is_user_class => Some(self.convert_dict_builtin(arg_exprs)),
             "deque" if !is_user_class => Some(self.convert_deque_builtin(arg_exprs)),
             "list" if !is_user_class => Some(self.convert_list_builtin(all_hir_args, arg_exprs)),
             "bytes" if !is_user_class => Some(self.convert_bytes_builtin(all_hir_args, arg_exprs)),
-            "bytearray" if !is_user_class => Some(self.convert_bytearray_builtin(all_hir_args, arg_exprs)),
+            "bytearray" if !is_user_class => {
+                Some(self.convert_bytearray_builtin(all_hir_args, arg_exprs))
+            }
             "tuple" if !is_user_class => Some(self.convert_tuple_builtin(all_hir_args, arg_exprs)),
             _ => None,
         }
@@ -310,11 +311,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match func {
             "all" => Some(stdlib_method_gen::builtin_functions::convert_all_builtin(arg_exprs)),
             "any" => Some(stdlib_method_gen::builtin_functions::convert_any_builtin(arg_exprs)),
-            "divmod" => Some(stdlib_method_gen::builtin_functions::convert_divmod_builtin(arg_exprs)),
-            "enumerate" => Some(stdlib_method_gen::builtin_functions::convert_enumerate_builtin(arg_exprs)),
+            "divmod" => {
+                Some(stdlib_method_gen::builtin_functions::convert_divmod_builtin(arg_exprs))
+            }
+            "enumerate" => {
+                Some(stdlib_method_gen::builtin_functions::convert_enumerate_builtin(arg_exprs))
+            }
             "zip" => Some(stdlib_method_gen::builtin_functions::convert_zip_builtin(arg_exprs)),
-            "reversed" => Some(stdlib_method_gen::builtin_functions::convert_reversed_builtin(arg_exprs)),
-            "sorted" => Some(stdlib_method_gen::builtin_functions::convert_sorted_builtin(arg_exprs)),
+            "reversed" => {
+                Some(stdlib_method_gen::builtin_functions::convert_reversed_builtin(arg_exprs))
+            }
+            "sorted" => {
+                Some(stdlib_method_gen::builtin_functions::convert_sorted_builtin(arg_exprs))
+            }
             "sum" => Some(stdlib_method_gen::builtin_functions::convert_sum_builtin(arg_exprs)),
             "round" => Some(stdlib_method_gen::builtin_functions::convert_round_builtin(arg_exprs)),
             "abs" => Some(stdlib_method_gen::builtin_functions::convert_abs_builtin(arg_exprs)),
@@ -332,20 +341,40 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "type" => Some(stdlib_method_gen::builtin_functions::convert_type_builtin(arg_exprs)),
             "isinstance" => Some(Ok(parse_quote! { true })),
             "input" => Some(stdlib_method_gen::builtin_functions::convert_input_builtin(arg_exprs)),
-            "hasattr" => Some(stdlib_method_gen::builtin_functions::convert_hasattr_builtin(arg_exprs)),
-            "setattr" => Some(stdlib_method_gen::builtin_functions::convert_setattr_builtin(arg_exprs)),
-            "callable" => Some(stdlib_method_gen::builtin_functions::convert_callable_builtin(arg_exprs)),
+            "hasattr" => {
+                Some(stdlib_method_gen::builtin_functions::convert_hasattr_builtin(arg_exprs))
+            }
+            "setattr" => {
+                Some(stdlib_method_gen::builtin_functions::convert_setattr_builtin(arg_exprs))
+            }
+            "callable" => {
+                Some(stdlib_method_gen::builtin_functions::convert_callable_builtin(arg_exprs))
+            }
             "id" => Some(stdlib_method_gen::builtin_functions::convert_id_builtin(arg_exprs)),
             "ascii" => Some(stdlib_method_gen::builtin_functions::convert_ascii_builtin(arg_exprs)),
             "vars" => Some(stdlib_method_gen::builtin_functions::convert_vars_builtin(arg_exprs)),
             "dir" => Some(stdlib_method_gen::builtin_functions::convert_dir_builtin(arg_exprs)),
-            "globals" => Some(stdlib_method_gen::builtin_functions::convert_globals_builtin(arg_exprs)),
-            "locals" => Some(stdlib_method_gen::builtin_functions::convert_locals_builtin(arg_exprs)),
-            "delattr" => Some(stdlib_method_gen::builtin_functions::convert_delattr_builtin(arg_exprs)),
-            "staticmethod" => Some(stdlib_method_gen::builtin_functions::convert_staticmethod_builtin(arg_exprs)),
-            "classmethod" => Some(stdlib_method_gen::builtin_functions::convert_classmethod_builtin(arg_exprs)),
-            "property" => Some(stdlib_method_gen::builtin_functions::convert_property_builtin(arg_exprs)),
-            "breakpoint" => Some(stdlib_method_gen::builtin_functions::convert_breakpoint_builtin(arg_exprs)),
+            "globals" => {
+                Some(stdlib_method_gen::builtin_functions::convert_globals_builtin(arg_exprs))
+            }
+            "locals" => {
+                Some(stdlib_method_gen::builtin_functions::convert_locals_builtin(arg_exprs))
+            }
+            "delattr" => {
+                Some(stdlib_method_gen::builtin_functions::convert_delattr_builtin(arg_exprs))
+            }
+            "staticmethod" => {
+                Some(stdlib_method_gen::builtin_functions::convert_staticmethod_builtin(arg_exprs))
+            }
+            "classmethod" => {
+                Some(stdlib_method_gen::builtin_functions::convert_classmethod_builtin(arg_exprs))
+            }
+            "property" => {
+                Some(stdlib_method_gen::builtin_functions::convert_property_builtin(arg_exprs))
+            }
+            "breakpoint" => {
+                Some(stdlib_method_gen::builtin_functions::convert_breakpoint_builtin(arg_exprs))
+            }
             "exit" => Some(stdlib_method_gen::builtin_functions::convert_exit_builtin(arg_exprs)),
             "quit" => Some(stdlib_method_gen::builtin_functions::convert_quit_builtin(arg_exprs)),
             _ => None,
@@ -456,7 +485,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // Dispatch: collection constructors
-        if let Some(result) = self.try_dispatch_collection_builtin(func, is_user_class, &all_hir_args, &arg_exprs) {
+        if let Some(result) =
+            self.try_dispatch_collection_builtin(func, is_user_class, &all_hir_args, &arg_exprs)
+        {
             return result;
         }
 
@@ -692,6 +723,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     ) -> Result<syn::Expr> {
         // DEPYLER-0722: Check if argument is an Optional type
         if !hir_args.is_empty() && args.len() == 1 {
+            // GH-226: If the hir_arg is itself a dict.get() call with a default,
+            // it's already unwrapped — don't add .expect()
+            if let HirExpr::MethodCall { method, args: call_args, .. } = &hir_args[0] {
+                if method == "get" && call_args.len() >= 2 {
+                    let arg = &args[0];
+                    return Ok(parse_quote! { (#arg).to_string() });
+                }
+            }
+
             let var_name = match &hir_args[0] {
                 HirExpr::Var(name) => Some(name.as_str()),
                 HirExpr::Attribute { attr, .. } => Some(attr.as_str()),
@@ -1366,10 +1406,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0178: Handle filter() with lambda → Rust iterator pattern
-    fn try_convert_call_filter_lambda(
-        &mut self,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
+    fn try_convert_call_filter_lambda(&mut self, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
         if let HirExpr::Lambda { params, body } = &args[0] {
             if params.len() != 1 {
                 bail!("filter() lambda must have exactly one parameter");

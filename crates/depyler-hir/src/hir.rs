@@ -693,6 +693,7 @@ impl Type {
     /// - `HashMap<K, V>`
     /// - `HashSet<T>`
     pub fn is_copy(&self) -> bool {
+        contract_pre_copy_semantics!();
         match self {
             // Scalar types map to Copy Rust primitives
             Type::Int | Type::Float | Type::Bool | Type::None => true,

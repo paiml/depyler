@@ -36,7 +36,11 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
 }
 
 /// Walk an expression tree collecting args.X field accesses.
-fn walk_expr_for_args(expr: &HirExpr, args_name: &str, fields: &mut std::collections::HashSet<String>) {
+fn walk_expr_for_args(
+    expr: &HirExpr,
+    args_name: &str,
+    fields: &mut std::collections::HashSet<String>,
+) {
     match expr {
         HirExpr::Attribute { value, attr } => {
             if let HirExpr::Var(name) = value.as_ref() {
@@ -120,8 +124,7 @@ fn walk_expr_for_args_collections(
                 walk_expr_for_args(s, args_name, fields);
             }
         }
-        HirExpr::ListComp { element, generators }
-        | HirExpr::SetComp { element, generators } => {
+        HirExpr::ListComp { element, generators } | HirExpr::SetComp { element, generators } => {
             walk_expr_for_args(element, args_name, fields);
             for gen in generators {
                 walk_expr_for_args(&gen.iter, args_name, fields);
@@ -158,7 +161,11 @@ fn walk_expr_for_args_collections(
 }
 
 /// Walk a statement tree collecting args.X field accesses.
-fn walk_stmt_for_args(stmt: &HirStmt, args_name: &str, fields: &mut std::collections::HashSet<String>) {
+fn walk_stmt_for_args(
+    stmt: &HirStmt,
+    args_name: &str,
+    fields: &mut std::collections::HashSet<String>,
+) {
     match stmt {
         HirStmt::Expr(expr) => walk_expr_for_args(expr, args_name, fields),
         HirStmt::Assign { value, .. } => walk_expr_for_args(value, args_name, fields),
@@ -2529,8 +2536,14 @@ fn infer_binary_type_with_env(
 ) -> Type {
     if matches!(
         op,
-        BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
-            | BinOp::In | BinOp::NotIn
+        BinOp::Eq
+            | BinOp::NotEq
+            | BinOp::Lt
+            | BinOp::LtEq
+            | BinOp::Gt
+            | BinOp::GtEq
+            | BinOp::In
+            | BinOp::NotIn
     ) {
         return Type::Bool;
     }
@@ -2568,21 +2581,16 @@ fn infer_binary_type_with_env(
 /// CB-200 Batch 10: Infer type for module method calls (json, csv, subprocess, re/regex).
 fn infer_module_method_type(module_name: &str, method: &str) -> Option<Type> {
     match (module_name, method) {
-        ("json", "load") | ("json", "loads") => {
-            Some(Type::Custom("serde_json::Value".to_string()))
-        }
+        ("json", "load") | ("json", "loads") => Some(Type::Custom("serde_json::Value".to_string())),
         ("json", "dump") => Some(Type::None),
         ("json", "dumps") => Some(Type::String),
         ("csv", "reader") => Some(Type::List(Box::new(Type::List(Box::new(Type::String))))),
-        ("csv", "DictReader") => Some(Type::List(Box::new(Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::String),
-        )))),
+        ("csv", "DictReader") => {
+            Some(Type::List(Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::String)))))
+        }
         ("csv", "writer") | ("csv", "DictWriter") => Some(Type::Unknown),
         ("subprocess", "run") => Some(Type::Custom("CompletedProcess".to_string())),
-        ("re", "findall") | ("regex", "findall") => {
-            Some(Type::List(Box::new(Type::String)))
-        }
+        ("re", "findall") | ("regex", "findall") => Some(Type::List(Box::new(Type::String))),
         ("re", "match") | ("re", "search") | ("regex", "match") | ("regex", "search") => {
             Some(Type::Optional(Box::new(Type::Custom("Match".to_string()))))
         }
@@ -2598,10 +2606,10 @@ fn infer_module_method_type(module_name: &str, method: &str) -> Option<Type> {
 fn infer_instance_method_type(method: &str, object_type: Type) -> Type {
     match method {
         "copy" => object_type,
-        "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title"
-        | "capitalize" | "join" | "format" => Type::String,
-        "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isspace"
-        | "isupper" | "islower" => Type::Bool,
+        "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title" | "capitalize"
+        | "join" | "format" => Type::String,
+        "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isspace" | "isupper"
+        | "islower" => Type::Bool,
         "find" | "rfind" | "index" | "rindex" | "count" => Type::Int,
         "split" | "splitlines" => Type::List(Box::new(Type::String)),
         "get" => {
@@ -2624,8 +2632,8 @@ fn infer_instance_method_type(method: &str, object_type: Type) -> Type {
         "items" => Type::List(Box::new(Type::Tuple(vec![Type::Unknown, Type::Unknown]))),
         "findall" | "finditer" => Type::List(Box::new(Type::String)),
         "groups" => Type::List(Box::new(Type::String)),
-        "isoformat" | "strftime" | "to_string" | "to_str" | "encode" | "decode"
-        | "hexdigest" | "digest" | "read" | "readline" => Type::String,
+        "isoformat" | "strftime" | "to_string" | "to_str" | "encode" | "decode" | "hexdigest"
+        | "digest" | "read" | "readline" => Type::String,
         "readlines" => Type::List(Box::new(Type::String)),
         "timestamp" => Type::Float,
         "date" => Type::Custom("std::time::SystemTime".to_string()),
@@ -2644,9 +2652,7 @@ fn infer_module_attribute_type(module_name: &str, attr: &str) -> Option<Type> {
         ("sys", "version_info") => Some(Type::Tuple(vec![Type::Int, Type::Int, Type::Int])),
         ("sys", "maxsize") => Some(Type::Int),
         ("sys", "platform") => Some(Type::String),
-        ("os", "environ") => {
-            Some(Type::Dict(Box::new(Type::String), Box::new(Type::String)))
-        }
+        ("os", "environ") => Some(Type::Dict(Box::new(Type::String), Box::new(Type::String))),
         ("os", "name") => Some(Type::String),
         ("os", "sep") | ("os", "pathsep") | ("os", "linesep") => Some(Type::String),
         _ => None,
@@ -2746,13 +2752,19 @@ pub(crate) fn infer_expr_type_with_env(
                 elems.iter().map(|e| infer_expr_type_with_env(e, var_types)).collect();
             Type::Tuple(elem_types)
         }
-        HirExpr::MethodCall { object, method, .. } => {
+        HirExpr::MethodCall { object, method, args, .. } => {
             if let HirExpr::Var(module_name) = object.as_ref() {
                 if let Some(ty) = infer_module_method_type(module_name.as_str(), method.as_str()) {
                     return ty;
                 }
             }
             let object_type = infer_expr_type_with_env(object, var_types);
+            // GH-226: dict.get(key, default) with default returns concrete type, not Option
+            if method == "get" && args.len() >= 2 {
+                if let Type::Dict(_, val) = &object_type {
+                    return val.as_ref().clone();
+                }
+            }
             infer_instance_method_type(method.as_str(), object_type)
         }
         HirExpr::Index { base, .. } => {
@@ -2776,9 +2788,7 @@ pub(crate) fn infer_expr_type_with_env(
                 base_type
             }
         }
-        HirExpr::Attribute { value, attr } => {
-            infer_attribute_type_with_env(value, attr, var_types)
-        }
+        HirExpr::Attribute { value, attr } => infer_attribute_type_with_env(value, attr, var_types),
         HirExpr::ListComp { element, generators } => {
             infer_listcomp_type_with_env(element, generators, var_types)
         }
@@ -2914,8 +2924,14 @@ fn infer_binary_type_simple(op: &BinOp, left: &HirExpr, right: &HirExpr) -> Type
     // Comparison operators always return bool
     if matches!(
         op,
-        BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
-            | BinOp::In | BinOp::NotIn
+        BinOp::Eq
+            | BinOp::NotEq
+            | BinOp::Lt
+            | BinOp::LtEq
+            | BinOp::Gt
+            | BinOp::GtEq
+            | BinOp::In
+            | BinOp::NotIn
     ) {
         return Type::Bool;
     }
@@ -3017,10 +3033,10 @@ fn infer_method_return_type(object: &HirExpr, method: &str) -> Type {
         "copy" => infer_expr_type_simple(object),
         "wait" => Type::Int,
         "poll" => Type::Optional(Box::new(Type::Int)),
-        "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title"
-        | "capitalize" | "join" | "format" => Type::String,
-        "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isspace"
-        | "isupper" | "islower" => Type::Bool,
+        "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title" | "capitalize"
+        | "join" | "format" => Type::String,
+        "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isspace" | "isupper"
+        | "islower" => Type::Bool,
         "find" | "rfind" | "index" | "rindex" | "count" => Type::Int,
         "split" | "splitlines" => Type::List(Box::new(Type::String)),
         "read" | "readline" => Type::String,
@@ -3121,7 +3137,11 @@ pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
         }
         HirExpr::IfExpr { body, orelse, .. } => {
             let body_type = infer_expr_type_simple(body);
-            if !matches!(body_type, Type::Unknown) { body_type } else { infer_expr_type_simple(orelse) }
+            if !matches!(body_type, Type::Unknown) {
+                body_type
+            } else {
+                infer_expr_type_simple(orelse)
+            }
         }
         HirExpr::Index { base, .. } => match infer_expr_type_simple(base) {
             Type::List(elem) => *elem,
@@ -3358,8 +3378,16 @@ fn infer_type_from_call_usage(
 fn infer_type_from_object_method(param_name: &str, object: &HirExpr, method: &str) -> Option<Type> {
     // DEPYLER-0525: File I/O methods → File type
     let file_object_methods = [
-        "write", "writelines", "read", "readline", "readlines",
-        "flush", "close", "seek", "tell", "truncate",
+        "write",
+        "writelines",
+        "read",
+        "readline",
+        "readlines",
+        "flush",
+        "close",
+        "seek",
+        "tell",
+        "truncate",
     ];
     if let HirExpr::Var(var_name) = object {
         if var_name == param_name && file_object_methods.contains(&method) {
@@ -3369,11 +3397,41 @@ fn infer_type_from_object_method(param_name: &str, object: &HirExpr, method: &st
 
     // DEPYLER-0524: String methods → String type
     let string_object_methods = [
-        "strip", "lstrip", "rstrip", "startswith", "endswith", "split", "splitlines",
-        "join", "upper", "lower", "title", "capitalize", "replace", "find", "rfind",
-        "index", "rindex", "count", "isalpha", "isdigit", "isalnum", "isspace",
-        "isupper", "islower", "encode", "format", "center", "ljust", "rjust", "zfill",
-        "partition", "rpartition", "expandtabs", "swapcase", "casefold",
+        "strip",
+        "lstrip",
+        "rstrip",
+        "startswith",
+        "endswith",
+        "split",
+        "splitlines",
+        "join",
+        "upper",
+        "lower",
+        "title",
+        "capitalize",
+        "replace",
+        "find",
+        "rfind",
+        "index",
+        "rindex",
+        "count",
+        "isalpha",
+        "isdigit",
+        "isalnum",
+        "isspace",
+        "isupper",
+        "islower",
+        "encode",
+        "format",
+        "center",
+        "ljust",
+        "rjust",
+        "zfill",
+        "partition",
+        "rpartition",
+        "expandtabs",
+        "swapcase",
+        "casefold",
     ];
     if let HirExpr::Var(var_name) = object {
         if var_name == param_name && string_object_methods.contains(&method) {
@@ -3383,8 +3441,16 @@ fn infer_type_from_object_method(param_name: &str, object: &HirExpr, method: &st
 
     // DEPYLER-0550: Dict methods → Dict type
     let dict_object_methods = [
-        "get", "items", "keys", "values", "pop", "popitem",
-        "update", "setdefault", "clear", "copy",
+        "get",
+        "items",
+        "keys",
+        "values",
+        "pop",
+        "popitem",
+        "update",
+        "setdefault",
+        "clear",
+        "copy",
     ];
     if let HirExpr::Var(var_name) = object {
         if var_name == param_name && dict_object_methods.contains(&method) {
@@ -3410,9 +3476,7 @@ fn infer_type_from_module_method(
         let regex_modules = ["re", "regex"];
         let regex_methods = ["match", "search", "findall", "sub", "subn", "split", "compile"];
 
-        if regex_modules.contains(&module_name.as_str())
-            && regex_methods.contains(&method)
-        {
+        if regex_modules.contains(&module_name.as_str()) && regex_methods.contains(&method) {
             for arg in args.iter().take(2) {
                 if let HirExpr::Var(var_name) = arg {
                     if var_name == param_name {
@@ -3485,9 +3549,24 @@ fn infer_type_from_method_call_usage(
 
     // Methods that expect string arguments (for method calls on objects)
     let string_methods = [
-        "find", "search", "match", "sub", "replace", "replace_all",
-        "is_match", "captures", "find_iter", "split", "strip", "lstrip",
-        "rstrip", "startswith", "endswith", "contains", "encode", "decode",
+        "find",
+        "search",
+        "match",
+        "sub",
+        "replace",
+        "replace_all",
+        "is_match",
+        "captures",
+        "find_iter",
+        "split",
+        "strip",
+        "lstrip",
+        "rstrip",
+        "startswith",
+        "endswith",
+        "contains",
+        "encode",
+        "decode",
     ];
     if string_methods.contains(&method) {
         for arg in args {
@@ -3563,9 +3642,10 @@ fn infer_type_from_binary_usage(
         if let HirExpr::Var(var_name) = left {
             if var_name == param_name {
                 if let HirExpr::List(elements) = right {
-                    if elements.iter().all(|e| {
-                        matches!(e, HirExpr::Literal(crate::hir::Literal::String(_)))
-                    }) {
+                    if elements
+                        .iter()
+                        .all(|e| matches!(e, HirExpr::Literal(crate::hir::Literal::String(_))))
+                    {
                         return Some(Type::String);
                     }
                 }

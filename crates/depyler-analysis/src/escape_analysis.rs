@@ -211,6 +211,8 @@ impl UseAfterMoveAnalysis {
 
     /// Analyze a function for use-after-move violations
     pub fn analyze_function(&mut self, func: &HirFunction) -> Vec<UseAfterMoveError> {
+        contract_pre_escape_analysis!();
+        contract_pre_use_after_move!();
         // Reset state
         self.move_states.clear();
         self.errors.clear();

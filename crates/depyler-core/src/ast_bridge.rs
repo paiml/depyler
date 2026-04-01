@@ -166,6 +166,7 @@ impl AstBridge {
         mut self,
         module: ast::Mod,
     ) -> Result<(HirModule, crate::type_system::type_environment::TypeEnvironment)> {
+        contract_pre_observational_equivalence!();
         let hir = match module {
             ast::Mod::Module(m) => self.convert_module(m)?,
             _ => bail!("Only module-level code is supported"),

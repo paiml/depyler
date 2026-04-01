@@ -9,6 +9,7 @@ use scope_tracker::ScopeTracker;
 use syn;
 
 pub fn generate_rust(file: syn::File) -> Result<String> {
+    contract_pre_type_map!();
     let tokens = file.to_token_stream();
     let rust_code = tokens.to_string();
 
@@ -17,6 +18,7 @@ pub fn generate_rust(file: syn::File) -> Result<String> {
 }
 
 pub fn hir_to_rust(hir: &HirModule) -> Result<String> {
+    contract_pre_type_map!();
     let mut rust_items = Vec::new();
 
     // Add necessary imports
@@ -94,6 +96,7 @@ fn expr_uses_hashmap(expr: &HirExpr) -> bool {
 // DEPYLER-COVERAGE-95: ScopeTracker extracted to scope_tracker module
 
 fn convert_function_to_rust(func: &HirFunction) -> Result<proc_macro2::TokenStream> {
+    contract_pre_control_flow_equivalence!();
     let name = syn::Ident::new(&func.name, proc_macro2::Span::call_site());
 
     // Convert parameters

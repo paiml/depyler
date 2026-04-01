@@ -38,6 +38,7 @@ impl TypeExtractor {
     }
 
     pub fn extract_type(expr: &ast::Expr) -> Result<Type> {
+        contract_pre_container_preservation!();
         match expr {
             ast::Expr::Name(n) => Self::extract_simple_type(n.id.as_str()),
             ast::Expr::Subscript(s) => Self::extract_generic_type(s),

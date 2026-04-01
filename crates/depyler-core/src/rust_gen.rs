@@ -143,12 +143,12 @@ mod direct_rules_convert_transpile_tests;
 mod direct_rules_tests;
 #[cfg(test)]
 mod expr_gen_tests;
-#[cfg(test)]
-mod func_gen_tests;
+// #[cfg(test)]
+// mod func_gen_tests; // GH-226: module file missing, disabled
 #[cfg(test)]
 mod generator_gen_tests;
-#[cfg(test)]
-mod stmt_gen_tests;
+// #[cfg(test)]
+// mod stmt_gen_tests; // GH-226: module file missing, disabled
 #[cfg(test)]
 mod targeted_expr_tests;
 #[cfg(test)]

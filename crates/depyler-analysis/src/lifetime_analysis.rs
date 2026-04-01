@@ -141,6 +141,7 @@ impl LifetimeInference {
         func: &HirFunction,
         type_mapper: &crate::type_mapper::TypeMapper,
     ) -> LifetimeResult {
+        contract_pre_lifetime_safety!();
         // Use enhanced borrowing context for comprehensive analysis
         let mut borrowing_ctx = BorrowingContext::new(Some(func.ret_type.clone()));
         let borrowing_result = borrowing_ctx.analyze_function(func, type_mapper);
