@@ -64,7 +64,7 @@ dirs = "5.0"
 tempfile = "3.14"
 
 [dev-dependencies]
-provable-contracts = { path = "../../../provable-contracts/crates/provable-contracts" }
+provable-contracts = { version = "0.2", path = "../../../provable-contracts/crates/provable-contracts" }
 insta.workspace = true
 tempfile.workspace = true
 quickcheck.workspace = true
