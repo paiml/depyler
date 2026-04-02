@@ -523,22 +523,12 @@ pub fn convert_class_to_struct(
         class.is_dataclass,
     );
 
-    let impl_items = build_class_impl_items(
-        class,
-        &struct_name,
-        type_mapper,
-        vararg_functions,
-        &class_fields,
-    )?;
+    let impl_items =
+        build_class_impl_items(class, &struct_name, type_mapper, vararg_functions, &class_fields)?;
 
     let mut items = vec![struct_item];
     if !impl_items.is_empty() {
-        items.push(build_impl_block(
-            &struct_name,
-            &class.type_params,
-            &generics,
-            impl_items,
-        ));
+        items.push(build_impl_block(&struct_name, &class.type_params, &generics, impl_items));
     }
 
     Ok(items)
@@ -620,10 +610,7 @@ fn build_struct_fields(
     Ok((fields, has_non_clone_field))
 }
 
-fn build_class_generics(
-    type_params: &[String],
-    needs_clone_bound: bool,
-) -> syn::Generics {
+fn build_class_generics(type_params: &[String], needs_clone_bound: bool) -> syn::Generics {
     if type_params.is_empty() {
         return syn::Generics::default();
     }
@@ -763,13 +750,8 @@ fn build_class_impl_items(
     if has_init {
         for method in &class.methods {
             if method.name == "__init__" {
-                let new_method = convert_init_to_new(
-                    method,
-                    class,
-                    struct_name,
-                    type_mapper,
-                    vararg_functions,
-                )?;
+                let new_method =
+                    convert_init_to_new(method, class, struct_name, type_mapper, vararg_functions)?;
                 impl_items.push(syn::ImplItem::Fn(new_method));
             } else {
                 let rust_method = convert_method_to_impl_item(

@@ -186,9 +186,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             Err(e) => return Some(Err(e)),
         };
         if nasa_mode {
-            Some(Ok(
-                parse_quote! { DepylerDate::new(#year as u32, #month as u32, #day as u32) },
-            ))
+            Some(Ok(parse_quote! { DepylerDate::new(#year as u32, #month as u32, #day as u32) }))
         } else {
             Some(Ok(parse_quote! {
                 chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).expect("invalid date")
@@ -322,9 +320,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             Err(e) => return Some(Err(e)),
         };
         if nasa_mode {
-            Some(Ok(
-                parse_quote! { DepylerTimeDelta::new(#days as i64, #seconds as i64, 0) },
-            ))
+            Some(Ok(parse_quote! { DepylerTimeDelta::new(#days as i64, #seconds as i64, 0) }))
         } else {
             Some(Ok(parse_quote! {
                 chrono::Duration::days(#days as i64) + chrono::Duration::seconds(#seconds as i64)

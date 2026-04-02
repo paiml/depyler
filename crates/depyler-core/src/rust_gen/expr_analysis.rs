@@ -582,9 +582,9 @@ fn recursion_check_expr_collections(expr: &crate::hir::HirExpr, name: &str) -> b
         | HirExpr::Tuple(items)
         | HirExpr::Set(items)
         | HirExpr::FrozenSet(items) => items.iter().any(|i| recursion_check_expr(i, name)),
-        HirExpr::Dict(pairs) => {
-            pairs.iter().any(|(k, v)| recursion_check_expr(k, name) || recursion_check_expr(v, name))
-        }
+        HirExpr::Dict(pairs) => pairs
+            .iter()
+            .any(|(k, v)| recursion_check_expr(k, name) || recursion_check_expr(v, name)),
         HirExpr::ListComp { element, generators }
         | HirExpr::SetComp { element, generators }
         | HirExpr::GeneratorExp { element, generators } => {
@@ -647,8 +647,7 @@ fn recursion_check_stmt(stmt: &crate::hir::HirStmt, name: &str) -> bool {
                 || body.iter().any(|s| recursion_check_stmt(s, name))
         }
         HirStmt::For { iter, body, .. } => {
-            recursion_check_expr(iter, name)
-                || body.iter().any(|s| recursion_check_stmt(s, name))
+            recursion_check_expr(iter, name) || body.iter().any(|s| recursion_check_stmt(s, name))
         }
         HirStmt::With { context, body, .. } => {
             recursion_check_expr(context, name)
@@ -656,19 +655,13 @@ fn recursion_check_stmt(stmt: &crate::hir::HirStmt, name: &str) -> bool {
         }
         HirStmt::Try { body, handlers, orelse, finalbody } => {
             body.iter().any(|s| recursion_check_stmt(s, name))
-                || handlers
-                    .iter()
-                    .any(|h| h.body.iter().any(|s| recursion_check_stmt(s, name)))
-                || orelse
-                    .as_ref()
-                    .is_some_and(|b| b.iter().any(|s| recursion_check_stmt(s, name)))
+                || handlers.iter().any(|h| h.body.iter().any(|s| recursion_check_stmt(s, name)))
+                || orelse.as_ref().is_some_and(|b| b.iter().any(|s| recursion_check_stmt(s, name)))
                 || finalbody
                     .as_ref()
                     .is_some_and(|b| b.iter().any(|s| recursion_check_stmt(s, name)))
         }
-        HirStmt::FunctionDef { body, .. } => {
-            body.iter().any(|s| recursion_check_stmt(s, name))
-        }
+        HirStmt::FunctionDef { body, .. } => body.iter().any(|s| recursion_check_stmt(s, name)),
         HirStmt::Block(stmts) => stmts.iter().any(|s| recursion_check_stmt(s, name)),
         HirStmt::Assert { test, msg } => {
             recursion_check_expr(test, name)

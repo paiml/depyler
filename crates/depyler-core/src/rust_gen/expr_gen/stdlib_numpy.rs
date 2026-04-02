@@ -102,10 +102,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_np_dot_trueno(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_np_dot_trueno(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if arg_exprs.len() >= 2 {
             let a = &arg_exprs[0];
             let b = &arg_exprs[1];
@@ -178,10 +175,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_np_clip_trueno(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_np_clip_trueno(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if arg_exprs.len() >= 3 {
             let arr = &arg_exprs[0];
             let min = &arg_exprs[1];
@@ -220,10 +214,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_np_norm_trueno(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_np_norm_trueno(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if let Some(arr) = arg_exprs.first() {
             Ok(parse_quote! { (#arr).norm_l2().expect("operation failed") })
         } else {
@@ -257,8 +248,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "mean" => self.convert_np_mean_nasa(&arg_exprs)?,
             "sqrt" => self.convert_np_elemwise_nasa(args, &arg_exprs, "sqrt", "np.sqrt()")?,
             "abs" => self.convert_np_elemwise_nasa(args, &arg_exprs, "abs", "np.abs()")?,
-            "min" | "amin" => self.convert_np_fold_nasa(&arg_exprs, "f64::INFINITY", "f64::min", "np.min()")?,
-            "max" | "amax" => self.convert_np_fold_nasa(&arg_exprs, "f64::NEG_INFINITY", "f64::max", "np.max()")?,
+            "min" | "amin" => {
+                self.convert_np_fold_nasa(&arg_exprs, "f64::INFINITY", "f64::min", "np.min()")?
+            }
+            "max" | "amax" => {
+                self.convert_np_fold_nasa(&arg_exprs, "f64::NEG_INFINITY", "f64::max", "np.max()")?
+            }
             "exp" => self.convert_np_elemwise_nasa(args, &arg_exprs, "exp", "np.exp()")?,
             "log" => self.convert_np_elemwise_ln_nasa(args, &arg_exprs)?,
             "sin" => self.convert_np_elemwise_nasa(args, &arg_exprs, "sin", "np.sin()")?,
@@ -282,10 +277,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         arg_exprs: &[syn::Expr],
     ) -> Result<syn::Expr> {
         if let Some(HirExpr::List(elements)) = args.first() {
-            let element_exprs: Vec<syn::Expr> = elements
-                .iter()
-                .map(|e| e.to_rust_expr(self.ctx))
-                .collect::<Result<Vec<_>>>()?;
+            let element_exprs: Vec<syn::Expr> =
+                elements.iter().map(|e| e.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
             Ok(parse_quote! { vec![#(#element_exprs),*] })
         } else if let Some(arg) = arg_exprs.first() {
             Ok(parse_quote! { #arg.to_vec() })
@@ -294,10 +287,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_np_dot_nasa(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_np_dot_nasa(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if arg_exprs.len() >= 2 {
             let a = &arg_exprs[0];
             let b = &arg_exprs[1];
@@ -309,10 +299,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_np_sum_nasa(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_np_sum_nasa(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if let Some(arr) = arg_exprs.first() {
             Ok(parse_quote! { #arr.iter().map(|&x| x as f64).sum::<f64>() })
         } else {
@@ -320,10 +307,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_np_mean_nasa(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_np_mean_nasa(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if let Some(arr) = arg_exprs.first() {
             Ok(parse_quote! {
                 (#arr.iter().map(|&x| x as f64).sum::<f64>() / #arr.len() as f64)
@@ -386,10 +370,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_np_argmax_nasa(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_np_argmax_nasa(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if let Some(arr) = arg_exprs.first() {
             Ok(parse_quote! {
                 #arr.iter().enumerate()
@@ -402,10 +383,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_np_argmin_nasa(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_np_argmin_nasa(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if let Some(arr) = arg_exprs.first() {
             Ok(parse_quote! {
                 #arr.iter().enumerate()
@@ -418,10 +396,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_np_std_nasa(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_np_std_nasa(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if let Some(arr) = arg_exprs.first() {
             Ok(parse_quote! {{
                 let data: Vec<f64> = #arr.iter().map(|&x| x as f64).collect();
@@ -434,10 +409,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_np_var_nasa(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_np_var_nasa(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if let Some(arr) = arg_exprs.first() {
             Ok(parse_quote! {{
                 let data: Vec<f64> = #arr.iter().map(|&x| x as f64).collect();
@@ -449,10 +421,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_np_zeros_nasa(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_np_zeros_nasa(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if let Some(size) = arg_exprs.first() {
             Ok(parse_quote! { vec![0.0f64; #size as usize] })
         } else {
@@ -460,10 +429,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_np_ones_nasa(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_np_ones_nasa(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if let Some(size) = arg_exprs.first() {
             Ok(parse_quote! { vec![1.0f64; #size as usize] })
         } else {
@@ -471,10 +437,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_np_norm_nasa(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_np_norm_nasa(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if let Some(arr) = arg_exprs.first() {
             Ok(parse_quote! {
                 (#arr.iter().map(|&x| { let v = x as f64; v * v }).sum::<f64>()).sqrt()

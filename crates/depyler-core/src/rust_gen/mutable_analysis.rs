@@ -266,10 +266,8 @@ fn analyze_symbol_assign(
     }
 
     // DEPYLER-0549/0835: Mark csv readers/writers as mutable
-    let name_heuristic = name == "reader"
-        || name == "writer"
-        || name.contains("reader")
-        || name.contains("writer");
+    let name_heuristic =
+        name == "reader" || name == "writer" || name.contains("reader") || name.contains("writer");
     if name_heuristic || is_csv_pattern_match(value) {
         mutable.insert(name.to_string());
     }
@@ -373,72 +371,134 @@ pub(super) fn analyze_stmt(
     match stmt {
         HirStmt::Assign { target, value, .. } => {
             analyze_expr_for_mutations(
-                value, mutable, var_types, mutating_methods, function_param_muts,
+                value,
+                mutable,
+                var_types,
+                mutating_methods,
+                function_param_muts,
             );
             analyze_assign_target(target, value, declared, mutable, var_types);
         }
         HirStmt::Expr(expr) => {
             analyze_expr_for_mutations(
-                expr, mutable, var_types, mutating_methods, function_param_muts,
+                expr,
+                mutable,
+                var_types,
+                mutating_methods,
+                function_param_muts,
             );
         }
         HirStmt::Return(Some(expr)) => {
             analyze_expr_for_mutations(
-                expr, mutable, var_types, mutating_methods, function_param_muts,
+                expr,
+                mutable,
+                var_types,
+                mutating_methods,
+                function_param_muts,
             );
         }
         HirStmt::If { condition, then_body, else_body, .. } => {
             analyze_expr_for_mutations(
-                condition, mutable, var_types, mutating_methods, function_param_muts,
+                condition,
+                mutable,
+                var_types,
+                mutating_methods,
+                function_param_muts,
             );
             analyze_stmt_body(
-                then_body, declared, mutable, var_types, mutating_methods, function_param_muts,
+                then_body,
+                declared,
+                mutable,
+                var_types,
+                mutating_methods,
+                function_param_muts,
             );
             if let Some(else_stmts) = else_body {
                 analyze_stmt_body(
-                    else_stmts, declared, mutable, var_types, mutating_methods, function_param_muts,
+                    else_stmts,
+                    declared,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
                 );
             }
         }
         HirStmt::While { condition, body, .. } => {
             analyze_expr_for_mutations(
-                condition, mutable, var_types, mutating_methods, function_param_muts,
+                condition,
+                mutable,
+                var_types,
+                mutating_methods,
+                function_param_muts,
             );
             analyze_stmt_body(
-                body, declared, mutable, var_types, mutating_methods, function_param_muts,
+                body,
+                declared,
+                mutable,
+                var_types,
+                mutating_methods,
+                function_param_muts,
             );
         }
         HirStmt::For { body, .. } => {
             analyze_stmt_body(
-                body, declared, mutable, var_types, mutating_methods, function_param_muts,
+                body,
+                declared,
+                mutable,
+                var_types,
+                mutating_methods,
+                function_param_muts,
             );
         }
         // DEPYLER-0549: Handle WITH statements - analyze body for mutations
         HirStmt::With { body, .. } => {
             analyze_stmt_body(
-                body, declared, mutable, var_types, mutating_methods, function_param_muts,
+                body,
+                declared,
+                mutable,
+                var_types,
+                mutating_methods,
+                function_param_muts,
             );
         }
         // DEPYLER-0549: Handle Try - analyze all branches
         HirStmt::Try { body, handlers, orelse, finalbody, .. } => {
             analyze_stmt_body(
-                body, declared, mutable, var_types, mutating_methods, function_param_muts,
+                body,
+                declared,
+                mutable,
+                var_types,
+                mutating_methods,
+                function_param_muts,
             );
             for handler in handlers {
                 analyze_stmt_body(
-                    &handler.body, declared, mutable, var_types, mutating_methods,
+                    &handler.body,
+                    declared,
+                    mutable,
+                    var_types,
+                    mutating_methods,
                     function_param_muts,
                 );
             }
             if let Some(else_stmts) = orelse {
                 analyze_stmt_body(
-                    else_stmts, declared, mutable, var_types, mutating_methods,
+                    else_stmts,
+                    declared,
+                    mutable,
+                    var_types,
+                    mutating_methods,
                     function_param_muts,
                 );
             }
             if let Some(final_stmts) = finalbody {
                 analyze_stmt_body(
-                    final_stmts, declared, mutable, var_types, mutating_methods,
+                    final_stmts,
+                    declared,
+                    mutable,
+                    var_types,
+                    mutating_methods,
                     function_param_muts,
                 );
             }

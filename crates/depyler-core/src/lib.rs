@@ -101,6 +101,11 @@
 //! - [`Hir`] - High-level intermediate representation
 //! - [`TranspilationBackend`] - Backend trait for target languages
 
+// Contract assertions from YAML (pv codegen)
+#[macro_use]
+#[allow(unused_macros)]
+mod generated_contracts;
+
 // Re-export macros from depyler-hir so `use crate::trace_decision` etc. continue to work
 pub use depyler_hir::emit_decision;
 pub use depyler_hir::trace_decision;

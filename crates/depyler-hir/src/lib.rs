@@ -14,6 +14,11 @@
 //! - [`error`] - Transpilation error types
 //! - [`decision_trace`] - Decision tracing for CITL training (feature-gated)
 
+// Contract assertions from YAML (pv codegen)
+#[macro_use]
+#[allow(unused_macros)]
+mod generated_contracts;
+
 pub mod decision_trace;
 pub mod error;
 pub mod hir;

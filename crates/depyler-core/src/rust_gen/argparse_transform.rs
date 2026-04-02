@@ -646,11 +646,8 @@ pub fn generate_args_struct(
 ) -> proc_macro2::TokenStream {
     use quote::quote;
 
-    let mut fields: Vec<proc_macro2::TokenStream> = parser_info
-        .arguments
-        .iter()
-        .map(|arg| generate_arg_field(arg))
-        .collect();
+    let mut fields: Vec<proc_macro2::TokenStream> =
+        parser_info.arguments.iter().map(|arg| generate_arg_field(arg)).collect();
 
     if tracker.has_subcommands() {
         fields.push(quote! {
@@ -1368,11 +1365,7 @@ fn hir_handle_add_argument_expr(
 
                 hir_extract_add_argument_kwargs(kwargs, &mut arg);
 
-                if !subcommand_info
-                    .arguments
-                    .iter()
-                    .any(|existing| existing.name == arg.name)
-                {
+                if !subcommand_info.arguments.iter().any(|existing| existing.name == arg.name) {
                     subcommand_info.arguments.push(arg);
                 }
             }
@@ -1406,8 +1399,12 @@ fn hir_walk_expr_children(expr: &crate::hir::HirExpr, tracker: &mut ArgParserTra
         }
         HirExpr::Unary { operand, .. } => hir_walk_expr(operand, tracker),
         HirExpr::Call { args, kwargs, .. } => {
-            for arg in args { hir_walk_expr(arg, tracker); }
-            for (_, val) in kwargs { hir_walk_expr(val, tracker); }
+            for arg in args {
+                hir_walk_expr(arg, tracker);
+            }
+            for (_, val) in kwargs {
+                hir_walk_expr(val, tracker);
+            }
         }
         HirExpr::MethodCall { object, args, kwargs, .. } => {
             hir_recurse_method_call(object, args, kwargs, tracker);
@@ -1417,10 +1414,15 @@ fn hir_walk_expr_children(expr: &crate::hir::HirExpr, tracker: &mut ArgParserTra
         | HirExpr::Tuple(items)
         | HirExpr::Set(items)
         | HirExpr::FrozenSet(items) => {
-            for item in items { hir_walk_expr(item, tracker); }
+            for item in items {
+                hir_walk_expr(item, tracker);
+            }
         }
         HirExpr::Dict(items) => {
-            for (k, v) in items { hir_walk_expr(k, tracker); hir_walk_expr(v, tracker); }
+            for (k, v) in items {
+                hir_walk_expr(k, tracker);
+                hir_walk_expr(v, tracker);
+            }
         }
         HirExpr::Index { base, index } => {
             hir_walk_expr(base, tracker);
@@ -1488,12 +1490,8 @@ fn hir_handle_add_subparsers_assign(
                     .unwrap_or(false);
                 let help = hir_extract_kwarg_string(kwargs, "help");
 
-                let subparser_info = SubparserInfo {
-                    parser_var: parser_var.clone(),
-                    dest_field,
-                    required,
-                    help,
-                };
+                let subparser_info =
+                    SubparserInfo { parser_var: parser_var.clone(), dest_field, required, help };
                 tracker.register_subparsers(subparsers_var.clone(), subparser_info);
             }
         }
@@ -1521,9 +1519,7 @@ fn hir_handle_add_parser_assign(
                         subparsers_var: subparsers_var.clone(),
                     };
                     tracker.register_subcommand(command_name.clone(), subcommand_info);
-                    tracker
-                        .subcommand_var_to_cmd
-                        .insert(parser_var_name.clone(), command_name);
+                    tracker.subcommand_var_to_cmd.insert(parser_var_name.clone(), command_name);
                 }
             }
         }

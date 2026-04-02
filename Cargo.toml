@@ -1,6 +1,6 @@
 [package]
 name = "depyler-workspace"
-version = "4.1.1"
+version = "4.1.2"
 edition = "2021"
 description = "Depyler workspace root - formal verification specs and design-by-contract invariants"
 license = "MIT OR Apache-2.0"
@@ -53,7 +53,7 @@ max_cyclomatic_complexity = 15
 required_documentation_coverage = 100.0
 
 [workspace.package]
-version = "4.1.1"
+version = "4.1.2"
 edition = "2021"
 authors = ["Depyler Contributors"]
 license = "MIT OR Apache-2.0"
@@ -170,6 +170,12 @@ panic = "abort"
 opt-level = 0
 debug = true
 incremental = true
+
+# Test profile: opt-level=1 prevents 200+ minute debug-mode test runs (GH-246)
+# 27K tests in depyler-core are compute-heavy; opt-level=0 causes 3470% CPU for hours
+[profile.test]
+inherits = "dev"
+opt-level = 1
 
 [profile.bench]
 inherits = "release"

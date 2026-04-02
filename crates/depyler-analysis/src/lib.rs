@@ -37,6 +37,11 @@
 //! All analysis, type inference, borrowing analysis, and optimization passes
 //! for the Depyler Python-to-Rust transpiler.
 
+// Contract assertions from YAML (pv codegen)
+#[macro_use]
+#[allow(unused_macros)]
+mod generated_contracts;
+
 pub mod annotation_aware_type_mapper;
 pub mod borrowing;
 pub mod borrowing_context;

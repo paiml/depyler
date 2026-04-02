@@ -198,12 +198,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     // CB-200 Batch 13: Check if return/target type expects String keys
     fn should_use_string_keys(&self, has_non_string_keys: bool) -> bool {
         let return_expects = match &self.ctx.current_return_type {
-            Some(Type::Dict(key_type, _)) => matches!(key_type.as_ref(), Type::String | Type::Unknown),
+            Some(Type::Dict(key_type, _)) => {
+                matches!(key_type.as_ref(), Type::String | Type::Unknown)
+            }
             Some(Type::Custom(name)) if name == "dict" || name == "Dict" => true,
             _ => false,
         };
         let target_expects = match &self.ctx.current_assign_type {
-            Some(Type::Dict(key_type, _)) => matches!(key_type.as_ref(), Type::String | Type::Unknown),
+            Some(Type::Dict(key_type, _)) => {
+                matches!(key_type.as_ref(), Type::String | Type::Unknown)
+            }
             Some(Type::Custom(name)) if name == "dict" || name == "Dict" => true,
             _ => false,
         };
@@ -223,7 +227,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     // CB-200 Batch 13: Wrap key expression for DepylerValue dict
-    fn wrap_depyler_key(key: &HirExpr, key_expr_raw: &syn::Expr, use_string_keys: bool) -> syn::Expr {
+    fn wrap_depyler_key(
+        key: &HirExpr,
+        key_expr_raw: &syn::Expr,
+        use_string_keys: bool,
+    ) -> syn::Expr {
         if use_string_keys {
             match key {
                 HirExpr::Literal(Literal::String(_)) => parse_quote! { #key_expr_raw.to_string() },
@@ -231,10 +239,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         } else {
             match key {
-                HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#key_expr_raw as i64) },
-                HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#key_expr_raw as f64) },
-                HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#key_expr_raw.to_string()) },
-                HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#key_expr_raw) },
+                HirExpr::Literal(Literal::Int(_)) => {
+                    parse_quote! { DepylerValue::Int(#key_expr_raw as i64) }
+                }
+                HirExpr::Literal(Literal::Float(_)) => {
+                    parse_quote! { DepylerValue::Float(#key_expr_raw as f64) }
+                }
+                HirExpr::Literal(Literal::String(_)) => {
+                    parse_quote! { DepylerValue::Str(#key_expr_raw.to_string()) }
+                }
+                HirExpr::Literal(Literal::Bool(_)) => {
+                    parse_quote! { DepylerValue::Bool(#key_expr_raw) }
+                }
                 _ => parse_quote! { DepylerValue::from(#key_expr_raw) },
             }
         }
@@ -243,9 +259,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     // CB-200 Batch 13: Wrap value expression in DepylerValue variant
     fn wrap_depyler_value(&mut self, value: &HirExpr, val_expr: &syn::Expr) -> Result<syn::Expr> {
         Ok(match value {
-            HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#val_expr as i64) },
-            HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#val_expr as f64) },
-            HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#val_expr.to_string()) },
+            HirExpr::Literal(Literal::Int(_)) => {
+                parse_quote! { DepylerValue::Int(#val_expr as i64) }
+            }
+            HirExpr::Literal(Literal::Float(_)) => {
+                parse_quote! { DepylerValue::Float(#val_expr as f64) }
+            }
+            HirExpr::Literal(Literal::String(_)) => {
+                parse_quote! { DepylerValue::Str(#val_expr.to_string()) }
+            }
             HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#val_expr) },
             HirExpr::Literal(Literal::None) => parse_quote! { DepylerValue::None },
             HirExpr::Var(name) => self.wrap_depyler_var_value(name, val_expr),
@@ -316,11 +338,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             Type::Bool => parse_quote! { DepylerValue::Bool(#val_expr) },
             Type::String => parse_quote! { DepylerValue::Str(#val_expr.to_string()) },
             Type::Optional(inner) => match inner.as_ref() {
-                Type::Int => parse_quote! { match #val_expr { Some(v) => DepylerValue::Int(v as i64), None => DepylerValue::None } },
-                Type::String => parse_quote! { match #val_expr { Some(v) => DepylerValue::Str(v.to_string()), None => DepylerValue::None } },
+                Type::Int => {
+                    parse_quote! { match #val_expr { Some(v) => DepylerValue::Int(v as i64), None => DepylerValue::None } }
+                }
+                Type::String => {
+                    parse_quote! { match #val_expr { Some(v) => DepylerValue::Str(v.to_string()), None => DepylerValue::None } }
+                }
                 _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
             },
-            Type::List(_) => parse_quote! { DepylerValue::List(#val_expr.iter().map(|v| DepylerValue::Str(v.to_string())).collect()) },
+            Type::List(_) => {
+                parse_quote! { DepylerValue::List(#val_expr.iter().map(|v| DepylerValue::Str(v.to_string())).collect()) }
+            }
             _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
         }
     }
@@ -329,10 +357,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn wrap_depyler_by_inferred_type(type_str: &str, val_expr: &syn::Expr) -> syn::Expr {
         match type_str {
             "bool" => parse_quote! { DepylerValue::Bool(#val_expr) },
-            "i32" | "i64" | "isize" | "u8" | "u32" | "u64" => parse_quote! { DepylerValue::Int(#val_expr as i64) },
+            "i32" | "i64" | "isize" | "u8" | "u32" | "u64" => {
+                parse_quote! { DepylerValue::Int(#val_expr as i64) }
+            }
             "f32" | "f64" => parse_quote! { DepylerValue::Float(#val_expr as f64) },
             "String" => parse_quote! { DepylerValue::Str(#val_expr.to_string()) },
-            s if s.starts_with("Vec<") => parse_quote! { DepylerValue::List(#val_expr.iter().map(|v| DepylerValue::Str(v.to_string())).collect()) },
+            s if s.starts_with("Vec<") => {
+                parse_quote! { DepylerValue::List(#val_expr.iter().map(|v| DepylerValue::Str(v.to_string())).collect()) }
+            }
             s if s.starts_with("Option<") && s.contains("String") => {
                 parse_quote! { match #val_expr { Some(v) => DepylerValue::Str(v.to_string()), None => DepylerValue::None } }
             }
@@ -350,7 +382,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     // CB-200 Batch 13: Wrap list elements in DepylerValue
-    fn wrap_depyler_list_value(&mut self, elts: &[HirExpr], _val_expr: &syn::Expr) -> Result<syn::Expr> {
+    fn wrap_depyler_list_value(
+        &mut self,
+        elts: &[HirExpr],
+        _val_expr: &syn::Expr,
+    ) -> Result<syn::Expr> {
         let wrapped_elements: Vec<syn::Expr> = elts
             .iter()
             .map(|elem| {
@@ -373,71 +409,64 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// CB-200 Batch 12: Dict in json!() context
-    fn convert_dict_json_context(
-        &mut self,
-        items: &[(HirExpr, HirExpr)],
-    ) -> Result<syn::Expr> {
-            self.ctx.needs_serde_json = true;
-            let mut entries = Vec::new();
-            for (key, value) in items {
-                let key_str = match key {
-                    HirExpr::Literal(Literal::String(s)) => s.clone(),
-                    _ => bail!("Dict keys for JSON output must be string literals"),
-                };
-                let val_expr = value.to_rust_expr(self.ctx)?;
-                entries.push(quote! { #key_str: #val_expr });
-            }
-            Ok(parse_quote! {
-                serde_json::json!({
-                    #(#entries),*
-                })
+    fn convert_dict_json_context(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
+        self.ctx.needs_serde_json = true;
+        let mut entries = Vec::new();
+        for (key, value) in items {
+            let key_str = match key {
+                HirExpr::Literal(Literal::String(s)) => s.clone(),
+                _ => bail!("Dict keys for JSON output must be string literals"),
+            };
+            let val_expr = value.to_rust_expr(self.ctx)?;
+            entries.push(quote! { #key_str: #val_expr });
+        }
+        Ok(parse_quote! {
+            serde_json::json!({
+                #(#entries),*
             })
+        })
     }
 
     /// CB-200 Batch 12: Dict with mixed types or JSON return type (non-NASA)
-    fn convert_dict_mixed_json(
-        &mut self,
-        items: &[(HirExpr, HirExpr)],
-    ) -> Result<syn::Expr> {
-            self.ctx.needs_serde_json = true;
-            self.ctx.needs_hashmap = true;
+    fn convert_dict_mixed_json(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
+        self.ctx.needs_serde_json = true;
+        self.ctx.needs_hashmap = true;
 
-            let mut insert_stmts = Vec::new();
-            for (key, value) in items {
-                let key_str = match key {
-                    HirExpr::Literal(Literal::String(s)) => s.clone(),
-                    _ => bail!("Dict keys for JSON output must be string literals"),
-                };
+        let mut insert_stmts = Vec::new();
+        for (key, value) in items {
+            let key_str = match key {
+                HirExpr::Literal(Literal::String(s)) => s.clone(),
+                _ => bail!("Dict keys for JSON output must be string literals"),
+            };
 
-                // Set json context for value conversion (nested dicts become json!())
-                let prev_json_context = self.ctx.in_json_context;
-                self.ctx.in_json_context = true;
-                let val_expr = value.to_rust_expr(self.ctx)?;
-                self.ctx.in_json_context = prev_json_context;
+            // Set json context for value conversion (nested dicts become json!())
+            let prev_json_context = self.ctx.in_json_context;
+            self.ctx.in_json_context = true;
+            let val_expr = value.to_rust_expr(self.ctx)?;
+            self.ctx.in_json_context = prev_json_context;
 
-                // DEPYLER-0669: Check if val_expr is a HashMap block (can't go in json!())
-                let val_str = quote! { #val_expr }.to_string();
-                let wrapped_val = if val_str.contains("HashMap") || val_str.contains("let mut map")
-                {
-                    // Use serde_json::to_value() for HashMap block expressions
-                    quote! { serde_json::to_value(#val_expr).expect("operation failed") }
-                } else {
-                    // Wrap each value in json!() to convert to serde_json::Value
-                    quote! { serde_json::json!(#val_expr) }
-                };
+            // DEPYLER-0669: Check if val_expr is a HashMap block (can't go in json!())
+            let val_str = quote! { #val_expr }.to_string();
+            let wrapped_val = if val_str.contains("HashMap") || val_str.contains("let mut map") {
+                // Use serde_json::to_value() for HashMap block expressions
+                quote! { serde_json::to_value(#val_expr).expect("operation failed") }
+            } else {
+                // Wrap each value in json!() to convert to serde_json::Value
+                quote! { serde_json::json!(#val_expr) }
+            };
 
-                insert_stmts.push(quote! {
-                    map.insert(#key_str.to_string(), #wrapped_val);
-                });
+            insert_stmts.push(quote! {
+                map.insert(#key_str.to_string(), #wrapped_val);
+            });
+        }
+
+        Ok(parse_quote! {
+            {
+                let mut map = std::collections::HashMap::new();
+                #(#insert_stmts)*
+                map
             }
-
-            Ok(parse_quote! {
-                {
-                    let mut map = std::collections::HashMap::new();
-                    #(#insert_stmts)*
-                    map
-                }
-            })
+        })
     }
 
     /// CB-200 Batch 12: Homogeneous dict (standard HashMap)

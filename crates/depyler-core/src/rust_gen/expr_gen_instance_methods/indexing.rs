@@ -159,9 +159,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! { &DepylerValue::Str(format!("{:?}", #index_expr)) }
             }
         };
-        Ok(Some(
-            parse_quote! { #base_expr.get(#wrapped_index).cloned().unwrap_or_default() },
-        ))
+        Ok(Some(parse_quote! { #base_expr.get(#wrapped_index).cloned().unwrap_or_default() }))
     }
 
     /// Try to handle tuple indexing (tuple.0, tuple.1 syntax)
@@ -393,11 +391,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let key_type = self.resolve_dict_key_type(base);
 
         match &key_type {
-            Some(Type::Int) | Some(Type::Bool) | Some(Type::String) => {
-                Ok(parse_quote! {
-                    #base_expr.get(&(#index_expr)).cloned().unwrap_or_default()
-                })
-            }
+            Some(Type::Int) | Some(Type::Bool) | Some(Type::String) => Ok(parse_quote! {
+                #base_expr.get(&(#index_expr)).cloned().unwrap_or_default()
+            }),
             Some(Type::Float) => {
                 if matches!(index, HirExpr::Literal(Literal::Float(_))) {
                     Ok(parse_quote! {
@@ -413,11 +409,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     })
                 }
             }
-            _ => {
-                Ok(parse_quote! {
-                    #base_expr.get(&DepylerValue::Int(#index_expr as i64)).cloned().unwrap_or_default()
-                })
-            }
+            _ => Ok(parse_quote! {
+                #base_expr.get(&DepylerValue::Int(#index_expr as i64)).cloned().unwrap_or_default()
+            }),
         }
     }
 
@@ -465,11 +459,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// Handle Vec/List access with numeric index
-    fn convert_vec_index(
-        &mut self,
-        index: &HirExpr,
-        base_expr: &syn::Expr,
-    ) -> Result<syn::Expr> {
+    fn convert_vec_index(&mut self, index: &HirExpr, base_expr: &syn::Expr) -> Result<syn::Expr> {
         let index_expr = index.to_rust_expr(self.ctx)?;
 
         // Check if index is a negative literal

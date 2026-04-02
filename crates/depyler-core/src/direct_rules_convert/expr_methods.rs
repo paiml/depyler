@@ -159,11 +159,8 @@ impl<'a> ExprConverter<'a> {
             return Ok(None);
         }
         let bytes_expr = &arg_exprs[0];
-        let is_big_endian = if let HirExpr::Literal(Literal::String(s)) = &args[1] {
-            s == "big"
-        } else {
-            true
-        };
+        let is_big_endian =
+            if let HirExpr::Literal(Literal::String(s)) = &args[1] { s == "big" } else { true };
         if is_big_endian {
             Ok(Some(parse_quote! {
                 i64::from_be_bytes({
@@ -1157,9 +1154,7 @@ impl<'a> ExprConverter<'a> {
             // Remove dispatches to set or list
             "remove" => self.convert_remove_method(object, &object_expr, &arg_exprs),
             // Set methods
-            "add" | "discard" => {
-                self.convert_set_method(method, &object_expr, &arg_exprs)
-            }
+            "add" | "discard" => self.convert_set_method(method, &object_expr, &arg_exprs),
             // Clear (shared by list/set/dict)
             "clear" => {
                 if !arg_exprs.is_empty() {
@@ -1170,15 +1165,11 @@ impl<'a> ExprConverter<'a> {
             // Pop dispatches to set/deque/list
             "pop" => self.convert_pop_method(object, &object_expr, &arg_exprs),
             // String methods - DEPYLER-0413
-            "upper" | "lower" | "strip" | "lstrip" | "rstrip"
-            | "startswith" | "endswith" | "split" | "join" | "replace"
-            | "find" | "rfind" | "isdigit" | "isalpha" | "isalnum" => {
-                self.convert_string_method(method, args, &object_expr, &arg_exprs)
-            }
+            "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
+            | "split" | "join" | "replace" | "find" | "rfind" | "isdigit" | "isalpha"
+            | "isalnum" => self.convert_string_method(method, args, &object_expr, &arg_exprs),
             // DEPYLER-0200/DEPYLER-0960: String/Dict contains method
-            "__contains__" | "contains" => {
-                self.convert_contains_method(object, args, &object_expr)
-            }
+            "__contains__" | "contains" => self.convert_contains_method(object, args, &object_expr),
             // DEPYLER-0613: Semaphore/Mutex method mappings
             "acquire" => Ok(parse_quote! { #object_expr.lock().is_ok() }),
             "release" => Ok(parse_quote! { () }),
@@ -1523,11 +1514,7 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    fn convert_split_method(
-        &self,
-        args: &[HirExpr],
-        object_expr: &syn::Expr,
-    ) -> Result<syn::Expr> {
+    fn convert_split_method(&self, args: &[HirExpr], object_expr: &syn::Expr) -> Result<syn::Expr> {
         if args.is_empty() {
             Ok(
                 parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() },
@@ -1624,9 +1611,7 @@ impl<'a> ExprConverter<'a> {
                     parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| (#default).to_string()) },
                 )
             } else {
-                Ok(
-                    parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| #default) },
-                )
+                Ok(parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| #default) })
             }
         } else {
             bail!("get() requires 1 or 2 arguments");
@@ -1644,8 +1629,7 @@ impl<'a> ExprConverter<'a> {
         if method.is_empty() {
             bail!("Empty method name in method call");
         }
-        let is_valid_ident = method
-            .starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+        let is_valid_ident = method.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
             && method.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
         if !is_valid_ident {
             bail!("Invalid method name '{}' - not a valid Rust identifier", method);

@@ -95,21 +95,37 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // CB-200 Final: NASA PyOps dispatch for arithmetic operators
         if self.ctx.type_mapper.nasa_mode && !is_comparison {
-            if let Some(result) = self.try_nasa_pyops_dispatch(op, left, right, &left_expr, &right_expr)? {
+            if let Some(result) =
+                self.try_nasa_pyops_dispatch(op, left, right, &left_expr, &right_expr)?
+            {
                 return Ok(result);
             }
         }
 
         if is_comparison {
             // CB-200 Batch 16: Delegate comparison transforms to extracted helper
-            if let Some(early) = self.try_empty_list_comparison(op, left, right, &left_expr, &right_expr)? {
+            if let Some(early) =
+                self.try_empty_list_comparison(op, left, right, &left_expr, &right_expr)?
+            {
                 return Ok(early);
             }
-            self.apply_comparison_option_unwrap(op, left_is_option, right_is_option, &mut left_expr, &mut right_expr);
+            self.apply_comparison_option_unwrap(
+                op,
+                left_is_option,
+                right_is_option,
+                &mut left_expr,
+                &mut right_expr,
+            );
             self.apply_comparison_ref_deref(left, right, &mut left_expr, &mut right_expr);
             self.apply_comparison_json_value_coerce(left, right, &mut left_expr, &mut right_expr);
             self.apply_comparison_float_coerce(left, right, &mut left_expr, &mut right_expr);
-            self.apply_comparison_string_transforms(op, left, right, &mut left_expr, &mut right_expr);
+            self.apply_comparison_string_transforms(
+                op,
+                left,
+                right,
+                &mut left_expr,
+                &mut right_expr,
+            );
         }
 
         match op {
@@ -290,16 +306,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         left_expr: &mut syn::Expr,
         right_expr: &mut syn::Expr,
     ) {
-        let left_is_ref = if let HirExpr::Var(name) = left {
-            self.ctx.ref_params.contains(name)
-        } else {
-            false
-        };
-        let right_is_ref = if let HirExpr::Var(name) = right {
-            self.ctx.ref_params.contains(name)
-        } else {
-            false
-        };
+        let left_is_ref =
+            if let HirExpr::Var(name) = left { self.ctx.ref_params.contains(name) } else { false };
+        let right_is_ref =
+            if let HirExpr::Var(name) = right { self.ctx.ref_params.contains(name) } else { false };
         if left_is_ref && !right_is_ref {
             *left_expr = parse_quote! { (*#left_expr) };
         } else if right_is_ref && !left_is_ref {
@@ -350,11 +360,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// CB-200 Batch 16: Coerce a single operand from int to float
-    fn coerce_operand_to_float(
-        hir: &HirExpr,
-        expr: &mut syn::Expr,
-        use_f32: bool,
-    ) {
+    fn coerce_operand_to_float(hir: &HirExpr, expr: &mut syn::Expr, use_f32: bool) {
         if let HirExpr::Literal(Literal::Int(n)) = hir {
             if use_f32 {
                 let float_val = *n as f32;
@@ -379,8 +385,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         left_expr: &mut syn::Expr,
         right_expr: &mut syn::Expr,
     ) {
-        let is_ordering_compare =
-            matches!(op, BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq);
+        let is_ordering_compare = matches!(op, BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq);
 
         let left_is_string_index =
             matches!(left, HirExpr::Index { base, .. } if self.is_string_base(base));
@@ -453,10 +458,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Equality: handle String == &String
         let right_is_ref_pattern =
             matches!(right, HirExpr::Var(_)) || matches!(right, HirExpr::Attribute { .. });
-        if matches!(op, BinOp::Eq | BinOp::NotEq)
-            && left_is_string_index
-            && right_is_ref_pattern
-        {
+        if matches!(op, BinOp::Eq | BinOp::NotEq) && left_is_string_index && right_is_ref_pattern {
             *right_expr = parse_quote! { *#right_expr };
         }
 
@@ -689,8 +691,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .as_ref()
                 .map(crate::rust_gen::func_gen::return_type_expects_float)
                 .unwrap_or(false);
-            let operand_is_float =
-                self.expr_is_float_type(left) || self.expr_is_float_type(right);
+            let operand_is_float = self.expr_is_float_type(left) || self.expr_is_float_type(right);
             if return_expects_float || operand_is_float {
                 parse_quote! { (#left_pyops as f64) }
             } else {
@@ -745,12 +746,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let left_is_float = self.expr_returns_float(left);
         let right_is_float = self.expr_returns_float(right);
         let has_float_operand = left_is_float || right_is_float;
-        let needs_float_division = self
-            .ctx
-            .current_return_type
-            .as_ref()
-            .map(return_type_expects_float)
-            .unwrap_or(false);
+        let needs_float_division =
+            self.ctx.current_return_type.as_ref().map(return_type_expects_float).unwrap_or(false);
 
         if needs_float_division || has_float_operand {
             Ok(parse_quote! { ((#left_expr) as f64) / ((#right_expr) as f64) })
@@ -787,7 +784,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // Value-returning pattern for non-boolean operands
-        if let Some(result) = self.try_value_returning_logical(op, left, right, &left_expr, &right_expr)? {
+        if let Some(result) =
+            self.try_value_returning_logical(op, left, right, &left_expr, &right_expr)?
+        {
             return Ok(result);
         }
 
@@ -819,7 +818,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let infer_left_from_right = matches!(right, HirExpr::Literal(Literal::String(_)));
 
         if (left_is_string || infer_left_from_right) && right_is_string {
-            Some(parse_quote! { if #left_expr.is_empty() { #right_expr.to_string() } else { #left_expr.to_string() } })
+            Some(
+                parse_quote! { if #left_expr.is_empty() { #right_expr.to_string() } else { #left_expr.to_string() } },
+            )
         } else {
             None
         }
@@ -843,12 +844,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // DepylerValue operands
-        if let Some(result) = self.try_depyler_value_logical(op, left, right, left_expr, right_expr)? {
+        if let Some(result) =
+            self.try_depyler_value_logical(op, left, right, left_expr, right_expr)?
+        {
             return Ok(Some(result));
         }
 
         // Numeric literal defaults
-        if let Some(result) = self.try_numeric_default_logical(op, left, right, left_expr, right_expr)? {
+        if let Some(result) =
+            self.try_numeric_default_logical(op, left, right, left_expr, right_expr)?
+        {
             return Ok(Some(result));
         }
 
@@ -886,8 +891,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(None);
         }
 
-        let right_wrapped = self.wrap_for_depyler_value(right, right_expr, left_is_depyler, right_is_depyler);
-        let left_wrapped = self.wrap_for_depyler_value_left(left, left_expr, left_is_depyler, right_is_depyler);
+        let right_wrapped =
+            self.wrap_for_depyler_value(right, right_expr, left_is_depyler, right_is_depyler);
+        let left_wrapped =
+            self.wrap_for_depyler_value_left(left, left_expr, left_is_depyler, right_is_depyler);
 
         match op {
             BinOp::Or => Ok(Some(parse_quote! {
@@ -1195,19 +1202,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         right_expr: &syn::Expr,
     ) -> Option<syn::Expr> {
         if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) {
-            return Some(parse_quote! { #left_expr.mul(&#right_expr).expect("multiplication overflow") });
+            return Some(
+                parse_quote! { #left_expr.mul(&#right_expr).expect("multiplication overflow") },
+            );
         }
         if self.is_numpy_array_expr(left) && self.expr_returns_float(right) {
-            return Some(parse_quote! { #left_expr.scale(#right_expr as f32).expect("scale failed") });
+            return Some(
+                parse_quote! { #left_expr.scale(#right_expr as f32).expect("scale failed") },
+            );
         }
         if self.expr_returns_float(left) && self.is_numpy_array_expr(right) {
-            return Some(parse_quote! { #right_expr.scale(#left_expr as f32).expect("scale failed") });
+            return Some(
+                parse_quote! { #right_expr.scale(#left_expr as f32).expect("scale failed") },
+            );
         }
         if self.is_numpy_array_expr(left) && matches!(right, HirExpr::Literal(Literal::Int(_))) {
-            return Some(parse_quote! { #left_expr.scale(#right_expr as f32).expect("scale failed") });
+            return Some(
+                parse_quote! { #left_expr.scale(#right_expr as f32).expect("scale failed") },
+            );
         }
         if matches!(left, HirExpr::Literal(Literal::Int(_))) && self.is_numpy_array_expr(right) {
-            return Some(parse_quote! { #right_expr.scale(#left_expr as f32).expect("scale failed") });
+            return Some(
+                parse_quote! { #right_expr.scale(#left_expr as f32).expect("scale failed") },
+            );
         }
         None
     }
@@ -1463,7 +1480,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             );
         }
 
-        self.convert_fallback_containment(negate, needs_borrow, left, right, &left_expr, &right_expr)
+        self.convert_fallback_containment(
+            negate,
+            needs_borrow,
+            left,
+            right,
+            &left_expr,
+            &right_expr,
+        )
     }
 
     fn try_os_environ_containment(
@@ -1525,14 +1549,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let check = if negate { "is_none" } else { "is_some" };
         if needs_borrow {
             if check == "is_none" {
-                Ok(parse_quote! { #right_expr.as_ref().expect("value is None").get(&#left_expr).is_none() })
+                Ok(
+                    parse_quote! { #right_expr.as_ref().expect("value is None").get(&#left_expr).is_none() },
+                )
             } else {
-                Ok(parse_quote! { #right_expr.as_ref().expect("value is None").get(&#left_expr).is_some() })
+                Ok(
+                    parse_quote! { #right_expr.as_ref().expect("value is None").get(&#left_expr).is_some() },
+                )
             }
         } else if check == "is_none" {
-            Ok(parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_none() })
+            Ok(
+                parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_none() },
+            )
         } else {
-            Ok(parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_some() })
+            Ok(
+                parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_some() },
+            )
         }
     }
 
@@ -1569,12 +1601,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             format!("[{}]", right_str)
         };
         if let Ok(array_expr) = syn::parse_str::<syn::Expr>(&array_str) {
-            return Some(Self::emit_contains_check(
-                negate,
-                needs_borrow,
-                left_expr,
-                &array_expr,
-            ));
+            return Some(Self::emit_contains_check(negate, needs_borrow, left_expr, &array_expr));
         }
         None
     }
@@ -1621,7 +1648,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Self::emit_iter_any_check(negate, left_expr, right_expr);
         }
         if is_string || is_set {
-            let pattern = self.build_string_or_set_pattern(is_string, needs_borrow, left, left_expr);
+            let pattern =
+                self.build_string_or_set_pattern(is_string, needs_borrow, left, left_expr);
             return Self::emit_contains_pattern(negate, &pattern, right_expr);
         }
         Self::emit_contains_check(negate, needs_borrow, left_expr, right_expr)
@@ -1720,11 +1748,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn build_string_pattern_for_left(
-        &self,
-        left: &HirExpr,
-        left_expr: &syn::Expr,
-    ) -> syn::Expr {
+    fn build_string_pattern_for_left(&self, left: &HirExpr, left_expr: &syn::Expr) -> syn::Expr {
         match left {
             HirExpr::Literal(Literal::String(s)) => {
                 let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());

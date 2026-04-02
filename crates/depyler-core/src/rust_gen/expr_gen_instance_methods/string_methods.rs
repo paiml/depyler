@@ -35,13 +35,47 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "replace" => self.str_replace(object_expr, arg_exprs, hir_args),
             "find" => self.str_find(object_expr, arg_exprs, hir_args),
             "count" => self.str_count(object_expr, arg_exprs, hir_args),
-            "isdigit" => self.str_char_predicate(hir_object, object_expr, arg_exprs, "isdigit", "is_numeric"),
-            "isalpha" => self.str_char_predicate(hir_object, object_expr, arg_exprs, "isalpha", "is_alphabetic"),
-            "isspace" => self.str_char_predicate(hir_object, object_expr, arg_exprs, "isspace", "is_whitespace"),
-            "isalnum" => self.str_char_predicate(hir_object, object_expr, arg_exprs, "isalnum", "is_alphanumeric"),
-            "isnumeric" => self.str_char_predicate(hir_object, object_expr, arg_exprs, "isnumeric", "is_numeric"),
-            "isascii" => self.str_char_predicate(hir_object, object_expr, arg_exprs, "isascii", "is_ascii"),
-            "isdecimal" => self.str_char_predicate(hir_object, object_expr, arg_exprs, "isdecimal", "is_ascii_digit"),
+            "isdigit" => {
+                self.str_char_predicate(hir_object, object_expr, arg_exprs, "isdigit", "is_numeric")
+            }
+            "isalpha" => self.str_char_predicate(
+                hir_object,
+                object_expr,
+                arg_exprs,
+                "isalpha",
+                "is_alphabetic",
+            ),
+            "isspace" => self.str_char_predicate(
+                hir_object,
+                object_expr,
+                arg_exprs,
+                "isspace",
+                "is_whitespace",
+            ),
+            "isalnum" => self.str_char_predicate(
+                hir_object,
+                object_expr,
+                arg_exprs,
+                "isalnum",
+                "is_alphanumeric",
+            ),
+            "isnumeric" => self.str_char_predicate(
+                hir_object,
+                object_expr,
+                arg_exprs,
+                "isnumeric",
+                "is_numeric",
+            ),
+            "isascii" => {
+                self.str_char_predicate(hir_object, object_expr, arg_exprs, "isascii", "is_ascii")
+            }
+            "isdecimal" => self.str_char_predicate(
+                hir_object,
+                object_expr,
+                arg_exprs,
+                "isdecimal",
+                "is_ascii_digit",
+            ),
             "lstrip" => self.str_lstrip(object_expr, arg_exprs),
             "rstrip" => self.str_rstrip(object_expr, arg_exprs),
             "encode" => Ok(parse_quote! { #object_expr.as_bytes().to_vec() }),
@@ -73,7 +107,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     // CB-200 Batch 14: Compute the effective receiver for string method calls
     // Handles serde_json::Value and DepylerValue type conversions
-    fn compute_string_method_receiver(&self, hir_object: &HirExpr, object_expr: &syn::Expr) -> syn::Expr {
+    fn compute_string_method_receiver(
+        &self,
+        hir_object: &HirExpr,
+        object_expr: &syn::Expr,
+    ) -> syn::Expr {
         // DEPYLER-0564: Convert serde_json::Value to &str for string method calls
         let needs_json_conversion = self.needs_value_to_string_conversion(hir_object)
             || self.rust_expr_needs_value_conversion(object_expr);
@@ -119,7 +157,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn str_upper(&self, hir_object: &HirExpr, obj: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    fn str_upper(
+        &self,
+        hir_object: &HirExpr,
+        obj: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if !arg_exprs.is_empty() {
             bail!("upper() takes no arguments");
         }
@@ -130,7 +173,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn str_lower(&self, hir_object: &HirExpr, obj: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    fn str_lower(
+        &self,
+        hir_object: &HirExpr,
+        obj: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if !arg_exprs.is_empty() {
             bail!("lower() takes no arguments");
         }
@@ -141,7 +189,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn str_strip(&self, hir_object: &HirExpr, obj: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    fn str_strip(
+        &self,
+        hir_object: &HirExpr,
+        obj: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if arg_exprs.is_empty() {
             let is_likely_char = if let HirExpr::Var(var_name) = hir_object {
                 self.ctx.char_iter_vars.contains(var_name)
@@ -162,7 +215,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn str_startswith(&self, obj: &syn::Expr, arg_exprs: &[syn::Expr], hir_args: &[HirExpr]) -> Result<syn::Expr> {
+    fn str_startswith(
+        &self,
+        obj: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
+    ) -> Result<syn::Expr> {
         if hir_args.len() != 1 {
             bail!("startswith() requires exactly one argument");
         }
@@ -170,7 +228,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { #obj.starts_with(#prefix) })
     }
 
-    fn str_endswith(&self, obj: &syn::Expr, arg_exprs: &[syn::Expr], hir_args: &[HirExpr]) -> Result<syn::Expr> {
+    fn str_endswith(
+        &self,
+        obj: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
+    ) -> Result<syn::Expr> {
         if hir_args.len() != 1 {
             bail!("endswith() requires exactly one argument");
         }
@@ -178,31 +241,49 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { #obj.ends_with(#suffix) })
     }
 
-    fn str_split(&self, obj: &syn::Expr, arg_exprs: &[syn::Expr], hir_args: &[HirExpr]) -> Result<syn::Expr> {
+    fn str_split(
+        &self,
+        obj: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
+    ) -> Result<syn::Expr> {
         if arg_exprs.is_empty() {
-            Ok(parse_quote! { #obj.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() })
+            Ok(
+                parse_quote! { #obj.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() },
+            )
         } else if arg_exprs.len() == 1 {
             let sep = self.extract_pattern_expr(&hir_args[0], &arg_exprs[0]);
             Ok(parse_quote! { #obj.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() })
         } else if arg_exprs.len() == 2 {
             let sep = self.extract_pattern_expr(&hir_args[0], &arg_exprs[0]);
             let maxsplit = &arg_exprs[1];
-            Ok(parse_quote! { #obj.splitn((#maxsplit + 1) as usize, #sep).map(|s| s.to_string()).collect::<Vec<String>>() })
+            Ok(
+                parse_quote! { #obj.splitn((#maxsplit + 1) as usize, #sep).map(|s| s.to_string()).collect::<Vec<String>>() },
+            )
         } else {
             bail!("split() accepts at most 2 arguments (separator, maxsplit)");
         }
     }
 
-    fn str_rsplit(&self, obj: &syn::Expr, arg_exprs: &[syn::Expr], hir_args: &[HirExpr]) -> Result<syn::Expr> {
+    fn str_rsplit(
+        &self,
+        obj: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
+    ) -> Result<syn::Expr> {
         if arg_exprs.is_empty() {
-            Ok(parse_quote! { #obj.split_whitespace().rev().map(|s| s.to_string()).collect::<Vec<String>>() })
+            Ok(
+                parse_quote! { #obj.split_whitespace().rev().map(|s| s.to_string()).collect::<Vec<String>>() },
+            )
         } else if arg_exprs.len() == 1 {
             let sep = self.extract_pattern_expr(&hir_args[0], &arg_exprs[0]);
             Ok(parse_quote! { #obj.rsplit(#sep).map(|s| s.to_string()).collect::<Vec<String>>() })
         } else if arg_exprs.len() == 2 {
             let sep = self.extract_pattern_expr(&hir_args[0], &arg_exprs[0]);
             let maxsplit = &arg_exprs[1];
-            Ok(parse_quote! { #obj.rsplitn((#maxsplit + 1) as usize, #sep).map(|s| s.to_string()).collect::<Vec<String>>() })
+            Ok(
+                parse_quote! { #obj.rsplitn((#maxsplit + 1) as usize, #sep).map(|s| s.to_string()).collect::<Vec<String>>() },
+            )
         } else {
             bail!("rsplit() accepts at most 2 arguments (separator, maxsplit)");
         }
@@ -340,7 +421,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             Ok(parse_quote! { #object_expr.trim_start().to_string() })
         } else {
             let chars = &arg_exprs[0];
-            Ok(parse_quote! { #object_expr.trim_start_matches(|c: char| #chars.contains(c)).to_string() })
+            Ok(
+                parse_quote! { #object_expr.trim_start_matches(|c: char| #chars.contains(c)).to_string() },
+            )
         }
     }
 
@@ -349,7 +432,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             Ok(parse_quote! { #object_expr.trim_end().to_string() })
         } else {
             let chars = &arg_exprs[0];
-            Ok(parse_quote! { #object_expr.trim_end_matches(|c: char| #chars.contains(c)).to_string() })
+            Ok(
+                parse_quote! { #object_expr.trim_end_matches(|c: char| #chars.contains(c)).to_string() },
+            )
         }
     }
 
@@ -372,7 +457,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         })
     }
 
-    fn str_index(&self, object_expr: &syn::Expr, arg_exprs: &[syn::Expr], hir_args: &[HirExpr]) -> Result<syn::Expr> {
+    fn str_index(
+        &self,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
+    ) -> Result<syn::Expr> {
         if hir_args.len() != 1 {
             bail!("index() requires exactly one argument");
         }
@@ -380,10 +470,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
             _ => arg_exprs[0].clone(),
         };
-        Ok(parse_quote! { #object_expr.find(#substring).map(|i| i as i32).expect("substring not found") })
+        Ok(
+            parse_quote! { #object_expr.find(#substring).map(|i| i as i32).expect("substring not found") },
+        )
     }
 
-    fn str_rfind(&self, object_expr: &syn::Expr, arg_exprs: &[syn::Expr], hir_args: &[HirExpr]) -> Result<syn::Expr> {
+    fn str_rfind(
+        &self,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
+    ) -> Result<syn::Expr> {
         if hir_args.len() != 1 {
             bail!("rfind() requires exactly one argument");
         }
@@ -394,7 +491,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { #object_expr.rfind(#substring).map(|i| i as i32).unwrap_or(-1) })
     }
 
-    fn str_rindex(&self, object_expr: &syn::Expr, arg_exprs: &[syn::Expr], hir_args: &[HirExpr]) -> Result<syn::Expr> {
+    fn str_rindex(
+        &self,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
+    ) -> Result<syn::Expr> {
         if hir_args.len() != 1 {
             bail!("rindex() requires exactly one argument");
         }
@@ -402,11 +504,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
             _ => arg_exprs[0].clone(),
         };
-        Ok(parse_quote! { #object_expr.rfind(#substring).map(|i| i as i32).expect("substring not found") })
+        Ok(
+            parse_quote! { #object_expr.rfind(#substring).map(|i| i as i32).expect("substring not found") },
+        )
     }
 
     // CB-200 Batch 13: Unified handler for center/ljust/rjust
-    fn str_justify(&self, object_expr: &syn::Expr, arg_exprs: &[syn::Expr], kind: &str) -> Result<syn::Expr> {
+    fn str_justify(
+        &self,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+        kind: &str,
+    ) -> Result<syn::Expr> {
         if arg_exprs.is_empty() || arg_exprs.len() > 2 {
             bail!("{}() requires 1 or 2 arguments", kind);
         }
@@ -470,7 +579,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         })
     }
 
-    fn str_capitalize(&self, object_expr: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    fn str_capitalize(
+        &self,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if !arg_exprs.is_empty() {
             bail!("capitalize() takes no arguments");
         }
@@ -498,7 +611,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         })
     }
 
-    fn str_expandtabs(&self, object_expr: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    fn str_expandtabs(
+        &self,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if arg_exprs.is_empty() {
             Ok(parse_quote! { #object_expr.replace("\t", &" ".repeat(8)) })
         } else if arg_exprs.len() == 1 {
@@ -509,7 +626,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn str_splitlines(&self, object_expr: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    fn str_splitlines(
+        &self,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if !arg_exprs.is_empty() {
             bail!("splitlines() takes no arguments");
         }
@@ -543,37 +664,60 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { #object_expr.to_lowercase() })
     }
 
-    fn str_isprintable(&self, hir_object: &HirExpr, object_expr: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    fn str_isprintable(
+        &self,
+        hir_object: &HirExpr,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if !arg_exprs.is_empty() {
             bail!("isprintable() takes no arguments");
         }
         if let HirExpr::Var(var_name) = hir_object {
             if self.ctx.char_iter_vars.contains(var_name) {
-                return Ok(parse_quote! { !#object_expr.is_control() || #object_expr == '\t' || #object_expr == '\n' || #object_expr == '\r' });
+                return Ok(
+                    parse_quote! { !#object_expr.is_control() || #object_expr == '\t' || #object_expr == '\n' || #object_expr == '\r' },
+                );
             }
         }
-        Ok(parse_quote! { #object_expr.chars().all(|c| !c.is_control() || c == '\t' || c == '\n' || c == '\r') })
+        Ok(
+            parse_quote! { #object_expr.chars().all(|c| !c.is_control() || c == '\t' || c == '\n' || c == '\r') },
+        )
     }
 
-    fn str_isupper(&self, hir_object: &HirExpr, object_expr: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    fn str_isupper(
+        &self,
+        hir_object: &HirExpr,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if !arg_exprs.is_empty() {
             bail!("isupper() takes no arguments");
         }
         if let HirExpr::Var(var_name) = hir_object {
             if self.ctx.char_iter_vars.contains(var_name) {
-                return Ok(parse_quote! { !#object_expr.is_alphabetic() || #object_expr.is_uppercase() });
+                return Ok(
+                    parse_quote! { !#object_expr.is_alphabetic() || #object_expr.is_uppercase() },
+                );
             }
         }
         Ok(parse_quote! { #object_expr.chars().all(|c| !c.is_alphabetic() || c.is_uppercase()) })
     }
 
-    fn str_islower(&self, hir_object: &HirExpr, object_expr: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    fn str_islower(
+        &self,
+        hir_object: &HirExpr,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if !arg_exprs.is_empty() {
             bail!("islower() takes no arguments");
         }
         if let HirExpr::Var(var_name) = hir_object {
             if self.ctx.char_iter_vars.contains(var_name) {
-                return Ok(parse_quote! { !#object_expr.is_alphabetic() || #object_expr.is_lowercase() });
+                return Ok(
+                    parse_quote! { !#object_expr.is_alphabetic() || #object_expr.is_lowercase() },
+                );
             }
         }
         Ok(parse_quote! { #object_expr.chars().all(|c| !c.is_alphabetic() || c.is_lowercase()) })
@@ -600,7 +744,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         })
     }
 
-    fn str_isidentifier(&self, object_expr: &syn::Expr, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    fn str_isidentifier(
+        &self,
+        object_expr: &syn::Expr,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if !arg_exprs.is_empty() {
             bail!("isidentifier() takes no arguments");
         }

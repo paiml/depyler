@@ -13,9 +13,8 @@ use crate::rust_gen::control_stmt_helpers::{
 };
 use crate::rust_gen::keywords::safe_ident;
 use crate::rust_gen::stmt_gen::{
-    codegen_assert_stmt, codegen_assign_stmt, codegen_expr_stmt, codegen_for_stmt,
-    codegen_if_stmt, codegen_raise_stmt, codegen_return_stmt, codegen_while_stmt,
-    codegen_with_stmt,
+    codegen_assert_stmt, codegen_assign_stmt, codegen_expr_stmt, codegen_for_stmt, codegen_if_stmt,
+    codegen_raise_stmt, codegen_return_stmt, codegen_while_stmt, codegen_with_stmt,
 };
 use crate::rust_gen::type_tokens::hir_type_to_tokens;
 
@@ -107,10 +106,7 @@ pub(crate) fn codegen_try_stmt(
     };
 
     // Simple try/except: wrap body, catch errors
-    let exception_name = handlers
-        .first()
-        .and_then(|h| h.name.as_deref())
-        .unwrap_or("_e");
+    let exception_name = handlers.first().and_then(|h| h.name.as_deref()).unwrap_or("_e");
     let exc_ident = safe_ident(exception_name);
 
     let result = if handler_stmts.is_empty() {
@@ -200,11 +196,7 @@ fn codegen_nested_function_def(
     }
 
     // Propagate return type to vars for type inference
-    crate::rust_gen::func_gen::propagate_return_type_to_vars(
-        body,
-        &mut ctx.var_types,
-        ret_type,
-    );
+    crate::rust_gen::func_gen::propagate_return_type_to_vars(body, &mut ctx.var_types, ret_type);
 
     let body_tokens: Vec<TokenStream> =
         body.iter().map(|stmt| stmt.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;

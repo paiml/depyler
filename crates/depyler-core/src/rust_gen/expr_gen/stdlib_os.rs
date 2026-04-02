@@ -31,22 +31,44 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         let result = match method {
             "join" => self.convert_ospath_join(&arg_exprs)?,
-            "basename" => self.convert_ospath_single_path(&arg_exprs, "basename", Self::gen_basename)?,
-            "dirname" => self.convert_ospath_single_path(&arg_exprs, "dirname", Self::gen_dirname)?,
+            "basename" => {
+                self.convert_ospath_single_path(&arg_exprs, "basename", Self::gen_basename)?
+            }
+            "dirname" => {
+                self.convert_ospath_single_path(&arg_exprs, "dirname", Self::gen_dirname)?
+            }
             "split" => self.convert_ospath_single_path(&arg_exprs, "split", Self::gen_split)?,
-            "splitext" => self.convert_ospath_single_path(&arg_exprs, "splitext", Self::gen_splitext)?,
+            "splitext" => {
+                self.convert_ospath_single_path(&arg_exprs, "splitext", Self::gen_splitext)?
+            }
             "exists" => self.convert_ospath_single_path(&arg_exprs, "exists", Self::gen_exists)?,
             "isfile" => self.convert_ospath_single_path(&arg_exprs, "isfile", Self::gen_isfile)?,
             "isdir" => self.convert_ospath_single_path(&arg_exprs, "isdir", Self::gen_isdir)?,
             "isabs" => self.convert_ospath_single_path(&arg_exprs, "isabs", Self::gen_isabs)?,
-            "abspath" => self.convert_ospath_single_path(&arg_exprs, "abspath", Self::gen_abspath)?,
-            "normpath" => self.convert_ospath_single_path(&arg_exprs, "normpath", Self::gen_normpath)?,
-            "realpath" => self.convert_ospath_single_path(&arg_exprs, "realpath", Self::gen_realpath)?,
-            "getsize" => self.convert_ospath_single_path(&arg_exprs, "getsize", Self::gen_getsize)?,
-            "getmtime" => self.convert_ospath_single_path(&arg_exprs, "getmtime", Self::gen_getmtime)?,
-            "getctime" => self.convert_ospath_single_path(&arg_exprs, "getctime", Self::gen_getctime)?,
-            "expanduser" => self.convert_ospath_single_path(&arg_exprs, "expanduser", Self::gen_expanduser)?,
-            "expandvars" => self.convert_ospath_single_path(&arg_exprs, "expandvars", Self::gen_expandvars)?,
+            "abspath" => {
+                self.convert_ospath_single_path(&arg_exprs, "abspath", Self::gen_abspath)?
+            }
+            "normpath" => {
+                self.convert_ospath_single_path(&arg_exprs, "normpath", Self::gen_normpath)?
+            }
+            "realpath" => {
+                self.convert_ospath_single_path(&arg_exprs, "realpath", Self::gen_realpath)?
+            }
+            "getsize" => {
+                self.convert_ospath_single_path(&arg_exprs, "getsize", Self::gen_getsize)?
+            }
+            "getmtime" => {
+                self.convert_ospath_single_path(&arg_exprs, "getmtime", Self::gen_getmtime)?
+            }
+            "getctime" => {
+                self.convert_ospath_single_path(&arg_exprs, "getctime", Self::gen_getctime)?
+            }
+            "expanduser" => {
+                self.convert_ospath_single_path(&arg_exprs, "expanduser", Self::gen_expanduser)?
+            }
+            "expandvars" => {
+                self.convert_ospath_single_path(&arg_exprs, "expandvars", Self::gen_expandvars)?
+            }
             "relpath" => self.convert_ospath_relpath(&arg_exprs)?,
             _ => return Ok(None),
         };
@@ -54,10 +76,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
-    fn convert_ospath_join(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_ospath_join(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if arg_exprs.is_empty() {
             bail!("os.path.join() requires at least 1 argument");
         }
@@ -233,10 +252,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         parse_quote! { #path.to_string() }
     }
 
-    fn convert_ospath_relpath(
-        &self,
-        arg_exprs: &[syn::Expr],
-    ) -> Result<syn::Expr> {
+    fn convert_ospath_relpath(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         if arg_exprs.len() != 2 {
             bail!("os.path.relpath() requires exactly 2 arguments");
         }

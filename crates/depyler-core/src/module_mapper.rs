@@ -66,6 +66,20 @@ impl ModuleMapper {
                     ("environ".to_string(), "env::vars".to_string()),
                     ("path".to_string(), "path::Path".to_string()),
                     ("getenv".to_string(), "env::var".to_string()),
+                    // GH-196: Expanded os module mappings
+                    ("listdir".to_string(), "fs::read_dir".to_string()),
+                    ("remove".to_string(), "fs::remove_file".to_string()),
+                    ("unlink".to_string(), "fs::remove_file".to_string()),
+                    ("mkdir".to_string(), "fs::create_dir".to_string()),
+                    ("makedirs".to_string(), "fs::create_dir_all".to_string()),
+                    ("rmdir".to_string(), "fs::remove_dir".to_string()),
+                    ("rename".to_string(), "fs::rename".to_string()),
+                    ("chdir".to_string(), "env::set_current_dir".to_string()),
+                    ("walk".to_string(), "fs::read_dir".to_string()),
+                    ("urandom".to_string(), "".to_string()), // Handled inline
+                    ("sep".to_string(), "".to_string()),     // Handled inline as constant
+                    ("name".to_string(), "".to_string()),    // Handled inline as constant
+                    ("linesep".to_string(), "".to_string()), // Handled inline as constant
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -91,6 +105,14 @@ impl ModuleMapper {
                     ("isdir".to_string(), "Path::is_dir".to_string()),
                     ("isabs".to_string(), "Path::is_absolute".to_string()),
                     ("abspath".to_string(), "Path::canonicalize".to_string()),
+                    // GH-196: Additional os.path mappings
+                    ("realpath".to_string(), "Path".to_string()),
+                    ("relpath".to_string(), "Path".to_string()),
+                    ("getsize".to_string(), "Path".to_string()),
+                    ("getmtime".to_string(), "Path".to_string()),
+                    ("getctime".to_string(), "Path".to_string()),
+                    ("expanduser".to_string(), "Path".to_string()),
+                    ("expandvars".to_string(), "Path".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -239,6 +261,11 @@ impl ModuleMapper {
                     ("Optional".to_string(), "Option".to_string()),
                     ("Union".to_string(), "".to_string()), // Handled specially
                     ("Any".to_string(), "".to_string()),   // No direct mapping
+                    // GH-198: Callable type — mapped to empty string so typing import
+                    // doesn't generate invalid `use Callable`. The actual type mapping
+                    // (Callable[[int], int] → impl Fn(i32) -> i32) is handled by
+                    // TypeMapper::map_callable_type in type_mapper.rs.
+                    ("Callable".to_string(), "".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -1211,6 +1238,16 @@ impl ModuleMapper {
                     ("time".to_string(), "time::SystemTime::now".to_string()),
                     ("monotonic".to_string(), "time::Instant::now".to_string()),
                     ("perf_counter".to_string(), "time::Instant::now".to_string()),
+                    // GH-197: Additional time module mappings
+                    ("process_time".to_string(), "time::Instant::now".to_string()),
+                    ("thread_time".to_string(), "time::Instant::now".to_string()),
+                    ("strftime".to_string(), "".to_string()),  // Handled inline
+                    ("strptime".to_string(), "".to_string()),  // Handled inline
+                    ("gmtime".to_string(), "".to_string()),    // Handled inline
+                    ("localtime".to_string(), "".to_string()), // Handled inline
+                    ("mktime".to_string(), "".to_string()),    // Handled inline
+                    ("asctime".to_string(), "".to_string()),   // Handled inline
+                    ("ctime".to_string(), "".to_string()),     // Handled inline
                 ]),
                 constructor_patterns: HashMap::new(),
             },

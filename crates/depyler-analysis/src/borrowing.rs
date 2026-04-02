@@ -53,6 +53,7 @@ impl BorrowingContext {
 
     /// Get the borrowing pattern for a specific parameter
     pub fn get_pattern(&self, param_name: &str, param_type: &Type) -> BorrowingPattern {
+        contract_pre_ownership_invariant!(param_name);
         if self.escaping_params.contains(param_name) {
             // Parameters that escape must be owned
             BorrowingPattern::Owned

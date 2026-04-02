@@ -559,6 +559,7 @@ impl ConstraintCollector {
     /// DEPYLER-1180: Get local variable type mappings for codegen context
     /// Returns the mapping from variable names to their inferred types
     pub fn get_inferred_var_types(&self, solution: &HashMap<VarId, Type>) -> HashMap<String, Type> {
+        contract_pre_type_inference!(solution);
         let mut result = HashMap::new();
         for (var_name, &var_id) in &self.var_to_type_var {
             if let Some(inferred_type) = solution.get(&var_id) {

@@ -773,10 +773,134 @@ fn test_all_mapped_modules_have_valid_data() {
         "asyncio",
         "struct",
         "statistics",
+        "time",
     ];
 
     for module in modules {
         let mapping = mapper.get_mapping(module);
         assert!(mapping.is_some(), "Module {module} should have mapping");
+    }
+}
+
+// ============ GH-196: os module expanded mappings ============
+
+#[test]
+fn test_gh196_os_module_expanded() {
+    let mapper = ModuleMapper::new();
+    let os_mapping = mapper.get_mapping("os").unwrap();
+
+    // Verify new entries
+    assert_eq!(os_mapping.item_map.get("listdir").unwrap(), "fs::read_dir");
+    assert_eq!(os_mapping.item_map.get("remove").unwrap(), "fs::remove_file");
+    assert_eq!(os_mapping.item_map.get("unlink").unwrap(), "fs::remove_file");
+    assert_eq!(os_mapping.item_map.get("mkdir").unwrap(), "fs::create_dir");
+    assert_eq!(os_mapping.item_map.get("makedirs").unwrap(), "fs::create_dir_all");
+    assert_eq!(os_mapping.item_map.get("rmdir").unwrap(), "fs::remove_dir");
+    assert_eq!(os_mapping.item_map.get("rename").unwrap(), "fs::rename");
+    assert_eq!(os_mapping.item_map.get("chdir").unwrap(), "env::set_current_dir");
+}
+
+#[test]
+fn test_gh196_os_path_expanded() {
+    let mapper = ModuleMapper::new();
+    let ospath_mapping = mapper.get_mapping("os.path").unwrap();
+
+    // Verify existing entries still present
+    assert_eq!(ospath_mapping.item_map.get("join").unwrap(), "Path::join");
+    assert_eq!(ospath_mapping.item_map.get("exists").unwrap(), "Path::exists");
+    assert_eq!(ospath_mapping.item_map.get("isfile").unwrap(), "Path::is_file");
+    assert_eq!(ospath_mapping.item_map.get("isdir").unwrap(), "Path::is_dir");
+
+    // Verify new entries
+    assert!(ospath_mapping.item_map.contains_key("realpath"));
+    assert!(ospath_mapping.item_map.contains_key("relpath"));
+    assert!(ospath_mapping.item_map.contains_key("getsize"));
+    assert!(ospath_mapping.item_map.contains_key("getmtime"));
+    assert!(ospath_mapping.item_map.contains_key("getctime"));
+    assert!(ospath_mapping.item_map.contains_key("expanduser"));
+    assert!(ospath_mapping.item_map.contains_key("expandvars"));
+}
+
+// ============ GH-197: time module mapping ============
+
+#[test]
+fn test_gh197_time_module_mapping() {
+    let mapper = ModuleMapper::new();
+    let time_mapping = mapper.get_mapping("time").unwrap();
+
+    assert_eq!(time_mapping.rust_path, "std");
+    assert!(!time_mapping.is_external);
+
+    // Verify core entries
+    assert_eq!(time_mapping.item_map.get("sleep").unwrap(), "thread::sleep");
+    assert_eq!(time_mapping.item_map.get("time").unwrap(), "time::SystemTime::now");
+    assert_eq!(time_mapping.item_map.get("monotonic").unwrap(), "time::Instant::now");
+    assert_eq!(time_mapping.item_map.get("perf_counter").unwrap(), "time::Instant::now");
+
+    // Verify expanded entries
+    assert!(time_mapping.item_map.contains_key("process_time"));
+    assert!(time_mapping.item_map.contains_key("thread_time"));
+    assert!(time_mapping.item_map.contains_key("strftime"));
+    assert!(time_mapping.item_map.contains_key("strptime"));
+    assert!(time_mapping.item_map.contains_key("gmtime"));
+    assert!(time_mapping.item_map.contains_key("localtime"));
+    assert!(time_mapping.item_map.contains_key("mktime"));
+    assert!(time_mapping.item_map.contains_key("asctime"));
+    assert!(time_mapping.item_map.contains_key("ctime"));
+}
+
+#[test]
+fn test_gh197_datetime_module_complete() {
+    let mapper = ModuleMapper::new();
+    let dt_mapping = mapper.get_mapping("datetime").unwrap();
+
+    assert_eq!(dt_mapping.rust_path, "chrono");
+    assert!(dt_mapping.is_external);
+
+    // All Python datetime types should be mapped
+    assert_eq!(dt_mapping.item_map.get("datetime").unwrap(), "DateTime");
+    assert_eq!(dt_mapping.item_map.get("date").unwrap(), "NaiveDate");
+    assert_eq!(dt_mapping.item_map.get("time").unwrap(), "NaiveTime");
+    assert_eq!(dt_mapping.item_map.get("timedelta").unwrap(), "Duration");
+}
+
+// ============ GH-198: Callable in typing module ============
+
+#[test]
+fn test_gh198_typing_callable_mapped() {
+    let mapper = ModuleMapper::new();
+    let typing_mapping = mapper.get_mapping("typing").unwrap();
+
+    // Callable should be in the item_map with empty string
+    // (actual type mapping is handled by TypeMapper, not module imports)
+    assert!(
+        typing_mapping.item_map.contains_key("Callable"),
+        "typing module should contain Callable mapping"
+    );
+    assert_eq!(
+        typing_mapping.item_map.get("Callable").unwrap(),
+        "",
+        "Callable should map to empty string (handled by type system)"
+    );
+}
+
+#[test]
+fn test_gh198_typing_import_callable_no_use_statement() {
+    let mapper = ModuleMapper::new();
+    let import = Import {
+        module: "typing".to_string(),
+        alias: None,
+        items: vec![ImportItem::Named("Callable".to_string())],
+    };
+    let rust_imports = mapper.map_import(&import);
+    // Callable should generate a use statement with empty name (suppressed)
+    // The path should be "::Callable" or similar -- the key thing is it doesn't
+    // generate `use Callable;` which would be invalid Rust
+    for ri in &rust_imports {
+        assert!(
+            !ri.path.ends_with("Callable") || ri.path.starts_with("//") || ri.path.contains("::"),
+            "Callable import should not generate bare 'use Callable;': got {}",
+            ri.path
+        );
     }
 }

@@ -260,7 +260,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
-        if method != "update" || args.is_empty() || self.is_dict_expr(object) || self.is_set_expr(object) {
+        if method != "update"
+            || args.is_empty()
+            || self.is_dict_expr(object)
+            || self.is_set_expr(object)
+        {
             return Ok(None);
         }
         let object_expr = object.to_rust_expr(self.ctx)?;
@@ -288,10 +292,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let safe_name = crate::direct_rules::safe_class_name(class_name);
         let class_ident = syn::Ident::new(&safe_name, proc_macro2::Span::call_site());
         let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
         Ok(Some(parse_quote! { #class_ident::#method_ident(#(#arg_exprs),*) }))
     }
 
@@ -349,15 +351,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if module_name != "collections" {
             return Ok(None);
         }
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         match method {
-            "Counter" => Ok(Some(crate::rust_gen::collection_constructors::convert_counter_builtin(self.ctx, &arg_exprs)?)),
-            "deque" => Ok(Some(crate::rust_gen::collection_constructors::convert_deque_builtin(self.ctx, &arg_exprs)?)),
-            "defaultdict" => Ok(Some(crate::rust_gen::collection_constructors::convert_defaultdict_builtin(self.ctx, &arg_exprs)?)),
+            "Counter" => {
+                Ok(Some(crate::rust_gen::collection_constructors::convert_counter_builtin(
+                    self.ctx, &arg_exprs,
+                )?))
+            }
+            "deque" => Ok(Some(crate::rust_gen::collection_constructors::convert_deque_builtin(
+                self.ctx, &arg_exprs,
+            )?)),
+            "defaultdict" => {
+                Ok(Some(crate::rust_gen::collection_constructors::convert_defaultdict_builtin(
+                    self.ctx, &arg_exprs,
+                )?))
+            }
             _ => Ok(None),
         }
     }
@@ -378,10 +388,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Fallback: module::function() syntax
         let module_ident = crate::rust_gen::keywords::safe_ident(module_name);
         let method_ident = crate::rust_gen::keywords::safe_ident(method);
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
         Ok(Some(parse_quote! { #module_ident::#method_ident(#(#arg_exprs),*) }))
     }
 
@@ -401,19 +409,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if rust_name.ends_with('!') {
             let macro_name_str = rust_name.trim_end_matches('!');
             let macro_ident = syn::Ident::new(macro_name_str, proc_macro2::Span::call_site());
-            let arg_exprs: Vec<syn::Expr> = args
-                .iter()
-                .map(|arg| arg.to_rust_expr(self.ctx))
-                .collect::<Result<Vec<_>>>()?;
+            let arg_exprs: Vec<syn::Expr> =
+                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
             return Ok(Some(parse_quote! { #macro_ident!(#(#arg_exprs),*) }));
         }
 
         if !rust_path.is_empty() {
             let full_path: syn::Path = syn::parse_str(&format!("{}::{}", rust_path, rust_name))?;
-            let arg_exprs: Vec<syn::Expr> = args
-                .iter()
-                .map(|arg| arg.to_rust_expr(self.ctx))
-                .collect::<Result<Vec<_>>>()?;
+            let arg_exprs: Vec<syn::Expr> =
+                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
             return Ok(Some(parse_quote! { #full_path(#(#arg_exprs),*) }));
         }
 
@@ -426,10 +430,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             !self.ctx.is_declared(name)
                 && matches!(
                     name.as_str(),
-                    "re" | "json" | "math" | "random" | "os" | "sys" | "time"
-                        | "datetime" | "pathlib" | "struct" | "statistics" | "fractions"
-                        | "decimal" | "collections" | "itertools" | "functools" | "shutil"
-                        | "csv" | "base64" | "hashlib" | "subprocess" | "string" | "tempfile"
+                    "re" | "json"
+                        | "math"
+                        | "random"
+                        | "os"
+                        | "sys"
+                        | "time"
+                        | "datetime"
+                        | "pathlib"
+                        | "struct"
+                        | "statistics"
+                        | "fractions"
+                        | "decimal"
+                        | "collections"
+                        | "itertools"
+                        | "functools"
+                        | "shutil"
+                        | "csv"
+                        | "base64"
+                        | "hashlib"
+                        | "subprocess"
+                        | "string"
+                        | "tempfile"
                 )
         } else {
             false
@@ -448,10 +470,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
         if !matches!(
             method,
-            "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith"
-                | "endswith" | "split" | "splitlines" | "join" | "find" | "rfind"
-                | "rindex" | "isdigit" | "isalpha" | "isalnum" | "title" | "center"
-                | "ljust" | "rjust" | "zfill" | "hex" | "format"
+            "upper"
+                | "lower"
+                | "strip"
+                | "lstrip"
+                | "rstrip"
+                | "startswith"
+                | "endswith"
+                | "split"
+                | "splitlines"
+                | "join"
+                | "find"
+                | "rfind"
+                | "rindex"
+                | "isdigit"
+                | "isalpha"
+                | "isalnum"
+                | "title"
+                | "center"
+                | "ljust"
+                | "rjust"
+                | "zfill"
+                | "hex"
+                | "format"
         ) {
             return Ok(None);
         }
@@ -474,10 +515,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
         if !matches!(
             method,
-            "write_text" | "read_text" | "read_bytes" | "write_bytes" | "exists"
-                | "is_file" | "is_dir" | "mkdir" | "rmdir" | "unlink" | "iterdir"
-                | "glob" | "rglob" | "with_name" | "with_suffix" | "with_stem"
-                | "resolve" | "absolute" | "relative_to"
+            "write_text"
+                | "read_text"
+                | "read_bytes"
+                | "write_bytes"
+                | "exists"
+                | "is_file"
+                | "is_dir"
+                | "mkdir"
+                | "rmdir"
+                | "unlink"
+                | "iterdir"
+                | "glob"
+                | "rglob"
+                | "with_name"
+                | "with_suffix"
+                | "with_stem"
+                | "resolve"
+                | "absolute"
+                | "relative_to"
         ) {
             return Ok(None);
         }
@@ -496,8 +552,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     ) -> Result<Option<syn::Expr>> {
         if !matches!(
             method,
-            "total_seconds" | "fromisoformat" | "isoformat" | "strftime" | "timestamp"
-                | "timetuple" | "weekday" | "isoweekday" | "isocalendar" | "replace"
+            "total_seconds"
+                | "fromisoformat"
+                | "isoformat"
+                | "strftime"
+                | "timestamp"
+                | "timetuple"
+                | "weekday"
+                | "isoweekday"
+                | "isocalendar"
+                | "replace"
         ) {
             return Ok(None);
         }
@@ -605,18 +669,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     #var_ident.as_ref().expect("value is None").contains_key(&#key_expr)
                 }))
             }
-            "keys" if args.is_empty() => Ok(Some(
-                parse_quote! { #var_ident.as_ref().expect("value is None").keys() },
-            )),
-            "values" if args.is_empty() => Ok(Some(
-                parse_quote! { #var_ident.as_ref().expect("value is None").values() },
-            )),
-            "items" if args.is_empty() => Ok(Some(
-                parse_quote! { #var_ident.as_ref().expect("value is None").iter() },
-            )),
-            "len" if args.is_empty() => Ok(Some(
-                parse_quote! { #var_ident.as_ref().expect("value is None").len() as i32 },
-            )),
+            "keys" if args.is_empty() => {
+                Ok(Some(parse_quote! { #var_ident.as_ref().expect("value is None").keys() }))
+            }
+            "values" if args.is_empty() => {
+                Ok(Some(parse_quote! { #var_ident.as_ref().expect("value is None").values() }))
+            }
+            "items" if args.is_empty() => {
+                Ok(Some(parse_quote! { #var_ident.as_ref().expect("value is None").iter() }))
+            }
+            "len" if args.is_empty() => {
+                Ok(Some(parse_quote! { #var_ident.as_ref().expect("value is None").len() as i32 }))
+            }
             _ => Ok(None),
         }
     }
@@ -694,9 +758,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     #object_expr.as_object().map(|o| o.contains_key(#key)).unwrap_or(false)
                 }))
             }
-            "copy" | "clone" if args.is_empty() => {
-                Ok(Some(parse_quote! { #object_expr.clone() }))
-            }
+            "copy" | "clone" if args.is_empty() => Ok(Some(parse_quote! { #object_expr.clone() })),
             _ => Ok(None),
         }
     }
@@ -794,10 +856,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if !nasa_mode {
             self.ctx.needs_tokio = true;
         }
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         match method {
             "sleep" => {
@@ -850,10 +910,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(None);
         }
 
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         match method {
             "rgb_to_hsv" if arg_exprs.len() == 3 => {
@@ -958,7 +1016,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     // CB-200 Batch 13: Usage-based type inference from method calls
     fn infer_type_from_method_usage(&mut self, object: &HirExpr, method: &str, args: &[HirExpr]) {
-        let HirExpr::Var(var_name) = object else { return; };
+        let HirExpr::Var(var_name) = object else {
+            return;
+        };
         let current_type = self.ctx.var_types.get(var_name).cloned();
         if !matches!(current_type, None | Some(Type::Unknown)) {
             return;
@@ -970,8 +1030,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else {
                     Type::Unknown
                 };
-                self.ctx.var_types.insert(var_name.clone(), Type::List(Box::new(element_type.clone())));
-                tracing::debug!("DEPYLER-1211: Inferred {} as List<{:?}> (via append())", var_name, element_type);
+                self.ctx
+                    .var_types
+                    .insert(var_name.clone(), Type::List(Box::new(element_type.clone())));
+                tracing::debug!(
+                    "DEPYLER-1211: Inferred {} as List<{:?}> (via append())",
+                    var_name,
+                    element_type
+                );
             }
             "insert" => {
                 let element_type = if args.len() >= 2 {
@@ -979,30 +1045,47 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else {
                     Type::Unknown
                 };
-                self.ctx.var_types.insert(var_name.clone(), Type::List(Box::new(element_type.clone())));
-                tracing::debug!("DEPYLER-1211: Inferred {} as List<{:?}> (via insert())", var_name, element_type);
+                self.ctx
+                    .var_types
+                    .insert(var_name.clone(), Type::List(Box::new(element_type.clone())));
+                tracing::debug!(
+                    "DEPYLER-1211: Inferred {} as List<{:?}> (via insert())",
+                    var_name,
+                    element_type
+                );
             }
-            "extend" | "pop" | "remove" | "sort" | "reverse" | "clear" | "copy" | "index" | "count" => {
+            "extend" | "pop" | "remove" | "sort" | "reverse" | "clear" | "copy" | "index"
+            | "count" => {
                 self.ctx.var_types.insert(var_name.clone(), Type::List(Box::new(Type::Unknown)));
                 tracing::debug!("DEPYLER-1205: Inferred {} as List (via {}())", var_name, method);
             }
-            "lower" | "upper" | "strip" | "lstrip" | "rstrip" | "split" | "join"
-            | "replace" | "startswith" | "endswith" | "find" | "rfind" | "isdigit"
-            | "isalpha" | "isalnum" | "isupper" | "islower" | "title" | "capitalize"
-            | "swapcase" | "center" | "ljust" | "rjust" | "zfill" | "encode" => {
+            "lower" | "upper" | "strip" | "lstrip" | "rstrip" | "split" | "join" | "replace"
+            | "startswith" | "endswith" | "find" | "rfind" | "isdigit" | "isalpha" | "isalnum"
+            | "isupper" | "islower" | "title" | "capitalize" | "swapcase" | "center" | "ljust"
+            | "rjust" | "zfill" | "encode" => {
                 self.ctx.var_types.insert(var_name.clone(), Type::String);
                 tracing::debug!("DEPYLER-1205: Inferred {} as String (via {}())", var_name, method);
             }
             "keys" | "values" | "items" | "get" | "setdefault" | "update" | "popitem" => {
-                self.ctx.var_types.insert(var_name.clone(), Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)));
+                self.ctx.var_types.insert(
+                    var_name.clone(),
+                    Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                );
                 tracing::debug!("DEPYLER-1205: Inferred {} as Dict (via {}())", var_name, method);
             }
             "iter" => {
                 self.ctx.var_types.insert(var_name.clone(), Type::List(Box::new(Type::Unknown)));
                 tracing::debug!("DEPYLER-1205: Inferred {} as List (via iter())", var_name);
             }
-            "add" | "discard" | "difference" | "intersection" | "union"
-            | "symmetric_difference" | "issubset" | "issuperset" | "isdisjoint" => {
+            "add"
+            | "discard"
+            | "difference"
+            | "intersection"
+            | "union"
+            | "symmetric_difference"
+            | "issubset"
+            | "issuperset"
+            | "isdisjoint" => {
                 self.ctx.var_types.insert(var_name.clone(), Type::Set(Box::new(Type::Unknown)));
                 tracing::debug!("DEPYLER-1205: Inferred {} as Set (via {}())", var_name, method);
             }
@@ -1110,10 +1193,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// CB-200 Batch 14: dict.fromkeys(keys, default) class method
     fn try_convert_dict_fromkeys(&mut self, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
         if arg_exprs.len() >= 2 {
             let keys_expr = &arg_exprs[0];
             let default_expr = &arg_exprs[1];
@@ -1132,19 +1213,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// CB-200 Batch 14: int.from_bytes(bytes, byteorder) class method
     fn try_convert_int_from_bytes(&mut self, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
         if arg_exprs.len() < 2 {
             return Ok(None);
         }
         let bytes_expr = &arg_exprs[0];
-        let is_big_endian = if let HirExpr::Literal(Literal::String(s)) = &args[1] {
-            s == "big"
-        } else {
-            true
-        };
+        let is_big_endian =
+            if let HirExpr::Literal(Literal::String(s)) = &args[1] { s == "big" } else { true };
         if is_big_endian {
             Ok(Some(parse_quote! {
                 i64::from_be_bytes({

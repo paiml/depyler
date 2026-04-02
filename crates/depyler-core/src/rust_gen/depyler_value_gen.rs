@@ -129,327 +129,327 @@ fn gen_enum_and_core_traits() -> proc_macro2::TokenStream {
 /// CB-200 Batch 14: Generate DepylerValue inherent methods (len, is_empty, get, insert, etc.)
 fn gen_depyler_methods() -> proc_macro2::TokenStream {
     quote! {
-            impl DepylerValue {
-                /// Get length of string, list, or dict
-                /// DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables
-                pub fn len(&self) -> usize {
-                    match self {
-                        DepylerValue::Str(_dv_str) => _dv_str.len(),
-                        DepylerValue::List(_dv_list) => _dv_list.len(),
-                        DepylerValue::Dict(_dv_dict) => _dv_dict.len(),
-                        DepylerValue::Tuple(_dv_tuple) => _dv_tuple.len(),
-                        _ => 0,
+                impl DepylerValue {
+                    /// Get length of string, list, or dict
+                    /// DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables
+                    pub fn len(&self) -> usize {
+                        match self {
+                            DepylerValue::Str(_dv_str) => _dv_str.len(),
+                            DepylerValue::List(_dv_list) => _dv_list.len(),
+                            DepylerValue::Dict(_dv_dict) => _dv_dict.len(),
+                            DepylerValue::Tuple(_dv_tuple) => _dv_tuple.len(),
+                            _ => 0,
+                        }
                     }
-                }
 
-                /// Check if empty
-                pub fn is_empty(&self) -> bool {
-                    self.len() == 0
-                }
-
-                /// DEPYLER-1404: Check if value is None variant
-                pub fn is_none(&self) -> bool {
-                    matches!(self, DepylerValue::None)
-                }
-
-                /// DEPYLER-1404: Check if value is not None variant
-                pub fn is_some(&self) -> bool {
-                    !self.is_none()
-                }
-
-                /// DEPYLER-1404: Push a value into list
-                pub fn push(&mut self, value: impl Into<DepylerValue>) {
-                    if let DepylerValue::List(_dv_list) = self {
-                        _dv_list.push(value.into());
+                    /// Check if empty
+                    pub fn is_empty(&self) -> bool {
+                        self.len() == 0
                     }
-                }
 
-                /// DEPYLER-1404: Extend list with another iterable
-                pub fn extend<T: Into<DepylerValue>>(&mut self, other: impl IntoIterator<Item = T>) {
-                    if let DepylerValue::List(_dv_list) = self {
-                        _dv_list.extend(other.into_iter().map(|x| x.into()));
+                    /// DEPYLER-1404: Check if value is None variant
+                    pub fn is_none(&self) -> bool {
+                        matches!(self, DepylerValue::None)
                     }
-                }
 
-                /// Get chars iterator for string values
-                pub fn chars(&self) -> std::str::Chars<'_> {
-                    match self {
-                        DepylerValue::Str(_dv_str) => _dv_str.chars(),
-                        _ => "".chars(),
+                    /// DEPYLER-1404: Check if value is not None variant
+                    pub fn is_some(&self) -> bool {
+                        !self.is_none()
                     }
-                }
 
-                /// Insert into dict (mutates self if Dict variant)
-                /// DEPYLER-1040b: Now accepts DepylerValue keys for non-string dict keys
-                pub fn insert(&mut self, key: impl Into<DepylerValue>, value: impl Into<DepylerValue>) {
-                    if let DepylerValue::Dict(_dv_dict) = self {
-                        _dv_dict.insert(key.into(), value.into());
+                    /// DEPYLER-1404: Push a value into list
+                    pub fn push(&mut self, value: impl Into<DepylerValue>) {
+                        if let DepylerValue::List(_dv_list) = self {
+                            _dv_list.push(value.into());
+                        }
                     }
-                }
 
-                /// Get value from dict by key
-                /// DEPYLER-1040b: Now accepts DepylerValue keys
-                pub fn get(&self, key: &DepylerValue) -> Option<&DepylerValue> {
-                    if let DepylerValue::Dict(_dv_dict) = self {
-                        _dv_dict.get(key)
-                    } else {
-                        Option::None
+                    /// DEPYLER-1404: Extend list with another iterable
+                    pub fn extend<T: Into<DepylerValue>>(&mut self, other: impl IntoIterator<Item = T>) {
+                        if let DepylerValue::List(_dv_list) = self {
+                            _dv_list.extend(other.into_iter().map(|x| x.into()));
+                        }
                     }
-                }
 
-                /// Get value from dict by string key (convenience method)
-                pub fn get_str(&self, key: &str) -> Option<&DepylerValue> {
-                    self.get(&DepylerValue::Str(key.to_string()))
-                }
-
-                /// Check if dict contains key
-                /// DEPYLER-1040b: Now accepts DepylerValue keys
-                pub fn contains_key(&self, key: &DepylerValue) -> bool {
-                    if let DepylerValue::Dict(_dv_dict) = self {
-                        _dv_dict.contains_key(key)
-                    } else {
-                        false
+                    /// Get chars iterator for string values
+                    pub fn chars(&self) -> std::str::Chars<'_> {
+                        match self {
+                            DepylerValue::Str(_dv_str) => _dv_str.chars(),
+                            _ => "".chars(),
+                        }
                     }
-                }
 
-                /// Check if dict contains string key (convenience method)
-                pub fn contains_key_str(&self, key: &str) -> bool {
-                    self.contains_key(&DepylerValue::Str(key.to_string()))
-                }
-
-                /// DEPYLER-1051: Get iterator over list values
-                /// Returns an empty iterator for non-list types
-                pub fn iter(&self) -> std::slice::Iter<'_, DepylerValue> {
-                    match self {
-                        DepylerValue::List(_dv_list) => _dv_list.iter(),
-                        _ => [].iter(),
+                    /// Insert into dict (mutates self if Dict variant)
+                    /// DEPYLER-1040b: Now accepts DepylerValue keys for non-string dict keys
+                    pub fn insert(&mut self, key: impl Into<DepylerValue>, value: impl Into<DepylerValue>) {
+                        if let DepylerValue::Dict(_dv_dict) = self {
+                            _dv_dict.insert(key.into(), value.into());
+                        }
                     }
-                }
 
-                /// DEPYLER-1051: Get mutable iterator over list values
-                pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, DepylerValue> {
-                    match self {
-                        DepylerValue::List(_dv_list) => _dv_list.iter_mut(),
-                        _ => [].iter_mut(),
+                    /// Get value from dict by key
+                    /// DEPYLER-1040b: Now accepts DepylerValue keys
+                    pub fn get(&self, key: &DepylerValue) -> Option<&DepylerValue> {
+                        if let DepylerValue::Dict(_dv_dict) = self {
+                            _dv_dict.get(key)
+                        } else {
+                            Option::None
+                        }
                     }
-                }
 
-                /// DEPYLER-1051: Get iterator over dict key-value pairs
-                /// DEPYLER-1040b: Now uses DepylerValue keys
-                pub fn items(&self) -> std::collections::hash_map::Iter<'_, DepylerValue, DepylerValue> {
-                    static EMPTY_MAP: std::sync::LazyLock<std::collections::HashMap<DepylerValue, DepylerValue>> = std::sync::LazyLock::new(|| std::collections::HashMap::new());
-                    match self {
-                        DepylerValue::Dict(_dv_dict) => _dv_dict.iter(),
-                        _ => EMPTY_MAP.iter(),
+                    /// Get value from dict by string key (convenience method)
+                    pub fn get_str(&self, key: &str) -> Option<&DepylerValue> {
+                        self.get(&DepylerValue::Str(key.to_string()))
                     }
-                }
 
-                /// DEPYLER-1051: Get iterator over dict keys
-                /// DEPYLER-1040b: Now returns DepylerValue keys
-                pub fn keys(&self) -> std::collections::hash_map::Keys<'_, DepylerValue, DepylerValue> {
-                    static EMPTY_MAP: std::sync::LazyLock<std::collections::HashMap<DepylerValue, DepylerValue>> = std::sync::LazyLock::new(|| std::collections::HashMap::new());
-                    match self {
-                        DepylerValue::Dict(_dv_dict) => _dv_dict.keys(),
-                        _ => EMPTY_MAP.keys(),
+                    /// Check if dict contains key
+                    /// DEPYLER-1040b: Now accepts DepylerValue keys
+                    pub fn contains_key(&self, key: &DepylerValue) -> bool {
+                        if let DepylerValue::Dict(_dv_dict) = self {
+                            _dv_dict.contains_key(key)
+                        } else {
+                            false
+                        }
                     }
-                }
 
-                /// DEPYLER-1051: Get iterator over dict values
-                /// DEPYLER-1040b: Now uses DepylerValue keys internally
-                pub fn values(&self) -> std::collections::hash_map::Values<'_, DepylerValue, DepylerValue> {
-                    static EMPTY_MAP: std::sync::LazyLock<std::collections::HashMap<DepylerValue, DepylerValue>> = std::sync::LazyLock::new(|| std::collections::HashMap::new());
-                    match self {
-                        DepylerValue::Dict(_dv_dict) => _dv_dict.values(),
-                        _ => EMPTY_MAP.values(),
+                    /// Check if dict contains string key (convenience method)
+                    pub fn contains_key_str(&self, key: &str) -> bool {
+                        self.contains_key(&DepylerValue::Str(key.to_string()))
                     }
-                }
 
-                /// Convert to String (renamed to avoid shadowing Display::to_string)
-                /// DEPYLER-1121: Renamed from to_string to as_string to fix clippy::inherent_to_string_shadow_display
-                pub fn as_string(&self) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_str) => _dv_str.clone(),
-                        DepylerValue::Int(_dv_int) => _dv_int.to_string(),
-                        DepylerValue::Float(_dv_float) => _dv_float.to_string(),
-                        DepylerValue::Bool(_dv_bool) => _dv_bool.to_string(),
-                        DepylerValue::None => "None".to_string(),
-                        DepylerValue::List(_dv_list) => format!("{:?}", _dv_list),
-                        DepylerValue::Dict(_dv_dict) => format!("{:?}", _dv_dict),
-                        DepylerValue::Tuple(_dv_tuple) => format!("{:?}", _dv_tuple),
+                    /// DEPYLER-1051: Get iterator over list values
+                    /// Returns an empty iterator for non-list types
+                    pub fn iter(&self) -> std::slice::Iter<'_, DepylerValue> {
+                        match self {
+                            DepylerValue::List(_dv_list) => _dv_list.iter(),
+                            _ => [].iter(),
+                        }
                     }
-                }
 
-                /// DEPYLER-1215: Get as str reference (for string values only)
-                pub fn as_str(&self) -> Option<&str> {
-                    match self {
-                        DepylerValue::Str(_dv_str) => Some(_dv_str.as_str()),
-                        _ => None,
+                    /// DEPYLER-1051: Get mutable iterator over list values
+                    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, DepylerValue> {
+                        match self {
+                            DepylerValue::List(_dv_list) => _dv_list.iter_mut(),
+                            _ => [].iter_mut(),
+                        }
                     }
-                }
 
-                /// DEPYLER-1215: Get as i64 (for integer values)
-                pub fn as_i64(&self) -> Option<i64> {
-                    match self {
-                        DepylerValue::Int(_dv_int) => Some(*_dv_int),
-                        _ => None,
+                    /// DEPYLER-1051: Get iterator over dict key-value pairs
+                    /// DEPYLER-1040b: Now uses DepylerValue keys
+                    pub fn items(&self) -> std::collections::hash_map::Iter<'_, DepylerValue, DepylerValue> {
+                        static EMPTY_MAP: std::sync::LazyLock<std::collections::HashMap<DepylerValue, DepylerValue>> = std::sync::LazyLock::new(|| std::collections::HashMap::new());
+                        match self {
+                            DepylerValue::Dict(_dv_dict) => _dv_dict.iter(),
+                            _ => EMPTY_MAP.iter(),
+                        }
                     }
-                }
 
-                /// DEPYLER-1215: Get as f64 (for float values)
-                pub fn as_f64(&self) -> Option<f64> {
-                    match self {
-                        DepylerValue::Float(_dv_float) => Some(*_dv_float),
-                        DepylerValue::Int(_dv_int) => Some(*_dv_int as f64),
-                        _ => None,
+                    /// DEPYLER-1051: Get iterator over dict keys
+                    /// DEPYLER-1040b: Now returns DepylerValue keys
+                    pub fn keys(&self) -> std::collections::hash_map::Keys<'_, DepylerValue, DepylerValue> {
+                        static EMPTY_MAP: std::sync::LazyLock<std::collections::HashMap<DepylerValue, DepylerValue>> = std::sync::LazyLock::new(|| std::collections::HashMap::new());
+                        match self {
+                            DepylerValue::Dict(_dv_dict) => _dv_dict.keys(),
+                            _ => EMPTY_MAP.keys(),
+                        }
                     }
-                }
 
-                /// DEPYLER-1215: Get as bool (for boolean values)
-                pub fn as_bool(&self) -> Option<bool> {
-                    match self {
-                        DepylerValue::Bool(_dv_bool) => Some(*_dv_bool),
-                        _ => None,
+                    /// DEPYLER-1051: Get iterator over dict values
+                    /// DEPYLER-1040b: Now uses DepylerValue keys internally
+                    pub fn values(&self) -> std::collections::hash_map::Values<'_, DepylerValue, DepylerValue> {
+                        static EMPTY_MAP: std::sync::LazyLock<std::collections::HashMap<DepylerValue, DepylerValue>> = std::sync::LazyLock::new(|| std::collections::HashMap::new());
+                        match self {
+                            DepylerValue::Dict(_dv_dict) => _dv_dict.values(),
+                            _ => EMPTY_MAP.values(),
+                        }
                     }
-                }
 
-                /// Convert to i64
-                pub fn to_i64(&self) -> i64 {
-                    match self {
-                        DepylerValue::Int(_dv_int) => *_dv_int,
-                        DepylerValue::Float(_dv_float) => *_dv_float as i64,
-                        DepylerValue::Bool(_dv_bool) => if *_dv_bool { 1 } else { 0 },
-                        DepylerValue::Str(_dv_str) => _dv_str.parse().unwrap_or(0),
-                        _ => 0,
+                    /// Convert to String (renamed to avoid shadowing Display::to_string)
+                    /// DEPYLER-1121: Renamed from to_string to as_string to fix clippy::inherent_to_string_shadow_display
+                    pub fn as_string(&self) -> String {
+                        match self {
+                            DepylerValue::Str(_dv_str) => _dv_str.clone(),
+                            DepylerValue::Int(_dv_int) => _dv_int.to_string(),
+                            DepylerValue::Float(_dv_float) => _dv_float.to_string(),
+                            DepylerValue::Bool(_dv_bool) => _dv_bool.to_string(),
+                            DepylerValue::None => "None".to_string(),
+                            DepylerValue::List(_dv_list) => format!("{:?}", _dv_list),
+                            DepylerValue::Dict(_dv_dict) => format!("{:?}", _dv_dict),
+                            DepylerValue::Tuple(_dv_tuple) => format!("{:?}", _dv_tuple),
+                        }
                     }
-                }
 
-                /// Convert to f64
-                pub fn to_f64(&self) -> f64 {
-                    match self {
-                        DepylerValue::Float(_dv_float) => *_dv_float,
-                        DepylerValue::Int(_dv_int) => *_dv_int as f64,
-                        DepylerValue::Bool(_dv_bool) => if *_dv_bool { 1.0 } else { 0.0 },
-                        DepylerValue::Str(_dv_str) => _dv_str.parse().unwrap_or(0.0),
-                        _ => 0.0,
+                    /// DEPYLER-1215: Get as str reference (for string values only)
+                    pub fn as_str(&self) -> Option<&str> {
+                        match self {
+                            DepylerValue::Str(_dv_str) => Some(_dv_str.as_str()),
+                            _ => None,
+                        }
                     }
-                }
 
-                /// Convert to bool
-                pub fn to_bool(&self) -> bool {
-                    match self {
-                        DepylerValue::Bool(_dv_bool) => *_dv_bool,
-                        DepylerValue::Int(_dv_int) => *_dv_int != 0,
-                        DepylerValue::Float(_dv_float) => *_dv_float != 0.0,
-                        DepylerValue::Str(_dv_str) => !_dv_str.is_empty(),
-                        DepylerValue::List(_dv_list) => !_dv_list.is_empty(),
-                        DepylerValue::Dict(_dv_dict) => !_dv_dict.is_empty(),
-                        DepylerValue::Tuple(_dv_tuple) => !_dv_tuple.is_empty(),
-                        DepylerValue::None => false,
+                    /// DEPYLER-1215: Get as i64 (for integer values)
+                    pub fn as_i64(&self) -> Option<i64> {
+                        match self {
+                            DepylerValue::Int(_dv_int) => Some(*_dv_int),
+                            _ => None,
+                        }
                     }
-                }
 
-                /// DEPYLER-1064: Get tuple element by index for tuple unpacking
-                /// Returns the element at the given index, or panics with a readable error
-                /// Works on both Tuple and List variants (Python treats them similarly for unpacking)
-                pub fn get_tuple_elem(&self, _dv_idx: usize) -> DepylerValue {
-                    match self {
-                        DepylerValue::Tuple(_dv_tuple) => {
-                            if _dv_idx < _dv_tuple.len() {
-                                _dv_tuple[_dv_idx].clone()
-                            } else {
-                                panic!("Tuple index {} out of bounds (length {})", _dv_idx, _dv_tuple.len())
+                    /// DEPYLER-1215: Get as f64 (for float values)
+                    pub fn as_f64(&self) -> Option<f64> {
+                        match self {
+                            DepylerValue::Float(_dv_float) => Some(*_dv_float),
+                            DepylerValue::Int(_dv_int) => Some(*_dv_int as f64),
+                            _ => None,
+                        }
+                    }
+
+                    /// DEPYLER-1215: Get as bool (for boolean values)
+                    pub fn as_bool(&self) -> Option<bool> {
+                        match self {
+                            DepylerValue::Bool(_dv_bool) => Some(*_dv_bool),
+                            _ => None,
+                        }
+                    }
+
+                    /// Convert to i64
+                    pub fn to_i64(&self) -> i64 {
+                        match self {
+                            DepylerValue::Int(_dv_int) => *_dv_int,
+                            DepylerValue::Float(_dv_float) => *_dv_float as i64,
+                            DepylerValue::Bool(_dv_bool) => if *_dv_bool { 1 } else { 0 },
+                            DepylerValue::Str(_dv_str) => _dv_str.parse().unwrap_or(0),
+                            _ => 0,
+                        }
+                    }
+
+                    /// Convert to f64
+                    pub fn to_f64(&self) -> f64 {
+                        match self {
+                            DepylerValue::Float(_dv_float) => *_dv_float,
+                            DepylerValue::Int(_dv_int) => *_dv_int as f64,
+                            DepylerValue::Bool(_dv_bool) => if *_dv_bool { 1.0 } else { 0.0 },
+                            DepylerValue::Str(_dv_str) => _dv_str.parse().unwrap_or(0.0),
+                            _ => 0.0,
+                        }
+                    }
+
+                    /// Convert to bool
+                    pub fn to_bool(&self) -> bool {
+                        match self {
+                            DepylerValue::Bool(_dv_bool) => *_dv_bool,
+                            DepylerValue::Int(_dv_int) => *_dv_int != 0,
+                            DepylerValue::Float(_dv_float) => *_dv_float != 0.0,
+                            DepylerValue::Str(_dv_str) => !_dv_str.is_empty(),
+                            DepylerValue::List(_dv_list) => !_dv_list.is_empty(),
+                            DepylerValue::Dict(_dv_dict) => !_dv_dict.is_empty(),
+                            DepylerValue::Tuple(_dv_tuple) => !_dv_tuple.is_empty(),
+                            DepylerValue::None => false,
+                        }
+                    }
+
+                    /// DEPYLER-1064: Get tuple element by index for tuple unpacking
+                    /// Returns the element at the given index, or panics with a readable error
+                    /// Works on both Tuple and List variants (Python treats them similarly for unpacking)
+                    pub fn get_tuple_elem(&self, _dv_idx: usize) -> DepylerValue {
+                        match self {
+                            DepylerValue::Tuple(_dv_tuple) => {
+                                if _dv_idx < _dv_tuple.len() {
+                                    _dv_tuple[_dv_idx].clone()
+                                } else {
+                                    panic!("Tuple index {} out of bounds (length {})", _dv_idx, _dv_tuple.len())
+                                }
                             }
-                        }
-                        DepylerValue::List(_dv_list) => {
-                            if _dv_idx < _dv_list.len() {
-                                _dv_list[_dv_idx].clone()
-                            } else {
-                                panic!("List index {} out of bounds (length {})", _dv_idx, _dv_list.len())
+                            DepylerValue::List(_dv_list) => {
+                                if _dv_idx < _dv_list.len() {
+                                    _dv_list[_dv_idx].clone()
+                                } else {
+                                    panic!("List index {} out of bounds (length {})", _dv_idx, _dv_list.len())
+                                }
                             }
+                            _dv_other => panic!("Expected tuple or list for unpacking, found {:?}", _dv_other),
                         }
-                        _dv_other => panic!("Expected tuple or list for unpacking, found {:?}", _dv_other),
                     }
-                }
 
-                /// DEPYLER-1064: Extract tuple as Vec for multiple assignment
-                /// Validates that the value is a tuple/list with the expected number of elements
-                pub fn extract_tuple(&self, _dv_expected_len: usize) -> Vec<DepylerValue> {
-                    match self {
-                        DepylerValue::Tuple(_dv_tuple) => {
-                            if _dv_tuple.len() != _dv_expected_len {
-                                panic!("Expected tuple of length {}, got length {}", _dv_expected_len, _dv_tuple.len())
+                    /// DEPYLER-1064: Extract tuple as Vec for multiple assignment
+                    /// Validates that the value is a tuple/list with the expected number of elements
+                    pub fn extract_tuple(&self, _dv_expected_len: usize) -> Vec<DepylerValue> {
+                        match self {
+                            DepylerValue::Tuple(_dv_tuple) => {
+                                if _dv_tuple.len() != _dv_expected_len {
+                                    panic!("Expected tuple of length {}, got length {}", _dv_expected_len, _dv_tuple.len())
+                                }
+                                _dv_tuple.clone()
                             }
-                            _dv_tuple.clone()
-                        }
-                        DepylerValue::List(_dv_list) => {
-                            if _dv_list.len() != _dv_expected_len {
-                                panic!("Expected list of length {}, got length {}", _dv_expected_len, _dv_list.len())
+                            DepylerValue::List(_dv_list) => {
+                                if _dv_list.len() != _dv_expected_len {
+                                    panic!("Expected list of length {}, got length {}", _dv_expected_len, _dv_list.len())
+                                }
+                                _dv_list.clone()
                             }
-                            _dv_list.clone()
+                            _dv_other => panic!("Expected tuple or list for unpacking, found {:?}", _dv_other),
                         }
-                        _dv_other => panic!("Expected tuple or list for unpacking, found {:?}", _dv_other),
                     }
-                }
 
-                // DEPYLER-1137: XML Element-compatible proxy methods
-                // These allow DepylerValue to be used as a drop-in replacement for XML elements
+                    // DEPYLER-1137: XML Element-compatible proxy methods
+                    // These allow DepylerValue to be used as a drop-in replacement for XML elements
 
-                /// DEPYLER-1137: Get tag name (XML element proxy)
-                /// Returns empty string for non-element types
-                pub fn tag(&self) -> String {
-                    match self {
-                        DepylerValue::Str(_dv_s) => _dv_s.clone(),
-                        _ => String::new(),
-                    }
-                }
-
-                /// DEPYLER-1137: Get text content (XML element proxy)
-                /// Returns None for non-string types
-                pub fn text(&self) -> Option<String> {
-                    match self {
-                        DepylerValue::Str(_dv_s) => Some(_dv_s.clone()),
-                        DepylerValue::None => Option::None,
-                        _ => Option::None,
-                    }
-                }
-
-                /// DEPYLER-1137: Find child element by tag (XML element proxy)
-                /// Returns DepylerValue::None for non-matching/non-container types
-                pub fn find(&self, _tag: &str) -> DepylerValue {
-                    match self {
-                        DepylerValue::List(_dv_list) => {
-                            _dv_list.first().cloned().unwrap_or(DepylerValue::None)
+                    /// DEPYLER-1137: Get tag name (XML element proxy)
+                    /// Returns empty string for non-element types
+                    pub fn tag(&self) -> String {
+                        match self {
+                            DepylerValue::Str(_dv_s) => _dv_s.clone(),
+                            _ => String::new(),
                         }
-                        DepylerValue::Dict(_dv_dict) => {
-                            _dv_dict.get(&DepylerValue::Str(_tag.to_string()))
-                                .cloned()
-                                .unwrap_or(DepylerValue::None)
+                    }
+
+                    /// DEPYLER-1137: Get text content (XML element proxy)
+                    /// Returns None for non-string types
+                    pub fn text(&self) -> Option<String> {
+                        match self {
+                            DepylerValue::Str(_dv_s) => Some(_dv_s.clone()),
+                            DepylerValue::None => Option::None,
+                            _ => Option::None,
                         }
-                        _ => DepylerValue::None,
                     }
-                }
 
-                /// DEPYLER-1137: Find all child elements by tag (XML element proxy)
-                /// Returns empty Vec for non-container types
-                pub fn findall(&self, _tag: &str) -> Vec<DepylerValue> {
-                    match self {
-                        DepylerValue::List(_dv_list) => _dv_list.clone(),
-                        _ => Vec::new(),
+                    /// DEPYLER-1137: Find child element by tag (XML element proxy)
+                    /// Returns DepylerValue::None for non-matching/non-container types
+                    pub fn find(&self, _tag: &str) -> DepylerValue {
+                        match self {
+                            DepylerValue::List(_dv_list) => {
+                                _dv_list.first().cloned().unwrap_or(DepylerValue::None)
+                            }
+                            DepylerValue::Dict(_dv_dict) => {
+                                _dv_dict.get(&DepylerValue::Str(_tag.to_string()))
+                                    .cloned()
+                                    .unwrap_or(DepylerValue::None)
+                            }
+                            _ => DepylerValue::None,
+                        }
                     }
-                }
 
-                /// DEPYLER-1137: Set attribute (XML element proxy)
-                /// No-op for non-dict types
-                pub fn set(&mut self, key: &str, value: &str) {
-                    if let DepylerValue::Dict(_dv_dict) = self {
-                        _dv_dict.insert(
-                            DepylerValue::Str(String::from(key)),
-                            DepylerValue::Str(String::from(value))
-                        );
+                    /// DEPYLER-1137: Find all child elements by tag (XML element proxy)
+                    /// Returns empty Vec for non-container types
+                    pub fn findall(&self, _tag: &str) -> Vec<DepylerValue> {
+                        match self {
+                            DepylerValue::List(_dv_list) => _dv_list.clone(),
+                            _ => Vec::new(),
+                        }
                     }
-                }
+
+                    /// DEPYLER-1137: Set attribute (XML element proxy)
+                    /// No-op for non-dict types
+                    pub fn set(&mut self, key: &str, value: &str) {
+                        if let DepylerValue::Dict(_dv_dict) = self {
+                            _dv_dict.insert(
+                                DepylerValue::Str(String::from(key)),
+                                DepylerValue::Str(String::from(value))
+                            );
+                        }
+                    }
+        }
     }
-}
 }
 
 /// CB-200 Batch 14: Generate Index/IndexMut implementations

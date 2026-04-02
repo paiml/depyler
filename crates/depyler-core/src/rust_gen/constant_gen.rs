@@ -205,10 +205,7 @@ fn infer_nasa_dict_type(ctx: &mut CodeGenContext) -> proc_macro2::TokenStream {
     quote! { std::collections::HashMap<DepylerValue, DepylerValue> }
 }
 
-fn infer_nasa_list_type(
-    elems: &[HirExpr],
-    ctx: &mut CodeGenContext,
-) -> proc_macro2::TokenStream {
+fn infer_nasa_list_type(elems: &[HirExpr], ctx: &mut CodeGenContext) -> proc_macro2::TokenStream {
     if let Some(elem_type) = infer_homogeneous_list_type(elems) {
         return elem_type;
     }
@@ -216,10 +213,7 @@ fn infer_nasa_list_type(
     quote! { Vec<DepylerValue> }
 }
 
-fn infer_nasa_set_type(
-    elems: &[HirExpr],
-    ctx: &mut CodeGenContext,
-) -> proc_macro2::TokenStream {
+fn infer_nasa_set_type(elems: &[HirExpr], ctx: &mut CodeGenContext) -> proc_macro2::TokenStream {
     if let Some(elem_type) = infer_homogeneous_set_type(elems) {
         ctx.needs_hashset = true;
         return elem_type;
@@ -229,10 +223,7 @@ fn infer_nasa_set_type(
     quote! { std::collections::HashSet<DepylerValue> }
 }
 
-fn infer_nasa_slice_type(
-    base: &HirExpr,
-    ctx: &mut CodeGenContext,
-) -> proc_macro2::TokenStream {
+fn infer_nasa_slice_type(base: &HirExpr, ctx: &mut CodeGenContext) -> proc_macro2::TokenStream {
     if let HirExpr::Var(base_name) = base {
         if let Some(base_type) = ctx.var_types.get(base_name) {
             match base_type {
@@ -253,10 +244,7 @@ fn infer_nasa_slice_type(
     quote! { String }
 }
 
-fn infer_nasa_index_type(
-    base: &HirExpr,
-    ctx: &mut CodeGenContext,
-) -> proc_macro2::TokenStream {
+fn infer_nasa_index_type(base: &HirExpr, ctx: &mut CodeGenContext) -> proc_macro2::TokenStream {
     if let HirExpr::Var(base_name) = base {
         if let Some(base_type) = ctx.var_types.get(base_name) {
             match base_type {
@@ -312,10 +300,7 @@ fn infer_nasa_dictcomp_type(
     quote! { std::collections::HashMap<#key_type, #val_type> }
 }
 
-fn infer_math_attr_type(
-    attr_obj: &HirExpr,
-    attr: &str,
-) -> Option<proc_macro2::TokenStream> {
+fn infer_math_attr_type(attr_obj: &HirExpr, attr: &str) -> Option<proc_macro2::TokenStream> {
     if let HirExpr::Var(module_name) = attr_obj {
         if module_name == "math" {
             match attr {

@@ -31,9 +31,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "total_seconds" => self.convert_inst_total_seconds(dt_expr, nasa_mode),
             "fromisoformat" => self.convert_inst_fromisoformat(dt_expr, arg_exprs, nasa_mode)?,
             "isoformat" => self.convert_inst_isoformat(dt_expr, nasa_mode),
-            "strftime" => {
-                self.convert_inst_strftime(dt_expr, hir_args, arg_exprs, nasa_mode)?
-            }
+            "strftime" => self.convert_inst_strftime(dt_expr, hir_args, arg_exprs, nasa_mode)?,
             "timestamp" => self.convert_inst_timestamp(dt_expr, nasa_mode),
             "timetuple" => self.convert_inst_timetuple(dt_expr, nasa_mode),
             "weekday" => self.convert_inst_weekday(dt_expr, nasa_mode),
@@ -51,11 +49,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(result)
     }
 
-    fn convert_inst_total_seconds(
-        &mut self,
-        dt_expr: &syn::Expr,
-        nasa_mode: bool,
-    ) -> syn::Expr {
+    fn convert_inst_total_seconds(&mut self, dt_expr: &syn::Expr, nasa_mode: bool) -> syn::Expr {
         if nasa_mode {
             self.ctx.needs_depyler_timedelta = true;
             parse_quote! { #dt_expr.total_seconds() }
@@ -85,11 +79,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_inst_isoformat(
-        &self,
-        dt_expr: &syn::Expr,
-        nasa_mode: bool,
-    ) -> syn::Expr {
+    fn convert_inst_isoformat(&self, dt_expr: &syn::Expr, nasa_mode: bool) -> syn::Expr {
         if nasa_mode {
             parse_quote! { format!("{:?}", #dt_expr) }
         } else {
@@ -117,11 +107,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { #dt_expr.format(#fmt).to_string() })
     }
 
-    fn convert_inst_timestamp(
-        &self,
-        dt_expr: &syn::Expr,
-        nasa_mode: bool,
-    ) -> syn::Expr {
+    fn convert_inst_timestamp(&self, dt_expr: &syn::Expr, nasa_mode: bool) -> syn::Expr {
         if nasa_mode {
             parse_quote! {
                 #dt_expr.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs_f64()).unwrap_or(0.0)
@@ -131,11 +117,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_inst_timetuple(
-        &self,
-        dt_expr: &syn::Expr,
-        nasa_mode: bool,
-    ) -> syn::Expr {
+    fn convert_inst_timetuple(&self, dt_expr: &syn::Expr, nasa_mode: bool) -> syn::Expr {
         if nasa_mode {
             parse_quote! { (0i32, 0u32, 0u32, 0u32, 0u32, 0u32) }
         } else {
@@ -146,11 +128,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_inst_weekday(
-        &mut self,
-        dt_expr: &syn::Expr,
-        nasa_mode: bool,
-    ) -> syn::Expr {
+    fn convert_inst_weekday(&mut self, dt_expr: &syn::Expr, nasa_mode: bool) -> syn::Expr {
         if nasa_mode {
             self.ctx.needs_depyler_date = true;
             parse_quote! { #dt_expr.weekday() as i32 }
@@ -159,11 +137,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_inst_isoweekday(
-        &mut self,
-        dt_expr: &syn::Expr,
-        nasa_mode: bool,
-    ) -> syn::Expr {
+    fn convert_inst_isoweekday(&mut self, dt_expr: &syn::Expr, nasa_mode: bool) -> syn::Expr {
         if nasa_mode {
             self.ctx.needs_depyler_date = true;
             parse_quote! { #dt_expr.isoweekday() as i32 }
@@ -172,11 +146,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_inst_isocalendar(
-        &self,
-        dt_expr: &syn::Expr,
-        nasa_mode: bool,
-    ) -> syn::Expr {
+    fn convert_inst_isocalendar(&self, dt_expr: &syn::Expr, nasa_mode: bool) -> syn::Expr {
         if nasa_mode {
             parse_quote! { (2024i32, 1i32, 1i32) }
         } else {
@@ -231,11 +201,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
-    fn convert_dt_now(
-        &mut self,
-        arg_exprs: &[syn::Expr],
-        nasa_mode: bool,
-    ) -> syn::Expr {
+    fn convert_dt_now(&mut self, arg_exprs: &[syn::Expr], nasa_mode: bool) -> syn::Expr {
         if nasa_mode {
             self.ctx.needs_depyler_datetime = true;
             parse_quote! { DepylerDateTime::now() }
@@ -246,11 +212,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_dt_utcnow(
-        &mut self,
-        arg_exprs: &[syn::Expr],
-        nasa_mode: bool,
-    ) -> Result<syn::Expr> {
+    fn convert_dt_utcnow(&mut self, arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
         if !arg_exprs.is_empty() {
             bail!("datetime.utcnow() takes no arguments");
         }
@@ -262,11 +224,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_dt_today(
-        &mut self,
-        arg_exprs: &[syn::Expr],
-        nasa_mode: bool,
-    ) -> Result<syn::Expr> {
+    fn convert_dt_today(&mut self, arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
         if !arg_exprs.is_empty() {
             bail!("datetime.today() takes no arguments");
         }
@@ -324,11 +282,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         })
     }
 
-    fn convert_dt_isoformat(
-        &self,
-        arg_exprs: &[syn::Expr],
-        nasa_mode: bool,
-    ) -> Result<syn::Expr> {
+    fn convert_dt_isoformat(&self, arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
         if arg_exprs.len() != 1 {
             bail!("isoformat() requires exactly 1 argument (self)");
         }
@@ -340,11 +294,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_dt_timestamp(
-        &self,
-        arg_exprs: &[syn::Expr],
-        nasa_mode: bool,
-    ) -> Result<syn::Expr> {
+    fn convert_dt_timestamp(&self, arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
         if arg_exprs.len() != 1 {
             bail!("timestamp() requires exactly 1 argument (self)");
         }
@@ -430,11 +380,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_dt_date(
-        &self,
-        arg_exprs: &[syn::Expr],
-        nasa_mode: bool,
-    ) -> Result<syn::Expr> {
+    fn convert_dt_date(&self, arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
         if arg_exprs.len() != 1 {
             bail!("date() requires exactly 1 argument (self)");
         }
@@ -446,11 +392,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_dt_time(
-        &self,
-        arg_exprs: &[syn::Expr],
-        nasa_mode: bool,
-    ) -> Result<syn::Expr> {
+    fn convert_dt_time(&self, arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
         if arg_exprs.len() != 1 {
             bail!("time() requires exactly 1 argument (self)");
         }
@@ -462,11 +404,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_dt_replace(
-        &self,
-        arg_exprs: &[syn::Expr],
-        nasa_mode: bool,
-    ) -> Result<syn::Expr> {
+    fn convert_dt_replace(&self, arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
         if arg_exprs.len() != 2 {
             bail!("replace() not fully implemented (requires keyword args)");
         }
@@ -479,11 +417,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_dt_combine(
-        &self,
-        arg_exprs: &[syn::Expr],
-        nasa_mode: bool,
-    ) -> Result<syn::Expr> {
+    fn convert_dt_combine(&self, arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
         if arg_exprs.len() != 2 {
             bail!("combine() requires exactly 2 arguments (date, time)");
         }

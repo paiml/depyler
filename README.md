@@ -17,6 +17,7 @@ Depyler translates annotated Python code into idiomatic Rust, preserving program
 
 ## Table of Contents
 
+- [What's New in v4.1.1](#whats-new-in-v411)
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -29,16 +30,23 @@ Depyler translates annotated Python code into idiomatic Rust, preserving program
 - [Contributing](#contributing)
 - [License](#license)
 
-## v3.25.0 Milestone: Multi-Corpus Convergence
+## What's New in v4.1.1
 
-All three external corpus targets now met:
+- **`str(dict.get(key, default))` fix**: No longer generates spurious `.unwrap()` calls
+- **25+ Python module mappings**: `tempfile`, `datetime`, `os`, `shutil`, `glob`, and more
+- **E0433 import resolution**: Improved handling of unresolved imports
+- **`[profile.test] opt-level=1`**: Faster test execution
+
+### Multi-Corpus Convergence (v3.25.0+)
+
+All three external corpus targets met:
 
 | Corpus | Compile Rate | Target |
 |--------|--------------|--------|
-| Tier 1 (stdlib) | **92.7%** (38/41) | 80% ✅ |
-| Tier 2 (typed-cli) | **62.5%** (10/16) | 60% ✅ |
-| Tier 5 (algorithms) | **47.5%** (48/101) | 40% ✅ |
-| Internal examples | **80%** (256/320) | 80% ✅ |
+| Tier 1 (stdlib) | **92.7%** (38/41) | 80% |
+| Tier 2 (typed-cli) | **62.5%** (10/16) | 60% |
+| Tier 5 (algorithms) | **47.5%** (48/101) | 40% |
+| Internal examples | **80%** (256/320) | 80% |
 
 ## Features
 
@@ -215,7 +223,7 @@ Python AST → HIR → Type Inference → Rust AST → Code Generation
 | **Single-Shot Compile Rate** | 80% (256/320 examples) |
 | **Line Coverage** | 87.85% |
 | **Function Coverage** | 92.85% |
-| **Total Tests** | 14,000+ |
+| **Total Tests** | 23,335+ |
 | **Mutation Kill Rate** | 75%+ |
 
 Run coverage locally:

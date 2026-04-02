@@ -395,14 +395,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             (Some(key_expr), true) => {
                 let key_rust = key_expr.to_rust_expr(self.ctx)?;
-                Ok(
-                    parse_quote! { #object_expr.sort_by_key(|x| std::cmp::Reverse(#key_rust(x))) },
-                )
+                Ok(parse_quote! { #object_expr.sort_by_key(|x| std::cmp::Reverse(#key_rust(x))) })
             }
             (None, false) => Ok(parse_quote! { #object_expr.sort() }),
-            (None, true) => {
-                Ok(parse_quote! { #object_expr.sort_by(|a, b| b.cmp(a)) })
-            }
+            (None, true) => Ok(parse_quote! { #object_expr.sort_by(|a, b| b.cmp(a)) }),
         }
     }
 

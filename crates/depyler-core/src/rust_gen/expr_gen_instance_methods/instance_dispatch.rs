@@ -36,17 +36,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // CB-200 Batch 13: Path methods
-        if let Some(result) = self.try_convert_path_method(object, object_expr, method, arg_exprs)? {
+        if let Some(result) =
+            self.try_convert_path_method(object, object_expr, method, arg_exprs)?
+        {
             return Ok(result);
         }
 
         // CB-200 Batch 13: Datetime methods
-        if let Some(result) = self.try_convert_datetime_instance_method(object, object_expr, method, arg_exprs, hir_args)? {
+        if let Some(result) = self.try_convert_datetime_instance_method(
+            object,
+            object_expr,
+            method,
+            arg_exprs,
+            hir_args,
+        )? {
             return Ok(result);
         }
 
         // CB-200 Batch 13: CSV methods
-        if let Some(result) = Self::try_convert_csv_instance_method(object_expr, method, arg_exprs)? {
+        if let Some(result) = Self::try_convert_csv_instance_method(object_expr, method, arg_exprs)?
+        {
             return Ok(result);
         }
 
@@ -56,22 +65,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // CB-200 Batch 13: String method routing
-        if let Some(result) = self.try_route_string_method(object, object_expr, method, arg_exprs, hir_args)? {
+        if let Some(result) =
+            self.try_route_string_method(object, object_expr, method, arg_exprs, hir_args)?
+        {
             return Ok(result);
         }
 
         // CB-200 Batch 13: Dict methods on self.field
-        if let Some(result) = self.try_convert_self_field_dict_method(object, object_expr, method, arg_exprs, hir_args)? {
+        if let Some(result) = self.try_convert_self_field_dict_method(
+            object,
+            object_expr,
+            method,
+            arg_exprs,
+            hir_args,
+        )? {
             return Ok(result);
         }
 
         // CB-200 Batch 13: User-defined class instance methods
-        if let Some(result) = self.try_convert_class_instance_method(object, object_expr, method, arg_exprs, hir_args)? {
+        if let Some(result) = self.try_convert_class_instance_method(
+            object,
+            object_expr,
+            method,
+            arg_exprs,
+            hir_args,
+        )? {
             return Ok(result);
         }
 
         // CB-200 Batch 13: Set/Dict type-based dispatch
-        if let Some(result) = self.try_dispatch_set_or_dict(object, object_expr, method, arg_exprs, hir_args)? {
+        if let Some(result) =
+            self.try_dispatch_set_or_dict(object, object_expr, method, arg_exprs, hir_args)?
+        {
             return Ok(result);
         }
 
@@ -79,13 +104,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let method = Self::translate_dunder(method);
 
         // CB-200 Batch 14: Deque-specific methods (must come before list methods)
-        if let Some(result) = self.try_convert_deque_method(object, object_expr, method, arg_exprs, hir_args, kwargs)? {
+        if let Some(result) =
+            self.try_convert_deque_method(object, object_expr, method, arg_exprs, hir_args, kwargs)?
+        {
             return Ok(result);
         }
 
         // Fallback to method name dispatch
         match method {
-
             // List methods (remaining)
             "extend" | "insert" | "remove" | "index" | "copy" | "clear" | "reverse" | "sort" => {
                 self.convert_list_method(object_expr, object, method, arg_exprs, hir_args, kwargs)
@@ -426,12 +452,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(None);
         }
         match method {
-            "stat" if arg_exprs.is_empty() => {
-                Ok(Some(parse_quote! { std::fs::metadata(&#object_expr).expect("operation failed") }))
-            }
-            "absolute" | "resolve" if arg_exprs.is_empty() => {
-                Ok(Some(parse_quote! { #object_expr.canonicalize().expect("operation failed").to_string_lossy().to_string() }))
-            }
+            "stat" if arg_exprs.is_empty() => Ok(Some(
+                parse_quote! { std::fs::metadata(&#object_expr).expect("operation failed") },
+            )),
+            "absolute" | "resolve" if arg_exprs.is_empty() => Ok(Some(
+                parse_quote! { #object_expr.canonicalize().expect("operation failed").to_string_lossy().to_string() },
+            )),
             _ => Ok(None),
         }
     }
@@ -489,18 +515,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             "timestamp" if arg_exprs.is_empty() => {
                 if nasa_mode {
-                    Ok(Some(parse_quote! { #object_expr.duration_since(std::time::UNIX_EPOCH).expect("operation failed").as_secs() as f64 }))
+                    Ok(Some(
+                        parse_quote! { #object_expr.duration_since(std::time::UNIX_EPOCH).expect("operation failed").as_secs() as f64 },
+                    ))
                 } else {
                     Ok(Some(parse_quote! { #object_expr.and_utc().timestamp() as f64 }))
                 }
             }
             "date" if arg_exprs.is_empty() => {
-                if nasa_mode { Ok(Some(parse_quote! { #object_expr })) }
-                else { Ok(Some(parse_quote! { #object_expr.date() })) }
+                if nasa_mode {
+                    Ok(Some(parse_quote! { #object_expr }))
+                } else {
+                    Ok(Some(parse_quote! { #object_expr.date() }))
+                }
             }
             "time" if arg_exprs.is_empty() => {
-                if nasa_mode { Ok(Some(parse_quote! { #object_expr })) }
-                else { Ok(Some(parse_quote! { #object_expr.time() })) }
+                if nasa_mode {
+                    Ok(Some(parse_quote! { #object_expr }))
+                } else {
+                    Ok(Some(parse_quote! { #object_expr.time() }))
+                }
             }
             _ => Ok(None),
         }
@@ -545,7 +579,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return Ok(parse_quote! { #object_expr.as_str().to_string() });
             }
             let idx = &arg_exprs[0];
-            return Ok(parse_quote! { #object_expr.get(#idx).map(|m| m.as_str().to_string()).unwrap_or_default() });
+            return Ok(
+                parse_quote! { #object_expr.get(#idx).map(|m| m.as_str().to_string()).unwrap_or_default() },
+            );
         }
         let idx = &arg_exprs[0];
         Ok(parse_quote! {
@@ -567,10 +603,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let is_known_string = is_string_replace
             || matches!(
                 method,
-                "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
-                    | "split" | "splitlines" | "join" | "find" | "rfind" | "rindex"
-                    | "isdigit" | "isalpha" | "isalnum" | "title" | "center" | "ljust"
-                    | "rjust" | "zfill" | "hex" | "format" | "encode" | "decode"
+                "upper"
+                    | "lower"
+                    | "strip"
+                    | "lstrip"
+                    | "rstrip"
+                    | "startswith"
+                    | "endswith"
+                    | "split"
+                    | "splitlines"
+                    | "join"
+                    | "find"
+                    | "rfind"
+                    | "rindex"
+                    | "isdigit"
+                    | "isalpha"
+                    | "isalnum"
+                    | "title"
+                    | "center"
+                    | "ljust"
+                    | "rjust"
+                    | "zfill"
+                    | "hex"
+                    | "format"
+                    | "encode"
+                    | "decode"
             );
         if !is_known_string {
             return Ok(None);
@@ -589,7 +646,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             object_expr.clone()
         };
-        Ok(Some(self.convert_string_method(object, &adjusted_object_expr, method, arg_exprs, hir_args)?))
+        Ok(Some(self.convert_string_method(
+            object,
+            &adjusted_object_expr,
+            method,
+            arg_exprs,
+            hir_args,
+        )?))
     }
 
     // CB-200 Batch 13: Handle dict methods on self.field attributes
@@ -601,17 +664,39 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         arg_exprs: &[syn::Expr],
         hir_args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
-        let HirExpr::Attribute { value, attr } = object else { return Ok(None); };
-        let HirExpr::Var(var_name) = value.as_ref() else { return Ok(None); };
-        if var_name != "self" { return Ok(None); }
-        let is_dict_method = matches!(method, "items" | "keys" | "values" | "get" | "update" | "setdefault" | "popitem");
+        let HirExpr::Attribute { value, attr } = object else {
+            return Ok(None);
+        };
+        let HirExpr::Var(var_name) = value.as_ref() else {
+            return Ok(None);
+        };
+        if var_name != "self" {
+            return Ok(None);
+        }
+        let is_dict_method = matches!(
+            method,
+            "items" | "keys" | "values" | "get" | "update" | "setdefault" | "popitem"
+        );
         let field_type_opt = self.ctx.class_field_types.get(attr);
         let is_dict_field = field_type_opt.map_or_else(
             || {
-                matches!(attr.as_str(), "config" | "settings" | "options" | "data" | "metadata" | "headers" | "params" | "kwargs")
-                    || attr.ends_with("_dict") || attr.ends_with("_map")
+                matches!(
+                    attr.as_str(),
+                    "config"
+                        | "settings"
+                        | "options"
+                        | "data"
+                        | "metadata"
+                        | "headers"
+                        | "params"
+                        | "kwargs"
+                ) || attr.ends_with("_dict")
+                    || attr.ends_with("_map")
             },
-            |field_type| matches!(field_type, Type::Dict(_, _)) || matches!(field_type, Type::Custom(s) if s == "Dict"),
+            |field_type| {
+                matches!(field_type, Type::Dict(_, _))
+                    || matches!(field_type, Type::Custom(s) if s == "Dict")
+            },
         );
         if is_dict_method && is_dict_field {
             Ok(Some(self.convert_dict_method(object_expr, object, method, arg_exprs, hir_args)?))
@@ -665,26 +750,47 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         hir_args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         if self.is_set_expr(object) {
-            if matches!(method, "add" | "remove" | "discard" | "update" | "intersection_update"
-                | "difference_update" | "union" | "intersection" | "difference"
-                | "symmetric_difference" | "issubset" | "issuperset" | "isdisjoint") {
-                return Ok(Some(self.convert_set_method(object_expr, object, method, arg_exprs, hir_args)?));
+            if matches!(
+                method,
+                "add"
+                    | "remove"
+                    | "discard"
+                    | "update"
+                    | "intersection_update"
+                    | "difference_update"
+                    | "union"
+                    | "intersection"
+                    | "difference"
+                    | "symmetric_difference"
+                    | "issubset"
+                    | "issuperset"
+                    | "isdisjoint"
+            ) {
+                return Ok(Some(self.convert_set_method(
+                    object_expr,
+                    object,
+                    method,
+                    arg_exprs,
+                    hir_args,
+                )?));
             }
         }
         if self.is_dict_expr(object) {
             if matches!(method, "get" | "keys" | "values" | "items" | "update") {
-                return Ok(Some(self.convert_dict_method(object_expr, object, method, arg_exprs, hir_args)?));
+                return Ok(Some(self.convert_dict_method(
+                    object_expr,
+                    object,
+                    method,
+                    arg_exprs,
+                    hir_args,
+                )?));
             }
         }
         Ok(None)
     }
 
     // CB-200 Batch 14: Wrap a single argument in DepylerValue based on HIR type information
-    fn wrap_arg_in_depyler_value(
-        &self,
-        arg: &syn::Expr,
-        hir_args: &[HirExpr],
-    ) -> syn::Expr {
+    fn wrap_arg_in_depyler_value(&self, arg: &syn::Expr, hir_args: &[HirExpr]) -> syn::Expr {
         if !hir_args.is_empty() {
             match &hir_args[0] {
                 HirExpr::Literal(Literal::Int(_)) => {
@@ -751,7 +857,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if !arg_exprs.is_empty() {
                     bail!("popleft() takes no arguments");
                 }
-                Ok(Some(parse_quote! { #object_expr.pop_front().expect("popleft from empty deque") }))
+                Ok(Some(
+                    parse_quote! { #object_expr.pop_front().expect("popleft from empty deque") },
+                ))
             }
             "extendleft" => {
                 if arg_exprs.len() != 1 {
