@@ -2,6 +2,16 @@
 
 This document provides a high-level overview of the Depyler project, intended for new contributors and users.
 
+## CRITICAL: Contract-First Design
+
+**NEVER write code before writing a provable contract.**
+
+All code changes MUST have a corresponding contract (YAML in ../provable-contracts/contracts/<project>/ or .pmat-work/<TICKET>/contract.json) BEFORE implementation. This is enforced by `pmat comply` CB-1400.
+
+- Use `pmat comply check` to verify contract coverage
+- Minimum verification level: L1 (recommended L3+)
+- See docs/agent-instructions/provable-contract-first-agents.md for the full workflow
+
 ## Project Overview
 
 Depyler is a sophisticated transpiler that converts Python code into safe, idiomatic, and energy-efficient Rust code. It leverages Python's type annotations to generate high-quality Rust code, and includes a semantic verification engine to ensure that the transpiled code is behaviorally equivalent to the original Python source.
