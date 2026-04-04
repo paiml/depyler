@@ -247,6 +247,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 Minimum Supported Rust Version: **1.83**
 
+## Cookbook
+
+See [depyler-cookbook](https://github.com/paiml/depyler-cookbook) for examples and recipes.
+
 ## License
 
 Licensed under MIT License. See [LICENSE](LICENSE) for details.
