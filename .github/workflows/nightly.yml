@@ -62,6 +62,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Checkout provable-contracts (path dep)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          repository: paiml/provable-contracts
+          path: provable-contracts
+
+      - name: Symlink provable-contracts for Cargo path deps
+        if: runner.os != 'Windows'
+        run: ln -sf "$GITHUB_WORKSPACE/provable-contracts" "$GITHUB_WORKSPACE/../provable-contracts"
+
+      - name: Symlink provable-contracts (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: New-Item -ItemType Junction -Path "$env:GITHUB_WORKSPACE\..\provable-contracts" -Target "$env:GITHUB_WORKSPACE\provable-contracts" -Force
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
