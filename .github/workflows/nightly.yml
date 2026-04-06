@@ -1,0 +1,217 @@
+# Nightly binary builds — cross-compiled for 4 targets
+# Spec: docs/specifications/release-system.md
+#
+# Schedule: daily 4am UTC. Manual trigger via workflow_dispatch.
+# Skips build if no commits in the last 24 hours.
+#
+# Produces: depyler-{target}.tar.gz (linux/mac) or .zip (windows)
+# Published as GitHub prerelease under the "nightly" tag.
+
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Check for recent activity ────────────────────────────
+  check-activity:
+    runs-on: ubuntu-latest
+    outputs:
+      has_commits: ${{ steps.check.outputs.has_commits }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Check for commits in last 24h
+        id: check
+        run: |
+          RECENT=$(git log --oneline --since="24 hours ago" | wc -l)
+          if [ "$RECENT" -gt 0 ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "has_commits=true" >> "$GITHUB_OUTPUT"
+            echo "Found $RECENT commit(s) in last 24h (or manual trigger)"
+          else
+            echo "has_commits=false" >> "$GITHUB_OUTPUT"
+            echo "No commits in last 24h — skipping nightly build"
+          fi
+
+  # ── Cross-compile binaries (4 targets) ───────────────────
+  build:
+    needs: check-activity
+    if: needs.check-activity.outputs.has_commits == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+          - target: x86_64-apple-darwin
+            runner: macos-latest
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Checkout provable-contracts (path dep)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          repository: paiml/provable-contracts
+          path: provable-contracts
+
+      - name: Symlink provable-contracts for Cargo path deps
+        if: runner.os != 'Windows'
+        run: ln -sf "$GITHUB_WORKSPACE/provable-contracts" "$GITHUB_WORKSPACE/../provable-contracts"
+
+      - name: Symlink provable-contracts (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: New-Item -ItemType Junction -Path "$env:GITHUB_WORKSPACE\..\provable-contracts" -Target "$env:GITHUB_WORKSPACE\provable-contracts" -Force
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Ensure target is installed
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Install pv (provable-contracts-cli)
+        run: cargo install provable-contracts-cli --locked
+
+      - name: Generate contract assertions (pv codegen, unix)
+        if: runner.os != 'Windows'
+        run: |
+          PC_CONTRACTS="$GITHUB_WORKSPACE/provable-contracts/contracts"
+          # Root src/
+          if [ -f src/lib.rs ] && grep -q 'mod generated_contracts' src/lib.rs && [ ! -f src/generated_contracts.rs ]; then
+            if [ -d "$PC_CONTRACTS" ]; then
+              pv codegen "$PC_CONTRACTS" -o src/generated_contracts.rs || true
+            elif [ -d contracts ]; then
+              pv codegen contracts/ -o src/generated_contracts.rs || true
+            fi
+          fi
+          # Workspace members (crates/*/)
+          for src_dir in crates/*/src; do
+            if [ -d "$src_dir" ] && [ -f "$src_dir/lib.rs" ] && grep -q 'mod generated_contracts' "$src_dir/lib.rs" && [ ! -f "$src_dir/generated_contracts.rs" ]; then
+              member_dir=$(dirname "$src_dir")
+              if [ -d "$PC_CONTRACTS" ]; then
+                pv codegen "$PC_CONTRACTS" -o "$src_dir/generated_contracts.rs" || true
+              elif [ -d "$member_dir/contracts" ]; then
+                pv codegen "$member_dir/contracts" -o "$src_dir/generated_contracts.rs" || true
+              fi
+            fi
+          done
+
+      - name: Generate contract assertions (pv codegen, windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $pcContracts = "$env:GITHUB_WORKSPACE\provable-contracts\contracts"
+          $srcDirs = @("src") + (Get-ChildItem -Path "crates" -Directory -ErrorAction SilentlyContinue | ForEach-Object { "crates\$($_.Name)\src" })
+          foreach ($srcDir in $srcDirs) {
+            $libRs = "$srcDir\lib.rs"
+            $genRs = "$srcDir\generated_contracts.rs"
+            if ((Test-Path $libRs) -and (Select-String -Path $libRs -Pattern 'mod generated_contracts' -Quiet) -and -not (Test-Path $genRs)) {
+              if (Test-Path $pcContracts) {
+                pv codegen $pcContracts -o $genRs
+              } elseif (Test-Path "contracts") {
+                pv codegen contracts -o $genRs
+              }
+            }
+          }
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package (unix)
+        if: runner.os != 'Windows'
+        run: |
+          ARCHIVE="depyler-${{ matrix.target }}"
+          mkdir -p "$ARCHIVE"
+          cp "target/${{ matrix.target }}/release/depyler" "$ARCHIVE/"
+          for f in README.md LICENSE LICENSE-MIT COPYING UNLICENSE; do
+            [ -f "$f" ] && cp "$f" "$ARCHIVE/"
+          done
+          tar czf "${ARCHIVE}.tar.gz" "$ARCHIVE"
+          shasum -a 256 "${ARCHIVE}.tar.gz" > "${ARCHIVE}.tar.gz.sha256"
+          echo "Packaged: ${ARCHIVE}.tar.gz ($(du -h "${ARCHIVE}.tar.gz" | cut -f1))"
+
+      - name: Package (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $archive = "depyler-${{ matrix.target }}"
+          New-Item -ItemType Directory -Force -Path $archive
+          Copy-Item "target/${{ matrix.target }}/release/depyler.exe" "$archive/"
+          foreach ($f in @("README.md", "LICENSE", "LICENSE-MIT", "COPYING", "UNLICENSE")) {
+            if (Test-Path $f) { Copy-Item $f "$archive/" }
+          }
+          Compress-Archive -Path "$archive/*" -DestinationPath "$archive.zip"
+          $hash = (Get-FileHash "$archive.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $archive.zip" | Out-File -Encoding ascii "$archive.zip.sha256"
+          Write-Host "Packaged: $archive.zip"
+
+      - name: Upload artifact (unix)
+        if: runner.os != 'Windows'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: depyler-${{ matrix.target }}
+          path: |
+            depyler-${{ matrix.target }}.tar.gz
+            depyler-${{ matrix.target }}.tar.gz.sha256
+
+      - name: Upload artifact (windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: depyler-${{ matrix.target }}
+          path: |
+            depyler-${{ matrix.target }}.zip
+            depyler-${{ matrix.target }}.zip.sha256
+
+  # ── Create/update nightly prerelease ─────────────────────
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Delete existing nightly release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete nightly --yes --cleanup-tag 2>/dev/null || true
+
+      - name: Create nightly release
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631  # v2.2.2
+        with:
+          tag_name: nightly
+          name: Nightly Build
+          prerelease: true
+          make_latest: false
+          body: |
+            Automated nightly build from `main`.
+
+            **Date:** ${{ github.event.repository.updated_at || github.event.head_commit.timestamp }}
+            **Commit:** ${{ github.sha }}
+
+            > This is a prerelease. For stable releases, see the latest tagged version.
+          files: |
+            artifacts/*
