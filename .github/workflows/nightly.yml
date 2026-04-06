@@ -131,7 +131,7 @@ jobs:
           }
 
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release -p depyler --target ${{ matrix.target }}
 
       - name: Package (unix)
         if: runner.os != 'Windows'
