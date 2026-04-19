@@ -1,7 +1,8 @@
 fn main() {
-    // Provable-contracts enforcement (CB-1208)
+    // Contracts enforcement (CB-1208) — migrated from archived provable-contracts
+    // to aprender-contracts (APR-MONO, paiml/aprender#701).
     // Note: workspace package is "depyler-workspace" but contracts dir is "depyler"
-    let contracts_dir = std::path::Path::new("../provable-contracts/contracts");
+    let contracts_dir = std::path::Path::new("../aprender/contracts");
     let pkg = "depyler";
     let binding = contracts_dir.join(pkg).join("binding.yaml");
     if binding.exists() {

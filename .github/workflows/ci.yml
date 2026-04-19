@@ -28,3 +28,19 @@ jobs:
       repo: ${{ github.event.repository.name }}
     secrets: inherit
 
+  # Top-level gate: org ruleset requires a check context named exactly "gate".
+  # The reusable workflow produces "ci / gate" (prefixed by this job name),
+  # which does not match. This aggregator emits "gate" at the workflow level.
+  gate:
+    runs-on: ubuntu-latest
+    needs: [ci]
+    if: always()
+    steps:
+      - name: Check required jobs
+        run: |
+          if [ "${{ needs.ci.result }}" != "success" ]; then
+            echo "ci failed: ${{ needs.ci.result }}"
+            exit 1
+          fi
+          echo "All required jobs passed"
+
