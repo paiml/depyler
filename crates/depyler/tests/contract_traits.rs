@@ -1,5 +1,6 @@
 //! Contract-trait enforcement — compiler verifies bound functions exist.
-//! Section 23 of provable-contracts spec.
+//! Section 23 of provable-contracts spec (now provided by aprender-contracts,
+//! which publishes its library with the crate lib name `provable_contracts`).
 
 use provable_contracts::traits::*;
 
