@@ -3745,3 +3745,20 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-266
+  github_issue: 266
+  item_type: task
+  title: 'ci(nightly): restore nightly on the self-hosted fleet as rolling dated prereleases'
+  status: planned
+  priority: high
+  assigned_to: null
+  created: 2026-09-26T07:50:29Z
+  updated: 2026-09-26T07:50:29Z
+  spec: null
+  acceptance_criteria:
+  - 'Hosted runners banned (paiml/infra#231): all jobs on self-hosted clean-room runners (linux x86_64/aarch64 in rust:1.93.0-bullseye on docker runners, darwin on the mini); drop dead provable-contracts checkout + pv codegen; each night a NEW prerelease tag nightly-<YYYYMMDD>-<sha7>, never delete a tag, never make_latest; SKIP line in run summary when no commits; Windows NotRun (no self-hosted Windows runner); folds dependabot bumps #251/#252/#253.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
