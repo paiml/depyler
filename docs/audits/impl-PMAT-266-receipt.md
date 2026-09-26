@@ -28,6 +28,17 @@ In scope, each one asked for:
    `make_latest: false`. No tag is ever deleted.
 5. **Skipped nights.** A night with no commits writes `SKIP` to the run summary.
 
+6. **Consequences of the above:**
+   - **No `Checkout` in the release job.** Its only git use was deleting and
+     recreating the moving `nightly` tag, and item 4 removes that. The job
+     now reads only the downloaded artifacts and `github.sha`.
+   - **A `Smoke` step (`depyler --version`)** on each target whose binary can
+     run on its runner. #266's "done when" asks for a published nightly with
+     verified assets, and this is the cheapest proof that the shipped binary
+     runs. x86_64-apple-darwin is cross-built, so it is not smoked.
+   - **No build cache.** The gx10 runner is ephemeral, so the container mounts
+     only the workspace.
+
 ## Not in scope
 
 - The ci.yml gate job.

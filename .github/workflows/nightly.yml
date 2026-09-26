@@ -80,28 +80,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      # A sibling container through the mounted socket: every bind-mount path
-      # must exist on the HOST, and the cache lives outside the workspace so a
-      # checkout never wipes it.
+      # A sibling container through the mounted socket (the runner is
+      # ephemeral, so the workspace is the only mount and nothing is cached).
       - name: Build (container, glibc 2.31 floor)
         if: matrix.kind == 'container'
         run: |
           DOCKER=docker; docker ps >/dev/null 2>&1 || DOCKER="sudo -n docker"
-          T="${{ matrix.target }}"
-          CACHE="$(cd "$GITHUB_WORKSPACE/../.." && pwd)/cache-depyler-nightly/$T"
-          mkdir -p "$CACHE/registry" "$CACHE/target" "$GITHUB_WORKSPACE/target"
           $DOCKER run --rm \
             -v "$GITHUB_WORKSPACE:/workspace" \
-            -v "$CACHE/registry:/usr/local/cargo/registry" \
-            -v "$CACHE/target:/workspace/target" \
             -w /workspace \
-            -e CARGO_TARGET_DIR=/workspace/target \
             -e CARGO_INCREMENTAL=0 \
-            -e T="$T" \
+            -e T="${{ matrix.target }}" \
             rust:1.93.0-bullseye \
             sh -c 'set -e; ldd --version | head -1; cargo build --release -p depyler --target "$T"'
-          mkdir -p "target/$T/release"
-          cp "$CACHE/target/$T/release/depyler" "target/$T/release/depyler"
 
       - name: Build (native)
         if: matrix.kind == 'native'
