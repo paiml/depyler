@@ -1,11 +1,20 @@
-# Nightly binary builds — cross-compiled for 4 targets
+# Nightly binary builds — self-hosted fleet only, rolling dated prereleases.
 # Spec: docs/specifications/release-system.md
 #
 # Schedule: daily 4am UTC. Manual trigger via workflow_dispatch.
-# Skips build if no commits in the last 24 hours.
+# Skips build if no commits in the last 24 hours (the skip is written to the
+# run summary, so a skipped night is not mistaken for a built one).
 #
-# Produces: depyler-{target}.tar.gz (linux/mac) or .zip (windows)
-# Published as GitHub prerelease under the "nightly" tag.
+# Produces: depyler-{target}.tar.gz (+ .sha256) for
+#   x86_64-unknown-linux-gnu   (clean-room X64, rust:1.93.0-bullseye container)
+#   aarch64-unknown-linux-gnu  (gx10 clean-room, same container)
+#   aarch64-apple-darwin       (mini, native)
+#   x86_64-apple-darwin        (mini, cross)
+# x86_64-pc-windows-msvc is NotRun: the fleet has no Windows runner.
+#
+# Published as a prerelease under a NEW tag per night, `nightly-<YYYYMMDD>-<sha7>`.
+# Never semver, never make_latest, never crates.io, and no tag is deleted.
+# Hosted runners are banned fleet-wide (paiml/infra#231).
 
 name: Nightly
 
@@ -20,7 +29,7 @@ permissions:
 jobs:
   # ── Check for recent activity ────────────────────────────
   check-activity:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, clean-room]
     outputs:
       has_commits: ${{ steps.check.outputs.has_commits }}
     steps:
@@ -38,103 +47,75 @@ jobs:
             echo "Found $RECENT commit(s) in last 24h (or manual trigger)"
           else
             echo "has_commits=false" >> "$GITHUB_OUTPUT"
-            echo "No commits in last 24h — skipping nightly build"
+            echo "SKIP: no commits in last 24h, nothing built" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
-  # ── Cross-compile binaries (4 targets) ───────────────────
+  # ── Build depyler on the fleet ───────────────────────────
   build:
     needs: check-activity
     if: needs.check-activity.outputs.has_commits == 'true'
+    name: depyler ${{ matrix.target }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            runner: ubuntu-latest
-          - target: x86_64-apple-darwin
-            runner: macos-latest
+            kind: container
+            smoke: true
+            labels: '["self-hosted", "Linux", "X64", "clean-room", "docker"]'
+          - target: aarch64-unknown-linux-gnu
+            kind: container
+            smoke: true
+            labels: '["self-hosted", "Linux", "ARM64", "clean-room", "gx10", "docker"]'
           - target: aarch64-apple-darwin
-            runner: macos-latest
-          - target: x86_64-pc-windows-msvc
-            runner: windows-latest
-    runs-on: ${{ matrix.runner }}
+            kind: native
+            smoke: true
+            labels: '["self-hosted", "macOS", "mini-builder"]'
+          - target: x86_64-apple-darwin
+            kind: native
+            smoke: false
+            labels: '["self-hosted", "macOS", "mini-builder"]'
+    runs-on: ${{ fromJSON(matrix.labels) }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Checkout provable-contracts (path dep)
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          repository: paiml/provable-contracts
-          path: provable-contracts
-
-      - name: Symlink provable-contracts for Cargo path deps
-        if: runner.os != 'Windows'
-        run: ln -sf "$GITHUB_WORKSPACE/provable-contracts" "$GITHUB_WORKSPACE/../provable-contracts"
-
-      - name: Symlink provable-contracts (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: New-Item -ItemType Junction -Path "$env:GITHUB_WORKSPACE\..\provable-contracts" -Target "$env:GITHUB_WORKSPACE\provable-contracts" -Force
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Ensure target is installed
-        run: rustup target add ${{ matrix.target }}
-
-      - name: Install pv (provable-contracts-cli)
-        run: cargo install provable-contracts-cli --locked
-
-      - name: Generate contract assertions (pv codegen, unix)
-        if: runner.os != 'Windows'
+      # A sibling container through the mounted socket: every bind-mount path
+      # must exist on the HOST, and the cache lives outside the workspace so a
+      # checkout never wipes it.
+      - name: Build (container, glibc 2.31 floor)
+        if: matrix.kind == 'container'
         run: |
-          PC_CONTRACTS="$GITHUB_WORKSPACE/provable-contracts/contracts"
-          # Root src/
-          if [ -f src/lib.rs ] && grep -q 'mod generated_contracts' src/lib.rs && [ ! -f src/generated_contracts.rs ]; then
-            if [ -d "$PC_CONTRACTS" ]; then
-              pv codegen "$PC_CONTRACTS" -o src/generated_contracts.rs || true
-            elif [ -d contracts ]; then
-              pv codegen contracts/ -o src/generated_contracts.rs || true
-            fi
-          fi
-          # Workspace members (crates/*/)
-          for src_dir in crates/*/src; do
-            if [ -d "$src_dir" ] && [ -f "$src_dir/lib.rs" ] && grep -q 'mod generated_contracts' "$src_dir/lib.rs" && [ ! -f "$src_dir/generated_contracts.rs" ]; then
-              member_dir=$(dirname "$src_dir")
-              if [ -d "$PC_CONTRACTS" ]; then
-                pv codegen "$PC_CONTRACTS" -o "$src_dir/generated_contracts.rs" || true
-              elif [ -d "$member_dir/contracts" ]; then
-                pv codegen "$member_dir/contracts" -o "$src_dir/generated_contracts.rs" || true
-              fi
-            fi
-          done
+          DOCKER=docker; docker ps >/dev/null 2>&1 || DOCKER="sudo -n docker"
+          T="${{ matrix.target }}"
+          CACHE="$(cd "$GITHUB_WORKSPACE/../.." && pwd)/cache-depyler-nightly/$T"
+          mkdir -p "$CACHE/registry" "$CACHE/target" "$GITHUB_WORKSPACE/target"
+          $DOCKER run --rm \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$CACHE/registry:/usr/local/cargo/registry" \
+            -v "$CACHE/target:/workspace/target" \
+            -w /workspace \
+            -e CARGO_TARGET_DIR=/workspace/target \
+            -e CARGO_INCREMENTAL=0 \
+            -e T="$T" \
+            rust:1.93.0-bullseye \
+            sh -c 'set -e; ldd --version | head -1; cargo build --release -p depyler --target "$T"'
+          mkdir -p "target/$T/release"
+          cp "$CACHE/target/$T/release/depyler" "target/$T/release/depyler"
 
-      - name: Generate contract assertions (pv codegen, windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
+      - name: Build (native)
+        if: matrix.kind == 'native'
         run: |
-          $pcContracts = "$env:GITHUB_WORKSPACE\provable-contracts\contracts"
-          $srcDirs = @("src") + (Get-ChildItem -Path "crates" -Directory -ErrorAction SilentlyContinue | ForEach-Object { "crates\$($_.Name)\src" })
-          foreach ($srcDir in $srcDirs) {
-            $libRs = "$srcDir\lib.rs"
-            $genRs = "$srcDir\generated_contracts.rs"
-            if ((Test-Path $libRs) -and (Select-String -Path $libRs -Pattern 'mod generated_contracts' -Quiet) -and -not (Test-Path $genRs)) {
-              if (Test-Path $pcContracts) {
-                pv codegen $pcContracts -o $genRs
-              } elseif (Test-Path "contracts") {
-                pv codegen contracts -o $genRs
-              }
-            }
-          }
+          T="${{ matrix.target }}"
+          rustup toolchain install 1.93.0 --profile minimal --target "$T"
+          cargo +1.93.0 build --release -p depyler --target "$T"
 
-      - name: Build release binary
-        run: cargo build --release -p depyler --target ${{ matrix.target }}
+      - name: Smoke
+        if: matrix.smoke
+        run: |
+          "target/${{ matrix.target }}/release/depyler" --version
 
-      - name: Package (unix)
-        if: runner.os != 'Windows'
+      - name: Package
         run: |
           ARCHIVE="depyler-${{ matrix.target }}"
           mkdir -p "$ARCHIVE"
@@ -146,71 +127,46 @@ jobs:
           shasum -a 256 "${ARCHIVE}.tar.gz" > "${ARCHIVE}.tar.gz.sha256"
           echo "Packaged: ${ARCHIVE}.tar.gz ($(du -h "${ARCHIVE}.tar.gz" | cut -f1))"
 
-      - name: Package (windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $archive = "depyler-${{ matrix.target }}"
-          New-Item -ItemType Directory -Force -Path $archive
-          Copy-Item "target/${{ matrix.target }}/release/depyler.exe" "$archive/"
-          foreach ($f in @("README.md", "LICENSE", "LICENSE-MIT", "COPYING", "UNLICENSE")) {
-            if (Test-Path $f) { Copy-Item $f "$archive/" }
-          }
-          Compress-Archive -Path "$archive/*" -DestinationPath "$archive.zip"
-          $hash = (Get-FileHash "$archive.zip" -Algorithm SHA256).Hash.ToLower()
-          "$hash  $archive.zip" | Out-File -Encoding ascii "$archive.zip.sha256"
-          Write-Host "Packaged: $archive.zip"
-
-      - name: Upload artifact (unix)
-        if: runner.os != 'Windows'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: depyler-${{ matrix.target }}
           path: |
             depyler-${{ matrix.target }}.tar.gz
             depyler-${{ matrix.target }}.tar.gz.sha256
 
-      - name: Upload artifact (windows)
-        if: runner.os == 'Windows'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
-        with:
-          name: depyler-${{ matrix.target }}
-          path: |
-            depyler-${{ matrix.target }}.zip
-            depyler-${{ matrix.target }}.zip.sha256
-
-  # ── Create/update nightly prerelease ─────────────────────
+  # ── Publish a new dated prerelease ───────────────────────
   release:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, clean-room]
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-
       - name: Download all artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           path: artifacts
           merge-multiple: true
 
-      - name: Delete existing nightly release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Name the tag
+        id: tag
         run: |
-          gh release delete nightly --yes --cleanup-tag 2>/dev/null || true
+          TAG="nightly-$(date -u +%Y%m%d)-${GITHUB_SHA::7}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Publishing $TAG" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Create nightly release
-        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631  # v2.2.2
+      - name: Create nightly prerelease
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3.0.3
         with:
-          tag_name: nightly
-          name: Nightly Build
+          tag_name: ${{ steps.tag.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Nightly ${{ steps.tag.outputs.tag }}
           prerelease: true
           make_latest: false
           body: |
             Automated nightly build from `main`.
 
-            **Date:** ${{ github.event.repository.updated_at || github.event.head_commit.timestamp }}
             **Commit:** ${{ github.sha }}
+            **Targets:** x86_64/aarch64 linux-gnu (glibc 2.31 floor), aarch64/x86_64 apple-darwin.
+            **NotRun:** x86_64-pc-windows-msvc (no self-hosted Windows runner).
 
             > This is a prerelease. For stable releases, see the latest tagged version.
           files: |
