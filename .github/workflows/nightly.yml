@@ -94,8 +94,12 @@ jobs:
             rust:1.93.0-bullseye \
             sh -c 'set -e; ldd --version | head -1; cargo build --release -p depyler --target "$T"'
 
+      # Pinned: a host's cargo config may redirect target-dir (the mini does),
+      # and Smoke/Package read the binary from ./target.
       - name: Build (native)
         if: matrix.kind == 'native'
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target
         run: |
           T="${{ matrix.target }}"
           rustup toolchain install 1.93.0 --profile minimal --target "$T"
