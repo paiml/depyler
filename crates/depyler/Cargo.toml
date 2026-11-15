@@ -59,7 +59,7 @@ toml = "0.8"
 # DEPYLER-CACHE-001: O(1) compilation cache
 sha2 = "0.10"
 hex = "0.4"
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.41", features = ["bundled", "fallible_uint"] }
 dirs = "5.0"
 tempfile = "3.14"
 
