@@ -254,3 +254,7 @@ See [depyler-cookbook](https://github.com/paiml/depyler-cookbook) for examples a
 ## License
 
 Licensed under MIT License. See [LICENSE](LICENSE) for details.
+
+<!-- FUNNEL-001 footer: replace depyler with the repo name -->
+---
+📚 **Learn this hands-on:** [Pragmatic AI Labs courses on Coursera](https://www.coursera.org/partners/pragmatic-ai-labs?utm_source=github&utm_medium=readme&utm_campaign=funnel_2026q4&utm_content=depyler) · ✉ [Free newsletter](https://ds500.paiml.com/mailing?utm_source=github&utm_medium=readme&utm_campaign=funnel_2026q4&utm_content=depyler)
