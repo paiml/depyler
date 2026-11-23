@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.1.2] - 2026-11-23
+
+### Fixed
+
+- **str() unwrap (P0, GH-226):** `str(val)` no longer emits a spurious `.unwrap()` for `dict.get` with a default.
+- **Division codegen (GH-279, #281):** numeric `a / b` is no longer lowered to `.join()`; `.join()` is emitted only for demonstrable `Path` operands.
+- **Import resolution (GH-199, GH-200, GH-201, GH-204):** fixed E0433 errors for `tempfile`, `os` and other imports in transpiled output.
+- **Contracts (PMAT-164):** migrated from the archived `provable-contracts` to `aprender-contracts`.
+- **Nightly:** pv codegen step and explicit `depyler` package target in the nightly build.
+
+### Added
+
+- 25+ module mappings in the module mapper.
+- Contract-trait enforcement (13/13 trait impls), `build.rs` contract enforcement (CB-1208) and pv codegen contract macros.
+
+### Changed
+
+- Test profile uses `opt-level=1`.
+- `generated_contracts.rs` is now a build artifact (gitignored).
+- Nightly restored on the self-hosted fleet as dated prereleases (#267).
+- CI action bumps: `actions/checkout` 6.0.2, `actions/download-artifact` 8.0.2, `actions/upload-artifact` 7.0.2, `crates-io-auth-action` 1.0.6 (#245, #250, #269, #270, #271).
+
 ## [4.1.0] - 2026-02-12
 
 ### 99MODE-S9: 100% Convergence Milestone
