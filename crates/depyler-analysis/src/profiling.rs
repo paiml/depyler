@@ -155,9 +155,13 @@ impl Profiler {
             self.metrics.insert(func.name.clone(), metrics);
         }
 
-        // Calculate time percentages
+        // Calculate time percentages.
+        // DEPYLER-0279: the denominator must be total estimated TIME (instructions x loop
+        // multiplier), not total instruction count, or loops push shares past 100%.
+        let total_time: f64 = self.metrics.values().map(|m| m.estimated_time).sum();
         for metrics in self.metrics.values_mut() {
-            metrics.time_percentage = (metrics.estimated_time / total_instructions as f64) * 100.0;
+            metrics.time_percentage =
+                if total_time > 0.0 { (metrics.estimated_time / total_time) * 100.0 } else { 0.0 };
             metrics.is_hot = metrics.time_percentage > 10.0;
         }
 
@@ -945,6 +949,29 @@ mod tests {
         let report = profiler.analyze_program(&program);
         assert!(report.metrics.is_empty());
         assert_eq!(report.total_instructions, 0);
+    }
+
+    #[test]
+    fn test_depyler_0279_time_percentages_never_exceed_100() {
+        let mut profiler = Profiler::new(ProfileConfig::default());
+        let looped = create_test_function(
+            "looped",
+            vec![HirStmt::While {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                body: vec![HirStmt::Expr(HirExpr::Call {
+                    func: "print".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                })],
+            }],
+        );
+        let plain = create_test_function("plain", vec![HirStmt::Return(None)]);
+        let program =
+            HirProgram { functions: vec![looped, plain], classes: vec![], imports: vec![] };
+        let report = profiler.analyze_program(&program);
+        let sum: f64 = report.metrics.values().map(|m| m.time_percentage).sum();
+        assert!(report.metrics.values().all(|m| m.time_percentage <= 100.0));
+        assert!((sum - 100.0).abs() < 1e-6, "shares must sum to 100, got {sum}");
     }
 
     #[test]
