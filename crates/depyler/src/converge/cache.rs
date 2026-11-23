@@ -386,9 +386,9 @@ impl SqliteCache {
                     CompilationStatus::Failure
                 },
                 error_messages: serde_json::from_str(&row.get::<_, String>(4)?).unwrap_or_default(),
-                created_at: row.get(5)?,
-                last_accessed_at: row.get(6)?,
-                transpilation_time_ms: row.get(7)?,
+                created_at: row.get::<_, i64>(5)? as u64,
+                last_accessed_at: row.get::<_, i64>(6)? as u64,
+                transpilation_time_ms: row.get::<_, i64>(7)? as u64,
             })
         });
 
@@ -397,7 +397,7 @@ impl SqliteCache {
                 // Update last_accessed_at
                 self.conn.execute(
                     "UPDATE transpilation_cache SET last_accessed_at = ?1 WHERE cache_key = ?2",
-                    (current_timestamp(), &hex_key),
+                    (current_timestamp() as i64, &hex_key),
                 )?;
 
                 // Update hit count
@@ -449,9 +449,9 @@ impl SqliteCache {
                     CompilationStatus::Failure => "failure",
                 },
                 serde_json::to_string(&entry.error_messages).unwrap_or_default(),
-                now,
-                now,
-                entry.transpilation_time_ms,
+                now as i64,
+                now as i64,
+                entry.transpilation_time_ms as i64,
             ],
         )?;
 
@@ -473,8 +473,9 @@ impl SqliteCache {
     /// Get cache statistics
     pub fn stats(&self) -> Result<CacheStats, CacheError> {
         let total_entries: usize =
-            self.conn
-                .query_row("SELECT COUNT(*) FROM transpilation_cache", [], |row| row.get(0))?;
+            self.conn.query_row("SELECT COUNT(*) FROM transpilation_cache", [], |row| {
+                row.get::<_, i64>(0).map(|v| v as usize)
+            })?;
 
         let hit_count: u64 = self.get_stat("total_hits")?;
         let miss_count: u64 = self.get_stat("total_misses")?;
@@ -482,12 +483,16 @@ impl SqliteCache {
 
         let oldest_entry_secs: Option<u64> = self
             .conn
-            .query_row("SELECT MIN(created_at) FROM transpilation_cache", [], |row| row.get(0))
+            .query_row("SELECT MIN(created_at) FROM transpilation_cache", [], |row| {
+                row.get::<_, i64>(0).map(|v| v as u64)
+            })
             .ok();
 
         let newest_entry_secs: Option<u64> = self
             .conn
-            .query_row("SELECT MAX(created_at) FROM transpilation_cache", [], |row| row.get(0))
+            .query_row("SELECT MAX(created_at) FROM transpilation_cache", [], |row| {
+                row.get::<_, i64>(0).map(|v| v as u64)
+            })
             .ok();
 
         let total_size_bytes = self.cas.total_size()?;
@@ -513,8 +518,9 @@ impl SqliteCache {
 
         // Count current entries
         let current_count: usize =
-            self.conn
-                .query_row("SELECT COUNT(*) FROM transpilation_cache", [], |row| row.get(0))?;
+            self.conn.query_row("SELECT COUNT(*) FROM transpilation_cache", [], |row| {
+                row.get::<_, i64>(0).map(|v| v as usize)
+            })?;
 
         // Only GC if we have more than min_entries
         if current_count <= self.config.min_entries {
