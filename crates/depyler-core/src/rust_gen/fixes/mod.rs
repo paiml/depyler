@@ -11,6 +11,7 @@ mod misc;
 mod numeric;
 mod options_results;
 mod ownership;
+mod path_div;
 mod strings;
 mod truthiness;
 
