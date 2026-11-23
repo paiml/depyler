@@ -10,6 +10,7 @@ use super::misc::*;
 use super::numeric::*;
 use super::options_results::*;
 use super::ownership::*;
+use super::path_div::lower_path_div;
 use super::strings::*;
 use super::truthiness::*;
 
@@ -128,8 +129,10 @@ fn apply_converge_iter5_6_fixes(mut formatted_code: String) -> String {
         formatted_code = format!("use std::collections::HashMap;\n{}", formatted_code);
     }
     formatted_code = formatted_code.replace(".py_sub(", " - (");
-    // DEPYLER-1404: Fix py_div on PathBuf — Python `/` operator for path joining.
-    formatted_code = formatted_code.replace(".py_div(", ".join(");
+    // GH-279: do NOT rewrite `.py_div(` to `.join(` here. That blanket text replace
+    // turned every Python true division into a path join (E0599 on f64/i32). Only a
+    // receiver demonstrably a Path/PathBuf is joined (see `path_div`).
+    formatted_code = lower_path_div(&formatted_code);
 
     // DEPYLER-CONVERGE-MULTI-ITER6: Fix TypeError::new in broader contexts (E0433).
     formatted_code = formatted_code
