@@ -37,21 +37,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-99MODE-S9: List repetition [x] * n → vec![x; n as usize]
         // Must be caught before general expression conversion to avoid DepylerValue wrapping
         // in NASA mode. Python `[0] * n` or `[big] * (amount + 1)` becomes `vec![elem; count]`.
-        if matches!(op, BinOp::Mul) {
-            if let HirExpr::List(elts) = left {
-                if elts.len() == 1 {
-                    let elem_expr = elts[0].to_rust_expr(self.ctx)?;
-                    let count_expr = right.to_rust_expr(self.ctx)?;
-                    return Ok(parse_quote! { vec![#elem_expr; (#count_expr) as usize] });
-                }
-            }
-            if let HirExpr::List(elts) = right {
-                if elts.len() == 1 {
-                    let elem_expr = elts[0].to_rust_expr(self.ctx)?;
-                    let count_expr = left.to_rust_expr(self.ctx)?;
-                    return Ok(parse_quote! { vec![#elem_expr; (#count_expr) as usize] });
-                }
-            }
+        if let Some(vec_repeat) = self.try_list_repeat_literal(op, left, right)? {
+            return Ok(vec_repeat);
         }
 
         // DEPYLER-0496: Check if operands return Result types (need ? operator)
@@ -69,22 +56,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Only add ? if we're in a Result-returning context (current function can fail)
         // DEPYLER-99MODE-S9: Wrap cast expressions in parens before adding ? to avoid
         // "casts cannot be followed by ?" parse error (e.g., `x as i32?` → `(x as i32)?`)
-        if self.ctx.current_function_can_fail {
-            if left_returns_result {
-                if matches!(left_expr, syn::Expr::Cast(_)) {
-                    left_expr = parse_quote! { (#left_expr)? };
-                } else {
-                    left_expr = parse_quote! { #left_expr? };
-                }
-            }
-            if right_returns_result {
-                if matches!(right_expr, syn::Expr::Cast(_)) {
-                    right_expr = parse_quote! { (#right_expr)? };
-                } else {
-                    right_expr = parse_quote! { #right_expr? };
-                }
-            }
-        }
+        let can_fail = self.ctx.current_function_can_fail;
+        append_try_operator(&mut left_expr, can_fail, left_returns_result);
+        append_try_operator(&mut right_expr, can_fail, right_returns_result);
 
         // DEPYLER-0498: Unwrap Option types in comparison operations
         // Use unwrap_or with appropriate defaults for comparison
@@ -94,84 +68,40 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         );
 
         // CB-200 Final: NASA PyOps dispatch for arithmetic operators
-        if self.ctx.type_mapper.nasa_mode && !is_comparison {
-            if let Some(result) =
-                self.try_nasa_pyops_dispatch(op, left, right, &left_expr, &right_expr)?
-            {
-                return Ok(result);
-            }
+        if let Some(result) = self.try_nasa_arith_dispatch(
+            op,
+            is_comparison,
+            (left, right),
+            (&left_expr, &right_expr),
+        )? {
+            return Ok(result);
         }
 
         if is_comparison {
-            // CB-200 Batch 16: Delegate comparison transforms to extracted helper
-            if let Some(early) =
-                self.try_empty_list_comparison(op, left, right, &left_expr, &right_expr)?
-            {
+            if let Some(early) = self.apply_comparison_transforms(
+                op,
+                (left, right),
+                (left_is_option, right_is_option),
+                (&mut left_expr, &mut right_expr),
+            )? {
                 return Ok(early);
             }
-            self.apply_comparison_option_unwrap(
-                op,
-                left_is_option,
-                right_is_option,
-                &mut left_expr,
-                &mut right_expr,
-            );
-            self.apply_comparison_ref_deref(left, right, &mut left_expr, &mut right_expr);
-            self.apply_comparison_json_value_coerce(left, right, &mut left_expr, &mut right_expr);
-            self.apply_comparison_float_coerce(left, right, &mut left_expr, &mut right_expr);
-            self.apply_comparison_string_transforms(
-                op,
-                left,
-                right,
-                &mut left_expr,
-                &mut right_expr,
-            );
+        }
+
+        // DEPYLER-0926/0928/0575: trueno Vector arithmetic (no std operator traits)
+        if let Some(vector_op) = self.try_trueno_vector_op(op, left, right, &left_expr, &right_expr)
+        {
+            return Ok(vector_op);
         }
 
         match op {
             // DEPYLER-REFACTOR-001 Phase 2.7: Delegate to extracted helper
             BinOp::In => self.convert_containment_op(false, left, right, left_expr, right_expr),
             BinOp::NotIn => self.convert_containment_op(true, left, right, left_expr, right_expr),
-            // DEPYLER-0926: Vector-Vector addition for trueno
-            // trueno Vector doesn't implement Add trait, use method call instead
-            BinOp::Add if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
-                Ok(parse_quote! { #left_expr.add(&#right_expr).expect("arithmetic overflow") })
-            }
-            // DEPYLER-0928: Vector + scalar - element-wise addition
-            BinOp::Add if self.is_numpy_array_expr(left) && self.expr_returns_float(right) => {
-                Ok(parse_quote! {
-                    Vector::from_vec(#left_expr.as_slice().iter().map(|&x| x + #right_expr as f32).collect())
-                })
-            }
-            // DEPYLER-0928: scalar + Vector - element-wise addition (commutative)
-            BinOp::Add if self.expr_returns_float(left) && self.is_numpy_array_expr(right) => {
-                Ok(parse_quote! {
-                    Vector::from_vec(#right_expr.as_slice().iter().map(|&x| x + #left_expr as f32).collect())
-                })
-            }
             // DEPYLER-REFACTOR-001 Phase 2.8: Delegate to extracted helper
             BinOp::Add => self.convert_add_op(left, right, left_expr, right_expr, op),
-            BinOp::FloorDiv => {
-                // Python floor division semantics differ from Rust integer division
-                // Python: rounds towards negative infinity (floor)
-                // Rust: truncates towards zero
-                // For now, we generate code that works for integers with proper floor semantics
-                Ok(parse_quote! {
-                    {
-                        let a = #left_expr;
-                        let b = #right_expr;
-                        let q = a / b;
-                        let r = a % b;
-                        // Avoid != in boolean expression due to formatting issues
-                        let r_negative = r < 0;
-                        let b_negative = b < 0;
-                        let r_nonzero = r != 0;
-                        let signs_differ = r_negative != b_negative;
-                        let needs_adjustment = r_nonzero && signs_differ;
-                        if needs_adjustment { q - 1 } else { q }
-                    }
-                })
-            }
+            // Python floor division rounds towards negative infinity (Rust truncates)
+            BinOp::FloorDiv => Ok(floor_div_expr(&left_expr, &right_expr)),
             // DEPYLER-0303 Phase 3 Fix #7: Dict merge operator |
             // Python 3.9+ supports d1 | d2 for dictionary merge
             // Translate to: { let mut result = d1; result.extend(d2); result }
@@ -191,38 +121,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             {
                 self.convert_set_operation(op, left_expr, right_expr)
             }
+            // Set difference operation
             BinOp::Sub if self.is_set_expr(left) && self.is_set_expr(right) => {
-                // Set difference operation
                 self.convert_set_operation(op, left_expr, right_expr)
-            }
-            // DEPYLER-0575: Vector-scalar subtraction for trueno
-            // trueno Vector doesn't implement Sub<f32>, so use as_slice().iter().map()
-            BinOp::Sub if self.is_numpy_array_expr(left) && self.expr_returns_float(right) => {
-                Ok(parse_quote! {
-                    Vector::from_vec(#left_expr.as_slice().iter().map(|&x| x - #right_expr).collect())
-                })
-            }
-            // DEPYLER-0926: Vector-Vector subtraction for trueno
-            // trueno Vector doesn't implement Sub trait, use method call instead
-            BinOp::Sub if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
-                Ok(parse_quote! { #left_expr.sub(&#right_expr).expect("arithmetic overflow") })
             }
             // CB-200 Final: Subtraction operator delegated to extracted helper
             BinOp::Sub => self.convert_sub_op(left, right, left_expr, right_expr, op),
             // DEPYLER-REFACTOR-001 Phase 2.8: Delegate to extracted helper
             BinOp::Mul => self.convert_mul_op(left, right, left_expr, right_expr, op),
-            // DEPYLER-0575: Vector-scalar division for trueno
-            // trueno Vector doesn't implement Div<f32>, so use as_slice().iter().map()
-            BinOp::Div if self.is_numpy_array_expr(left) && self.expr_returns_float(right) => {
-                Ok(parse_quote! {
-                    Vector::from_vec(#left_expr.as_slice().iter().map(|&x| x / #right_expr).collect())
-                })
-            }
-            // DEPYLER-0926: Vector-Vector division for trueno
-            // trueno Vector doesn't implement Div trait, use method call instead
-            BinOp::Div if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
-                Ok(parse_quote! { #left_expr.div(&#right_expr).expect("division failed") })
-            }
             // CB-200 Final: Division operator delegated to extracted helper
             BinOp::Div => self.convert_div_op(left, right, left_expr, right_expr, op),
             // DEPYLER-REFACTOR-001 Phase 2.8: Delegate to extracted helper
@@ -233,6 +139,157 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             // CB-200 Final: Default operator handling delegated to extracted helper
             _ => self.convert_default_op(op, left, right, left_expr, right_expr),
+        }
+    }
+
+    /// Python `[x] * n` / `n * [x]` with a single-element list literal becomes
+    /// `vec![x; n as usize]` (DEPYLER-99MODE-S9). `None` when not that shape.
+    fn try_list_repeat_literal(
+        &mut self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+    ) -> Result<Option<syn::Expr>> {
+        if !matches!(op, BinOp::Mul) {
+            return Ok(None);
+        }
+        for (list, count) in [(left, right), (right, left)] {
+            if let HirExpr::List(elts) = list {
+                if elts.len() == 1 {
+                    let elem_expr = elts[0].to_rust_expr(self.ctx)?;
+                    let count_expr = count.to_rust_expr(self.ctx)?;
+                    return Ok(Some(parse_quote! { vec![#elem_expr; (#count_expr) as usize] }));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// CB-200 Final: NASA PyOps dispatch, arithmetic (non-comparison) operators only.
+    fn try_nasa_arith_dispatch(
+        &mut self,
+        op: BinOp,
+        is_comparison: bool,
+        (left, right): (&HirExpr, &HirExpr),
+        (left_expr, right_expr): (&syn::Expr, &syn::Expr),
+    ) -> Result<Option<syn::Expr>> {
+        if !self.ctx.type_mapper.nasa_mode || is_comparison {
+            return Ok(None);
+        }
+        self.try_nasa_pyops_dispatch(op, left, right, left_expr, right_expr)
+    }
+
+    /// CB-200 Batch 16: run the comparison transforms in order. `Some` is an early result
+    /// (empty-list comparison); `None` means the operands were rewritten in place.
+    fn apply_comparison_transforms(
+        &self,
+        op: BinOp,
+        (left, right): (&HirExpr, &HirExpr),
+        (left_is_option, right_is_option): (bool, bool),
+        (left_expr, right_expr): (&mut syn::Expr, &mut syn::Expr),
+    ) -> Result<Option<syn::Expr>> {
+        if let Some(early) =
+            self.try_empty_list_comparison(op, left, right, left_expr, right_expr)?
+        {
+            return Ok(Some(early));
+        }
+        self.apply_comparison_option_unwrap(
+            op,
+            left_is_option,
+            right_is_option,
+            left_expr,
+            right_expr,
+        );
+        self.apply_comparison_ref_deref(left, right, left_expr, right_expr);
+        self.apply_comparison_json_value_coerce(left, right, left_expr, right_expr);
+        self.apply_comparison_float_coerce(left, right, left_expr, right_expr);
+        self.apply_comparison_string_transforms(op, left, right, left_expr, right_expr);
+        Ok(None)
+    }
+
+    /// trueno `Vector` implements none of Add/Sub/Div for Vector or f32, so
+    /// numpy-array operands lower to method calls or element-wise maps.
+    fn try_trueno_vector_op(
+        &self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Option<syn::Expr> {
+        let left_array = self.is_numpy_array_expr(left);
+        let right_array = self.is_numpy_array_expr(right);
+        match op {
+            BinOp::Add => self.trueno_vector_add(
+                left,
+                right,
+                (left_array, right_array),
+                left_expr,
+                right_expr,
+            ),
+            // Set difference is handled by the caller before any Vector lowering
+            BinOp::Sub if self.is_set_expr(left) && self.is_set_expr(right) => None,
+            BinOp::Sub | BinOp::Div => self.trueno_vector_sub_div(
+                op,
+                right,
+                (left_array, right_array),
+                left_expr,
+                right_expr,
+            ),
+            _ => None,
+        }
+    }
+
+    /// DEPYLER-0575 / DEPYLER-0926: `Vector - scalar`, `Vector - Vector`, and the same for `/`.
+    fn trueno_vector_sub_div(
+        &self,
+        op: BinOp,
+        right: &HirExpr,
+        (left_array, right_array): (bool, bool),
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Option<syn::Expr> {
+        if !left_array {
+            return None;
+        }
+        match (op, self.expr_returns_float(right), right_array) {
+            (BinOp::Sub, true, _) => Some(parse_quote! {
+                Vector::from_vec(#left_expr.as_slice().iter().map(|&x| x - #right_expr).collect())
+            }),
+            (BinOp::Sub, false, true) => {
+                Some(parse_quote! { #left_expr.sub(&#right_expr).expect("arithmetic overflow") })
+            }
+            (BinOp::Div, true, _) => Some(parse_quote! {
+                Vector::from_vec(#left_expr.as_slice().iter().map(|&x| x / #right_expr).collect())
+            }),
+            (BinOp::Div, false, true) => {
+                Some(parse_quote! { #left_expr.div(&#right_expr).expect("division failed") })
+            }
+            _ => None,
+        }
+    }
+
+    /// DEPYLER-0926 / DEPYLER-0928: Vector + Vector, Vector + scalar, scalar + Vector.
+    fn trueno_vector_add(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        (left_array, right_array): (bool, bool),
+        left_expr: &syn::Expr,
+        right_expr: &syn::Expr,
+    ) -> Option<syn::Expr> {
+        if left_array && right_array {
+            Some(parse_quote! { #left_expr.add(&#right_expr).expect("arithmetic overflow") })
+        } else if left_array && self.expr_returns_float(right) {
+            Some(parse_quote! {
+                Vector::from_vec(#left_expr.as_slice().iter().map(|&x| x + #right_expr as f32).collect())
+            })
+        } else if right_array && self.expr_returns_float(left) {
+            Some(parse_quote! {
+                Vector::from_vec(#right_expr.as_slice().iter().map(|&x| x + #left_expr as f32).collect())
+            })
+        } else {
+            None
         }
     }
 
@@ -385,101 +442,86 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         left_expr: &mut syn::Expr,
         right_expr: &mut syn::Expr,
     ) {
-        let is_ordering_compare = matches!(op, BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq);
+        if matches!(op, BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq) {
+            self.apply_ordering_string_transforms(left, right, left_expr, right_expr);
+        } else if matches!(op, BinOp::Eq | BinOp::NotEq) {
+            self.apply_equality_string_transforms(left, right, left_expr, right_expr);
+        }
+    }
 
-        let left_is_string_index =
-            matches!(left, HirExpr::Index { base, .. } if self.is_string_base(base));
-        let right_is_string_index =
-            matches!(right, HirExpr::Index { base, .. } if self.is_string_base(base));
+    /// True for `Var(name)` whose recorded type is `String`.
+    fn is_string_typed_var(&self, expr: &HirExpr) -> bool {
+        matches!(expr, HirExpr::Var(name)
+            if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::String)))
+    }
 
-        let left_is_string_var = if let HirExpr::Var(name) = left {
-            if let Some(ty) = self.ctx.var_types.get(name) {
-                matches!(ty, Type::String)
-            } else {
-                false
-            }
-        } else {
-            false
-        };
+    /// True for `Var(name)` that is a `for c in string` loop variable (a Rust `char`).
+    fn is_char_iter_name(&self, expr: &HirExpr) -> bool {
+        matches!(expr, HirExpr::Var(name) if self.ctx.char_iter_vars.contains(name.as_str()))
+    }
 
-        let right_is_char_literal = matches!(
-            right,
-            HirExpr::Literal(Literal::String(s)) if s.len() == 1
-        );
+    /// `text[i]`-style index into a string-typed base.
+    fn is_string_index_expr(&self, expr: &HirExpr) -> bool {
+        matches!(expr, HirExpr::Index { base, .. } if self.is_string_base(base))
+    }
 
-        let left_is_char_iter_var = if let HirExpr::Var(name) = left {
-            self.ctx.char_iter_vars.contains(name.as_str())
-        } else {
-            false
-        };
+    /// Ordering comparisons (`<`, `<=`, `>`, `>=`): string operands compare as `&str`/`char`.
+    fn apply_ordering_string_transforms(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &mut syn::Expr,
+        right_expr: &mut syn::Expr,
+    ) {
+        let right_char = single_char_literal(right);
+        let left_is_char_iter_var = self.is_char_iter_name(left);
 
         // Convert char iter var vs single-char string to char literal
-        if is_ordering_compare && left_is_char_iter_var && right_is_char_literal {
-            if let HirExpr::Literal(Literal::String(s)) = right {
-                if let Some(ch) = s.chars().next() {
-                    let ch_lit = syn::LitChar::new(ch, proc_macro2::Span::call_site());
-                    *right_expr = parse_quote! { #ch_lit };
-                }
-            }
+        if let (true, Some(ch)) = (left_is_char_iter_var, right_char) {
+            let ch_lit = syn::LitChar::new(ch, proc_macro2::Span::call_site());
+            *right_expr = parse_quote! { #ch_lit };
         }
 
-        let left_needs_as_str = is_ordering_compare
-            && matches!(left, HirExpr::Var(_))
-            && right_is_char_literal
-            && !left_is_char_iter_var;
-
-        let right_is_string_var = if let HirExpr::Var(name) = right {
-            if let Some(ty) = self.ctx.var_types.get(name) {
-                matches!(ty, Type::String)
-            } else {
-                false
-            }
-        } else {
-            false
-        };
+        let left_needs_as_str =
+            matches!(left, HirExpr::Var(_)) && right_char.is_some() && !left_is_char_iter_var;
+        let left_converting =
+            self.is_string_index_expr(left) || self.is_string_typed_var(left) || left_needs_as_str;
 
         // For ordering comparisons with string expressions, convert to &str
-        let left_converting = left_is_string_index || left_is_string_var || left_needs_as_str;
-        if is_ordering_compare && left_converting {
+        if left_converting {
             *left_expr = parse_quote! { (#left_expr).as_str() };
         }
-        if is_ordering_compare
-            && (right_is_string_index || (right_is_string_var && left_converting))
+        if self.is_string_index_expr(right) || (self.is_string_typed_var(right) && left_converting)
         {
             *right_expr = parse_quote! { (#right_expr).as_str() };
         }
-        if is_ordering_compare && left_converting {
-            if let HirExpr::Literal(Literal::String(s)) = right {
-                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                *right_expr = parse_quote! { #lit };
-            }
+        if let (true, HirExpr::Literal(Literal::String(s))) = (left_converting, right) {
+            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+            *right_expr = parse_quote! { #lit };
         }
+    }
 
-        // Equality: handle String == &String
+    /// Equality comparisons (`==`, `!=`): String == &String, and DEPYLER-1045 char vs &str.
+    fn apply_equality_string_transforms(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: &mut syn::Expr,
+        right_expr: &mut syn::Expr,
+    ) {
         let right_is_ref_pattern =
             matches!(right, HirExpr::Var(_)) || matches!(right, HirExpr::Attribute { .. });
-        if matches!(op, BinOp::Eq | BinOp::NotEq) && left_is_string_index && right_is_ref_pattern {
+        if self.is_string_index_expr(left) && right_is_ref_pattern {
             *right_expr = parse_quote! { *#right_expr };
         }
 
-        // DEPYLER-1045: Handle char vs &str comparison
-        if matches!(op, BinOp::Eq | BinOp::NotEq) {
-            let left_is_char_iter = if let HirExpr::Var(name) = left {
-                self.ctx.char_iter_vars.contains(name)
-            } else {
-                false
-            };
-            let right_is_char_iter = if let HirExpr::Var(name) = right {
-                self.ctx.char_iter_vars.contains(name)
-            } else {
-                false
-            };
-            if left_is_char_iter && !right_is_char_iter {
-                *left_expr = parse_quote! { #left_expr.to_string() };
-            }
-            if right_is_char_iter && !left_is_char_iter {
-                *right_expr = parse_quote! { #right_expr.to_string() };
-            }
+        let left_is_char_iter = self.is_char_iter_name(left);
+        let right_is_char_iter = self.is_char_iter_name(right);
+        if left_is_char_iter && !right_is_char_iter {
+            *left_expr = parse_quote! { #left_expr.to_string() };
+        }
+        if right_is_char_iter && !left_is_char_iter {
+            *right_expr = parse_quote! { #right_expr.to_string() };
         }
     }
 
@@ -1066,44 +1108,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         left_expr: &syn::Expr,
         right_expr: &syn::Expr,
     ) -> Option<syn::Expr> {
-        let left_is_string_literal = matches!(left, HirExpr::Literal(Literal::String(_)));
-        let right_is_string_literal = matches!(right, HirExpr::Literal(Literal::String(_)));
-        let left_is_int_literal = matches!(left, HirExpr::Literal(Literal::Int(_)));
-        let right_is_int_literal = matches!(right, HirExpr::Literal(Literal::Int(_)));
+        let is_str_lit = |e: &HirExpr| matches!(e, HirExpr::Literal(Literal::String(_)));
+        let is_int_lit = |e: &HirExpr| matches!(e, HirExpr::Literal(Literal::Int(_)));
+        let int_var = |e: &HirExpr| is_int_typed_var(e, self.ctx);
 
-        if left_is_string_literal && right_is_int_literal {
-            return Some(parse_quote! { #left_expr.repeat(#right_expr as usize) });
-        } else if left_is_int_literal && right_is_string_literal {
-            return Some(parse_quote! { #right_expr.repeat(#left_expr as usize) });
-        }
-
-        let right_is_int_var_from_type = is_int_typed_var(right, self.ctx);
-        let left_is_int_var_from_type = is_int_typed_var(left, self.ctx);
-
-        if left_is_string_literal && right_is_int_var_from_type {
-            return Some(parse_quote! { #left_expr.repeat(#right_expr as usize) });
-        } else if left_is_int_var_from_type && right_is_string_literal {
-            return Some(parse_quote! { #right_expr.repeat(#left_expr as usize) });
-        }
-
-        let left_is_string_var = is_string_named_var(left);
-        let right_is_string_var = is_string_named_var(right);
-
-        if left_is_string_var && right_is_int_literal {
-            return Some(parse_quote! { #left_expr.repeat(#right_expr as usize) });
-        } else if left_is_int_literal && right_is_string_var {
-            return Some(parse_quote! { #right_expr.repeat(#left_expr as usize) });
-        }
-
-        let right_is_int_var = is_int_typed_var(right, self.ctx);
-        let left_is_int_var = is_int_typed_var(left, self.ctx);
-        if left_is_string_var && right_is_int_var {
-            return Some(parse_quote! { #left_expr.repeat(#right_expr as usize) });
-        } else if left_is_int_var && right_is_string_var {
-            return Some(parse_quote! { #right_expr.repeat(#left_expr as usize) });
-        }
-
-        None
+        // Ordered (condition, string operand is on the left) cases; first match wins.
+        let cases = [
+            (is_str_lit(left) && is_int_lit(right), true),
+            (is_int_lit(left) && is_str_lit(right), false),
+            (is_str_lit(left) && int_var(right), true),
+            (int_var(left) && is_str_lit(right), false),
+            (is_string_named_var(left) && is_int_lit(right), true),
+            (is_int_lit(left) && is_string_named_var(right), false),
+            (is_string_named_var(left) && int_var(right), true),
+            (int_var(left) && is_string_named_var(right), false),
+        ];
+        let (_, string_on_left) = cases.iter().find(|(matched, _)| *matched)?;
+        Some(if *string_on_left {
+            parse_quote! { #left_expr.repeat(#right_expr as usize) }
+        } else {
+            parse_quote! { #right_expr.repeat(#left_expr as usize) }
+        })
     }
 
     fn try_bytes_repeat(
@@ -1260,70 +1285,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             matches!(left, HirExpr::Slice { .. }) || matches!(right, HirExpr::Slice { .. });
 
         // DEPYLER-STRING-CONCAT: String variable detection for concatenation
-        // Check if either operand is a String-typed variable
-        let left_is_str_var = if let HirExpr::Var(name) = left {
-            self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::String))
-        } else {
-            false
-        };
-        let right_is_str_var = if let HirExpr::Var(name) = right {
-            self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::String))
-        } else {
-            false
-        };
-        let is_string_var = left_is_str_var || right_is_str_var;
-
-        // DEPYLER-STRING-CONCAT: Check for str() calls, .to_string(), and string indexing
-        let is_str_producing_expr = |expr: &HirExpr| -> bool {
-            match expr {
-                // str(x) call
-                HirExpr::Call { func, .. } if func == "str" => true,
-                // x.to_string() method call (not in HIR but detect common patterns)
-                HirExpr::MethodCall { method, .. }
-                    if method == "to_string" || method == "format" =>
-                {
-                    true
-                }
-                // String indexing: text[i] produces a character/String
-                // Check if base is a string type variable
-                HirExpr::Index { base, .. } => {
-                    if let HirExpr::Var(var_name) = base.as_ref() {
-                        // Check var_types for String type
-                        self.ctx
-                            .var_types
-                            .get(var_name)
-                            .map(|t| matches!(t, Type::String))
-                            .unwrap_or(false)
-                            || self.is_string_base(base)
-                    } else if let HirExpr::Attribute { attr: _, .. } = base.as_ref() {
-                        // args.text, args.prefix etc.
-                        self.is_string_base(base)
-                    } else {
-                        false
-                    }
-                }
-                _ => false,
-            }
-        };
-
-        // DEPYLER-99MODE-S9: Detect char iteration variables in string concat
-        // When iterating over string chars, the loop var is `char` type.
-        // char + String or String + char is string concatenation.
-        let left_is_char_iter = if let HirExpr::Var(name) = left {
-            self.ctx.char_iter_vars.contains(name)
-        } else {
-            false
-        };
-        let right_is_char_iter = if let HirExpr::Var(name) = right {
-            self.ctx.char_iter_vars.contains(name)
-        } else {
-            false
-        };
-        let is_char_string_concat = (left_is_char_iter
-            && (is_string_var || is_str_producing_expr(right)))
-            || (right_is_char_iter && (is_string_var || is_str_producing_expr(left)))
-            || (left_is_char_iter && matches!(right, HirExpr::Literal(Literal::String(_))))
-            || (right_is_char_iter && matches!(left, HirExpr::Literal(Literal::String(_))));
+        let is_string_var = self.is_string_typed_var(left) || self.is_string_typed_var(right);
+        let is_char_string_concat = self.is_char_string_concat(left, right, is_string_var);
 
         // String detection - includes literals, variable types, str() calls, string indexing
         // NOTE: Do NOT use current_return_type here - just because a function returns String
@@ -1331,22 +1294,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let is_definitely_string = matches!(left, HirExpr::Literal(Literal::String(_)))
             || matches!(right, HirExpr::Literal(Literal::String(_)))
             || is_string_var
-            || is_str_producing_expr(left)
-            || is_str_producing_expr(right)
+            || self.is_str_producing_expr(left)
+            || self.is_str_producing_expr(right)
             || is_char_string_concat;
 
-        // DEPYLER-0672: Additional heuristic - check generated expressions for string patterns
-        // Detect CSE temp vars from format!() and .unwrap_or_default() patterns
-        let left_str = quote! { #left_expr }.to_string();
-        let right_str = quote! { #right_expr }.to_string();
-        // DEPYLER-0693: Be more precise about string detection
-        // unwrap_or_default on array indexing (get()) returns the element default, not necessarily string
-        // Only treat as string if we see string-producing patterns like to_string() or format!()
-        let has_to_string = left_str.contains("to_string") || right_str.contains("to_string");
-        let has_format = left_str.contains("format !") || right_str.contains("format !");
-        let looks_like_string = has_format
-            || (left_str.contains("_cse_temp_") && has_to_string)
-            || (right_str.contains("_cse_temp_") && has_to_string);
+        let looks_like_string = generated_exprs_look_like_string(&left_expr, &right_expr);
 
         if (is_definitely_list || is_slice_concat || is_list_var) && !is_definitely_string {
             // List/slice concatenation
@@ -1357,60 +1309,66 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // String concatenation
             Ok(parse_quote! { format!("{}{}", #left_expr, #right_expr) })
         } else {
-            // Arithmetic addition
-            let rust_op = convert_binop(op)?;
-            // DEPYLER-0582: Coerce int to float if operating with float
-            let left_coerced = self.coerce_int_to_float_if_needed(left_expr.clone(), left, right);
-            let right_coerced = self.coerce_int_to_float_if_needed(right_expr.clone(), right, left);
-
-            // DEPYLER-1064: Type annotate integer literals when used with DepylerValue
-            // This prevents Rust's type inference ambiguity with multiple Add impls
-            let is_left_depyler = if let HirExpr::Var(name) = left {
-                self.ctx.type_mapper.nasa_mode
-                    && self.ctx.var_types.get(name).is_some_and(|t| {
-                        matches!(t, Type::Unknown)
-                            || matches!(t, Type::Custom(n) if n == "Any" || n == "object")
-                    })
-            } else {
-                false
-            };
-            let is_right_depyler = if let HirExpr::Var(name) = right {
-                self.ctx.type_mapper.nasa_mode
-                    && self.ctx.var_types.get(name).is_some_and(|t| {
-                        matches!(t, Type::Unknown)
-                            || matches!(t, Type::Custom(n) if n == "Any" || n == "object")
-                    })
-            } else {
-                false
-            };
-
-            // DEPYLER-1109: Universal PyOps Dispatch
-            // In NASA mode, use PyOps trait methods for ALL arithmetic operations
-            // This delegates type coercion to Rust's trait system (robust, compiled)
-            // instead of transpiler logic (complex, brittle)
-            if self.ctx.type_mapper.nasa_mode {
-                // Use .py_add() for all arithmetic - traits handle i32+f64, String+&str, etc.
-                return Ok(parse_quote! { #left_coerced.py_add(#right_coerced) });
-            }
-
-            // If one side is DepylerValue and other is int literal, type annotate the literal
-            let final_left =
-                if is_right_depyler && matches!(left, HirExpr::Literal(Literal::Int(_))) {
-                    // Annotate left as i64 for DepylerValue's Add<i64>
-                    parse_quote! { #left_coerced as i64 }
-                } else {
-                    left_coerced
-                };
-            let final_right =
-                if is_left_depyler && matches!(right, HirExpr::Literal(Literal::Int(_))) {
-                    // Annotate right as i64 for DepylerValue's Add<i64>
-                    parse_quote! { #right_coerced as i64 }
-                } else {
-                    right_coerced
-                };
-
-            Ok(parse_quote! { #final_left #rust_op #final_right })
+            self.convert_add_arithmetic(op, left, right, left_expr, right_expr)
         }
+    }
+
+    /// DEPYLER-STRING-CONCAT: `str(x)`, `.to_string()`, `.format()` calls and string indexing
+    /// all produce strings.
+    fn is_str_producing_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Call { func, .. } => func == "str",
+            HirExpr::MethodCall { method, .. } => method == "to_string" || method == "format",
+            // String indexing: text[i] produces a character/String
+            HirExpr::Index { base, .. } => match base.as_ref() {
+                HirExpr::Var(var_name) => {
+                    self.ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::String))
+                        || self.is_string_base(base)
+                }
+                // args.text, args.prefix etc.
+                HirExpr::Attribute { .. } => self.is_string_base(base),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-99MODE-S9: `char + String` / `String + char` is string concatenation
+    /// (a `for c in text` loop variable is a Rust `char`).
+    fn is_char_string_concat(&self, left: &HirExpr, right: &HirExpr, is_string_var: bool) -> bool {
+        let is_string_lit = |e: &HirExpr| matches!(e, HirExpr::Literal(Literal::String(_)));
+        let left_is_char_iter = self.is_char_iter_name(left);
+        let right_is_char_iter = self.is_char_iter_name(right);
+        (left_is_char_iter && (is_string_var || self.is_str_producing_expr(right)))
+            || (right_is_char_iter && (is_string_var || self.is_str_producing_expr(left)))
+            || (left_is_char_iter && is_string_lit(right))
+            || (right_is_char_iter && is_string_lit(left))
+    }
+
+    /// Arithmetic `+` once list and string concatenation are ruled out.
+    fn convert_add_arithmetic(
+        &self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+    ) -> Result<syn::Expr> {
+        let rust_op = convert_binop(op)?;
+        // DEPYLER-0582: Coerce int to float if operating with float
+        let left_coerced = self.coerce_int_to_float_if_needed(left_expr, left, right);
+        let right_coerced = self.coerce_int_to_float_if_needed(right_expr, right, left);
+
+        // DEPYLER-1109: Universal PyOps Dispatch
+        // In NASA mode, use PyOps trait methods for ALL arithmetic operations
+        // (traits handle i32+f64, String+&str, etc.)
+        if self.ctx.type_mapper.nasa_mode {
+            return Ok(parse_quote! { #left_coerced.py_add(#right_coerced) });
+        }
+
+        // DEPYLER-1064's DepylerValue literal annotation is only live in NASA mode,
+        // which returned above, so the operands are used as coerced.
+        Ok(parse_quote! { #left_coerced #rust_op #right_coerced })
     }
 
     /// DEPYLER-REFACTOR-001 Phase 2.7: Extracted containment operator helper
@@ -1776,4 +1734,56 @@ fn is_string_named_var(expr: &HirExpr) -> bool {
     } else {
         false
     }
+}
+
+/// DEPYLER-0496: append `?` to a Result-returning operand. Casts need parens first
+/// (`x as i32?` does not parse; `(x as i32)?` does).
+fn append_try_operator(expr: &mut syn::Expr, can_fail: bool, returns_result: bool) {
+    if !(can_fail && returns_result) {
+        return;
+    }
+    *expr = if matches!(expr, syn::Expr::Cast(_)) {
+        parse_quote! { (#expr)? }
+    } else {
+        parse_quote! { #expr? }
+    };
+}
+
+/// Python floor division: round towards negative infinity (Rust truncates towards zero).
+fn floor_div_expr(left_expr: &syn::Expr, right_expr: &syn::Expr) -> syn::Expr {
+    parse_quote! {
+        {
+            let a = #left_expr;
+            let b = #right_expr;
+            let q = a / b;
+            let r = a % b;
+            // Avoid != in boolean expression due to formatting issues
+            let r_negative = r < 0;
+            let b_negative = b < 0;
+            let r_nonzero = r != 0;
+            let signs_differ = r_negative != b_negative;
+            let needs_adjustment = r_nonzero && signs_differ;
+            if needs_adjustment { q - 1 } else { q }
+        }
+    }
+}
+
+/// The char of a one-byte string literal operand (`"a"`), else `None`.
+fn single_char_literal(expr: &HirExpr) -> Option<char> {
+    match expr {
+        HirExpr::Literal(Literal::String(s)) if s.len() == 1 => s.chars().next(),
+        _ => None,
+    }
+}
+
+/// DEPYLER-0672/0693: generated tokens that carry string-producing patterns
+/// (`format!()`, or `to_string()` on a CSE temp) mark a `+` as concatenation.
+fn generated_exprs_look_like_string(left_expr: &syn::Expr, right_expr: &syn::Expr) -> bool {
+    let left_str = quote! { #left_expr }.to_string();
+    let right_str = quote! { #right_expr }.to_string();
+    let has_to_string = left_str.contains("to_string") || right_str.contains("to_string");
+    let has_format = left_str.contains("format !") || right_str.contains("format !");
+    has_format
+        || (left_str.contains("_cse_temp_") && has_to_string)
+        || (right_str.contains("_cse_temp_") && has_to_string)
 }
