@@ -1,6 +1,6 @@
 [package]
 name = "depyler-workspace"
-version = "4.1.2"
+version = "4.1.3"
 edition = "2021"
 description = "Depyler workspace root - formal verification specs and design-by-contract invariants"
 license = "MIT OR Apache-2.0"
@@ -53,7 +53,7 @@ max_cyclomatic_complexity = 15
 required_documentation_coverage = 100.0
 
 [workspace.package]
-version = "4.1.2"
+version = "4.1.3"
 edition = "2021"
 authors = ["Depyler Contributors"]
 license = "MIT OR Apache-2.0"

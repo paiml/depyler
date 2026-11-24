@@ -10,7 +10,7 @@ keywords = ["python", "rust", "transpiler", "graph", "analysis"]
 categories = ["development-tools", "compilers"]
 
 [dependencies]
-depyler-core = { path = "../depyler-core", version = "4.1.1" }
+depyler-core = { path = "../depyler-core", version = "4.1.3" }
 petgraph.workspace = true
 serde.workspace = true
 serde_json.workspace = true
