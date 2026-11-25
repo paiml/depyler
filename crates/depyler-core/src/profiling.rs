@@ -160,9 +160,17 @@ impl Profiler {
             self.metrics.insert(func.name.clone(), metrics);
         }
 
-        // Calculate time percentages
+        // Calculate time percentages. The numerator is estimated_time (which
+        // includes loop multipliers), so the denominator must be the sum of
+        // estimated_time. Dividing by total_instructions (a raw instruction
+        // count) mixed units and could print values over 100% (GH-287).
+        let total_time: f64 = self.metrics.values().map(|m| m.estimated_time).sum();
         for metrics in self.metrics.values_mut() {
-            metrics.time_percentage = (metrics.estimated_time / total_instructions as f64) * 100.0;
+            metrics.time_percentage = if total_time > 0.0 {
+                (metrics.estimated_time / total_time) * 100.0
+            } else {
+                0.0
+            };
             metrics.is_hot = metrics.time_percentage > 10.0;
         }
 
@@ -1596,5 +1604,61 @@ mod tests {
         assert!(annotations
             .iter()
             .any(|a| matches!(a.kind, AnnotationKind::AllocationCounter)));
+    }
+
+    // GH-287: time_percentage must be a share of the total, never above 100%.
+    fn loop_function(name: &str) -> HirFunction {
+        create_test_function(
+            name,
+            vec![HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::Call {
+                    func: "range".to_string(),
+                    args: vec![HirExpr::Literal(Literal::Int(10))],
+                    kwargs: vec![],
+                },
+                body: vec![HirStmt::Expr(HirExpr::Var("i".to_string()))],
+            }],
+        )
+    }
+
+    #[test]
+    fn test_GH_287_time_percentage_never_exceeds_100() {
+        let mut profiler = Profiler::new(ProfileConfig::default());
+        let program = HirProgram {
+            functions: vec![loop_function("with_loop")],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let report = profiler.analyze_program(&program);
+        for metrics in report.metrics.values() {
+            assert!(
+                (0.0..=100.0).contains(&metrics.time_percentage),
+                "{} has time_percentage {}",
+                metrics.name,
+                metrics.time_percentage
+            );
+        }
+    }
+
+    #[test]
+    fn test_GH_287_time_percentages_sum_to_100() {
+        let mut profiler = Profiler::new(ProfileConfig::default());
+        let program = HirProgram {
+            functions: vec![
+                loop_function("loop_a"),
+                create_test_function(
+                    "straight_line",
+                    vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+                ),
+            ],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let report = profiler.analyze_program(&program);
+        let total: f64 = report.metrics.values().map(|m| m.time_percentage).sum();
+        assert!((total - 100.0).abs() < 1e-6, "percentages sum to {total}");
     }
 }
