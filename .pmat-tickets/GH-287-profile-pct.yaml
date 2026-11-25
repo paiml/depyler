@@ -1,0 +1,26 @@
+id: GH-287
+title: "Profiling time_percentage must be a share of total (<= 100%)"
+description: |
+  depyler check (metrics enabled) prints hot paths as "(N% of execution time)".
+  Profiler::analyze_program divided each function's estimated_time (instruction
+  count times loop multiplier) by total_instructions (a plain instruction sum),
+  so the numerator and denominator were in different units and the printed
+  share could exceed 100%.
+
+priority: P3
+type: bug
+status: todo
+github_issue: 287
+parent_issue: 279
+
+contract:
+  function: Profiler::analyze_program
+  file: crates/depyler-core/src/profiling.rs
+  postconditions:
+    - "for every function f: 0 <= f.time_percentage <= 100"
+    - "sum over functions of f.time_percentage == 100 when total estimated_time > 0"
+    - "when total estimated_time == 0, every time_percentage == 0 (no division by zero)"
+  verification_level: L1
+  tests:
+    - test_GH_287_time_percentage_never_exceeds_100
+    - test_GH_287_time_percentages_sum_to_100
