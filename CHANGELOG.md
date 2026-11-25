@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.1.3] - 2026-11-24
+
+### Security
+
+- **Dependencies:** `rusqlite` 0.32 -> 0.41 to resolve RUSTSEC-2026-0459 (#283).
+
 ## [4.1.2] - 2026-11-23
 
 ### Fixed
